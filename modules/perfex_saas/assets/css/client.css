@@ -1,0 +1,46 @@
+.ps-view {
+    margin-bottom: 50px;
+}
+
+.tw-h-screen {
+    height: 100vh;
+}
+
+.view-company-modal {
+    overflow: hidden !important;
+}
+
+.view-company-modal .modal-header {
+    padding: 0.5rem 0.75rem;
+    border-color: red;
+}
+
+.view-company-modal .modal-header .close {
+    margin-top: 0;
+}
+
+.view-company-modal .modal-header button.btn.dropdown-toggle.btn-default {
+    border-color: red;
+}
+
+.view-company-modal .modal-content {
+    height: inherit;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.view-company-modal .modal-body {
+    margin: 0;
+    padding: 0;
+    flex: 1;
+}
+
+.view-company-modal .modal-header .select-placeholder:after,
+.view-company-modal .modal-header .form-group.label {
+    display: none !important;
+}
+
+.view-company-modal .modal-header .form-group {
+    margin-bottom: 0;
+}

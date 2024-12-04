@@ -1,0 +1,704 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Project-Id-Version: Elementor Form PDF\n"
+"POT-Creation-Date: 2022-04-13 22:44+0700\n"
+"PO-Revision-Date: 2022-04-13 22:44+0700\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.0.5\n"
+"X-Poedit-Basepath: ..\n"
+"X-Poedit-Flags-xgettext: --add-comments=translators:\n"
+"X-Poedit-WPHeader: index.php\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"X-Poedit-KeywordsList: __;_e;_n:1,2;_x:1,2c;_ex:1,2c;_nx:4c,1,2;esc_attr__;"
+"esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c;_n_noop:1,2;"
+"_nx_noop:3c,1,2;__ngettext_noop:1,2\n"
+"X-Poedit-SearchPath-0: .\n"
+"X-Poedit-SearchPathExcluded-0: *.js\n"
+
+#: backend/settings.php:14 backend/settings.php:15
+msgid "CRM Marketing"
+msgstr ""
+
+#: backend/settings.php:24 backend/settings.php:25
+msgid "Configuration"
+msgstr ""
+
+#: backend/settings.php:32 backend/settings.php:33
+msgid "Logs"
+msgstr ""
+
+#: backend/settings.php:46
+msgid "List Logs"
+msgstr ""
+
+#: backend/settings.php:47
+msgid "Remove all logs"
+msgstr ""
+
+#: backend/settings.php:77
+msgid "Settings"
+msgstr ""
+
+#: backend/settings.php:168
+msgid "List Forms"
+msgstr ""
+
+#: backend/settings.php:177
+msgid "PDF Creator"
+msgstr ""
+
+#: backend/settings.php:179
+msgid ""
+" Automatically generate, email and download PDFs. A plugin is a helpful tool "
+"that helps you build and customize the PDF Templates for Forms. The plugin "
+"provides sufficient base elements and Forms elements as well as "
+"developmental tools for users to build a completed pdf. You can easily drag "
+"and drop, edit and style for transaction pdf using Layouts, insert desire "
+"contents with no coding knowledge required, and adds a PDF to the email sent "
+"out to your customers. Overall, you need to do is a couple of mouse clicks "
+"to create and experience your pdf template that will be sent to your "
+"customers."
+msgstr ""
+
+#: backend/settings.php:190
+msgid "Salesforce CRM"
+msgstr ""
+
+#: backend/settings.php:192
+msgid ""
+" The plugin allows you to connect Forms and Salesforce CRM. To automatically "
+"add/update form submissions to your Salesforce CRM account, simply integrate "
+"your Forms form with Salesforce CRM Lead, Contact or Case."
+msgstr ""
+
+#: backend/settings.php:203
+msgid "Zapier"
+msgstr ""
+
+#: backend/settings.php:205
+msgid ""
+"Although we’d love to build an integration for every third-party service and "
+"application available, it simply isn’t possible. Instead, we created a "
+"Zapier Add-on, enabling you to connect your forms with over 2,000 different "
+"web services and counting!"
+msgstr ""
+
+#: backend/settings.php:216
+msgid "get response"
+msgstr ""
+
+#: backend/settings.php:218
+msgid ""
+"The Add-On allows you to quickly integrate all of your online forms with the "
+"GetResponse email marketing service. Collect and add subscribers to your "
+"GetResponse marketing list when a form is submitted."
+msgstr ""
+
+#: backend/settings.php:229
+msgid "Webhooks"
+msgstr ""
+
+#: backend/settings.php:231
+msgid ""
+"The Webhooks add-on helps you send form data to an external API. Easily pass "
+"information such as form submissions to the 3rd-party service of your choice."
+msgstr ""
+
+#: backend/settings.php:242
+msgid "Mailchimp"
+msgstr ""
+
+#: backend/settings.php:244
+msgid ""
+"The Add-On gives you an easy way to integrate all of your online forms with "
+"the Mailchimp email marketing service. Collect and add subscribers to your "
+"email marketing lists automatically when a form is submitted."
+msgstr ""
+
+#: backend/settings.php:255
+msgid "Google Sheets"
+msgstr ""
+
+#: backend/settings.php:257
+msgid ""
+"As the visitor provides its information on your site, upon the form "
+"submission the data will instantly be sent to Google Sheets. In this way, "
+"you can create clear and simplified data over Google Sheets."
+msgstr ""
+
+#: backend/settings.php:268
+msgid "WhatsApp"
+msgstr ""
+
+#: backend/settings.php:270
+msgid ""
+"The add-on connect WhatsApp help your customer is auto redirect to send the "
+"data contact form in WhatsApp after the contact sent email."
+msgstr ""
+
+#: backend/settings.php:281
+msgid "Pardot Integration"
+msgstr ""
+
+#: backend/settings.php:283
+msgid ""
+" To automatically add/update submissions to your Pardot account, simply "
+"integrate your form with Pardot Prospect. Also, support Salesforce SSO."
+msgstr ""
+
+#: backend/settings.php:294
+msgid "Bitrix24 CRM"
+msgstr ""
+
+#: backend/settings.php:296
+msgid ""
+" After the integration, submited the form are automatically added as lead, "
+"deal, task, contact or company to the specified account in Bitrix24, "
+"together with additional data."
+msgstr ""
+
+#: backend/settings.php:307
+msgid "ActiveCampaign"
+msgstr ""
+
+#: backend/settings.php:309
+msgid ""
+"With the Add-On, you can quickly integrate any form on your WordPress "
+"website with ActiveCampaign’s all-in-one email marketing service."
+msgstr ""
+
+#: backend/settings.php:320
+msgid "HubSpot"
+msgstr ""
+
+#: backend/settings.php:322
+msgid ""
+"Need a CRM to manage and organize your relationships and interactions with "
+"leads and customers? Then look no further than HubSpot, an all-in-one "
+"marketing and sales platform, that will support your business on every step "
+"of its journey."
+msgstr ""
+
+#: backend/settings.php:333
+msgid "Campaign Monitor"
+msgstr ""
+
+#: backend/settings.php:335
+msgid ""
+"Collect and add subscribers to your Campaign Monitor email marketing list "
+"when a form is submitted"
+msgstr ""
+
+#: backend/settings.php:346
+msgid "Constant Contact"
+msgstr ""
+
+#: backend/settings.php:348
+msgid ""
+"Grow your mailing list faster with the Add-On! Automatically send new leads "
+"to your Constant Contact mailing list, then send targeted email campaigns "
+"designed to connect, engage, and convert."
+msgstr ""
+
+#: backend/settings.php:359
+msgid "Zoho CRM"
+msgstr ""
+
+#: backend/settings.php:361
+msgid ""
+"The Add-On allows you to quickly integrate your WordPress forms with Zoho's "
+"CRM. Create or update contacts in your Zoho CRM, or add new sales leads "
+"after form submissions."
+msgstr ""
+
+#: backend/settings.php:372
+msgid "Perfex CRM"
+msgstr ""
+
+#: backend/settings.php:374
+msgid ""
+"The Add-On allows you to quickly integrate your WordPress forms with "
+"PerfexCRM. Create or update contacts in your Zoho CRM, or add new sales "
+"leads after form submissions."
+msgstr ""
+
+#: backend/settings.php:403
+msgid "Configure"
+msgstr ""
+
+#: backend/settings.php:480 backend/settings.php:524
+msgid "List plugins support"
+msgstr ""
+
+#: backend/settings.php:484
+msgid "Coming soon"
+msgstr ""
+
+#: backend/settings.php:520
+msgid "Select Your Marketing Integration"
+msgstr ""
+
+#: backend/settings.php:522
+msgid ""
+"Select your email marketing service provider or CRM from the options on the "
+"left. If you don't see your email marketing service listed, then let us know "
+"and we'll do our best to get it added as fast as possible."
+msgstr ""
+
+#: backend/settings.php:541
+msgid "We're sorry, the addon is not available on your plan."
+msgstr ""
+
+#: backend/settings.php:576
+msgid "Map Form Fields"
+msgstr ""
+
+#: backend/settings.php:602 backend/settings.php:661
+msgid "Enter Value"
+msgstr ""
+
+#: backend/settings.php:605 backend/settings.php:664
+#: pdf/backend/settings.php:172
+msgid "Remove"
+msgstr ""
+
+#: backend/settings.php:612
+msgid "Webhook key"
+msgstr ""
+
+#: backend/settings.php:615
+msgid "Form Fields"
+msgstr ""
+
+#: backend/settings.php:617 backend/table_settings.php:53
+msgid "Action"
+msgstr ""
+
+#: backend/settings.php:671
+msgid "Add Field"
+msgstr ""
+
+#: backend/table_settings.php:50
+msgid "Type"
+msgstr ""
+
+#: backend/table_settings.php:51
+msgid "Name"
+msgstr ""
+
+#: backend/table_settings.php:52
+msgid "Connected"
+msgstr ""
+
+#: backend/table_settings.php:113
+msgid "Eidt"
+msgstr ""
+
+#: backend/table_settings.php:128
+msgid "No connections"
+msgstr ""
+
+#: backend/table_settings.php:174 backend/table_settings.php:189
+msgid "Filter by add-on"
+msgstr ""
+
+#: includes/pdf.php:9
+msgid "PDF Configuration"
+msgstr ""
+
+#: includes/pdf.php:30 includes/pdf.php:44
+msgid "No Template"
+msgstr ""
+
+#: includes/pdf.php:55
+msgid "PDFs Template"
+msgstr ""
+
+#: includes/pdf.php:56
+msgid "Add new"
+msgstr ""
+
+#: includes/pdf.php:63 includes/pdf.php:92
+msgid "PDF Template"
+msgstr ""
+
+#: index.php:100
+msgid "Document"
+msgstr ""
+
+#: modules/form-widget/index.php:9
+msgid "Elementor Form Widget"
+msgstr ""
+
+#: pdf/backend/ajax.php:87
+msgid "WP Buider Email Testing"
+msgstr ""
+
+#: pdf/backend/ajax.php:89
+msgid "Sent email"
+msgstr ""
+
+#: pdf/backend/ajax.php:91
+msgid "Can't send email"
+msgstr ""
+
+#: pdf/backend/index.php:67
+msgid "DPI"
+msgstr ""
+
+#: pdf/backend/index.php:69
+msgid "Paper Orientation"
+msgstr ""
+
+#: pdf/backend/index.php:71
+msgid "Portrait"
+msgstr ""
+
+#: pdf/backend/index.php:72
+msgid "Landscape"
+msgstr ""
+
+#: pdf/backend/index.php:74
+msgid "Paper Size"
+msgstr ""
+
+#: pdf/backend/index.php:92
+msgid "Font family"
+msgstr ""
+
+#: pdf/backend/index.php:102 pdf/backend/templates/editor.php:72
+msgid "Font size"
+msgstr ""
+
+#: pdf/backend/index.php:104
+msgid "Font color"
+msgstr ""
+
+#: pdf/backend/index.php:113
+msgid "Testing"
+msgstr ""
+
+#: pdf/backend/index.php:115
+msgid "Send Email"
+msgstr ""
+
+#: pdf/backend/index.php:132
+msgid "Choose Templates"
+msgstr ""
+
+#: pdf/backend/index.php:135 pdf/backend/index.php:422
+msgid "Import"
+msgstr ""
+
+#: pdf/backend/index.php:138
+msgid "Export"
+msgstr ""
+
+#: pdf/backend/index.php:141
+msgid "Reset"
+msgstr ""
+
+#: pdf/backend/index.php:151
+msgid "Preview PDF"
+msgstr ""
+
+#: pdf/backend/index.php:164
+msgid "Block"
+msgstr ""
+
+#: pdf/backend/index.php:165
+msgid "Layouts"
+msgstr ""
+
+#: pdf/backend/index.php:166
+msgid "Editor"
+msgstr ""
+
+#: pdf/backend/index.php:172 pdf/backend/index.php:214
+msgid "Expand"
+msgstr ""
+
+#: pdf/backend/index.php:173
+msgid "Shrink"
+msgstr ""
+
+#: pdf/backend/index.php:202
+msgid "Settings PDF"
+msgstr ""
+
+#: pdf/backend/index.php:315
+msgid "PDF Templates"
+msgstr ""
+
+#: pdf/backend/index.php:316
+msgid "pdf_templates"
+msgstr ""
+
+#: pdf/backend/index.php:366
+msgid "Builder PDF"
+msgstr ""
+
+#: pdf/backend/index.php:423
+msgid "Design"
+msgstr ""
+
+#: pdf/backend/index.php:426
+msgid "Preview"
+msgstr ""
+
+#: pdf/backend/settings.php:163
+msgid "PDF Creator Settings"
+msgstr ""
+
+#: pdf/backend/settings.php:164
+msgid "Font Manage"
+msgstr ""
+
+#: pdf/backend/settings.php:167
+msgid "Installed Fonts"
+msgstr ""
+
+#: pdf/backend/settings.php:168
+msgid "Regular"
+msgstr ""
+
+#: pdf/backend/settings.php:169 pdf/backend/settings.php:226
+msgid "Italics"
+msgstr ""
+
+#: pdf/backend/settings.php:170 pdf/backend/settings.php:233
+msgid "Bold"
+msgstr ""
+
+#: pdf/backend/settings.php:171 pdf/backend/settings.php:240
+msgid "Bold Italics"
+msgstr ""
+
+#: pdf/backend/settings.php:205
+msgid "Add Font"
+msgstr ""
+
+#: pdf/backend/settings.php:211
+msgid "Font Name *"
+msgstr ""
+
+#: pdf/backend/settings.php:215
+msgid "The font name can only contain letters, numbers and spaces."
+msgstr ""
+
+#: pdf/backend/settings.php:219
+msgid "Regular *"
+msgstr ""
+
+#: pdf/backend/settings.php:254
+msgid "Custom PDF Paper (mm)"
+msgstr ""
+
+#: pdf/backend/settings.php:258
+msgid "One size per line. E.g 1 line: 210,297"
+msgstr ""
+
+#: pdf/backend/templates/barcode_qrcode.php:12
+msgid "Barcode"
+msgstr ""
+
+#: pdf/backend/templates/barcode_qrcode.php:18
+msgid "Qrcode"
+msgstr ""
+
+#: pdf/backend/templates/breakpoint.php:8
+msgid "Page Break"
+msgstr ""
+
+#: pdf/backend/templates/button.php:8 pdf/backend/templates/editor.php:62
+msgid "Button"
+msgstr ""
+
+#: pdf/backend/templates/divider.php:8
+msgid "Divider"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:17
+msgid "Top"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:21
+msgid "Bottom"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:25
+msgid "Left"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:29
+msgid "Right"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:38
+msgid "Content"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:44
+msgid "Youtube"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:49 pdf/backend/templates/image.php:8
+msgid "Image"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:51
+msgid "Source URL"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:56
+msgid "Alt"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:64
+msgid "Button text"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:68
+msgid "Button url"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:78
+msgid "Background color"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:80
+msgid "Background Image"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:86
+msgid "Background Full Width"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:90 pdf/backend/templates/editor.php:108
+msgid "Color"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:96 pdf/backend/templates/text.php:8
+msgid "Text"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:100
+msgid "Url"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:104
+msgid "Background"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:115
+msgid "Add menu"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:118
+msgid "Social"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:121
+msgid "URL Facebook"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:125 pdf/backend/templates/editor.php:135
+#: pdf/backend/templates/editor.php:145 pdf/backend/templates/editor.php:155
+#: pdf/backend/templates/editor.php:165 pdf/backend/templates/editor.php:175
+msgid "Show/ hide"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:131
+msgid "URL Twitter"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:141
+msgid "URL Instagram"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:151
+msgid "URL Linkedin"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:161 pdf/backend/templates/editor.php:171
+msgid "URL Whatsapp"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:181
+msgid "Text align"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:190
+msgid "Width"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:194
+msgid "Height"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:198
+msgid "Padding"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:202
+msgid "Margin"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:206
+msgid "Border"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:207
+msgid "Border Width"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:210
+msgid "Border Style"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:212
+msgid "Border color"
+msgstr ""
+
+#: pdf/backend/templates/editor.php:214
+msgid "Border radius"
+msgstr ""
+
+#: pdf/backend/templates/spacer.php:8
+msgid "Spacer"
+msgstr ""
+
+#: pdf/form-widget/index.php:24
+msgid "Choose data shortcode"
+msgstr ""
+
+#: pdf/form-widget/index.php:38
+msgid "Elementor Form datas"
+msgstr ""
+
+#: pdf/form-widget/index.php:51
+msgid "Fields Elementor Form:"
+msgstr ""
+
+#. Plugin Name of the plugin/theme
+msgid "Elementor Form PDF"
+msgstr ""
+
+#. Plugin URI of the plugin/theme
+#. Author URI of the plugin/theme
+msgid "https://codecanyon.net/user/rednumber/portfolio"
+msgstr ""
+
+#. Description of the plugin/theme
+msgid "Automatically generate, email and download PDFs with Elementor Form"
+msgstr ""
+
+#. Author of the plugin/theme
+msgid "Rednumber"
+msgstr ""

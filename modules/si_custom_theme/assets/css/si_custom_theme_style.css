@@ -1,0 +1,31 @@
+.admin #side-menu, .admin #setup-menu,.admin #setup-menu-wrapper{
+	background-position: left top;
+	background-size: cover;
+}
+.admin #side-menu>li, .admin #setup-menu>li{
+	
+	border-left: 3px solid transparent;
+    -webkit-transition: border-left-color 0.4s ease;
+    -o-transition: border-left-color 0.4s ease;
+    transition: border-left-color 0.4s ease;
+}
+.task-single-col-right {
+    border-left: 1px solid #eeeeee;
+}
+.admin #side-menu li .nav-second-level li.active a,.admin #setup-menu li .nav-second-level li.active a{
+	border-radius:5px;
+}
+/*for task kanban view*/
+#kan-ban li, #kan-ban ul{color:#666666}
+/*panel shadow*/
+.panel_s:not(.no-shadow) {
+	-o-box-shadow: 3px -1px 10px 1px rgb(19 17 17 / 20%);
+    -webkit-box-shadow: 3px -1px 10px 1px rgb(19 17 17 / 20%);
+    box-shadow: 3px -1px 10px 1px rgb(19 17 17 / 20%);
+}
+#top_search input{
+	border-radius:35px;
+}
+.fn-gantt .rightPanel .month,.fn-gantt .rightPanel .year,.fn-gantt .sa, .fn-gantt .sn,.fn-gantt .day, .fn-gantt .date{
+	text-shadow:none;
+}		

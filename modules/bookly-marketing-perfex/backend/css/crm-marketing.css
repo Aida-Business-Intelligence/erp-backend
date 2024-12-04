@@ -1,0 +1,205 @@
+.red {
+	display: block !important;
+	background: red;
+}
+.crm-marketing-config-container {
+	background: #6d6d6d;
+	position: fixed;
+    top: 32px;
+    height: 100%;
+     width: -webkit-calc(100% - 180px);
+    width:    -moz-calc(100% - 180px);
+    width:         calc(100% - 180px);
+}
+.crm-marketing-config-tag {
+	width: 30%;
+	float: left;
+	background: #fff;
+	height: 100%;
+	overflow: hidden scroll;
+}
+.crm-marketing-config-content {
+	width: 65%;
+	float: right;
+	background: #fff;
+	margin: 15px;
+    padding: 15px;
+    box-sizing: border-box;
+    height: 100%;
+    overflow: hidden scroll;
+    padding-bottom: 100px;
+}
+.crm-marketing-config-tag ul {
+	padding-bottom: 100px;
+}
+.crm-marketing-config-tag li{
+	opacity: 0.5;
+    border-bottom: 1px solid #ced7e0;
+    color: #444444;
+    display: block;
+    font-size: 16px;
+    height: 45px;
+    line-height: 18px;
+    margin: 0;
+    outline: 0;
+    padding: 29px 20px 0px 75px;
+    position: relative;
+    text-decoration: none;
+}
+.crm-marketing-config-tag li:hover {
+	background: #e0e8f0;
+}
+.crm-marketing-config-tag li.active {
+	background: #036aab;
+}
+.crm-marketing-config-tag li.active a {
+	color: #fff;
+}
+.crm-marketing-config-tag li img {
+	border: 1px solid #b0b6bd;
+    border-radius: 4px;
+    left: 20px;
+    position: absolute;
+    top: 15px;
+    width: 44px;
+}
+.crm-marketing-config-tag li a {
+	text-decoration: none;
+	color: #444;
+	cursor: default;
+}
+.crm-marketing-config-tag .enabled{
+	opacity: 1;
+	cursor: pointer;
+}
+.crm-marketing-header-content,.crm-marketing-row-content {
+	position: relative;
+}
+.crm-marketing-header-content h3{
+	font-size: 23px;
+	padding: 5px 0;
+    margin: 0;
+}
+.crm-marketing-header-addnew {
+	position: absolute;
+	right: 10px;
+	top: 0px;
+}
+.crm-marketing-row-content {
+    border-bottom: 1px solid #e7e7e7;
+    padding-bottom: 10px;
+}
+.crm-marketing-container-content .crm-marketing-row-content:first-child {
+	padding-bottom: 10px;
+}
+.crm-marketing-content-remove-row {
+	position: absolute;
+    right: -11px;
+    background: #3c434a;
+    top: 0px;
+    color: #fff;
+    border-radius: 5px;
+}
+.crm-marketing-content-plus-minus {
+	position: absolute;
+    right: 30px;
+    background: #3c434a;
+    top: 0px;
+    color: #fff;
+    border-radius: 5px;
+}
+.crm-marketing-content-remove-row:hover, .crm-marketing-content-plus-minus:hover {
+	opacity: 0.6;
+	cursor: pointer;
+}
+.crm-martketing-map-fields-row {
+	display: grid;
+	grid-template-columns: auto 200px 75px;
+}
+.crm-martketing-map-fields select, .crm-martketing-map-fields input{
+	width: 100%;
+}
+.map-fields-action {
+	border: 1px solid #e7e7e7;
+	padding: 10px;
+	text-align: center;
+}
+..map-fields-action a {
+	text-decoration: none;
+}
+.map-fields-value {
+	border: 1px solid #e7e7e7;
+	padding: 10px;
+}
+.map-fields-key {
+	border: 1px solid #e7e7e7;
+	padding: 10px;
+}
+.map-fields-key input {
+	width: 100%;
+}
+.crm-martketing-map-fields .crm-martketing-map-fields-row:first-child div {
+	font-weight: bold;
+}
+.crm-marketing-content-des {
+    font-size: 16px;
+    color: #777;
+}
+.crm-marketing-config-tab>h3{
+	text-align: center;
+	font-size: 20px;
+}
+.full_width {
+	width: 100%;
+	height: 600px;
+}
+.crm-input-sync option[value=""] {
+  background: #fff;
+  color: #666;
+}
+.crm-marketing-config-tag h3 {
+	padding-left: 15px;
+}
+.crm-marketing-footer-action {
+	text-align: center;
+}
+.crm-marketing-tab-main li {
+	display: inline-block;
+	padding: 5px 25px;
+	text-align: center;
+	cursor: pointer;
+	border: 1px solid #e7e7e7;
+	border-radius: 4px 4px 0 0;
+	text-transform: capitalize;
+}
+.crm-marketing-tab-main li.active {
+	background: #036aab;
+	color: #fff;
+}
+.crm-marketing-merge-tags-container {
+	position: relative;
+	max-width: 350px;
+}
+.crm-marketing-merge-tags-container .code-selector{
+	padding-right: 35px;
+}
+.crm-merge-tags {
+	position: absolute;
+	top: 5px;
+	right: 6px;
+	cursor: pointer;
+	opacity: 0.8;
+}
+.crm-marketing-list-merge-tags {
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+.crm-marketing-des{
+	font-size: 12px;
+	color: #637288;
+	margin: 0;
+}
+.crm-marketing-tab-content th {
+	text-transform: capitalize;
+}

@@ -101,6 +101,73 @@ class Invoice_items_model extends App_Model
 
         return $this->db->get()->result_array();
     }
+    
+    public function get_item($id = '')
+    {
+       $this->db->from(db_prefix() . 'items');
+            $this->db->where(db_prefix() . 'items.id', $id);
+
+            return $this->db->get()->row();
+       
+
+    }
+    
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC') {
+        
+        
+
+        if (!is_numeric($id)) {
+            // Adicionar condições de busca
+            if (!empty($search)) {
+                $this->db->group_start(); // Começa um agrupamento de condição
+                $this->db->like('description', $search); // Busca pelo campo 'company'
+                $this->db->or_like('long_description', $search);
+                $this->db->or_like('rate', $search); // Busca pelo campo 'vat'
+                $this->db->group_end(); // Fecha o agrupamento de condição
+            }
+
+            // Implementar lógica para ordenação
+            $this->db->order_by($sortField, $sortOrder);
+
+            // Implementar a limitação e o deslocamento
+            $this->db->limit($limit, ($page - 1) * $limit);
+
+            // Obtenha todos os clientes
+            $clients = $this->db->get(db_prefix() . 'items')->result_array();
+
+            // Contar o total de clientes (considerando a busca)
+            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+
+            if (!empty($search)) {
+                // Condições de busca para contar os resultados
+                $this->db->group_start(); // Começa um agrupamento de condição
+                $this->db->like('description', $search);
+                $this->db->or_like('long_description', $search);
+                $this->db->or_like('rate', $search);
+                $this->db->group_end(); // Fecha o agrupamento de condição
+            }
+
+            // Seleciona o total de clientes
+            $this->db->select('COUNT(*) as total');
+            $total = $this->db->get(db_prefix() . 'items')->row()->total;
+
+            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
+        } else {
+
+            
+            $client = $this->get_item($id);
+            $total = 0;
+            if($client){
+                $total = 1;
+            }
+
+            return ['data' => (array) $client, 'total' => $total];
+
+
+        }
+
+        // (O resto do código existente para quando $id é válido)
+    }
 
     public function get_grouped()
     {

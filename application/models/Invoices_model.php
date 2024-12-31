@@ -53,7 +53,7 @@ class Invoices_model extends App_Model
 
     public function get_unpaid_invoices()
     {
-        if (staff_cant('view', 'invoices')) {
+        if (!staff_can('view', 'invoices')) {
             $where = get_invoices_where_sql_for_staff(get_staff_user_id());
             $this->db->where($where);
         }
@@ -79,13 +79,120 @@ class Invoices_model extends App_Model
             return $invoice;
         }, $invoices);
     }
-
+    
+    
     /**
      * Get invoice by id
      * @param  mixed $id
      * @return array|object
      */
     public function get($id = '', $where = [])
+    {
+        $this->db->select('*, ' . db_prefix() . 'currencies.id as currencyid, ' . db_prefix() . 'invoices.id as id, ' . db_prefix() . 'currencies.name as currency_name');
+        $this->db->from(db_prefix() . 'invoices');
+        $this->db->join(db_prefix() . 'currencies', '' . db_prefix() . 'currencies.id = ' . db_prefix() . 'invoices.currency', 'left');
+        $this->db->where($where);
+        if (is_numeric($id)) {
+            $this->db->where(db_prefix() . 'invoices' . '.id', $id);
+            $invoice = $this->db->get()->row();
+            if ($invoice) {
+                $invoice->total_left_to_pay = get_invoice_total_left_to_pay($invoice->id, $invoice->total);
+
+                $invoice->items       = get_items_by_type('invoice', $id);
+                $invoice->attachments = $this->get_attachments($id);
+
+                if ($invoice->project_id) {
+                    $this->load->model('projects_model');
+                    $invoice->project_data = $this->projects_model->get($invoice->project_id);
+                }
+
+                $invoice->visible_attachments_to_customer_found = false;
+                foreach ($invoice->attachments as $attachment) {
+                    if ($attachment['visible_to_customer'] == 1) {
+                        $invoice->visible_attachments_to_customer_found = true;
+
+                        break;
+                    }
+                }
+
+                $client          = $this->clients_model->get($invoice->clientid);
+                $invoice->client = $client;
+                if (!$invoice->client) {
+                    $invoice->client          = new stdClass();
+                    $invoice->client->company = $invoice->deleted_customer_name;
+                }
+
+                $this->load->model('payments_model');
+                $invoice->payments = $this->payments_model->get_invoice_payments($id);
+
+                $this->load->model('email_schedule_model');
+                $invoice->scheduled_email = $this->email_schedule_model->get($id, 'invoice');
+            }
+
+            return hooks()->apply_filters('get_invoice', $invoice);
+        }
+
+        $this->db->order_by('number,YEAR(date)', 'desc');
+
+        return $this->db->get()->result_array();
+    }
+    
+    
+     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
+         
+
+        if (!is_numeric($id)) {
+            // Adicionar condições de busca
+            if (!empty($search)) {
+                $this->db->group_start(); // Começa um agrupamento de condição
+                $this->db->like('number', $search); // Busca pelo campo 'company'
+                $this->db->or_like('duedate', $search);
+                $this->db->or_like('total', $search);
+                $this->db->group_end(); // Fecha o agrupamento de condição
+            }
+
+            // Implementar lógica para ordenação
+            $this->db->order_by($sortField, $sortOrder);
+
+            // Implementar a limitação e o deslocamento
+            $this->db->limit($limit, ($page - 1) * $limit);
+
+            // Obtenha todos os clientes
+            $clients = $this->db->get(db_prefix() . 'invoices')->result_array();
+
+            // Contar o total de clientes (considerando a busca)
+            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+
+            if (!empty($search)) {
+                // Condições de busca para contar os resultados
+                $this->db->group_start(); // Começa um agrupamento de condição
+               $this->db->like('number', $search); // Busca pelo campo 'company'
+                $this->db->or_like('duedate', $search);
+                $this->db->or_like('total', $search);    $this->db->group_end(); // Fecha o agrupamento de condição
+            }
+
+            // Seleciona o total de clientes
+            $this->db->select('COUNT(*) as total');
+            $total = $this->db->get(db_prefix() . 'invoices')->row()->total;
+
+            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
+        } else {
+
+
+
+
+            return ['data' => (array) $this->get($id), 'total' => 1];
+        }
+
+        // (O resto do código existente para quando $id é válido)
+    }
+
+    /**
+     * Get invoice by id
+     * @param  mixed $id
+     * @return array|object
+     */
+    public function get_api2($id = '', $where = [], $page, $limit)
     {
         $this->db->select('*, ' . db_prefix() . 'currencies.id as currencyid, ' . db_prefix() . 'invoices.id as id, ' . db_prefix() . 'currencies.name as currency_name');
         $this->db->from(db_prefix() . 'invoices');
@@ -156,7 +263,6 @@ class Invoices_model extends App_Model
         if ($this->db->affected_rows() > 0) {
             if ($isDraft) {
                 $this->change_invoice_number_when_status_draft($id);
-                $this->save_formatted_number($id);
             }
 
             $this->log_invoice_activity($id, 'invoice_activity_marked_as_cancelled');
@@ -236,8 +342,8 @@ class Invoices_model extends App_Model
         $result['paid']    = [];
         $result['overdue'] = [];
 
-        $has_permission_view                = staff_can('view',  'invoices');
-        $has_permission_view_own            = staff_can('view_own',  'invoices');
+        $has_permission_view                = has_permission('invoices', '', 'view');
+        $has_permission_view_own            = has_permission('invoices', '', 'view_own');
         $allow_staff_view_invoices_assigned = get_option('allow_staff_view_invoices_assigned');
         $noPermissionsQuery                 = get_invoices_where_sql_for_staff(get_staff_user_id());
 
@@ -391,10 +497,7 @@ class Invoices_model extends App_Model
 
         $this->db->insert(db_prefix() . 'invoices', $data);
         $insert_id = $this->db->insert_id();
-
         if ($insert_id) {
-            $this->save_formatted_number($insert_id);
-
             if (isset($custom_fields)) {
                 handle_custom_fields_post($insert_id, $custom_fields);
             }
@@ -533,12 +636,11 @@ class Invoices_model extends App_Model
                 $lang_key = 'invoice_activity_recurring_from_expense_created';
             }
             $this->log_invoice_activity($insert_id, $lang_key);
-            
-            hooks()->do_action('after_invoice_added', $insert_id);
 
             if ($save_and_send === true) {
                 $this->send_invoice_to_client($insert_id, '', true, '', true);
             }
+            hooks()->do_action('after_invoice_added', $insert_id);
 
             return $insert_id;
         }
@@ -550,7 +652,7 @@ class Invoices_model extends App_Model
     {
         $this->load->model('expenses_model');
         $where = 'billable=1 AND clientid=' . $clientid . ' AND invoiceid IS NULL';
-        if (staff_cant('view', 'expenses')) {
+        if (!has_permission('expenses', '', 'view')) {
             $where .= ' AND ' . db_prefix() . 'expenses.addedfrom=' . get_staff_user_id();
         }
 
@@ -575,7 +677,7 @@ class Invoices_model extends App_Model
             self::STATUS_DRAFT,
         ];
         $noPermissionsQuery  = get_invoices_where_sql_for_staff(get_staff_user_id());
-        $has_permission_view = staff_can('view',  'invoices');
+        $has_permission_view = has_permission('invoices', '', 'view');
         $this->db->select('id');
         $this->db->where('clientid', $client_id);
         $this->db->where('STATUS IN (' . implode(', ', $statuses) . ')');
@@ -874,12 +976,10 @@ class Invoices_model extends App_Model
 
         $this->db->where('id', $id)->update('invoices', $data);
 
-        $this->save_formatted_number($id);
-
         if ($this->db->affected_rows() > 0) {
             $updated = true;
 
-            if (isset($data['number']) && $original_number != $data['number']) {
+            if (isset($data['data']) && $original_number != $data['number']) {
                 $this->log_invoice_activity(
                     $original_invoice->id,
                     'invoice_activity_number_changed',
@@ -1399,8 +1499,6 @@ class Invoices_model extends App_Model
             update_invoice_status($id, true);
         }
 
-        $this->save_formatted_number($id);
-
         $this->db->where('rel_id', $id);
         $this->db->where('rel_type', 'invoice');
         $this->db->delete('scheduled_emails');
@@ -1590,7 +1688,6 @@ class Invoices_model extends App_Model
         if ($isDraft = $this->is_draft($id)) {
             // Update invoice number from draft before sending
             $originalNumber = $this->change_invoice_number_when_status_draft($id);
-            $this->save_formatted_number($id);
         }
 
         $invoice = hooks()->apply_filters(
@@ -1635,7 +1732,7 @@ class Invoices_model extends App_Model
 
             $status_updated = update_invoice_status($invoice->id, true, true);
 
-            $invoice_number = format_invoice_number($invoice);
+            $invoice_number = format_invoice_number($invoice->id);
 
             if ($attachpdf) {
                 set_mailing_constant();
@@ -1688,8 +1785,6 @@ class Invoices_model extends App_Model
             $this->db->where('id', $id);
             $this->db->update('invoices', ['number' => $originalNumber]);
 
-            $this->save_formatted_number($id);
-
             $this->decrement_next_number();
 
             return false;
@@ -1714,8 +1809,6 @@ class Invoices_model extends App_Model
                 'status' => self::STATUS_DRAFT,
                 'number' => $originalNumber,
             ]);
-
-            $this->save_formatted_number($id);
         }
 
         return false;
@@ -1847,14 +1940,6 @@ class Invoices_model extends App_Model
         $this->increment_next_number();
 
         return $invoice->number;
-    }
-
-    public function save_formatted_number($id) 
-    {
-        $formattedNumber = format_invoice_number($id);
-
-        $this->db->where('id', $id);
-        $this->db->update('invoices', ['formatted_number' => $formattedNumber]);
     }
 
     /**

@@ -1,22 +1,29 @@
 <?php
 
+use BaconQrCode\Renderer\Image\ImagickImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
-use Sonata\GoogleAuthenticator\GoogleAuthenticator;
-use Firebase\JWT\JWT;
-
-class Authentication_model extends App_Model {
-
-    public function __construct() {
+class Authentication_model extends App_Model
+{
+    public function __construct()
+    {
         parent::__construct();
         $this->load->model('user_autologin');
-         $this->load->model('roles_model');
-         $this->load->model('staff_model');
         $this->autologin();
     }
-    
-    
-     public function login($email, $password, $remember, $staff, $api = false)
+
+    /**
+     * @param  string Email address for login
+     * @param  string User Password
+     * @param  boolean Set cookies for user if remember me is checked
+     * @param  boolean Is Staff Or Client
+     * @return boolean if not redirect url found, if found redirect to the url
+     */
+    public function login($email, $password, $remember, $staff)
     {
         if ((!empty($email)) and (!empty($password))) {
             $table = db_prefix() . 'contacts';
@@ -27,12 +34,9 @@ class Authentication_model extends App_Model {
             }
             $this->db->where('email', $email);
             $user = $this->db->get($table)->row();
-  
-            
-         
             if ($user) {
                 // Email is okey lets check the password now
-                if (!app_hasher()->CheckPassword($password, $user->password)) {
+                if (!$user->password || !app_hasher()->CheckPassword($password, $user->password)) {
                     hooks()->do_action('failed_login_attempt', [
                         'user'            => $user,
                         'is_staff_member' => $staff,
@@ -112,89 +116,18 @@ class Authentication_model extends App_Model {
                 return ['two_factor_auth' => true, 'user' => $user];
             }
 
-            if($api == true)
-            return $user;
-            else
-             return false; 
+            return true;
         }
 
         return false;
     }
 
     /**
-     * @param  string Email address for login
-     * @param  string User Password
-     * @param  boolean Set cookies for user if remember me is checked
-     * @param  boolean Is Staff Or Client
-     * @return boolean if not redirect url found, if found redirect to the url
-     */
-        
-        public function login_api($email, $password) {
-        
-    
-            header('Content-Type: application/json');
-            $table = db_prefix() . 'staff';
-            $_id = 'staffid';
-            $this->db->where('email', $email);
-            $user = $this->db->get($table)->row();
-
-            if ($user) {
-                // Email está correto, agora vamos checar a senha
-                if (app_hasher()->CheckPassword($password, $user->password)) {
-
-                    if ($user->active == 0) {
-                        return ['success' => false, 'message' => 'Usuário inativo, contate o administrador'];
-                    }
-                    
-                    $permissoes = $this->roles_model->get($user->sttafid);
-                    $permissios_array = array();
-                    foreach ($permissoes as $permissao) {
-                        
-                        $permissios_array[] = array(
-                            'permissions'=> unserialize($permissao['permissions']),
-                                    'id'=> $permissao['roleid'],
-                                     'name'=> $permissao['name']
-                                    );
-                        
-                    }
-              
-                    unset($user->password);
-                    // Gerar o JWT
-                    $payload = [
-                        'iat' => time(), // Data de emissão
-                        'exp' => time() + (60 * 60), // Expira em 1 hora
-                        'permissions' => $permissios_array,
-                        'user' => $user 
-                    ];
-
-                    $token = JWT::encode($payload, $this->config->item('jwt_key'), $this->config->item('jwt_algorithm'));
-                    unset($user->password);
-                   // unset($user->staffid);
-
-
-                    return [
-                        'success' => true,
-                        'message' => 'Logado com sucesso',
-                        'user' => $user,
-                        'permissions'=>$permissios_array,
-                        'token' => $token
-                    ];
-                } else {
-                    return ['success' => false, 'message' => 'Login Inválido'];
-                }
-            } else {
-                log_activity('Non Existing User Tried to Login [Email: ' . $email . ', Is Staff Member: ' . ($staff == true ? 'Yes' : 'No') . ', IP: ' . $this->input->ip_address() . ']');
-                return ['success' => false, 'message' => 'Usuário inexistente'];
-            }
-        
-        
-    }
-
-    /**
      * @param  boolean If Client or Staff
      * @return none
      */
-    public function logout($staff = true) {
+    public function logout($staff = true)
+    {
         $this->delete_autologin($staff);
 
         if (is_client_logged_in()) {
@@ -217,16 +150,17 @@ class Authentication_model extends App_Model {
      * @param  boolean Is Client or Staff
      * @return boolean
      */
-    private function create_autologin($user_id, $staff) {
+    private function create_autologin($user_id, $staff)
+    {
         $this->load->helper('cookie');
         $key = substr(md5(uniqid(rand() . get_cookie($this->config->item('sess_cookie_name')))), 0, 16);
         $this->user_autologin->delete($user_id, $key, $staff);
         if ($this->user_autologin->set($user_id, md5($key), $staff)) {
             set_cookie([
-                'name' => 'autologin',
+                'name'  => 'autologin',
                 'value' => serialize([
                     'user_id' => $user_id,
-                    'key' => $key,
+                    'key'     => $key,
                 ]),
                 'expire' => 60 * 60 * 24 * 31 * 2, // 2 months
             ]);
@@ -241,7 +175,8 @@ class Authentication_model extends App_Model {
      * @param  boolean Is Client or Staff
      * @return none
      */
-    private function delete_autologin($staff) {
+    private function delete_autologin($staff)
+    {
         $this->load->helper('cookie');
         if ($cookie = get_cookie('autologin', true)) {
             $data = unserialize($cookie);
@@ -254,7 +189,8 @@ class Authentication_model extends App_Model {
      * @return boolean
      * Check if autologin found
      */
-    public function autologin() {
+    public function autologin()
+    {
         if (!is_logged_in()) {
             $this->load->helper('cookie');
             if ($cookie = get_cookie('autologin', true)) {
@@ -264,7 +200,7 @@ class Authentication_model extends App_Model {
                         // Login user
                         if ($user->staff == 1) {
                             $user_data = [
-                                'staff_user_id' => $user->id,
+                                'staff_user_id'   => $user->id,
                                 'staff_logged_in' => true,
                             ];
                         } else {
@@ -274,16 +210,16 @@ class Authentication_model extends App_Model {
                             $contact = $this->db->get(db_prefix() . 'contacts')->row();
 
                             $user_data = [
-                                'client_user_id' => $contact->userid,
-                                'contact_user_id' => $user->id,
+                                'client_user_id'   => $contact->userid,
+                                'contact_user_id'  => $user->id,
                                 'client_logged_in' => true,
                             ];
                         }
                         $this->session->set_userdata($user_data);
                         // Renew users cookie to prevent it from expiring
                         set_cookie([
-                            'name' => 'autologin',
-                            'value' => $cookie,
+                            'name'   => 'autologin',
+                            'value'  => $cookie,
                             'expire' => 60 * 60 * 24 * 31 * 2, // 2 months
                         ]);
                         $this->update_login_info($user->id, $user->staff);
@@ -303,12 +239,13 @@ class Authentication_model extends App_Model {
      * @return none
      * Update login info on autologin
      */
-    private function update_login_info($user_id, $staff) {
+    private function update_login_info($user_id, $staff)
+    {
         $table = db_prefix() . 'contacts';
-        $_id = 'id';
+        $_id   = 'id';
         if ($staff == true) {
             $table = db_prefix() . 'staff';
-            $_id = 'staffid';
+            $_id   = 'staffid';
         }
         $this->db->set('last_ip', $this->input->ip_address());
         $this->db->set('last_login', date('Y-m-d H:i:s'));
@@ -322,7 +259,8 @@ class Authentication_model extends App_Model {
      * Send set password email for contacts
      * @param string $email
      */
-    public function set_password_email($email) {
+    public function set_password_email($email)
+    {
         $this->db->where('email', $email);
         $user = $this->db->get(db_prefix() . 'contacts')->row();
 
@@ -336,13 +274,13 @@ class Authentication_model extends App_Model {
             $new_pass_key = app_generate_hash();
             $this->db->where('id', $user->id);
             $this->db->update(db_prefix() . 'contacts', [
-                'new_pass_key' => $new_pass_key,
+                'new_pass_key'           => $new_pass_key,
                 'new_pass_key_requested' => date('Y-m-d H:i:s'),
             ]);
             if ($this->db->affected_rows() > 0) {
                 $data['new_pass_key'] = $new_pass_key;
-                $data['userid'] = $user->id;
-                $data['email'] = $email;
+                $data['userid']       = $user->id;
+                $data['email']        = $email;
 
                 $sent = send_mail_template('customer_contact_set_password', $user, $data);
 
@@ -367,12 +305,13 @@ class Authentication_model extends App_Model {
      * @return boolean
      * Generate new password key for the user to reset the password.
      */
-    public function forgot_password($email, $staff = false) {
+    public function forgot_password($email, $staff = false)
+    {
         $table = db_prefix() . 'contacts';
-        $_id = 'id';
+        $_id   = 'id';
         if ($staff == true) {
             $table = db_prefix() . 'staff';
-            $_id = 'staffid';
+            $_id   = 'staffid';
         }
         $this->db->where('email', $email);
         $user = $this->db->get($table)->row();
@@ -389,15 +328,15 @@ class Authentication_model extends App_Model {
             $new_pass_key = app_generate_hash();
             $this->db->where($_id, $user->$_id);
             $this->db->update($table, [
-                'new_pass_key' => $new_pass_key,
+                'new_pass_key'           => $new_pass_key,
                 'new_pass_key_requested' => date('Y-m-d H:i:s'),
             ]);
 
             if ($this->db->affected_rows() > 0) {
                 $data['new_pass_key'] = $new_pass_key;
-                $data['staff'] = $staff;
-                $data['userid'] = $user->$_id;
-                $merge_fields = [];
+                $data['staff']        = $staff;
+                $data['userid']       = $user->$_id;
+                $merge_fields         = [];
 
                 if ($staff == false) {
                     $sent = send_mail_template('customer_contact_forgot_password', $user->email, $user->userid, $user->$_id, $data);
@@ -430,7 +369,8 @@ class Authentication_model extends App_Model {
      * @param string $new_pass_key the password generate key
      * @param string $password     new password
      */
-    public function set_password($staff, $userid, $new_pass_key, $password) {
+    public function set_password($staff, $userid, $new_pass_key, $password)
+    {
         if (!$this->can_set_password($staff, $userid, $new_pass_key)) {
             return [
                 'expired' => true,
@@ -438,17 +378,20 @@ class Authentication_model extends App_Model {
         }
 
         $password = app_hash_password($password);
-        $table = db_prefix() . 'contacts';
-        $_id = 'id';
+        $table    = db_prefix() . 'contacts';
+        $_id      = 'id';
+
         if ($staff == true) {
             $table = db_prefix() . 'staff';
-            $_id = 'staffid';
+            $_id   = 'staffid';
         }
+
         $this->db->where($_id, $userid);
         $this->db->where('new_pass_key', $new_pass_key);
         $this->db->update($table, [
             'password' => $password,
         ]);
+        
         if ($this->db->affected_rows() > 0) {
             log_activity('User Set Password [User ID: ' . $userid . ', Is Staff Member: ' . ($staff == true ? 'Yes' : 'No') . ', IP: ' . $this->input->ip_address() . ']');
             $this->db->set('new_pass_key', null);
@@ -472,18 +415,19 @@ class Authentication_model extends App_Model {
      * @return boolean
      * User reset password after successful validation of the key
      */
-    public function reset_password($staff, $userid, $new_pass_key, $password) {
+    public function reset_password($staff, $userid, $new_pass_key, $password)
+    {
         if (!$this->can_reset_password($staff, $userid, $new_pass_key)) {
             return [
                 'expired' => true,
             ];
         }
         $password = app_hash_password($password);
-        $table = db_prefix() . 'contacts';
-        $_id = 'id';
+        $table    = db_prefix() . 'contacts';
+        $_id      = 'id';
         if ($staff == true) {
             $table = db_prefix() . 'staff';
-            $_id = 'staffid';
+            $_id   = 'staffid';
         }
 
         $this->db->where($_id, $userid);
@@ -502,13 +446,12 @@ class Authentication_model extends App_Model {
             $this->db->where($_id, $userid);
             $user = $this->db->get($table)->row();
 
-            $merge_fields = [];
             if ($staff == false) {
                 $sent = send_mail_template('customer_contact_password_resetted', $user->email, $user->userid, $user->$_id);
             } else {
                 $sent = send_mail_template('staff_password_resetted', $user->email, $user->$_id);
             }
-
+            
             if ($sent) {
                 return true;
             }
@@ -524,12 +467,13 @@ class Authentication_model extends App_Model {
      * @return boolean
      * Check if the key is not expired or not exists in database
      */
-    public function can_reset_password($staff, $userid, $new_pass_key) {
+    public function can_reset_password($staff, $userid, $new_pass_key)
+    {
         $table = db_prefix() . 'contacts';
-        $_id = 'id';
+        $_id   = 'id';
         if ($staff == true) {
             $table = db_prefix() . 'staff';
-            $_id = 'staffid';
+            $_id   = 'staffid';
         }
 
         $this->db->where($_id, $userid);
@@ -538,7 +482,7 @@ class Authentication_model extends App_Model {
 
         if ($user) {
             $timestamp_now_minus_1_hour = time() - (60 * 60);
-            $new_pass_key_requested = strtotime($user->new_pass_key_requested);
+            $new_pass_key_requested     = strtotime($user->new_pass_key_requested);
             if ($timestamp_now_minus_1_hour > $new_pass_key_requested) {
                 return false;
             }
@@ -556,19 +500,20 @@ class Authentication_model extends App_Model {
      * @return boolean
      * Check if the key is not expired or not exists in database
      */
-    public function can_set_password($staff, $userid, $new_pass_key) {
+    public function can_set_password($staff, $userid, $new_pass_key)
+    {
         $table = db_prefix() . 'contacts';
-        $_id = 'id';
+        $_id   = 'id';
         if ($staff == true) {
             $table = db_prefix() . 'staff';
-            $_id = 'staffid';
+            $_id   = 'staffid';
         }
         $this->db->where($_id, $userid);
         $this->db->where('new_pass_key', $new_pass_key);
         $user = $this->db->get($table)->row();
         if ($user) {
             $timestamp_now_minus_48_hour = time() - (3600 * 48);
-            $new_pass_key_requested = strtotime($user->new_pass_key_requested);
+            $new_pass_key_requested      = strtotime($user->new_pass_key_requested);
             if ($timestamp_now_minus_48_hour > $new_pass_key_requested) {
                 return false;
             }
@@ -584,7 +529,8 @@ class Authentication_model extends App_Model {
      * @param  string $code authentication code to search for
      * @return object
      */
-    public function get_user_by_two_factor_auth_code($code) {
+    public function get_user_by_two_factor_auth_code($code)
+    {
         $this->db->where('two_factor_auth_code', $code);
 
         return $this->db->get(db_prefix() . 'staff')->row();
@@ -595,17 +541,18 @@ class Authentication_model extends App_Model {
      * @param  object $user user object
      * @return boolean
      */
-    public function two_factor_auth_login($user) {
+    public function two_factor_auth_login($user)
+    {
         hooks()->do_action('before_staff_login', [
-            'email' => $user->email,
+            'email'  => $user->email,
             'userid' => $user->staffid,
         ]);
 
         $this->session->set_userdata(
-                [
-                    'staff_user_id' => $user->staffid,
-                    'staff_logged_in' => true,
-                ]
+            [
+                'staff_user_id'   => $user->staffid,
+                'staff_logged_in' => true,
+            ]
         );
 
         $remember = null;
@@ -629,7 +576,8 @@ class Authentication_model extends App_Model {
      * @param  string  $email email of staff login in
      * @return boolean
      */
-    public function is_two_factor_code_valid($code, $email) {
+    public function is_two_factor_code_valid($code, $email)
+    {
         $this->db->select('two_factor_auth_code_requested');
         $this->db->where('two_factor_auth_code', $code);
         $this->db->where('email', $email);
@@ -655,7 +603,8 @@ class Authentication_model extends App_Model {
      * @param  mixed $id
      * @return boolean
      */
-    public function clear_two_factor_auth_code($id) {
+    public function clear_two_factor_auth_code($id)
+    {
         $this->db->where('staffid', $id);
         $this->db->update(db_prefix() . 'staff', [
             'two_factor_auth_code' => null,
@@ -668,37 +617,44 @@ class Authentication_model extends App_Model {
      * Set 2 factor authentication code for staff member
      * @param mixed $id staff id
      */
-    public function set_two_factor_auth_code($id) {
+    public function set_two_factor_auth_code($id)
+    {
         $code = generate_two_factor_auth_key();
         $code .= $id;
 
         $this->db->where('staffid', $id);
         $this->db->update(db_prefix() . 'staff', [
-            'two_factor_auth_code' => $code,
+            'two_factor_auth_code'           => $code,
             'two_factor_auth_code_requested' => date('Y-m-d H:i:s'),
         ]);
 
         return $code;
     }
 
-    public function get_qr($System_name) {
-        $staff = get_staff(get_staff_user_id());
-        $g = new GoogleAuthenticator();
-        $secret = $g->generateSecret();
-        $username = urlencode($staff->email);
-        $url = \Sonata\GoogleAuthenticator\GoogleQrUrl::generate($username, $secret, $System_name);
-
-        return ['qrURL' => $url, 'secret' => $secret];
+    public function get_qr($System_name)
+    {
+        $staff    = get_staff(get_staff_user_id());
+        $google2fa = new PragmaRX\Google2FA\Google2FA();
+        $secret   = $google2fa->generateSecretKey();
+        $g2faUrl      = $google2fa->getQRCodeUrl($System_name, $staff->email, $secret);
+        $writer = new Writer(
+            new ImageRenderer(
+                new RendererStyle(200),
+                new ImagickImageBackEnd()
+            )
+        );
+        return ['qrURL' => base64_encode($writer->writeString($g2faUrl)), 'secret' => $secret];
     }
 
-    public function set_google_two_factor($secret) {
-        $id = get_staff_user_id();
+    public function set_google_two_factor($secret)
+    {
+        $id     = get_staff_user_id();
         $secret = $this->encrypt($secret);
 
         $this->db->where('staffid', $id);
         $success = $this->db->update(db_prefix() . 'staff', [
             'two_factor_auth_enabled' => 2,
-            'google_auth_secret' => $secret,
+            'google_auth_secret'      => $secret,
         ]);
 
         if ($success) {
@@ -708,92 +664,41 @@ class Authentication_model extends App_Model {
         return false;
     }
 
-    public function is_google_two_factor_code_valid($code, $secret = null) {
-        $g = new GoogleAuthenticator();
+    public function is_google_two_factor_code_valid($code, $secret = null)
+    {
+        $g = new PragmaRX\Google2FA\Google2FA();
 
         if (!is_null($secret)) {
-            return $g->checkCode($secret, $code);
+            return $g->verifyKey($secret, $code, 0);
         }
 
         $staffid = $this->session->userdata('tfa_staffid');
 
         $this->db->select('google_auth_secret')
-                ->where('staffid', $staffid);
+            ->where('staffid', $staffid);
 
         if ($staff = $this->db->get('staff')->row()) {
-            return $g->checkCode(
-                            $this->decrypt($staff->google_auth_secret),
-                            $code
+            return $g->verifyKey(
+                $this->decrypt($staff->google_auth_secret),
+                $code,
+                0
             );
         }
 
         return false;
     }
 
-    public function encrypt($string) {
+    public function encrypt($string)
+    {
         $this->load->library('encryption');
 
         return $this->encryption->encrypt($string);
     }
 
-    public function decrypt($string) {
+    public function decrypt($string)
+    {
         $this->load->library('encryption');
 
         return $this->encryption->decrypt($string);
-    }
-    
-    public function decodeJWT() {
-        $token = $this->input->get_request_header('Authorization');
-        $token = str_replace('Bearer ', '', $token); // Se necessário
-  
-        
-        $payload = [
-                        'iat' => time(), // Data de emissão
-                        'exp' => time() + (60 * 60),
-            'kid'=>$this->config->item('jwt_key')
-            
-                    ];
-
-                    $token = JWT::encode($payload, $this->config->item('jwt_key'), $this->config->item('jwt_algorithm')); // Adicione o algoritmo aqui
-   
-        echo 'Token gerado: ' . $token;
-        
-        
-         $decoded = JWT::decode($token, $this->config->item('jwt_key'), ['HS256']);
-     var_dump($decoded);
-        
-        try {
-            
-    $decoded = JWT::decode($token, $this->config->item('jwt_key'), ['HS256']);
-     var_dump($decoded);
-     exit;
-    return json_encode($decoded);
-} catch (ExpiredException $e) {
-    return json_encode(['error' => 'Token expirado']);
-} catch (SignatureInvalidException $e) {
-    return json_encode(['error' => 'Assinatura inválida']);
-} catch (\Exception $e) {
-    return json_encode(['error' => 'Token inválido', 'message' => $e->getMessage()]);
-}
-    }
-
-    public function yourEndpointJwt() {
-        $token = $this->input->get_request_header('Authorization');
-        $token = $this->input->get_request_header('Authorization');
-
-        if ($token) {
-            // Remove 'Bearer ' do token recebido se necessário
-            $token = str_replace('Bearer ', '', $token);
-            $data = $this->decodeJWT($token);
-
-            // Trabalhe com os dados decodificados (por exemplo, retornar resposta)
-            $this->output
-                 ->set_content_type('application/json')
-                 ->set_output($data);
-        } else {
-            $this->output
-                 ->set_status_header(401)
-                 ->set_output(json_encode(['error' => 'Token não fornecido']));
-        }
     }
 }

@@ -3,11 +3,11 @@
 // File name   : tcpdf_static.php
 // Version     : 1.1.4
 // Begin       : 2002-08-03
-// Last Update : 2022-08-12
+// Last Update : 2023-09-06
 // Author      : Nicola Asuni - Tecnick.com LTD - www.tecnick.com - info@tecnick.com
 // License     : GNU-LGPL v3 (http://www.gnu.org/copyleft/lesser.html)
 // -------------------------------------------------------------------
-// Copyright (C) 2002-2022 Nicola Asuni - Tecnick.com LTD
+// Copyright (C) 2002-2023 Nicola Asuni - Tecnick.com LTD
 //
 // This file is part of TCPDF software library.
 //
@@ -55,7 +55,7 @@ class TCPDF_STATIC {
 	 * Current TCPDF version.
 	 * @private static
 	 */
-	private static $tcpdf_version = '6.6.2';
+	private static $tcpdf_version = '6.7.7';
 
 	/**
 	 * String alias for total number of pages.
@@ -379,7 +379,10 @@ class TCPDF_STATIC {
 		if (function_exists('posix_getpid')) {
 			$rnd .= posix_getpid();
 		}
-		if (function_exists('openssl_random_pseudo_bytes') AND (strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN')) {
+
+		if (function_exists('random_bytes')) {
+			$rnd .= random_bytes(512);
+		} elseif (function_exists('openssl_random_pseudo_bytes') AND (strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN')) {
 			// this is not used on windows systems because it is very slow for a know bug
 			$rnd .= openssl_random_pseudo_bytes(512);
 		} else {
@@ -387,7 +390,7 @@ class TCPDF_STATIC {
 				$rnd .= uniqid('', true);
 			}
 		}
-		return $rnd.$seed.__FILE__.serialize($_SERVER).microtime(true);
+		return $rnd.$seed.__FILE__.microtime(true);
 	}
 
 	/**
@@ -1780,7 +1783,7 @@ class TCPDF_STATIC {
 			if ($ret === false) {
 				return array();
 			}
-			return $ret;
+			return is_array($ret) ? $ret : array();
 		}
 		// preg_split is bugged - try alternative solution
 		$ret = array();
@@ -1958,7 +1961,6 @@ class TCPDF_STATIC {
 				// try to get remote file data using cURL
 				$crs = curl_init();
 				curl_setopt($crs, CURLOPT_URL, $path);
-				curl_setopt($crs, CURLOPT_BINARYTRANSFER, true);
 				curl_setopt($crs, CURLOPT_FAILONERROR, true);
 				curl_setopt($crs, CURLOPT_RETURNTRANSFER, true);
 				if ((ini_get('open_basedir') == '') && (!ini_get('safe_mode'))) {
@@ -2124,7 +2126,7 @@ class TCPDF_STATIC {
 	 * Array of page formats
 	 * measures are calculated in this way: (inches * 72) or (millimeters * 72 / 25.4)
 	 * @public static
-	 * 
+	 *
      * @var array<string,float[]>
 	 */
 	public static $page_formats = array(

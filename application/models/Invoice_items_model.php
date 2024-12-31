@@ -101,30 +101,6 @@ class Invoice_items_model extends App_Model
 
         return $this->db->get()->result_array();
     }
-    
-    public function get_api($id = '', $where = [], $page = 1, $limit = 10) {
-    // Se um ID não foi fornecido
-    if (!is_numeric($id)) {
-        // Ao buscar todos os itens, implemente a lógica de paginação
-        $this->db->limit($limit, ($page - 1) * $limit); // Implementa a limitação e o deslocamento
-        // Obtenha todos os itens
-        $items = $this->db->get('tblitems')->result_array();
-
-        // Obtenha o total de itens
-        $this->db->select('COUNT(*) as total');
-        $total = $this->db->get('tblitems')->row()->total;
-
-        return ['items' => $items, 'total' => $total]; // Retorne os itens e o total
-    }
-
-    // Se um ID específico for fornecido, você pode buscar esse item em particular
-    // (Adicione a lógica correspondente para buscar um item específico, se necessário)
-    
-    $this->db->where('id', $id);
-    $item = $this->db->get('tblitems')->row_array();
-
-    return ['item' => $item]; // Retorna o item específico
-}
 
     public function get_grouped()
     {

@@ -1,6 +1,6 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <div class="widget" id="widget-<?php echo create_widget_id(); ?>" data-name="<?php echo _l('home_payment_records'); ?>">
-    <?php if (has_permission('payments', '', 'view') || has_permission('invoices', '', 'view_own')) { ?>
+    <?php if (staff_can('view',  'payments') || staff_can('view_own',  'invoices')) { ?>
     <div class="row" id="payments">
         <div class="col-md-12">
             <div class="panel_s">
@@ -8,7 +8,7 @@
                     <div class="widget-dragger"></div>
 
                     <div class="tw-flex tw-justify-between tw-items-center tw-p-1.5">
-                        <p class="tw-font-medium tw-flex tw-items-center tw-mb-0 tw-space-x-1.5 rtl:tw-space-x-reverse">
+                        <p class="tw-font-semibold tw-flex tw-items-center tw-mb-0 tw-space-x-1.5 rtl:tw-space-x-reverse">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                                 stroke="currentColor" class="tw-w-6 tw-h-6 tw-text-neutral-500">
                                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -30,14 +30,14 @@
     if ($currency['isdefault'] == 1) {
         $selected = 'selected';
     } ?>
-                                <option value="<?php echo $currency['id']; ?>" <?php echo $selected; ?>
-                                    data-subtext="<?php echo $currency['name']; ?>"><?php echo $currency['symbol']; ?>
+                                <option value="<?php echo e($currency['id']); ?>" <?php echo e($selected); ?>
+                                    data-subtext="<?php echo e($currency['name']); ?>"><?php echo e($currency['symbol']); ?>
                                 </option>
                                 <?php
 } ?>
                             </select>
                             <?php } ?>
-                            <?php if (has_permission('reports', '', 'view')) { ?>
+                            <?php if (staff_can('view',  'reports')) { ?>
                             <a href="<?php echo admin_url('reports/sales'); ?>" class="tw-pl-2">
                                 <?php echo _l('home_stats_full_report'); ?>
                             </a>

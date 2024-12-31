@@ -17,7 +17,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 * environments.
 *
 */
-define('APP_BASE_URL_DEFAULT', 'https://admin.arvis.com.br/');
+define('APP_BASE_URL', 'http://localhost/erp/');
 
 /*
 * --------------------------------------------------------------------------
@@ -32,25 +32,25 @@ define('APP_BASE_URL_DEFAULT', 'https://admin.arvis.com.br/');
 *
 * Auto added on install
 */
-define('APP_ENC_KEY', 'a21b666860e6ea942d86adc931f9ee34');
+define('APP_ENC_KEY', '6a88fa70f0c078521d59ed904a0fe44b');
 
 /**
  * Database Credentials
  * The hostname of your database server
  */
-define('APP_DB_HOSTNAME_DEFAULT', 'localhost');
+define('APP_DB_HOSTNAME', '77.37.40.128');
 /**
  * The username used to connect to the database
  */
-define('APP_DB_USERNAME_DEFAULT', 'api_arvis');
+define('APP_DB_USERNAME', 'dev');
 /**
  * The password used to connect to the database
  */
-define('APP_DB_PASSWORD_DEFAULT', 'Sk]TMLvRW)vaVz4M');
+define('APP_DB_PASSWORD', 'c6m8n4d2d3');
 /**
  * The name of the database you want to connect to
  */
-define('APP_DB_NAME_DEFAULT', 'api_arvis');
+define('APP_DB_NAME', 'dev');
 
 /**
  * @since  2.3.0
@@ -77,14 +77,8 @@ define('APP_DB_COLLATION', 'utf8_general_ci');
 define('SESS_DRIVER', 'database');
 define('SESS_SAVE_PATH', 'sessions');
 define('APP_SESSION_COOKIE_SAME_SITE', 'Lax');
-define('KEY_JWT', '123456789ABCD');
-
 
 /**
  * Enables CSRF Protection
  */
-define('APP_CSRF_PROTECTION', true);//perfex-saas:start:app-config.php
-//dont remove/change above line
-require_once('/home/api_arvis/www/modules/perfex_saas/config/app-config.php');
-//dont remove/change below line
-//perfex-saas:end:app-config.php
+define('APP_CSRF_PROTECTION', true);

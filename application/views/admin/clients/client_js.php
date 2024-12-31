@@ -29,11 +29,15 @@ $(function() {
         $('body').find('.nav-tabs [href="#' + tab_active + '"]').click();
     }
 
+    if(tab_active === 'customer_admins') {
+        $('#profile-save-section').addClass('hide');
+    }
+
     $('a[href="#customer_admins"]').on('click', function() {
         $('#profile-save-section').addClass('hide');
     });
 
-    $('.profile-tabs a').not('a[href="#customer_admins"]').on('click', function() {
+    $('.customer-profile-tabs  a').not('a[href="#customer_admins"]').on('click', function() {
         $('#profile-save-section').removeClass('hide');
     });
 
@@ -433,7 +437,7 @@ function save_longitude_and_latitude(clientid) {
     data.longitude = $('#longitude').val();
     $.post(admin_url + 'clients/save_longitude_and_latitude/' + clientid, data).done(function(response) {
         if (response == 'success') {
-            alert_float('success', "<?php echo _l('updated_successfully', _l('client')); ?>");
+            alert_float('success', "<?php echo e(_l('updated_successfully', _l('client'))); ?>");
         }
         setTimeout(function() {
             window.location.reload();

@@ -3601,7 +3601,7 @@ $lang['contract_content_permission_edit_warning'] = 'Ваши текущие р�
 $lang['mark_as_signed']                           = 'Отметить как подписанное';
 $lang['unmark_as_signed']                         = 'Убрать подпись';
 $lang['marked_as_signed']                         = 'Отмечен как подписанный';
-$lang['contract_marked_as_signed_info']           = 'Этот контракт подписан вручную.';
+$lang['contract_marked_as_signed_info']           = 'Этот договор подписан вручную.';
 $lang['save_and_send_later']                      = 'Сохранить и отправить позже';
 $lang['schedule']                                 = 'График';
 $lang['schedule_email_for']                       = 'Отправить расписание по Email для %s';
@@ -3787,7 +3787,7 @@ $lang['submit_button_text_color']                              = 'Цвет те�
 $lang['automatically_assign_ticket_to_first_staff_responding'] = 'Автоматически назначать тикет первому сотруднику, который отправит ответ?';
 
 # Version 2.9.1
-$lang['contract_signed_not_all_fields_editable'] = 'Этот контракт подписан, поэтому не все поля можно редактировать, пока подпись не будет удалена.';
+$lang['contract_signed_not_all_fields_editable'] = 'Этот договор подписан, поэтому не все поля можно редактировать, пока подпись не будет удалена.';
 $lang['form_submit_success_action']              = 'Что должно произойти после того, как посетитель отправит эту форму';
 $lang['form_submit_success_display_thank_you']   = 'Показать сообщение с благодарностью';
 $lang['form_submit_success_redirect_to_website'] = 'Перенаправить на другой сайт';
@@ -3850,23 +3850,99 @@ $lang['enable_honeypot_spam_validation']                         = 'Включи
 $lang['contracts_view_marked_as_signed'] = 'Помечено как подписанный';
 $lang['contracts_view_signed']           = 'подписанный';
 $lang['contracts_view_not_expired']      = 'Не истек';
-$lang['contract_information']            = 'Информация о контракте';
+$lang['contract_information']            = 'Информация о договоре';
 $lang['receipt']                         = 'Чек';
 $lang['search_proposals']                = 'Поиск предложений';
 $lang['search_estimates']                = 'Поиск оценок';
 $lang['quick_create']                    = 'Быстрое создание';
 
 # Version 3.0.5
-$lang['subscription_last_sent']                             = 'Last Sent';
-$lang['automatically_set_logged_in_staff_sales_agent']      = 'Automatically assign logged in staff as sale agent';
-$lang['automatically_set_logged_in_staff_sales_agent_help'] = 'Applicable for: Estimates, invoices, proposal';
-$lang['permission_view_all_templates']                      = 'View All Templates';
-$lang['settings_contract_sign_reminder_every_days_info']    = 'Sign reminders are sent to the customer contacts after the contract is first time sent to the customer and they are automatically stopped when the contract is signed.';
-$lang['contract_sign_reminder_every_days']                  = 'Send sign reminder every (days)';
-$lang['contract_sign_reminders']                            = 'Sign Reminders';
-$lang['payment_gateway_fee_percentage']                     = 'Percentage Fee';
-$lang['payment_gateway_fee_fixed']                          = 'Fixed Fee';
-$lang['payment_attempt_amount']                             = 'Invoice Total';
-$lang['payment_attempt_fee']                                = 'Payment Fee';
-$lang['feature']                                            = 'Feature';
-$lang['capabilities']                                       = 'Capabilities';
+$lang['subscription_last_sent']                             = 'Последнее отправленное';
+$lang['automatically_set_logged_in_staff_sales_agent']      = 'Автоматически назначать зарегистрированных сотрудников в качестве агентов по продажам';
+$lang['automatically_set_logged_in_staff_sales_agent_help'] = 'Применимо для: смет, счетов, предложений';
+$lang['permission_view_all_templates']                      = 'Просмотреть все шаблоны';
+$lang['settings_contract_sign_reminder_every_days_info']    = 'Напоминания о подписании отправляются контактам клиента после того, как договор был отправлен клиенту в первый раз, и они автоматически прекращаются при подписании договора.';
+$lang['contract_sign_reminder_every_days']                  = 'Отправлять подписанные напоминания каждые (дни)';
+$lang['contract_sign_reminders']                            = 'Подписать напоминания';
+$lang['payment_gateway_fee_percentage']                     = 'Процентная комиссия';
+$lang['payment_gateway_fee_fixed']                          = 'Фиксированная комиссия';
+$lang['payment_attempt_amount']                             = 'Общая сумма счета';
+$lang['payment_attempt_fee']                                = 'Комиссия за оплату';
+$lang['feature']                                            = 'Особенность';
+$lang['capabilities']                                       = 'Возможности';
+
+# Version 3.1.0
+$lang['filter_boolean_yes'] = 'Да';
+$lang['filter_boolean_no'] = 'Нет';
+$lang['filter_matchtype_and'] = 'и';
+$lang['filter_matchtype_or'] = 'или';
+$lang['filter_share'] = 'Делиться с другими членами команды?';
+$lang['filter_mark_as_default'] = 'Отметить как основной';
+$lang['filter_unmark_as_default'] = 'Снять отметку "Основной"';
+$lang['filter_save'] = 'Сохранить фильтр';
+$lang['filter_name'] = 'Имя фильтра';
+$lang['filter_apply'] = 'Применить';
+$lang['filter_apply_and_save'] = 'Применить и сохранить';
+$lang['filter_use_dynamic_dates'] = 'Использовать динамические даты';
+$lang['filter_new'] = 'Новый фильтр';
+$lang['filter_clear_active'] = 'Очистить фильтр';
+$lang['filter_edit'] = 'Редактировать';
+$lang['filter_create'] = 'Создать фильтр';
+$lang['filter_update'] = 'Обновить фильтр';
+$lang['filter_delete'] = 'Удалить фильтр';
+$lang['filter_cannot_be_shared'] = 'Этот фильтр не может быть общим с другими членами команды, так как он содержит правила, которые могут быть недоступны для всех пользователей.';
+$lang['filter_add_rule'] = 'Добавить правило';
+
+$lang['filter_operator_is_empty'] = 'неизвестно';
+$lang['filter_operator_is_not_empty'] = 'известно';
+$lang['filter_operator_equal'] = 'равно';
+$lang['filter_operator_not_equal'] = 'не равно';
+$lang['filter_operator_begins_with'] = 'начинается с';
+$lang['filter_operator_not_begins_with'] = 'не начинается с';
+$lang['filter_operator_contains'] = 'содержит';
+$lang['filter_operator_not_contains'] = 'не содержит';
+$lang['filter_operator_ends_with'] = 'заканчивается на';
+$lang['filter_operator_not_ends_with'] = 'не заканчивается на';
+$lang['filter_operator_in'] = 'в';
+$lang['filter_operator_not_in'] = 'не в';
+$lang['filter_operator_between'] = 'между';
+$lang['filter_operator_not_between'] = 'не между';
+$lang['filter_operator_dynamic'] = 'динамический';
+$lang['filter_operator_greater'] = 'больше';
+$lang['filter_operator_greater_or_equal'] = 'больше или равно';
+$lang['filter_operator_less'] = 'меньше';
+$lang['filter_operator_less_or_equal'] = 'меньше или равно';
+$lang['no_filters_found'] = 'Нет сохраненных фильтров. Начните с создания нового фильтра.';
+
+$lang['staff_logged_in_public_ticket_warning'] = 'Вы вошли как сотрудник. Если вы хотите ответить на заявку от имени сотрудника, вы должны сделать это через панель администратора.';
+
+# Version 3.1.2
+$lang['allow_non_admin_members_to_delete_tickets_and_replies'] = 'Разрешить сотрудникам, не являющимся администраторами, удалять заявки и ответы';
+$lang['default_filter_info'] = 'Фильтр будет помечен как используемый по умолчанию только для вашей учетной записи.';
+$lang['required_register_fields'] = 'Обязательные поля для регистрации (личный кабинет клиента)';
+
+# Version 3.1.6
+$lang['allow_non_admin_members_to_edit_ticket_messages'] = 'Разрешить сотрудникам, не являющимся администраторами, удалять заявки и ответы';
+$lang['proposal_auto_convert_to_invoice_on_client_accept'] = 'Автоматическое преобразование предложения в счет после принятия клиентом (только предложения, связанные с клиентами)';
+$lang['invoice_activity_auto_converted_from_proposal']      = 'Счет автоматически создается из предложения с номером %s';
+$lang['clients_proposal_invoiced_successfully'] = 'Благодарим вас за принятие предложения. Пожалуйста, ознакомьтесь с созданным счетом-фактурой для этого предложения';
+
+# Version 3.2.0
+$lang['ideal_payment_failure_message'] = 'The payment failed or was canceled.';
+$lang['ideal_api_publishable_key'] = 'Stripe Publishable Key';
+$lang['ideal_api_secret_key'] = 'Stripe API Secret Key';
+$lang['filters'] = 'Filters';
+$lang['view_financial_stats'] = 'View Financial Stats';
+$lang['timesheet_summary'] = 'Timesheet Summary';
+$lang['timesheet_detailed_overview'] = 'Detailed Overview of Logged Timesheets and Hours';
+$lang['ticket_request_history'] = 'Request History';
+$lang['integrations'] = 'Integrations';
+$lang['settings_group_other'] = 'Other';
+$lang['settings_group_configure_features'] = 'Configure Features';
+$lang['disable_ticket_public_url'] = 'Disable Ticket Public URL';
+
+# Version 3.2.1
+$lang['ideal_gateway_keys_not_configured'] = 'iDEAL Payment Gateway API not configured.';
+$lang['ideal_gateway_cannot_be_activated_keys_not_configured'] = 'iDEAL Payment Gateway cannot be activated as the Stripe Publishable/API key is not configured.';
+$lang['company_logo_light'] = 'Company Logo Light';
+$lang['welcome_back_sign_in'] = 'Welcome, please sign in to your dashboard';

@@ -4,11 +4,12 @@ use app\services\utilities\Arr;
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Clients_model extends App_Model {
-
+class Clients_model extends App_Model
+{
     private $contact_columns;
 
-    public function __construct() {
+    public function __construct()
+    {
         parent::__construct();
 
         $this->contact_columns = hooks()->apply_filters('contact_columns', ['firstname', 'lastname', 'email', 'phonenumber', 'title', 'password', 'send_set_password_email', 'donotsendwelcomeemail', 'permissions', 'direction', 'invoice_emails', 'estimate_emails', 'credit_note_emails', 'contract_emails', 'task_emails', 'project_emails', 'ticket_emails', 'is_primary']);
@@ -22,7 +23,8 @@ class Clients_model extends App_Model {
      * @param  array  $where
      * @return mixed
      */
-    public function get($id = '', $where = []) {
+    public function get($id = '', $where = [])
+    {
         $this->db->select(implode(',', prefixed_table_fields_array(db_prefix() . 'clients')) . ',' . get_sql_select_client_company());
 
         $this->db->join(db_prefix() . 'countries', '' . db_prefix() . 'countries.country_id = ' . db_prefix() . 'clients.country', 'left');
@@ -50,65 +52,6 @@ class Clients_model extends App_Model {
         return $this->db->get(db_prefix() . 'clients')->result_array();
     }
 
-public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC') {
-    
-    if (!is_numeric($id)) {
-        // Adicionar condições de busca
-        if (!empty($search)) {
-            $this->db->group_start(); // Começa um agrupamento de condição
-            $this->db->like('company', $search); // Busca pelo campo 'company'
-            $this->db->or_like('billing_city', $search);
-            $this->db->or_like('billing_state', $search);
-            $this->db->or_like('vat', $search); // Busca pelo campo 'vat'
-
-            // Pesquisa o CNPJ sem formatação
-            $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
-            $this->db->group_end(); // Fecha o agrupamento de condição
-        }
-
-        // Implementar lógica para ordenação
-        $this->db->order_by($sortField, $sortOrder);
-
-        // Implementar a limitação e o deslocamento
-        $this->db->limit($limit, ($page - 1) * $limit);
-        
-        // Obtenha todos os clientes
-        $clients = $this->db->get(db_prefix() . 'clients')->result_array();
-
-        // Contar o total de clientes (considerando a busca)
-        $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
-
-        if (!empty($search)) {
-            // Condições de busca para contar os resultados
-            $this->db->group_start(); // Começa um agrupamento de condição
-            $this->db->like('company', $search);
-            $this->db->or_like('billing_city', $search);
-            $this->db->or_like('billing_state', $search);
-            $this->db->or_like('vat', $search);
-            $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
-            $this->db->group_end(); // Fecha o agrupamento de condição
-        }
-        
-        // Seleciona o total de clientes
-        $this->db->select('COUNT(*) as total');
-        $total = $this->db->get(db_prefix() . 'clients')->row()->total;
-
-        return ['clients' => $clients, 'total' => $total]; // Retorne os clientes e o total
-    }else{
-        
-   
-
-
-return ['clients' => (array)$this->get($id), 'total' => 1]; 
-     
-       
-        
-        
-    }
-
-    // (O resto do código existente para quando $id é válido)
-}
-
     /**
      * Get customers contacts
      * @param  mixed $customer_id
@@ -116,7 +59,8 @@ return ['clients' => (array)$this->get($id), 'total' => 1];
      * @param  array $whereIn     perform whereIn query
      * @return array
      */
-    public function get_contacts($customer_id = '', $where = ['active' => 1], $whereIn = []) {
+    public function get_contacts($customer_id = '', $where = ['active' => 1], $whereIn = [])
+    {
         $this->db->where($where);
         if ($customer_id != '') {
             $this->db->where('userid', $customer_id);
@@ -138,7 +82,8 @@ return ['clients' => (array)$this->get($id), 'total' => 1];
      * @param  mixed $id contact id
      * @return object
      */
-    public function get_contact($id) {
+    public function get_contact($id)
+    {
         $this->db->where('id', $id);
 
         return $this->db->get(db_prefix() . 'contacts')->row();
@@ -153,7 +98,8 @@ return ['clients' => (array)$this->get($id), 'total' => 1];
      *
      * @return \strClass|null
      */
-    public function get_contact_by_email($email) {
+    public function get_contact_by_email($email)
+    {
         $this->db->where('email', $email);
         $this->db->limit(1);
 
@@ -168,7 +114,8 @@ return ['clients' => (array)$this->get($id), 'total' => 1];
      *
      * Add new client to database
      */
-    public function add($data, $withContact = false) {
+    public function add($data, $withContact = false)
+    {
         $contact_data = [];
         // From Lead Convert to client
         if (isset($data['send_set_password_email'])) {
@@ -196,7 +143,7 @@ return ['clients' => (array)$this->get($id), 'total' => 1];
             }
         }
 
-        $groups_in = Arr::pull($data, 'groups_in') ?? [];
+        $groups_in     = Arr::pull($data, 'groups_in') ?? [];
         $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
 
         // From customer profile register
@@ -207,7 +154,7 @@ return ['clients' => (array)$this->get($id), 'total' => 1];
 
         $this->db->insert(db_prefix() . 'clients', array_merge($data, [
             'datecreated' => date('Y-m-d H:i:s'),
-            'addedfrom' => is_staff_logged_in() ? get_staff_user_id() : 0,
+            'addedfrom'   => is_staff_logged_in() ? get_staff_user_id() : 0,
         ]));
 
         $client_id = $this->db->insert_id();
@@ -218,7 +165,7 @@ return ['clients' => (array)$this->get($id), 'total' => 1];
                 // Possible request from the register area with 2 types of custom fields for contact and for comapny/customer
                 if (count($custom_fields) == 2) {
                     unset($custom_fields);
-                    $custom_fields['customers'] = $_custom_fields['customers'];
+                    $custom_fields['customers']                = $_custom_fields['customers'];
                     $contact_data['custom_fields']['contacts'] = $_custom_fields['contacts'];
                 } elseif (count($custom_fields) == 1) {
                     if (isset($_custom_fields['contacts'])) {
@@ -239,9 +186,9 @@ return ['clients' => (array)$this->get($id), 'total' => 1];
 
             foreach ($groups_in as $group) {
                 $this->db->insert('customer_groups', [
-                    'customer_id' => $client_id,
-                    'groupid' => $group,
-                ]);
+                        'customer_id' => $client_id,
+                        'groupid'     => $group,
+                    ]);
             }
 
             $log = 'ID: ' . $client_id;
@@ -260,155 +207,18 @@ return ['clients' => (array)$this->get($id), 'total' => 1];
             do_action_deprecated('after_client_added', [$client_id], '2.9.4', 'after_client_created');
 
             hooks()->do_action('after_client_created', [
-                'id' => $client_id,
-                'data' => $data,
-                'contact_data' => $contact_data,
+                'id'            => $client_id,
+                'data'          => $data,
+                'contact_data'  => $contact_data,
                 'custom_fields' => $custom_fields,
-                'groups_in' => $groups_in,
-                'with_contact' => $withContact,
+                'groups_in'     => $groups_in,
+                'with_contact'  => $withContact,
             ]);
 
             log_activity('New Client Created [' . $log . ']', $isStaff);
         }
 
         return $client_id;
-    }
-    
-     public function add_import_items() {
-           $this->load->database();  
-         // Caminho do seu arquivo CSV
- $csvFile = '/home/api_arvis/www/uploads/import/produtos_rows.csv';
-
-// Abrir o arquivo CSV
-if (($handle = fopen($csvFile, 'r')) !== false) {
-    // Ler o cabeçalho do arquivo CSV (apenas para pular)
-    $header = fgetcsv($handle, 1000, ',');
-
-    // Contador de registros inseridos com sucesso
-    $insertedRecords = 0;
-
-    // Percorrer cada linha do arquivo CSV
-    while (($data = fgetcsv($handle, 1000, ',')) !== false) {
-        // Verificar se a linha contém dados válidos
-        if (count($data) < count($header)) { // Verifica se a linha tem a quantidade mínima de colunas
-            continue; // Pular linhas em branco ou inválidas
-        }
-
-        // Mapeia os dados do CSV para os campos da tabela
-        $itemData = array(
-            'description' => $data[3],                  // Nome do produto / descrição (tpr_produto)
-            'long_description' => $data[4],              // Descrição longa se necessário (tpr_descricao)
-            'rate' => $data[13],                         // Preço (tpr_precolista1)
-            'tax' => null,                               // ID do imposto - ajustável conforme sua aplicação
-            'tax2' => null,                              // ID do segundo imposto - ajustável conforme sua aplicação
-            'unit' => $data[6],                          // Unidade (tpr_unidade)
-            'group_id' => $data[5],                      // ID do grupo (tpr_codgrp)
-            'perfex_saas_tenant_id' => 'master'         // ID do inquilino - ajustável conforme sua aplicação
-        );
-
-        // Inserir dados na tabela
-        $this->db->insert('tblitems', $itemData);
-        
-        // Incrementar contador de registros inseridos
-        $insertedRecords++;
-    }
-    
-    // Fechar o arquivo CSV
-    fclose($handle);
-    
-    echo "$insertedRecords registros inseridos com sucesso!";
-} else {
-    echo "Erro ao abrir o arquivo CSV.";
-}
-         
-     }
-
-    /**
-     * @param array $_POST data
-     * @param withContact
-     *
-     * @return integer Insert ID
-     *
-     * Add new client to database
-     */
-    public function add_import() {
-        // Conectar ao banco de dados (substitua pelos seus dados de conexão)
-        $this->load->database();
-
-// Caminho do seu arquivo CSV
-        $csvFile = '/home/api_arvis/www/uploads/import/clients.csv';
-// Abrir o arquivo CSV
-if (($handle = fopen($csvFile, 'r')) !== false) {
-    // Ler o cabeçalho do arquivo CSV (apenas para pular)
-    $header = fgetcsv($handle, 1000, ',');
-
-    // Contador de registros inseridos com sucesso
-    $insertedRecords = 0;
-
-    // Percorrer cada linha do arquivo CSV
-    while (($data = fgetcsv($handle, 1000, ',')) !== false) {
-        // Verificar se a linha contém dados válidos
-        if (count($data) < count($header)) { // Verifica se a linha tem a quantidade mínima de colunas
-            continue; // Pular linhas em branco ou inválidas
-        }
-
-                // Mapeia os dados do CSV para os campos da tabela 
-                $clientData = array(
-                    'company' => $data[1], // Nome da empresa (tcl_razao)
-                    'vat' => $data[9], // CNPJ (tcl_cnpj)
-                    'country' => 282, // CNPJ (tcl_cnpj)
-                    'phonenumber' => $data[14], // Telefone (tcl_fone1)
-                    'city' => $data[5], // Cidade (tcl_cidade)
-                    'zip' => $data[7], // CEP (tcl_cep)
-                    'state' => $data[6], // Estado (tcl_estado)
-                    'address' => $data[3], // Endereço (tcl_endereco)
-                    'website' => $data[18], // Site (tcl_site)
-                    'datecreated' => date('Y-m-d H:i:s'), // Data atual
-                    'active' => 1, // Ativo
-                    'billing_street' => $data[3], // Rua de cobrança (tcl_endereco)
-                    'billing_city' => $data[5], // Cidade de cobrança (tcl_cidade)
-                    'billing_state' => $data[6], // Estado de cobrança (tcl_estado)
-                    'billing_zip' => $data[7], // CEP de cobrança (tcl_cep)
-                    'billing_country' => 282, // País de cobrança - ajustável conforme sua necessidade
-                    'shipping_street' => $data[3], // Rua de entrega
-                    'shipping_city' => $data[5], // Cidade de entrega
-                    'shipping_state' => $data[6], // Estado de entrega
-                    'shipping_zip' => $data[7], // CEP de entrega
-                    'shipping_country' => 282, // País de entrega - ajustável conforme sua necessidade
-                    'longitude' => null, // Longitude - não presente no CSV
-                    'latitude' => null, // Latitude - não presente no CSV
-                    'default_language' => 'pt', // Idioma padrão - ajustável
-                    'default_currency' => 0, // Moeda padrão - ajustável
-                    'show_primary_contact' => 1, // Mostrar contato primário
-                    'stripe_id' => null, // Stripe ID - não presente no CSV
-                    'registration_confirmed' => 1, // Registro confirmado
-                    'addedfrom' => 0, // Quem adicionou - ajustável conforme sua aplicação
-                    'perfex_saas_tenant_id' => 'master', // ID do inquilino - ajustável
-                    'inscricao_estadual' => $data[10], // Inscrição Estadual - tcl_ie
-                    'nome_fantasia' => $data[2]                   // Nome Fantasia - tcl_fantasia
-                );
-
-                // Inserir dados na tabela
-                $this->db->insert('tblclients', $clientData);
-
-                // Obter o ID do cliente recém-inserido
-                $client_id = $this->db->insert_id();
-
-                // Preparar dados do contato
-                $contact_data = array(
-                    'firstname' => $data[13], // Nome do contato - tcl_contato
-                    'lastname' => '', // Sobrenome - ajuste conforme sua necessidade
-                    'email' => $data[18], // Email - tcl_email
-                    'phonenumber' => $data[14], // Telefone do contato - tcl_fone1
-                    'userid' => $client_id,
-                    'is_primary' => 1,
-                    'password'=>app_hash_password(preg_replace('/\D/', '', $data[9]))
-                );
-
-                // Adicionar contato
-                $contact_id = $this->add_contact($contact_data, $client_id, true);
-            }
-        }
     }
 
     /**
@@ -417,16 +227,17 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @return boolean
      * Update client informations
      */
-    public function update($data, $id, $client_request = false) {
+    public function update($data, $id, $client_request = false)
+    {
         $updated = false;
-        $data = $this->check_zero_columns($data);
+        $data    = $this->check_zero_columns($data);
 
         $data = hooks()->apply_filters('before_client_updated', $data, $id);
 
         $update_all_other_transactions = (bool) Arr::pull($data, 'update_all_other_transactions');
-        $update_credit_notes = (bool) Arr::pull($data, 'update_credit_notes');
-        $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
-        $groups_in = Arr::pull($data, 'groups_in') ?? false;
+        $update_credit_notes           = (bool) Arr::pull($data, 'update_credit_notes');
+        $custom_fields                 = Arr::pull($data, 'custom_fields') ?? [];
+        $groups_in                     = Arr::pull($data, 'groups_in') ?? false;
 
         if (handle_custom_fields_post($id, $custom_fields)) {
             $updated = true;
@@ -441,23 +252,23 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
         if ($update_all_other_transactions || $update_credit_notes) {
             $transactions_update = [
-                'billing_street' => $data['billing_street'],
-                'billing_city' => $data['billing_city'],
-                'billing_state' => $data['billing_state'],
-                'billing_zip' => $data['billing_zip'],
-                'billing_country' => $data['billing_country'],
-                'shipping_street' => $data['shipping_street'],
-                'shipping_city' => $data['shipping_city'],
-                'shipping_state' => $data['shipping_state'],
-                'shipping_zip' => $data['shipping_zip'],
+                'billing_street'   => $data['billing_street'],
+                'billing_city'     => $data['billing_city'],
+                'billing_state'    => $data['billing_state'],
+                'billing_zip'      => $data['billing_zip'],
+                'billing_country'  => $data['billing_country'],
+                'shipping_street'  => $data['shipping_street'],
+                'shipping_city'    => $data['shipping_city'],
+                'shipping_state'   => $data['shipping_state'],
+                'shipping_zip'     => $data['shipping_zip'],
                 'shipping_country' => $data['shipping_country'],
             ];
 
             if ($update_all_other_transactions) {
                 // Update all invoices except paid ones.
                 $this->db->where('clientid', $id)
-                        ->where('status !=', 2)
-                        ->update('invoices', $transactions_update);
+                ->where('status !=', 2)
+                ->update('invoices', $transactions_update);
 
                 if ($this->db->affected_rows() > 0) {
                     $updated = true;
@@ -465,7 +276,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
                 // Update all estimates
                 $this->db->where('clientid', $id)
-                        ->update('estimates', $transactions_update);
+                    ->update('estimates', $transactions_update);
                 if ($this->db->affected_rows() > 0) {
                     $updated = true;
                 }
@@ -473,8 +284,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
             if ($update_credit_notes) {
                 $this->db->where('clientid', $id)
-                        ->where('status !=', 2)
-                        ->update('creditnotes', $transactions_update);
+                    ->where('status !=', 2)
+                    ->update('creditnotes', $transactions_update);
 
                 if ($this->db->affected_rows() > 0) {
                     $updated = true;
@@ -489,13 +300,13 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         do_action_deprecated('after_client_updated', [$id], '2.9.4', 'client_updated');
 
         hooks()->do_action('client_updated', [
-            'id' => $id,
-            'data' => $data,
+            'id'                            => $id,
+            'data'                          => $data,
             'update_all_other_transactions' => $update_all_other_transactions,
-            'update_credit_notes' => $update_credit_notes,
-            'custom_fields' => $custom_fields,
-            'groups_in' => $groups_in,
-            'updated' => &$updated,
+            'update_credit_notes'           => $update_credit_notes,
+            'custom_fields'                 => $custom_fields,
+            'groups_in'                     => $groups_in,
+            'updated'                       => &$updated,
         ]);
 
         if ($updated) {
@@ -512,20 +323,21 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  boolean $client_request is request from customers area
      * @return mixed
      */
-    public function update_contact($data, $id, $client_request = false) {
+    public function update_contact($data, $id, $client_request = false)
+    {
         $affectedRows = 0;
-        $contact = $this->get_contact($id);
+        $contact      = $this->get_contact($id);
         if (empty($data['password'])) {
             unset($data['password']);
         } else {
-            $data['password'] = app_hash_password($data['password']);
+            $data['password']             = app_hash_password($data['password']);
             $data['last_password_change'] = date('Y-m-d H:i:s');
         }
 
         $send_set_password_email = isset($data['send_set_password_email']) ? true : false;
         $set_password_email_sent = false;
 
-        $permissions = isset($data['permissions']) ? $data['permissions'] : [];
+        $permissions        = isset($data['permissions']) ? $data['permissions'] : [];
         $data['is_primary'] = isset($data['is_primary']) ? 1 : 0;
 
         // Contact cant change if is primary or not
@@ -542,13 +354,13 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         }
 
         if ($client_request == false) {
-            $data['invoice_emails'] = isset($data['invoice_emails']) ? 1 : 0;
-            $data['estimate_emails'] = isset($data['estimate_emails']) ? 1 : 0;
-            $data['credit_note_emails'] = isset($data['credit_note_emails']) ? 1 : 0;
-            $data['contract_emails'] = isset($data['contract_emails']) ? 1 : 0;
-            $data['task_emails'] = isset($data['task_emails']) ? 1 : 0;
-            $data['project_emails'] = isset($data['project_emails']) ? 1 : 0;
-            $data['ticket_emails'] = isset($data['ticket_emails']) ? 1 : 0;
+            $data['invoice_emails']     = isset($data['invoice_emails']) ? 1 :0;
+            $data['estimate_emails']    = isset($data['estimate_emails']) ? 1 :0;
+            $data['credit_note_emails'] = isset($data['credit_note_emails']) ? 1 :0;
+            $data['contract_emails']    = isset($data['contract_emails']) ? 1 :0;
+            $data['task_emails']        = isset($data['task_emails']) ? 1 :0;
+            $data['project_emails']     = isset($data['project_emails']) ? 1 :0;
+            $data['ticket_emails']      = isset($data['ticket_emails']) ? 1 :0;
         }
 
         $data = hooks()->apply_filters('before_update_contact', $data, $id);
@@ -586,7 +398,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
                     $_exists = $this->db->get(db_prefix() . 'contact_permissions')->row();
                     if (!$_exists) {
                         $this->db->insert(db_prefix() . 'contact_permissions', [
-                            'userid' => $id,
+                            'userid'        => $id,
                             'permission_id' => $permission,
                         ]);
                         if ($this->db->affected_rows() > 0) {
@@ -597,7 +409,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
             } else {
                 foreach ($permissions as $permission) {
                     $this->db->insert(db_prefix() . 'contact_permissions', [
-                        'userid' => $id,
+                        'userid'        => $id,
                         'permission_id' => $permission,
                     ]);
                     if ($this->db->affected_rows() > 0) {
@@ -641,7 +453,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param mixed  $customer_id        customer id
      * @param boolean $not_manual_request is manual from admin area customer profile or register, convert to lead
      */
-    public function add_contact($data, $customer_id, $not_manual_request = false) {
+    public function add_contact($data, $customer_id, $not_manual_request = false)
+    {
         $send_set_password_email = isset($data['send_set_password_email']) ? true : false;
 
         if (isset($data['custom_fields'])) {
@@ -675,7 +488,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
             if (is_email_verification_enabled() && !empty($data['email'])) {
                 // Verification is required on register
-                $data['email_verified_at'] = null;
+                $data['email_verified_at']      = null;
                 $data['email_verification_key'] = app_generate_hash();
             }
         }
@@ -691,22 +504,22 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         }
 
         $password_before_hash = '';
-        $data['userid'] = $customer_id;
+        $data['userid']       = $customer_id;
         if (isset($data['password'])) {
             $password_before_hash = $data['password'];
-            $data['password'] = app_hash_password($data['password']);
+            $data['password']     = app_hash_password($data['password']);
         }
 
         $data['datecreated'] = date('Y-m-d H:i:s');
 
         if (!$not_manual_request) {
-            $data['invoice_emails'] = isset($data['invoice_emails']) ? 1 : 0;
-            $data['estimate_emails'] = isset($data['estimate_emails']) ? 1 : 0;
-            $data['credit_note_emails'] = isset($data['credit_note_emails']) ? 1 : 0;
-            $data['contract_emails'] = isset($data['contract_emails']) ? 1 : 0;
-            $data['task_emails'] = isset($data['task_emails']) ? 1 : 0;
-            $data['project_emails'] = isset($data['project_emails']) ? 1 : 0;
-            $data['ticket_emails'] = isset($data['ticket_emails']) ? 1 : 0;
+            $data['invoice_emails']     = isset($data['invoice_emails']) ? 1 :0;
+            $data['estimate_emails']    = isset($data['estimate_emails']) ? 1 :0;
+            $data['credit_note_emails'] = isset($data['credit_note_emails']) ? 1 :0;
+            $data['contract_emails']    = isset($data['contract_emails']) ? 1 :0;
+            $data['task_emails']        = isset($data['task_emails']) ? 1 :0;
+            $data['project_emails']     = isset($data['project_emails']) ? 1 :0;
+            $data['ticket_emails']      = isset($data['ticket_emails']) ? 1 :0;
         }
 
         $data['email'] = trim($data['email']);
@@ -724,8 +537,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
             if (!isset($permissions) && $not_manual_request == false) {
                 $permissions = [];
             } elseif ($not_manual_request == true) {
-                $permissions = [];
-                $_permissions = get_contact_permissions();
+                $permissions         = [];
+                $_permissions        = get_contact_permissions();
                 $default_permissions = @unserialize(get_option('default_contact_permissions'));
                 if (is_array($default_permissions)) {
                     foreach ($_permissions as $permission) {
@@ -740,18 +553,18 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
                 // update all email notifications to 0
                 $this->db->where('id', $contact_id);
                 $this->db->update(db_prefix() . 'contacts', [
-                    'invoice_emails' => 0,
-                    'estimate_emails' => 0,
+                    'invoice_emails'     => 0,
+                    'estimate_emails'    => 0,
                     'credit_note_emails' => 0,
-                    'contract_emails' => 0,
-                    'task_emails' => 0,
-                    'project_emails' => 0,
-                    'ticket_emails' => 0,
+                    'contract_emails'    => 0,
+                    'task_emails'        => 0,
+                    'project_emails'     => 0,
+                    'ticket_emails'      => 0,
                 ]);
             }
             foreach ($permissions as $permission) {
                 $this->db->insert(db_prefix() . 'contact_permissions', [
-                    'userid' => $contact_id,
+                    'userid'        => $contact_id,
                     'permission_id' => $permission,
                 ]);
 
@@ -776,18 +589,15 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
                 }
             }
 
-            /*
             if ($send_welcome_email == true && !empty($data['email'])) {
                 send_mail_template(
-                        'customer_created_welcome_mail',
-                        $data['email'],
-                        $data['userid'],
-                        $contact_id,
-                        $password_before_hash
+                    'customer_created_welcome_mail',
+                    $data['email'],
+                    $data['userid'],
+                    $contact_id,
+                    $password_before_hash
                 );
             }
-             * 
-             */
 
             if ($send_set_password_email) {
                 $this->authentication_model->set_password_email($data['email'], 0);
@@ -817,17 +627,18 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param array  $data
      * @param mixed  $customer_id
      */
-    public function add_contact_via_customers_area($data, $customer_id) {
-        $send_welcome_email = isset($data['donotsendwelcomeemail']) && $data['donotsendwelcomeemail'] ? false : true;
+    public function add_contact_via_customers_area($data, $customer_id)
+    {
+        $send_welcome_email      = isset($data['donotsendwelcomeemail']) && $data['donotsendwelcomeemail'] ? false : true;
         $send_set_password_email = isset($data['send_set_password_email']) && $data['send_set_password_email'] ? true : false;
-        $custom_fields = $data['custom_fields'];
+        $custom_fields           = $data['custom_fields'];
         unset($data['custom_fields']);
 
         if (!is_email_verification_enabled()) {
             $data['email_verified_at'] = date('Y-m-d H:i:s');
         } elseif (is_email_verification_enabled() && !empty($data['email'])) {
             // Verification is required on register
-            $data['email_verified_at'] = null;
+            $data['email_verified_at']      = null;
             $data['email_verification_key'] = app_generate_hash();
         }
 
@@ -835,8 +646,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
         $data = array_merge($data, [
             'datecreated' => date('Y-m-d H:i:s'),
-            'userid' => $customer_id,
-            'password' => app_hash_password(isset($data['password']) ? $data['password'] : time()),
+            'userid'      => $customer_id,
+            'password'    => app_hash_password(isset($data['password']) ? $data['password'] : time()),
         ]);
 
         $data = hooks()->apply_filters('before_create_contact', $data);
@@ -854,7 +665,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
                 foreach (get_contact_permissions() as $permission) {
                     if (in_array($permission['id'], $default_permissions)) {
                         $this->db->insert(db_prefix() . 'contact_permissions', [
-                            'userid' => $contact_id,
+                            'userid'        => $contact_id,
                             'permission_id' => $permission['id'],
                         ]);
                     }
@@ -863,11 +674,11 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
             if ($send_welcome_email === true) {
                 send_mail_template(
-                        'customer_created_welcome_mail',
-                        $data['email'],
-                        $customer_id,
-                        $contact_id,
-                        $password_before_hash
+                    'customer_created_welcome_mail',
+                    $data['email'],
+                    $customer_id,
+                    $contact_id,
+                    $password_before_hash
                 );
             }
 
@@ -890,7 +701,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id
      * @return boolean
      */
-    public function update_company_details($data, $id) {
+    public function update_company_details($data, $id)
+    {
         $affectedRows = 0;
         if (isset($data['custom_fields'])) {
             $custom_fields = $data['custom_fields'];
@@ -943,7 +755,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id customer id
      * @return array
      */
-    public function get_admins($id) {
+    public function get_admins($id)
+    {
         $this->db->where('customer_id', $id);
 
         return $this->db->get(db_prefix() . 'customer_admins')->result_array();
@@ -953,7 +766,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * Get unique staff id's of customer admins
      * @return array
      */
-    public function get_customers_admin_unique_ids() {
+    public function get_customers_admin_unique_ids()
+    {
         return $this->db->query('SELECT DISTINCT(staff_id) FROM ' . db_prefix() . 'customer_admins')->result_array();
     }
 
@@ -963,7 +777,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id   customer id
      * @return boolean
      */
-    public function assign_admins($data, $id) {
+    public function assign_admins($data, $id)
+    {
         $affectedRows = 0;
 
         if (count($data) == 0) {
@@ -973,7 +788,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
                 $affectedRows++;
             }
         } else {
-            $current_admins = $this->get_admins($id);
+            $current_admins     = $this->get_admins($id);
             $current_admins_ids = [];
             foreach ($current_admins as $c_admin) {
                 array_push($current_admins_ids, $c_admin['staff_id']);
@@ -990,12 +805,12 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
             }
             foreach ($data['customer_admins'] as $n_admin_id) {
                 if (total_rows(db_prefix() . 'customer_admins', [
-                            'customer_id' => $id,
-                            'staff_id' => $n_admin_id,
-                        ]) == 0) {
+                    'customer_id' => $id,
+                    'staff_id' => $n_admin_id,
+                ]) == 0) {
                     $this->db->insert(db_prefix() . 'customer_admins', [
-                        'customer_id' => $id,
-                        'staff_id' => $n_admin_id,
+                        'customer_id'   => $id,
+                        'staff_id'      => $n_admin_id,
                         'date_assigned' => date('Y-m-d H:i:s'),
                     ]);
                     if ($this->db->affected_rows() > 0) {
@@ -1016,7 +831,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @return boolean
      * Delete client, also deleting rows from, dismissed client announcements, ticket replies, tickets, autologin, user notes
      */
-    public function delete($id) {
+    public function delete($id)
+    {
         $affectedRows = 0;
 
         if (!is_gdpr() && is_reference_in_table('clientid', db_prefix() . 'invoices', $id)) {
@@ -1040,7 +856,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         hooks()->do_action('before_client_deleted', $id);
 
         $last_activity = get_last_system_activity_id();
-        $company = get_company_name($id);
+        $company       = get_company_name($id);
 
         $this->db->where('userid', $id);
         $this->db->delete(db_prefix() . 'clients');
@@ -1089,23 +905,23 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
             $this->db->where('clientid', $id);
             $this->db->update(db_prefix() . 'creditnotes', [
-                'clientid' => 0,
+                'clientid'   => 0,
                 'project_id' => 0,
             ]);
 
             $this->db->where('clientid', $id);
             $this->db->update(db_prefix() . 'invoices', [
-                'clientid' => 0,
-                'recurring' => 0,
-                'recurring_type' => null,
-                'custom_recurring' => 0,
-                'cycles' => 0,
-                'last_recurring_date' => null,
-                'project_id' => 0,
-                'subscription_id' => 0,
+                'clientid'                 => 0,
+                'recurring'                => 0,
+                'recurring_type'           => null,
+                'custom_recurring'         => 0,
+                'cycles'                   => 0,
+                'last_recurring_date'      => null,
+                'project_id'               => 0,
+                'subscription_id'          => 0,
                 'cancel_overdue_reminders' => 1,
-                'last_overdue_reminder' => null,
-                'last_due_reminder' => null,
+                'last_overdue_reminder'    => null,
+                'last_due_reminder'        => null,
             ]);
 
             if (is_gdpr() && get_option('gdpr_on_forgotten_remove_estimates') == '1') {
@@ -1122,8 +938,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
             $this->db->where('clientid', $id);
             $this->db->update(db_prefix() . 'estimates', [
-                'clientid' => 0,
-                'project_id' => 0,
+                'clientid'           => 0,
+                'project_id'         => 0,
                 'is_expiry_notified' => 1,
             ]);
 
@@ -1225,11 +1041,12 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id contact id
      * @return boolean
      */
-    public function delete_contact($id) {
+    public function delete_contact($id)
+    {
         hooks()->do_action('before_delete_contact', $id);
 
         $this->db->where('id', $id);
-        $result = $this->db->get(db_prefix() . 'contacts')->row();
+        $result      = $this->db->get(db_prefix() . 'contacts')->row();
         $customer_id = $result->userid;
 
         $last_activity = get_last_system_activity_id();
@@ -1332,11 +1149,13 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
             $this->db->where('(email="' . $result->email . '" OR bcc LIKE "%' . $result->email . '%" OR cc LIKE "%' . $result->email . '%")');
             $this->db->delete(db_prefix() . 'mail_queue');
-
+           
             if (is_gdpr()) {
-                $this->db->where('email', $result->email);
-                $this->db->delete(db_prefix() . 'listemails');
-
+                if(table_exists('listemails')) {
+                    $this->db->where('email', $result->email);
+                    $this->db->delete(db_prefix() . 'listemails');
+                }
+                
                 if (!empty($result->last_ip)) {
                     $this->db->where('ip', $result->last_ip);
                     $this->db->delete(db_prefix() . 'knowedge_base_article_feedback');
@@ -1403,7 +1222,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id customer id
      * @return mixed
      */
-    public function get_customer_default_currency($id) {
+    public function get_customer_default_currency($id)
+    {
         $this->db->select('default_currency');
         $this->db->where('userid', $id);
         $result = $this->db->get(db_prefix() . 'clients')->row();
@@ -1419,14 +1239,15 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param   mixed $id   customer id
      * @return  array
      */
-    public function get_customer_billing_and_shipping_details($id) {
+    public function get_customer_billing_and_shipping_details($id)
+    {
         $this->db->select('billing_street,billing_city,billing_state,billing_zip,billing_country,shipping_street,shipping_city,shipping_state,shipping_zip,shipping_country');
         $this->db->from(db_prefix() . 'clients');
         $this->db->where('userid', $id);
 
         $result = $this->db->get()->result_array();
         if (count($result) > 0) {
-            $result[0]['billing_street'] = clear_textarea_breaks($result[0]['billing_street']);
+            $result[0]['billing_street']  = clear_textarea_breaks($result[0]['billing_street']);
             $result[0]['shipping_street'] = clear_textarea_breaks($result[0]['shipping_street']);
         }
 
@@ -1439,7 +1260,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  array  $where perform where
      * @return array
      */
-    public function get_customer_files($id, $where = []) {
+    public function get_customer_files($id, $where = [])
+    {
         $this->db->where($where);
         $this->db->where('rel_id', $id);
         $this->db->where('rel_type', 'customer');
@@ -1453,17 +1275,18 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id attachment id
      * @return boolean
      */
-    public function delete_attachment($id) {
+    public function delete_attachment($id)
+    {
         $this->db->where('id', $id);
         $attachment = $this->db->get(db_prefix() . 'files')->row();
-        $deleted = false;
+        $deleted    = false;
         if ($attachment) {
             if (empty($attachment->external)) {
-                $relPath = get_upload_path_by_type('customer') . $attachment->rel_id . '/';
+                $relPath  = get_upload_path_by_type('customer') . $attachment->rel_id . '/';
                 $fullPath = $relPath . $attachment->file_name;
                 unlink($fullPath);
-                $fname = pathinfo($fullPath, PATHINFO_FILENAME);
-                $fext = pathinfo($fullPath, PATHINFO_EXTENSION);
+                $fname     = pathinfo($fullPath, PATHINFO_FILENAME);
+                $fext      = pathinfo($fullPath, PATHINFO_EXTENSION);
                 $thumbPath = $relPath . $fname . '_thumb.' . $fext;
                 if (file_exists($thumbPath)) {
                     unlink($thumbPath);
@@ -1497,7 +1320,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @return boolean
      * Update contact status Active/Inactive
      */
-    public function change_contact_status($id, $status) {
+    public function change_contact_status($id, $status)
+    {
         $status = hooks()->apply_filters('change_contact_status', $status, $id);
 
         $this->db->where('id', $id);
@@ -1506,7 +1330,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         ]);
         if ($this->db->affected_rows() > 0) {
             hooks()->do_action('contact_status_changed', [
-                'id' => $id,
+                'id'     => $id,
                 'status' => $status,
             ]);
 
@@ -1524,7 +1348,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @return boolean
      * Update client status Active/Inactive
      */
-    public function change_client_status($id, $status) {
+    public function change_client_status($id, $status)
+    {
         $this->db->where('userid', $id);
         $this->db->update('clients', [
             'active' => $status,
@@ -1532,7 +1357,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
 
         if ($this->db->affected_rows() > 0) {
             hooks()->do_action('client_status_changed', [
-                'id' => $id,
+                'id'     => $id,
                 'status' => $status,
             ]);
 
@@ -1551,7 +1376,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  string $newPassword new password
      * @return boolean
      */
-    public function change_contact_password($id, $oldPassword, $newPassword) {
+    public function change_contact_password($id, $oldPassword, $newPassword)
+    {
         // Get current password
         $this->db->where('id', $id);
         $client = $this->db->get(db_prefix() . 'contacts')->row();
@@ -1565,7 +1391,7 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'contacts', [
             'last_password_change' => date('Y-m-d H:i:s'),
-            'password' => app_hash_password($newPassword),
+            'password'             => app_hash_password($newPassword),
         ]);
 
         if ($this->db->affected_rows() > 0) {
@@ -1582,7 +1408,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id customer id
      * @return array
      */
-    public function get_customer_groups($id) {
+    public function get_customer_groups($id)
+    {
         return $this->client_groups_model->get_customer_groups($id);
     }
 
@@ -1591,7 +1418,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  string $id
      * @return mixed
      */
-    public function get_groups($id = '') {
+    public function get_groups($id = '')
+    {
         return $this->client_groups_model->get_groups($id);
     }
 
@@ -1600,7 +1428,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id group id
      * @return boolean
      */
-    public function delete_group($id) {
+    public function delete_group($id)
+    {
         return $this->client_groups_model->delete($id);
     }
 
@@ -1608,7 +1437,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * Add new customer groups
      * @param array $data $_POST data
      */
-    public function add_group($data) {
+    public function add_group($data)
+    {
         return $this->client_groups_model->add($data);
     }
 
@@ -1617,17 +1447,19 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  array $data $_POST data
      * @return boolean
      */
-    public function edit_group($data) {
+    public function edit_group($data)
+    {
         return $this->client_groups_model->edit($data);
     }
 
     /**
-     * Create new vault entry
-     * @param  array $data        $_POST data
-     * @param  mixed $customer_id customer id
-     * @return boolean
-     */
-    public function vault_entry_create($data, $customer_id) {
+    * Create new vault entry
+    * @param  array $data        $_POST data
+    * @param  mixed $customer_id customer id
+    * @return boolean
+    */
+    public function vault_entry_create($data, $customer_id)
+    {
         return $this->client_vault_entries_model->create($data, $customer_id);
     }
 
@@ -1637,7 +1469,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  array $data $_POST data
      * @return boolean
      */
-    public function vault_entry_update($id, $data) {
+    public function vault_entry_update($id, $data)
+    {
         return $this->client_vault_entries_model->update($id, $data);
     }
 
@@ -1646,7 +1479,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id entry id
      * @return boolean
      */
-    public function vault_entry_delete($id) {
+    public function vault_entry_delete($id)
+    {
         return $this->client_vault_entries_model->delete($id);
     }
 
@@ -1656,7 +1490,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  array  $where       additional wher
      * @return array
      */
-    public function get_vault_entries($customer_id, $where = []) {
+    public function get_vault_entries($customer_id, $where = [])
+    {
         return $this->client_vault_entries_model->get_by_customer_id($customer_id, $where);
     }
 
@@ -1665,31 +1500,34 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $id vault entry id
      * @return object
      */
-    public function get_vault_entry($id) {
+    public function get_vault_entry($id)
+    {
         return $this->client_vault_entries_model->get($id);
     }
 
     /**
-     * Get customer statement formatted
-     * @param  mixed $customer_id customer id
-     * @param  string $from        date from
-     * @param  string $to          date to
-     * @return array
-     */
-    public function get_statement($customer_id, $from, $to) {
+    * Get customer statement formatted
+    * @param  mixed $customer_id customer id
+    * @param  string $from        date from
+    * @param  string $to          date to
+    * @return array
+    */
+    public function get_statement($customer_id, $from, $to)
+    {
         return $this->statement_model->get_statement($customer_id, $from, $to);
     }
 
     /**
-     * Send customer statement to email
-     * @param  mixed $customer_id customer id
-     * @param  array $send_to     array of contact emails to send
-     * @param  string $from        date from
-     * @param  string $to          date to
-     * @param  string $cc          email CC
-     * @return boolean
-     */
-    public function send_statement_to_email($customer_id, $send_to, $from, $to, $cc = '') {
+    * Send customer statement to email
+    * @param  mixed $customer_id customer id
+    * @param  array $send_to     array of contact emails to send
+    * @param  string $from        date from
+    * @param  string $to          date to
+    * @param  string $cc          email CC
+    * @return boolean
+    */
+    public function send_statement_to_email($customer_id, $send_to, $from, $to, $cc = '')
+    {
         return $this->statement_model->send_statement_to_email($customer_id, $send_to, $from, $to, $cc);
     }
 
@@ -1698,7 +1536,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      * @param  mixed $client_id  the customer id
      * @return boolean
      */
-    public function require_confirmation($client_id) {
+    public function require_confirmation($client_id)
+    {
         $contact_id = get_primary_contact_user_id($client_id);
         $this->db->where('userid', $client_id);
         $this->db->update(db_prefix() . 'clients', ['active' => 0, 'registration_confirmed' => 0]);
@@ -1709,7 +1548,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         return true;
     }
 
-    public function confirm_registration($client_id) {
+    public function confirm_registration($client_id)
+    {
         $contact_id = get_primary_contact_user_id($client_id);
         $this->db->where('userid', $client_id);
         $this->db->update(db_prefix() . 'clients', ['active' => 1, 'registration_confirmed' => 1]);
@@ -1728,7 +1568,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         return false;
     }
 
-    public function send_verification_email($id) {
+    public function send_verification_email($id)
+    {
         $contact = $this->get_contact($id);
 
         if (empty($contact->email)) {
@@ -1745,13 +1586,14 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         return $success;
     }
 
-    public function mark_email_as_verified($id) {
+    public function mark_email_as_verified($id)
+    {
         $contact = $this->get_contact($id);
 
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'contacts', [
-            'email_verified_at' => date('Y-m-d H:i:s'),
-            'email_verification_key' => null,
+            'email_verified_at'          => date('Y-m-d H:i:s'),
+            'email_verification_key'     => null,
             'email_verification_sent_at' => null,
         ]);
 
@@ -1767,32 +1609,36 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         return false;
     }
 
-    public function get_clients_distinct_countries() {
+    public function get_clients_distinct_countries()
+    {
         return $this->db->query('SELECT DISTINCT(country_id), short_name FROM ' . db_prefix() . 'clients JOIN ' . db_prefix() . 'countries ON ' . db_prefix() . 'countries.country_id=' . db_prefix() . 'clients.country')->result_array();
     }
 
-    public function send_notification_customer_profile_file_uploaded_to_responsible_staff($contact_id, $customer_id) {
-        $staff = $this->get_staff_members_that_can_access_customer($customer_id);
-        $merge_fields = $this->app_merge_fields->format_feature('client_merge_fields', $customer_id, $contact_id);
+    public function send_notification_customer_profile_file_uploaded_to_responsible_staff($contact_id, $customer_id)
+    {
+        $staff         = $this->get_staff_members_that_can_access_customer($customer_id);
+        $merge_fields  = $this->app_merge_fields->format_feature('client_merge_fields', $customer_id, $contact_id);
         $notifiedUsers = [];
+
 
         foreach ($staff as $member) {
             mail_template('customer_profile_uploaded_file_to_staff', $member['email'], $member['staffid'])
-                    ->set_merge_fields($merge_fields)
-                    ->send();
+            ->set_merge_fields($merge_fields)
+            ->send();
 
             if (add_notification([
-                        'touserid' => $member['staffid'],
-                        'description' => 'not_customer_uploaded_file',
-                        'link' => 'clients/client/' . $customer_id . '?group=attachments',
-                    ])) {
+                    'touserid' => $member['staffid'],
+                    'description' => 'not_customer_uploaded_file',
+                    'link' => 'clients/client/' . $customer_id . '?group=attachments',
+                ])) {
                 array_push($notifiedUsers, $member['staffid']);
             }
         }
         pusher_trigger_notification($notifiedUsers);
     }
 
-    public function get_staff_members_that_can_access_customer($id) {
+    public function get_staff_members_that_can_access_customer($id)
+    {
         $id = $this->db->escape_str($id);
 
         return $this->db->query('SELECT * FROM ' . db_prefix() . 'staff
@@ -1804,7 +1650,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
             AND active=1')->result_array();
     }
 
-    private function check_zero_columns($data) {
+    private function check_zero_columns($data)
+    {
         if (!isset($data['show_primary_contact'])) {
             $data['show_primary_contact'] = 0;
         }
@@ -1828,7 +1675,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         return $data;
     }
 
-    public function delete_contact_profile_image($id) {
+    public function delete_contact_profile_image($id)
+    {
         hooks()->do_action('before_remove_contact_profile_image');
         if (file_exists(get_upload_path_by_type('contact_profile_images') . $id)) {
             delete_dir(get_upload_path_by_type('contact_profile_images') . $id);
@@ -1845,7 +1693,8 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
      *
      * @return array[]
      */
-    public function get_contacts_for_project_notifications($projectId, $type) {
+    public function get_contacts_for_project_notifications($projectId, $type)
+    {
         $this->db->select('clientid,contact_notification,notify_contacts');
         $this->db->from(db_prefix() . 'projects');
         $this->db->where('id', $projectId);
@@ -1856,9 +1705,9 @@ if (($handle = fopen($csvFile, 'r')) !== false) {
         }
 
         $this->db
-                ->where('userid', $project->clientid)
-                ->where('active', 1)
-                ->where($type, 1);
+            ->where('userid', $project->clientid)
+            ->where('active', 1)
+            ->where($type, 1);
 
         if ($project->contact_notification == 2) {
             $projectContacts = unserialize($project->notify_contacts);

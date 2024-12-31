@@ -109,8 +109,8 @@ hooks()->add_action('customers_navigation_end', 'init_shipment_portal_menu');
 hooks()->add_action('app_customers_portal_head', 'warehouse_client_add_head_components');
 hooks()->add_action('app_customers_portal_footer', 'warehouse_client_add_footer_components');
 hooks()->add_action('warehouse_init',WAREHOUSE_MODULE_NAME.'_appint');
-hooks()->add_action('pre_activate_module', WAREHOUSE_MODULE_NAME.'_preactivate');
-hooks()->add_action('pre_deactivate_module', WAREHOUSE_MODULE_NAME.'_predeactivate');
+//hooks()->add_action('pre_activate_module', WAREHOUSE_MODULE_NAME.'_preactivate');
+//hooks()->add_action('pre_deactivate_module', WAREHOUSE_MODULE_NAME.'_predeactivate');
 hooks()->add_action('pre_uninstall_module', WAREHOUSE_MODULE_NAME.'_uninstall');
 if(ACTIVE_PROPOSAL_OLD_CUSTOMER){
 //update proposal
@@ -155,7 +155,11 @@ hooks()->add_filter('proposals_table_filter_columns', 'wh_proposal_add_filter_co
 hooks()->add_action('proposals_manage_add_input', 'wh_proposals_manage_add_input');
 hooks()->add_action('proposals_manage_add_li', 'wh_proposals_manage_add_li');
 
+
+
 }
+
+
 
 /**
 * Register activation module hook
@@ -1860,13 +1864,13 @@ function warehouse_appint(){
     }    
 	*/
 }
-
+/**
 function warehouse_preactivate($module_name){
     if ($module_name['system_name'] == WAREHOUSE_MODULE_NAME) {             
-     //   require_once 'libraries/gtsslib.php';
-       // $warehouse_api = new WarehouseLic();
-      //  $warehouse_gtssres = $warehouse_api->verify_license();          
-      //  if(!$warehouse_gtssres || ($warehouse_gtssres && isset($warehouse_gtssres['status']) && !$warehouse_gtssres['status'])){
+        require_once 'libraries/gtsslib.php';
+        $warehouse_api = new WarehouseLic();
+        $warehouse_gtssres = $warehouse_api->verify_license();          
+        if(!$warehouse_gtssres || ($warehouse_gtssres && isset($warehouse_gtssres['status']) && !$warehouse_gtssres['status'])){
              $CI = & get_instance();
             $data['submit_url'] = $module_name['system_name'].'/gtsverify/activate'; 
             $data['original_url'] = admin_url('modules/activate/'.WAREHOUSE_MODULE_NAME); 
@@ -1874,7 +1878,7 @@ function warehouse_preactivate($module_name){
             $data['title'] = "Module License Activation"; 
             echo $CI->load->view($module_name['system_name'].'/activate', $data, true);
             exit();
-      //  }        
+        }        
     }
 }
 
@@ -1893,3 +1897,4 @@ function warehouse_uninstall($module_name){
         $warehouse_api->deactivate_license();
     }
 }
+*/

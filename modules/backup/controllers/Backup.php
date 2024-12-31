@@ -82,6 +82,10 @@ class Backup extends AdminController
 
     private function get_path($name)
     {
+        if(in_array($name, ['index.html', '.htaccess'])) {
+            show_404();
+        }
+
         $name = BACKUPS_FOLDER . $name;
 
         if (file_exists($name . '.zip')) {

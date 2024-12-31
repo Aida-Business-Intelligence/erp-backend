@@ -3,8 +3,8 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
-Module Name: Database Backup | Backup de Banco de Dados
-Description: Módulo padrão para realizar backup do banco de dados
+Module Name: Database Backup
+Description: Default module to perform database backup
 Version: 2.3.0
 Requires at least: 2.3.*
 */

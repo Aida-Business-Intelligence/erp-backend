@@ -94,12 +94,12 @@
                                          <div class="form-group">
                                                 <select name="timesheet_task_id" id="timesheet_task_id" class="selectpicker" data-live-search="true" data-width="100%" data-none-selected-text="-">
                                             <option value=""></option>
-                                            <?php $has_permission_create = has_permission('projects', '', 'create');
+                                            <?php $has_permission_create = staff_can('create',  'projects');
                                             foreach ($tasks as $task) {
                                                 if ((!$has_permission_create && !$this->tasks_model->is_task_assignee(get_staff_user_id(), $task['id']))) {
                                                     continue;
                                                 }
-                                                echo '<option value="' . $task['id'] . '">' . $task['name'] . '</option>';
+                                                echo '<option value="' . $task['id'] . '">' . e($task['name']) . '</option>';
                                             }
                                                 ?>
                                         </select>

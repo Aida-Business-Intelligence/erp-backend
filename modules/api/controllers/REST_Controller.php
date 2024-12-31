@@ -696,11 +696,14 @@ abstract class REST_Controller extends CI_Controller {
             $check_token_permission = true;
         }
         
+        /* Jeronimo retomar
         if ($check_token_permission === false) {
             $message = array('status' => FALSE, 'message' => $this->lang->line('text_rest_api_key_permissions'));
             $this->response($message, self::HTTP_NOT_PERMISSION);
             $this->is_valid_request = false;
         }
+         * 
+         */
 
         // Doing key related stuff? Can only do it if they have a key right?
         if ($this->config->item('rest_enable_keys') && empty($this->rest->key) === FALSE) {

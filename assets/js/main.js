@@ -346,7 +346,7 @@ $(function () {
 
   /** TinyMCE modal fix */
   $(document).on("focusin", function (e) {
-    if ($(e.target).closest(".mce-window").length) {
+    if ($(e.target).closest(".tox-tinymce, .tox-tinymce-aux, .moxman-window, .tam-assetmanager-root").length) {
       e.stopImmediatePropagation();
     }
   });
@@ -1105,7 +1105,7 @@ $(function () {
 
   // Prevent closing the modal if comment is being written
   $("body").on("hide.bs.modal", "#task-modal", function (e) {
-    tinymce.editors.forEach(function (editor) {
+    tinymce.get().forEach(function (editor) {
       if (
         editor.id.includes("task_comment") &&
         editor.getContent() !== "" &&
@@ -2011,7 +2011,7 @@ $(function () {
   // Init the editor for email templates where changing data is allowed
   $("body").on("show.bs.modal", ".modal.email-template", function () {
     init_editor($(this).data("editor-id"), {
-      urlconverter_callback: "merge_field_format_url",
+      urlconverter_callback: merge_field_format_url,
     });
   });
 
@@ -3136,7 +3136,7 @@ function _init_tasks_billable_select(tasks, project_id) {
 // Fix for height on the wrapper
 function mainWrapperHeightFix() {
   // Get and set current height
-  var headerH = 63;
+  var headerH = 57;
   var navigationH = side_bar.height();
   var contentH = $("#wrapper").find(".content").height();
   setup_menu.css(
@@ -3172,7 +3172,7 @@ function mainWrapperHeightFix() {
 function set_body_small() {
   var isIpad = navigator.userAgent.match(/iPad/i) != null;
 
-  if ($(this).width() < 769 || isIpad) {
+  if ($(this).width() < 769 || isIpad || is_mobile()) {
     $("body").addClass("page-small");
   } else {
     $("body").removeClass("page-small show-sidebar");
@@ -3233,6 +3233,9 @@ function init_rel_tasks_table(rel_id, rel_type, selector) {
     TasksServerParams[$(this).attr("name")] =
       '[name="' + $(this).attr("name") + '"]';
   });
+
+  // Related task filter - used in customer profile
+  TasksServerParams['tasks_related_to'] = '[name="tasks_related_to"]'
 
   var url = admin_url + "tasks/init_relation_tasks/" + rel_id + "/" + rel_type;
 
@@ -3410,6 +3413,7 @@ function initDataTable(
       type: "POST",
       data: function (d) {
         if (Array.isArray(d.order)) {
+
           d.order = d.order.map(function (order) {
             var tHead = table.find("thead th:eq(" + order.column + ")");
             if (tHead.length > 0) {
@@ -3424,11 +3428,19 @@ function initDataTable(
         if (typeof csrfData !== "undefined") {
           d[csrfData["token_name"]] = csrfData["hash"];
         }
+
         for (var key in fnserverparams) {
           d[key] = $(fnserverparams[key]).val();
         }
+
         if (table.attr("data-last-order-identifier")) {
           d["last_order_identifier"] = table.attr("data-last-order-identifier");
+        }
+
+        var tId = table[0].getAttribute('id');
+
+        if(tId && Object.hasOwn(app.dtFilters, tId)) {
+          d['filters'] = app.dtFilters[tId]
         }
       },
     },
@@ -3825,21 +3837,16 @@ function logout() {
 }
 
 // Init the media elfinder for tinymce browser
-function elFinderBrowser(field_name, url, type, win) {
-  tinymce.activeEditor.windowManager.open(
-    {
-      file: admin_url + "misc/tinymce_file_browser",
+function elFinderBrowser(callback, value, meta) {
+  tinymce.activeEditor.windowManager.elfinderCallback = callback
+  
+  tinymce.activeEditor.windowManager.openUrl({
+      url: admin_url + "misc/tinymce_file_browser",
       title: app.lang.media_files,
       width: 900,
       height: 450,
-      resizable: "yes",
-    },
-    {
-      setUrl: function (url) {
-        win.document.getElementById(field_name).value = url;
-      },
-    }
-  );
+  });
+  
   return false;
 }
 
@@ -3861,52 +3868,50 @@ function init_editor(selector, settings) {
   // Original settings
   var _settings = {
     branding: false,
+    promotion: false,
     selector: selector,
     browser_spellcheck: true,
-    height: 400,
-    theme: "modern",
-    skin: "perfex",
-    language: app.tinymce_lang,
+    cache_suffix: '?v='+app.version,
+    height: 250,
+    min_height: 250,
+    statusbar: false,
+    theme: "silver",
+    paste_block_drop: true,
+    language: app.tinymce_lang || 'en',
     relative_urls: false,
-    inline_styles: true,
-    verify_html: false,
     entity_encoding: "raw",
-    cleanup: false,
     autoresize_bottom_margin: 25,
     valid_elements: "+*[*]",
     valid_children: "+body[style], +style[type]",
-    apply_source_formatting: false,
     remove_script_host: false,
     removed_menuitems: "newdocument restoredraft",
     forced_root_block: "p",
     autosave_restore_when_empty: false,
-    fontsize_formats: "8pt 10pt 12pt 14pt 18pt 24pt 36pt",
+    font_size_formats: "8pt 10pt 12pt 14pt 18pt 24pt 36pt",
+    table_default_styles: {
+      width: "100%",
+    },
+    plugins: [
+      "advlist", "autoresize", "autosave", "lists", "link", "image", "codesample",
+      "visualblocks", "code", "fullscreen",
+      "media", "save", "table",
+    ],
+    toolbar: "fontfamily fontsize | forecolor backcolor | bold italic | alignleft aligncenter alignright alignjustify | image link | bullist numlist | restoredraft",
+    contextmenu: "link image | paste copy",
+    file_picker_callback : elFinderBrowser,
     setup: function (ed) {
       // Default fontsize is 12
       ed.on("init", function () {
         this.getDoc().body.style.fontSize = "12pt";
       });
     },
-    table_default_styles: {
-      // Default all tables width 100%
-      width: "100%",
-    },
-    plugins: [
-      "advlist autoresize autosave lists link image print hr codesample",
-      "visualblocks code fullscreen",
-      "media save table contextmenu",
-      "paste textcolor colorpicker",
-    ],
-    toolbar1:
-      "fontselect fontsizeselect | forecolor backcolor | bold italic | alignleft aligncenter alignright alignjustify | image link | bullist numlist | restoredraft",
-    file_browser_callback: elFinderBrowser,
-    contextmenu:
-      "link image inserttable | cell row column deletetable | paste copy",
   };
 
   // Add the rtl to the settings if is true
-  isRTL == "true" ? (_settings.directionality = "rtl") : "";
-  isRTL == "true" ? (_settings.plugins[0] += " directionality") : "";
+  if(isRTL == "true") {
+    _settings.directionality = "rtl"
+    _settings.plugins.push('directionality')
+  }
 
   // Possible settings passed to be overwrited or added
   if (typeof settings != "undefined") {
@@ -3914,13 +3919,14 @@ function init_editor(selector, settings) {
       if (key != "append_plugins") {
         _settings[key] = settings[key];
       } else {
-        _settings["plugins"].push(settings[key]);
+        _settings.plugins.push(settings[key]);
       }
     }
   }
 
   // Init the editor
   var editor = tinymce.init(_settings);
+
   $(document).trigger("app.editor.initialized");
 
   return editor;
@@ -4164,7 +4170,7 @@ function edit_note(id) {
         alert_float("success", response.message);
         $("body")
           .find('[data-note-description="' + id + '"]')
-          .html(nl2br(description));
+          .html(response.description);
       }
     });
     toggle_edit_note(id);
@@ -5098,10 +5104,14 @@ function print_lead_information() {
 
   $leadViewWrapper.find("h4").css("font-size", "100%");
 
-  $leadViewWrapper
-    .find(".lead-field-heading")
-    .css("color", "#777")
-    .css("margin-bottom", "3px");
+  $leadViewWrapper.find("dt").each(function() {
+      $(this).replaceWith("<p style='margin-bottom:5px; color:#777'><strong>" + $(this).text() + "</strong></p>");
+  });
+
+  $leadViewWrapper.find("dd").each(function() {
+      $(this).replaceWith("<div='margin-bottom:10px;'>" + $(this).text() + "</div>");
+  });
+  
   $leadViewWrapper.find(".lead-field-heading + p").css("margin-bottom", "15px");
 
   var mywindow = _create_print_window(name);
@@ -5469,103 +5479,17 @@ function leads_bulk_action(event) {
 }
 
 function init_proposal_editor() {
-  tinymce.remove("div.editable");
-
-  var _templates = [];
-
-  $.each(proposalsTemplates, function (i, template) {
-    _templates.push({
-      url: admin_url + "proposals/get_template?name=" + template,
-      title: template,
-    });
-  });
-
-  var settings = {
-    selector: "div.editable",
-    inline: true,
-    theme: "inlite",
-    // skin: 'perfex',
-    relative_urls: false,
-    remove_script_host: false,
-    entity_encoding: "raw",
-    inline_styles: true,
-    verify_html: false,
-    cleanup: false,
-    apply_source_formatting: false,
-    valid_elements: "+*[*]",
-    valid_children: "+body[style], +style[type]",
-    file_browser_callback: elFinderBrowser,
-    table_default_styles: {
-      width: "100%",
-    },
-    fontsize_formats: "8pt 10pt 12pt 14pt 18pt 24pt 36pt",
-    pagebreak_separator: '<p pagebreak="true"></p>',
-    plugins: [
-      "advlist pagebreak autolink autoresize lists link image charmap hr",
-      "searchreplace visualblocks visualchars code",
-      "media nonbreaking table contextmenu",
-      "paste textcolor colorpicker",
-    ],
-    autoresize_bottom_margin: 50,
-    insert_toolbar: "image media quicktable | bullist numlist | h2 h3 | hr",
-    selection_toolbar:
-      "save_button bold italic underline superscript | forecolor backcolor link | alignleft aligncenter alignright alignjustify | fontselect fontsizeselect h2 h3",
-    contextmenu:
-      "image media inserttable | cell row column deletetable | paste pastetext searchreplace | visualblocks pagebreak charmap | code",
-    setup: function (editor) {
-      editor.addCommand("mceSave", function () {
-        save_proposal_content(true);
-      });
-
-      editor.addShortcut("Meta+S", "", "mceSave");
-
-      editor.on("MouseLeave blur", function () {
-        if (tinymce.activeEditor.isDirty()) {
-          save_proposal_content();
-        }
-      });
-
+  init_tinymce_inline_editor({
+    saveUsing: save_proposal_content,
+    onSetup: function(editor) {
       editor.on("MouseDown ContextMenu", function () {
-        if (!is_mobile() && !$("#small-table").hasClass("hide")) {
+        if (!is_mobile() && 
+          !$("#small-table").hasClass("hide")) {
           small_table_full_view();
         }
       });
-
-      editor.on("blur", function () {
-        $.Shortcuts.start();
-      });
-
-      editor.on("focus", function () {
-        $.Shortcuts.stop();
-      });
-    },
-  };
-
-  if (is_mobile()) {
-    settings.theme = "modern";
-    settings.mobile = {};
-    settings.mobile.theme = "mobile";
-    settings.mobile.toolbar = _tinymce_mobile_toolbar();
-
-    settings.inline = false;
-
-    window.addEventListener("beforeunload", function (event) {
-      if (tinymce.activeEditor.isDirty()) {
-        save_proposal_content();
-      }
-    });
-  }
-
-  if (_templates.length > 0) {
-    settings.templates = _templates;
-    settings.plugins[3] = "template " + settings.plugins[3];
-    settings.contextmenu = settings.contextmenu.replace(
-      "inserttable",
-      "inserttable template"
-    );
-  }
-
-  tinymce.init(settings);
+    }
+  })
 }
 
 function update_comments_count() {
@@ -5847,7 +5771,7 @@ function recalculate_checklist_items_progress() {
   $(".task-total-checklist-completed").text(total_finished);
   if (total_checklist_items == 0) {
     // remove the heading for checklist items
-    $("body").find(".chk-heading").remove();
+    // $("body").find(".chk-heading").remove();
     $("#task-no-checklist-items").removeClass("hide");
   } else {
     $("#task-no-checklist-items").addClass("hide");
@@ -6640,8 +6564,8 @@ function _init_timers_top_html(data) {
     : $ttIcon.addClass("hide");
 
   data.total_timers > 0
-    ? $("#top-timers").find("svg").addClass("tw-animate-spin")
-    : $("#top-timers").find("svg").removeClass("tw-animate-spin");
+    ? $("#top-timers").find("i").addClass("tw-animate-spin-slow")
+    : $("#top-timers").find("i").removeClass("tw-animate-spin-slow");
 
   $("#started-timers-top").html(data.html);
 }
@@ -6652,19 +6576,12 @@ function edit_task_comment(id) {
   edit_wrapper.next().addClass("hide");
   edit_wrapper.removeClass("hide");
 
-  if (!is_ios()) {
-    tinymce.remove("#task_comment_" + id);
-    var editorConfig = _simple_editor_config();
-    editorConfig.auto_focus = "task_comment_" + id;
-    editorConfig.setup = function (editor) {
-      initStickyTinyMceToolbarInModal(
-        editor,
-        document.querySelector(".task-modal-single")
-      );
-    };
-    init_editor("#task_comment_" + id, editorConfig);
-    tinymce.triggerSave();
-  }
+  tinymce.remove("#task_comment_" + id);
+  var editorConfig = _simple_editor_config();
+  editorConfig.auto_focus = "task_comment_" + id;
+  editorConfig.toolbar_sticky  = true;
+  init_editor("#task_comment_" + id, editorConfig);
+  tinymce.triggerSave();
 }
 
 // Cancel editing commment after clicked on edit href
@@ -6756,20 +6673,23 @@ function edit_task_inline_description(e, id) {
   }
 
   $(e).addClass("editor-initiated");
+
   $.Shortcuts.stop();
+
   tinymce.init({
+    branding: false,
+    toolbar: false,
+    menubar: false,
+    inline: true,
+    cache_suffix: '?v='+app.version,
     selector: "#task_view_description",
-    theme: "inlite",
-    skin: "perfex",
+    theme: "silver",
     directionality: isRTL == "true" ? "rtl" : "",
     auto_focus: "task_view_description",
-    plugins:
-      "table link paste contextmenu textpattern" +
-      (isRTL == "true" ? " directionality" : ""),
+    plugins: ['quickbars', 'link', 'table', (isRTL == "true" ? " directionality" : "")],
     contextmenu: "link table paste pastetext",
-    insert_toolbar: "quicktable",
-    selection_toolbar: "bold italic | quicklink h2 h3 blockquote",
-    inline: true,
+    quickbars_insert_toolbar: "quicktable",
+    quickbars_selection_toolbar: "bold italic | quicklink h2 h3 blockquote",
     table_default_styles: {
       width: "100%",
     },
@@ -6780,6 +6700,7 @@ function edit_task_inline_description(e, id) {
             description: editor.getContent(),
           });
         }
+
         setTimeout(function () {
           editor.remove();
           $.Shortcuts.start();
@@ -6865,7 +6786,7 @@ function load_small_table_item(id, selector, input_name, url, table) {
   }
   $('input[name="' + input_name + '"]').val(id);
   do_hash_helper(id);
-  $(selector).load(admin_url + url + "/" + id);
+  $(selector).load(admin_url + url + "/" + id)
 
   $("html, body").animate(
     {
@@ -7351,7 +7272,7 @@ function add_item_to_table(data, itemid, merge_invoice, bill_expense) {
       "</td>";
 
     table_row +=
-      '<td><a href="#" class="btn btn-danger pull-left" onclick="delete_item(this,' +
+      '<td><a href="#" class="btn btn-danger pull-left !tw-px-3" onclick="delete_item(this,' +
       itemid +
       '); return false;"><i class="fa fa-trash"></i></a></td>';
 
@@ -7886,7 +7807,9 @@ function delete_proposal_attachment(id) {
 
 // Invoices quick total stats
 function init_invoices_total(manual) {
-  if ($("#invoices_total").length === 0) {
+  var _inv_total_wrapper = $("#invoices_total");
+
+  if (_inv_total_wrapper.length === 0) {
     return;
   }
   var _inv_total_inline = $(".invoices-total-inline");
@@ -7922,10 +7845,12 @@ function init_invoices_total(manual) {
   });
 
   var currency = $("body").find('select[name="total_currency"]').val();
+  
   var data = {
     currency: currency,
     years: years,
     init_total: true,
+    display_type: _inv_total_wrapper.attr('data-type')
   };
 
   var project_id = $('input[name="project_id"]').val();
@@ -7938,7 +7863,7 @@ function init_invoices_total(manual) {
   $.post(admin_url + "invoices/get_invoices_total", data).done(function (
     response
   ) {
-    $("#invoices_total").html(response);
+    _inv_total_wrapper.html(response);
   });
 }
 
@@ -8660,7 +8585,7 @@ function fetch_notifications(callback) {
 }
 
 function init_new_task_comment(manual) {
-  if (tinymce.editors.task_comment) {
+  if (tinymce.get('task_comment')) {
     tinymce.remove("#task_comment");
   }
 
@@ -8707,16 +8632,14 @@ function init_new_task_comment(manual) {
   );
 
   var editorConfig = _simple_editor_config();
+  
+  editorConfig.toolbar_sticky = true
 
   if (typeof manual == "undefined" || manual === false) {
     editorConfig.auto_focus = true;
   }
 
-  // Not working fine on iOs
-  var iOS = is_ios();
-
   var taskid = $("#task-modal #taskid").val();
-  editorConfig.plugins[0] += " mention";
 
   editorConfig.content_style =
     "span.mention {\
@@ -8725,70 +8648,71 @@ function init_new_task_comment(manual) {
     }";
 
   editorConfig.setup = function (editor) {
-    initStickyTinyMceToolbarInModal(
-      editor,
-      document.querySelector(".task-modal-single")
-    );
-
-    editor.on("init", function () {
-      if ($("#mention-autocomplete-css").length === 0) {
-        $("<link>")
-          .appendTo("head")
-          .attr({
-            id: "mention-autocomplete-css",
-            type: "text/css",
-            rel: "stylesheet",
-            href:
-              site_url +
-              "assets/plugins/tinymce/plugins/mention/autocomplete.css",
-          });
-      }
-
-      if ($("#mention-css").length === 0) {
-        $("<link>")
-          .appendTo("head")
-          .attr({
-            type: "text/css",
-            id: "mention-css",
-            rel: "stylesheet",
-            href:
-              site_url +
-              "assets/plugins/tinymce/plugins/mention/rte-content.css",
-          });
-      }
-    });
+    initializeTinyMceMentions(editor, function () {
+      return $.getJSON(
+        admin_url + "tasks/get_staff_names_for_mentions/" + taskid     
+      )
+    })
   };
 
-  var UserMentions = [];
+  init_editor("#task_comment", editorConfig)
+}
 
-  editorConfig.mentions = {
-    source: function (query, process, delimiter) {
-      if (UserMentions.length < 1) {
-        $.getJSON(
-          admin_url + "tasks/get_staff_names_for_mentions/" + taskid,
-          function (data) {
-            UserMentions = data;
-            process(data);
-          }
-        );
-      } else {
-        process(UserMentions);
-      }
-    },
-    insert: function (item) {
-      return (
-        '<span class="mention" contenteditable="false" data-mention-id="' +
-        item.id +
-        '">@' +
-        item.name +
-        "</span>&nbsp;"
-      );
-    },
-  };
-
-  if (!iOS) {
-    init_editor("#task_comment", editorConfig);
+function initializeTinyMceMentions(editor, usersCallback) {
+  if(!Object.hasOwn(editor, 'perfexCommands')) {
+    editor.perfexCommands = {}
   }
+
+  let cachedUsers = null;
+
+  editor.perfexCommands.getUsersForMention = async function() {
+    if(Array.isArray(cachedUsers)) {
+      return cachedUsers
+    }
+
+    let users = await usersCallback()
+
+    cachedUsers = users.map(u=>({
+      value: u.id.toString(),
+      text: u.name,
+    }));
+
+    return cachedUsers
+  },
+  editor.perfexCommands.insertMentionUser = function (id, name, rng) {
+    // Insert in to the editor
+    editor.selection.setRng(rng || 0)
+
+    editor.insertContent((
+      '<span class="mention" contenteditable="false" data-mention-id="' +
+      id +
+      '">@' +
+      name +
+      "</span>&nbsp;"
+    ))
+  }
+
+  editor.ui.registry.addAutocompleter('mentions', {
+    trigger: '@', // the trigger character to open the autocompleter
+    minChars: 0, // 0 to open the dropdown immediately after the @ is typed
+    columns: 1, // must be 1 for text-based results
+
+    // Retrieve the available users
+    fetch: function (pattern) {
+      return new Promise(resolve =>
+          resolve(editor.perfexCommands.getUsersForMention())
+      )
+    },
+
+    // Executed when user is selected from the dropdown
+    onAction: function (autocompleteApi, rng, value) {
+      editor.perfexCommands.getUsersForMention().then(users=> {
+        let user = users.find(user=>user.value == value)
+        editor.perfexCommands.insertMentionUser(value, user.text, rng)
+        autocompleteApi.hide()
+      })
+    },
+  })
 }
 
 function init_ajax_search(type, selector, server_data, url) {
@@ -8981,58 +8905,6 @@ function get_templates(rel_type, rel_id) {
   }
 }
 
-function initStickyTinyMceToolbarInModal(editor, scrollElm) {
-  editor.on("init", function () {
-    setStickyTinyMceToolbarInModal(editor, scrollElm);
-  });
-
-  editor.on("Remove", function (editor) {
-    $(scrollElm).off("scroll.editor");
-  });
-
-  $(scrollElm).on("scroll.editor", function () {
-    setStickyTinyMceToolbarInModal(editor, scrollElm);
-  });
-}
-
-function setStickyTinyMceToolbarInModal(editor, scrollElm) {
-  var container = editor.editorContainer;
-  var toolbars = $(container).find(".mce-toolbar-grp");
-  var statusbar = $(container).find(".mce-statusbar");
-
-  if (isTinyMceStickyInModal(editor) && $(container).isInViewport()) {
-    $(container).css({
-      paddingTop: toolbars.outerHeight(),
-    });
-
-    toolbars.css({
-      top: scrollElm.scrollTop - 30,
-      bottom: "auto",
-      position: "fixed",
-      width: $(container).width(),
-      zIndex: 1,
-      borderBottom: "1px solid rgba(0,0,0,0.2)",
-    });
-    return;
-  }
-
-  $(container).css({ paddingTop: 0 });
-
-  toolbars.css({
-    position: "relative",
-    width: "auto",
-    borderBottom: "none",
-    top: 0,
-  });
-}
-
-function isTinyMceStickyInModal(editor) {
-  var container = editor.editorContainer,
-    editorTop = container.getBoundingClientRect().top;
-
-  return editorTop < 0;
-}
-
 function add_template(rel_type, rel_id) {
   $("#modal-wrapper").load(
     admin_url + "templates/modal",
@@ -9041,6 +8913,7 @@ function add_template(rel_type, rel_id) {
       rel_type: rel_type,
       rel_id: rel_id,
     },
+
     function () {
       if ($("#TemplateModal").is(":hidden")) {
         $("#TemplateModal").modal({
@@ -9048,20 +8921,15 @@ function add_template(rel_type, rel_id) {
           show: true,
         });
       }
+
       appValidateForm($("#template-form"), {
         name: "required",
       });
+
       tinymce.remove("#content");
 
       init_editor("#content", {
-        inline_styles: true,
-        apply_source_formatting: false,
-        valid_elements: "+*[*]",
-        table_default_styles: {
-          width: "100%",
-        },
-        fontsize_formats: "8pt 10pt 12pt 14pt 18pt 24pt 36pt",
-        pagebreak_separator: '<p pagebreak="true"></p>',
+        pagebreak_split_block: true,
         contextmenu:
           "link image inserttable | cell row column deletetable | paste copy | pagebreak",
         append_plugins: "pagebreak",
@@ -9079,6 +8947,7 @@ function edit_template(rel_type, id, rel_id) {
       rel_type: rel_type,
       rel_id: rel_id,
     },
+
     function () {
       if ($("#TemplateModal").is(":hidden")) {
         $("#TemplateModal").modal({
@@ -9086,19 +8955,15 @@ function edit_template(rel_type, id, rel_id) {
           show: true,
         });
       }
+
       appValidateForm($("#template-form"), {
         name: "required",
       });
+
       tinymce.remove("#content");
+
       init_editor("#content", {
-        inline_styles: true,
-        apply_source_formatting: false,
-        valid_elements: "+*[*]",
-        table_default_styles: {
-          width: "100%",
-        },
-        fontsize_formats: "8pt 10pt 12pt 14pt 18pt 24pt 36pt",
-        pagebreak_separator: '<p pagebreak="true"></p>',
+        pagebreak_split_block: true,
         contextmenu:
           "link image inserttable | cell row column deletetable | paste copy | pagebreak",
         append_plugins: "pagebreak",
@@ -9275,3 +9140,4 @@ function init_currency_symbol() {
   );
   init_currency();
 }
+

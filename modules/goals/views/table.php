@@ -26,18 +26,18 @@ foreach ($rResult as $aRow) {
     for ($i = 0; $i < count($aColumns); $i++) {
         $_data = $aRow[$aColumns[$i]];
         if ($aColumns[$i] == 'subject') {
-            $_data = '<a href="' . admin_url('goals/goal/' . $aRow['id']) . '">' . $_data . '</a>';
+            $_data = '<a href="' . admin_url('goals/goal/' . $aRow['id']) . '" class="tw-font-medium">' . e($_data) . '</a>';
             $_data .= '<div class="row-options">';
             $_data .= '<a href="' . admin_url('goals/goal/' . $aRow['id']) . '">' . _l('view') . '</a>';
 
-            if (has_permission('goals', '', 'delete')) {
+            if (staff_can('delete',  'goals')) {
                 $_data .= ' | <a href="' . admin_url('goals/delete/' . $aRow['id']) . '" class="text-danger _delete">' . _l('delete') . '</a>';
             }
             $_data .= '</div>';
         } elseif ($aColumns[$i] == 'start_date' || $aColumns[$i] == 'end_date') {
-            $_data = _d($_data);
+            $_data = e(_d($_data));
         } elseif ($aColumns[$i] == 'goal_type') {
-            $_data = format_goal_type($_data);
+            $_data = e(format_goal_type($_data));
         }
         $row[] = $_data;
     }

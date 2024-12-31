@@ -92,7 +92,7 @@ class Payments_model extends App_Model
         } elseif (!is_numeric($data['paymentmode']) && !empty($data['paymentmode'])) {
             // This request will come from admin area only
             // If admin clicked the button that dont want to pay the invoice from the getaways only want
-            if (is_staff_logged_in() && has_permission('payments', '', 'create')) {
+            if (is_staff_logged_in() && staff_can('create',  'payments')) {
                 if (isset($data['do_not_redirect'])) {
                     $id = $this->add($data);
 
@@ -232,6 +232,7 @@ class Payments_model extends App_Model
             }
 
             update_invoice_status($data['invoiceid'], $force_update);
+            $this->invoices_model->save_formatted_number($invoice->id);
 
             $activity_lang_key = 'invoice_activity_payment_made_by_staff';
             if (!is_staff_logged_in()) {
@@ -365,7 +366,7 @@ class Payments_model extends App_Model
                             $member['staffid'],
                             $invoice,
                             $attach,
-                            $payment->id
+                            $payment->paymentid
                         );
                     }
                 }
@@ -484,13 +485,15 @@ class Payments_model extends App_Model
                 if (!class_exists('Invoices_model', false)) {
                     $this->load->model('invoices_model');
                 }
-
+                
                 if ($invoice->status == Invoices_model::STATUS_DRAFT) {
                     $force_update = true;
                     // update invoice number for invoice with draft - V2.7.2
                     $this->invoices_model->change_invoice_number_when_status_draft($invoice->id);
                 }
+
                 update_invoice_status($data['invoiceid'], $force_update);
+                $this->invoices_model->save_formatted_number($invoice->id);
 
                 $this->invoices_model->log_invoice_activity(
                     $data['invoiceid'],

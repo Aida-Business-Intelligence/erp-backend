@@ -750,7 +750,8 @@ class Warehouse_model extends App_Model {
 	 * @return array
 	 */
 	public function get_commodity_group_add_commodity() {
-
+            
+            
 		return $this->db->query('select * from tblitems_groups where display = 1 order by tblitems_groups.order asc ')->result_array();
 	}
 

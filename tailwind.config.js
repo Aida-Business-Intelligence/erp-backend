@@ -19,11 +19,12 @@ module.exports = {
     "./assets/js/app.js",
     "./assets/js/map.js",
     "./install/*.php",
+    "./resources/js/**/*.vue"
   ],
   safelist: [
     {
       pattern:
-        /^panel|btn-|bg-|text-|label-|badge-|bg-|dropdown|nav-|nav-tabs|pagination-|fc-|alert-.*/,
+        /^panel|btn-|bg-|text-|label-|badge-|bg-|dropdown|nav-|nav-tabs|pagination|pagination-|tox-|tagit-|fc-|alert-.*/,
     },
   ],
   prefix: "tw-",
@@ -46,7 +47,7 @@ module.exports = {
       black: colors.black,
       white: colors.white,
 
-      neutral: colors.slate,
+      neutral: colors.gray,
       danger: colors.red,
       warning: colors.yellow,
       success: colors.green,

@@ -4,6 +4,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 $totalTimers         = count($startedTimers);
 $noTimersWithoutTask = true;
+
 if ($totalTimers == 0) {
     echo '<li class="text-center inline-block full-width tw-mb-2"><div class="text-center">
     <svg class="tw-mx-auto tw-h-10 tw-w-10 tw-text-neutral-400 -tw-mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -14,20 +15,21 @@ if ($totalTimers == 0) {
 }
 
 $i = 0;
+
 foreach ($startedTimers as $timer) {
     $data = '';
 
     $data .= '<li class="timer relative" id="timer-' . $timer['id'] . '">';
 
     if ($timer['task_id'] != '0') {
-        $data .= '<a href="' . admin_url('tasks/view/' . $timer['task_id']) . '" class="_timer font-medium" onclick="init_task_modal(' . $timer['task_id'] . ');return false;">' . $timer['task_subject'] . '</a>';
+        $data .= '<a href="' . admin_url('tasks/view/' . $timer['task_id']) . '" class="_timer font-medium" onclick="init_task_modal(' . $timer['task_id'] . ');return false;">' . e($timer['task_subject']) . '</a>';
     } else {
         $noTimersWithoutTask = false;
     }
 
     $data .= '<span class="pointer pull-right unfinished-timesheet-delete" onclick="delete_user_unfinished_timesheet(' . $timer['id'] . '); return false;"><i class="fa-regular fa-trash-can"></i></span>';
 
-    $data .= '<span class="tw-text-neutral-600">' . _l('timer_top_started', _dt($timer['start_time'], true)) . '</span><br /><span class="text-success tw-text-sm">' . _l('task_total_logged_time') . ' ' . seconds_to_time_format($this->tasks_model->calc_task_total_time($timer['task_id'], ' AND staff_id=' . get_staff_user_id())) . '</span>';
+    $data .= '<span class="tw-text-neutral-600">' . e(_l('timer_top_started', _dt($timer['start_time'], true))) . '</span><br /><span class="text-success tw-text-sm">' . _l('task_total_logged_time') . ' ' . e(seconds_to_time_format($this->tasks_model->calc_task_total_time($timer['task_id'], ' AND staff_id=' . get_staff_user_id()))) . '</span>';
 
     $data .= '<p class="mtop10"><a href="#" class="label label-danger top-stop-timer" ';
 
@@ -55,9 +57,9 @@ foreach ($startedTimers as $timer) {
 }
 // You can't start multiple blank timers
 if ($noTimersWithoutTask
-    && !(get_option('auto_stop_tasks_timers_on_new_timer') == 1
+    && ! (get_option('auto_stop_tasks_timers_on_new_timer') == 1
         && total_rows(db_prefix() . 'taskstimers', 'staff_id=' . get_staff_user_id() . ' AND end_time IS NULL') > 0)
-    ) {
+) {
     echo '<button class="tw-mt-3 text-center btn btn-primary started-timers-button  btn-sm top-dropdown-btn" onclick="timer_action(this,0); return false;"><i class="fa-regular fa-clock"></i> ' . _l('task_start_timer') . '</button>';
 }
 

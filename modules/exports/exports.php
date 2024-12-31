@@ -2,8 +2,8 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 /*
-Module Name: CSV Export Manager | Gerenciador de Exportação CSV
-Description: Módulo padrão para exportação de dados em CSV
+Module Name: CSV Export Manager
+Description: Default module for Exporting data in CSV
 Version: 1.0.0
 Requires at least: 2.9.3
 */
@@ -13,7 +13,7 @@ register_language_files(EXPORTS_MODULE_NAME, [EXPORTS_MODULE_NAME]);
 hooks()->add_action('admin_init', 'export_module_init_menu_items');
 
 /**
- * Init goals module menu items in setup in admin_init hook
+ * Init Export module menu items in setup in admin_init hook
  * @return null
  */
 function export_module_init_menu_items()

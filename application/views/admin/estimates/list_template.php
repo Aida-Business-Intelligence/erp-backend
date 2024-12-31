@@ -1,105 +1,77 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <div class="col-md-12">
-    <?php $this->load->view('admin/estimates/estimates_top_stats');
-    ?>
-    <?php if (has_permission('estimates', '', 'create')) { ?>
-    <a href="<?php echo admin_url('estimates/estimate'); ?>" class="btn btn-primary pull-left new new-estimate-btn">
+    <?php $this->load->view('admin/estimates/estimates_top_stats'); ?>
+
+    <div class="clearfix"></div>
+
+    <div class="_filters _hidden_inputs hidden">
+        <?php
+            if (isset($estimates_sale_agents)) {
+                foreach ($estimates_sale_agents as $agent) {
+                    echo form_hidden('sale_agent_' . $agent['sale_agent']);
+                }
+            }
+if (isset($estimate_statuses)) {
+    foreach ($estimate_statuses as $_status) {
+        $val = '';
+        if ($_status == $this->input->get('status')) {
+            $val = $_status;
+        }
+        echo form_hidden('estimates_' . $_status, $val);
+    }
+}
+if (isset($estimates_years)) {
+    foreach ($estimates_years as $year) {
+        echo form_hidden('year_' . $year['year'], $year['year']);
+    }
+}
+echo form_hidden('not_sent', $this->input->get('filter'));
+echo form_hidden('project_id');
+echo form_hidden('invoiced');
+echo form_hidden('not_invoiced');
+?>
+    </div>
+
+    <?php if (staff_can('create', 'estimates')) { ?>
+    <a href="<?= admin_url('estimates/estimate'); ?>"
+        class="btn btn-primary pull-left new new-estimate-btn">
         <i class="fa-regular fa-plus tw-mr-1"></i>
-        <?php echo _l('create_new_estimate'); ?>
+        <?= _l('create_new_estimate'); ?>
     </a>
     <?php } ?>
-    <a href="<?php echo admin_url('estimates/pipeline/' . $switch_pipeline); ?>"
-        class="btn btn-default mleft5 pull-left switch-pipeline hidden-xs" data-toggle="tooltip" data-placement="top"
-        data-title="<?php echo _l('switch_to_pipeline'); ?>">
+    <a href="<?= admin_url('estimates/pipeline/' . $switch_pipeline); ?>"
+        class="btn btn-default mleft5 pull-left switch-pipeline hidden-xs !tw-px-3" data-toggle="tooltip"
+        data-placement="top"
+        data-title="<?= _l('switch_to_pipeline'); ?>">
         <i class="fa-solid fa-grip-vertical"></i>
     </a>
-    <div class="display-block text-right">
-        <div class="btn-group pull-right mleft4 btn-with-tooltip-group _filter_data" data-toggle="tooltip"
-            data-title="<?php echo _l('filter_by'); ?>">
-            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true"
-                aria-expanded="false">
-                <i class="fa fa-filter" aria-hidden="true"></i>
-            </button>
-            <ul class="dropdown-menu width300">
-                <li>
-                    <a href="#" data-cview="all" onclick="dt_custom_view('','.table-estimates',''); return false;">
-                        <?php echo _l('estimates_list_all'); ?>
-                    </a>
-                </li>
-                <li class="divider"></li>
-                <li class="<?php if ($this->input->get('filter') == 'not_sent') {
-        echo 'active';
-    } ?>">
-                    <a href="#" data-cview="not_sent"
-                        onclick="dt_custom_view('not_sent','.table-estimates','not_sent'); return false;">
-                        <?php echo _l('not_sent_indicator'); ?>
-                    </a>
-                </li>
-                <li>
-                    <a href="#" data-cview="invoiced"
-                        onclick="dt_custom_view('invoiced','.table-estimates','invoiced'); return false;">
-                        <?php echo _l('estimate_invoiced'); ?>
-                    </a>
-                </li>
-                <li>
-                    <a href="#" data-cview="not_invoiced"
-                        onclick="dt_custom_view('not_invoiced','.table-estimates','not_invoiced'); return false;"><?php echo _l('estimates_not_invoiced'); ?></a>
-                </li>
-                <li class="divider"></li>
-                <?php foreach ($estimate_statuses as $status) { ?>
-                <li class="<?php if ($this->input->get('status') == $status) {
-        echo 'active';
-    } ?>">
-                    <a href="#" data-cview="estimates_<?php echo $status; ?>"
-                        onclick="dt_custom_view('estimates_<?php echo $status; ?>','.table-estimates','estimates_<?php echo $status; ?>'); return false;">
-                        <?php echo format_estimate_status($status, '', false); ?>
-                    </a>
-                </li>
-                <?php } ?>
-                <div class="clearfix"></div>
-
-                <?php if (count($estimates_sale_agents) > 0) { ?>
-                <div class="clearfix"></div>
-                <li class="divider"></li>
-                <li class="dropdown-submenu pull-left">
-                    <a href="#" tabindex="-1"><?php echo _l('sale_agent_string'); ?></a>
-                    <ul class="dropdown-menu dropdown-menu-left">
-                        <?php foreach ($estimates_sale_agents as $agent) { ?>
-                        <li>
-                            <a href="#" data-cview="sale_agent_<?php echo $agent['sale_agent']; ?>"
-                                onclick="dt_custom_view(<?php echo $agent['sale_agent']; ?>,'.table-estimates','sale_agent_<?php echo $agent['sale_agent']; ?>'); return false;"><?php echo $agent['full_name']; ?>
-                            </a>
-                        </li>
-                        <?php } ?>
-                    </ul>
-                </li>
-                <?php } ?>
-                <div class="clearfix"></div>
-                <?php if (count($estimates_years) > 0) { ?>
-                <li class="divider"></li>
-                <?php foreach ($estimates_years as $year) { ?>
-                <li class="active">
-                    <a href="#" data-cview="year_<?php echo $year['year']; ?>"
-                        onclick="dt_custom_view(<?php echo $year['year']; ?>,'.table-estimates','year_<?php echo $year['year']; ?>'); return false;"><?php echo $year['year']; ?>
-                    </a>
-                </li>
-                <?php } ?>
-                <?php } ?>
-            </ul>
-        </div>
-        <a href="#" class="btn btn-default btn-with-tooltip toggle-small-view hidden-xs"
+    <?php if (! isset($project) && staff_can('view', 'bulk_pdf_exporter')) { ?>
+    <a href="<?= admin_url('utilities/bulk_pdf_exporter?feature=estimates'); ?>"
+        data-toggle="tooltip"
+        title="<?= _l('bulk_pdf_exporter'); ?>"
+        class="btn-with-tooltip pull-left btn btn-default tw-ml-1 !tw-px-3">
+        <i class="fa-regular fa-file-pdf"></i>
+    </a>
+    <?php } ?>
+    <div class="display-block pull-right tw-space-x-0 sm:tw-space-x-1.5 rtl:tw-space-x-reverse">
+        <a href="#" class="btn btn-default btn-with-tooltip sm:!tw-px-3 toggle-small-view hidden-xs"
             onclick="toggle_small_view('.table-estimates','#estimate'); return false;" data-toggle="tooltip"
-            title="<?php echo _l('estimates_toggle_table_tooltip'); ?>"><i class="fa fa-angle-double-left"></i></a>
-        <a href="#" class="btn btn-default btn-with-tooltip estimates-total"
-            onclick="slideToggle('#stats-top'); init_estimates_total(true); return false;" data-toggle="tooltip"
-            title="<?php echo _l('view_stats_tooltip'); ?>"><i class="fa fa-bar-chart"></i></a>
+            title="<?= _l('estimates_toggle_table_tooltip'); ?>"><i
+                class="fa fa-angle-double-left"></i></a>
+        <app-filters id="<?= $estimates_table->id(); ?>"
+            view="<?= $estimates_table->viewName(); ?>"
+            :rules="extra.estimatesRules || <?= app\services\utilities\Js::from($this->input->get('status') ? $estimates_table->findRule('status')->setValue([$this->input->get('status')]) : ($this->input->get('not_sent') ? $estimates_table->findRule('sent')->setValue('0') : [])); ?>"
+            :saved-filters="<?= $estimates_table->filtersJs(); ?>"
+            :available-rules="<?= $estimates_table->rulesJs(); ?>">
+        </app-filters>
     </div>
-    <div class="row tw-mt-2 sm:tw-mt-4">
+    <div class="clearfix"></div>
+    <div class="row tw-mt-2">
         <div class="col-md-12" id="small-table">
             <div class="panel_s">
                 <div class="panel-body">
                     <!-- if estimateid found in url -->
-                    <?php echo form_hidden('estimateid', $estimateid); ?>
+                    <?= form_hidden('estimateid', $estimateid); ?>
                     <?php $this->load->view('admin/estimates/table_html'); ?>
                 </div>
             </div>

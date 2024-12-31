@@ -22,6 +22,7 @@ class Invoices extends REST_Controller {
     function __construct() {
         // Construct the parent class
         parent::__construct();
+          $this->load->model('Invoices_model');
     }
 
     /**
@@ -162,7 +163,7 @@ class Invoices extends REST_Controller {
      *       "message": "No data were found"
      *     }
      */
-    public function data_get($id = '') {
+    public function data_get2($id = '') {
         // If the id parameter doesn't exist return all the
         $data = $this->Api_model->get_table('invoices', $id);
         // Check if the data store contains
@@ -175,6 +176,24 @@ class Invoices extends REST_Controller {
             // Set the response and exit
             $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND); // NOT_FOUND (404) being the HTTP response code
             
+        }
+    }
+    
+      public function data_get($id = '') {
+         
+        $page = $this->get('page') ? (int) $this->get('page') : 1; // Página atual, padrão 1
+        $limit = $this->get('limit') ? (int) $this->get('limit') : 10; // Itens por página, padrão 10
+        $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
+        $sortField = $this->get('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
+        $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+       
+        
+        $data = $this->Invoices_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+
+        if ($data) {
+            $this->response(['total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+        } else {
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
         }
     }
 

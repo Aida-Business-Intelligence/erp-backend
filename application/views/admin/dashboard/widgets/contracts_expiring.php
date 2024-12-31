@@ -6,7 +6,7 @@
         <div class="panel-body padding-10">
             <div class="widget-dragger"></div>
             <div class="tw-flex tw-justify-between tw-items-center tw-p-1.5">
-                <p class="tw-font-medium tw-flex tw-items-center tw-mb-0 tw-space-x-1.5 rtl:tw-space-x-reverse">
+                <p class="tw-font-semibold tw-flex tw-items-center tw-mb-0 tw-space-x-1.5 rtl:tw-space-x-reverse">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                         stroke="currentColor" class="tw-w-6 tw-h-6 tw-text-neutral-500">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -42,16 +42,16 @@
                         <?php foreach ($expiringContracts as $contract) { ?>
                         <tr>
                             <td>
-                                <?php echo '<a href="' . admin_url('contracts/contract/' . $contract['id']) . '">' . $contract['subject'] . '</a>'; ?>
+                                <?php echo '<a href="' . admin_url('contracts/contract/' . $contract['id']) . '">' . e($contract['subject']) . '</a>'; ?>
                             </td>
                             <td>
-                                <?php echo '<a href="' . admin_url('clients/client/' . $contract['client']) . '">' . get_company_name($contract['client']) . '</a>'; ?>
+                                <?php echo '<a href="' . admin_url('clients/client/' . $contract['client']) . '">' . e(get_company_name($contract['client'])) . '</a>'; ?>
                             </td>
                             <td>
-                                <?php echo _d($contract['datestart']); ?>
+                                <?php echo e(_d($contract['datestart'])); ?>
                             </td>
                             <td>
-                                <?php echo _d($contract['dateend']); ?>
+                                <?php echo e(_d($contract['dateend'])); ?>
                             </td>
                         </tr>
                         <?php } ?>
@@ -59,10 +59,10 @@
                 </table>
             </div>
             <?php } else { ?>
-            <div class="text-center padding-5">
-                <i class="fa fa-check fa-5x" aria-hidden="true"></i>
-                <h4><?php echo _l('no_contracts_about_to_expire', ['7']) ; ?> </h4>
-            </div>
+                <div class="text-center padding-5 tw-text-neutral-500">
+                    <i class="fa fa-check fa-2x" aria-hidden="true"></i>
+                    <p class="tw-mt-4"><?php echo _l('no_contracts_about_to_expire', ['7']); ?></p>
+                </div>
             <?php } ?>
         </div>
     </div>

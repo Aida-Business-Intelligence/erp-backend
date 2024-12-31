@@ -168,12 +168,11 @@ class Cron_model extends App_Model
 
         $older_than_hours = intval($older_than_hours);
         $time_ago         = strtotime(" - {$older_than_hours} hours");
+        $this->db->set('end_time', "UNIX_TIMESTAMP(DATE_ADD(from_unixtime(start_time), INTERVAL $older_than_hours HOUR))", false);
         $this->db->where('end_time IS NULL');
         $this->db->where('task_id !=', '0');
         $this->db->where('start_time <=', $time_ago);
-        $this->db->update(db_prefix() . 'taskstimers', [
-            'end_time' => time(),
-        ]);
+        $this->db->update(db_prefix() . 'taskstimers');
     }
 
     private function delete_twocheckout_logs()
@@ -658,6 +657,7 @@ class Cron_model extends App_Model
                     ];
                 }
             }
+            hooks()->do_action('after_recurring_expense_created', ['original_expense' => $expense, 'new_expense_id' => $insert_id]);
         }
 
         $send_recurring_expenses_email = hooks()->apply_filters('send_recurring_system_expenses_email', 'true');
@@ -891,6 +891,7 @@ class Cron_model extends App_Model
                         'addedfrom'  => $invoice['addedfrom'],
                         'sale_agent' => $invoice['sale_agent'],
                     ];
+                    hooks()->do_action('after_recurring_invoice_created', ['original_invoice' => $invoice, 'new_invoice_id' => $id]);
                 }
             }
         }
@@ -1692,7 +1693,8 @@ class Cron_model extends App_Model
                         }
                     }
 
-                    $body                = $this->prepare_imap_email_body_html($body);
+                    $body = $this->prepare_imap_email_body_html($body);
+
                     $data['attachments'] = [];
 
                     foreach ($message->getAttachments() as $attachment) {
@@ -1752,19 +1754,16 @@ class Cron_model extends App_Model
                     $data = hooks()->apply_filters('imap_auto_import_ticket_data', $data, $message);
 
                     try {
-                        $status = $this->tickets_model->insert_piped_ticket($data);
-
-                        if ($status == 'Ticket Imported Successfully' || $status == 'Ticket Reply Imported Successfully') {
-                            if ($dept['delete_after_import'] == 0) {
-                                $message->markAsSeen();
-                            } else {
-                                $message->delete();
-                                $connection->expunge();
-                            }
-                        } else {
-                            // Set unseen message in all cases to prevent looping throught the message again
+                        // Perform any cleanup before trying to insert the ticket
+                        // In case of any weird errors, helps not re-importing the ticket hundreds of times.
+                        if ($dept['delete_after_import'] == 0) {
                             $message->markAsSeen();
+                        } else {
+                            $message->delete();
+                            $connection->expunge();
                         }
+
+                        $this->tickets_model->insert_piped_ticket($data);
                     } catch (\Exception $e) {
                         // Set unseen message in all cases to prevent looping throught the message again
                         $message->markAsSeen();
@@ -1772,12 +1771,13 @@ class Cron_model extends App_Model
                 } catch (MessageDoesNotExistException $e) {
                     continue;
                 } catch (UnexpectedEncodingException|UnsupportedCharsetException $e) {
-                    log_activity('Failed to auto importing tickets for department ' . $dept['email'] . '. Error:' . $e->getMessage());
+                    log_activity('Failed to auto importing tickets for department ' . $dept['email'] . '. Error: ' . $e->getMessage());
                     $message->markAsSeen();
 
                     continue;
                 }
             }
+
             $this->currentImapMessage = null;
         }
     }
@@ -1916,13 +1916,14 @@ class Cron_model extends App_Model
 
     private function prepare_imap_email_body_html($body)
     {
-        // Trim message
         $body = trim($body);
         $body = str_replace('&nbsp;', ' ', $body);
-        // Remove html tags - strips inline styles also
-        $body = trim(strip_html_tags($body, '<br/>, <br>, <a>'));
-        // Once again do security
-        $body = $this->security->xss_clean($body);
+        $body = trim(remove_html_invisible_tags($body));
+        // Remove opening <html> tag.
+        $body = preg_replace('/^<html[^>]*>/', '', $body);
+        // Remove everything before and including the opening <body> tag, and everything after and including the closing </body> tag.
+        $body = preg_replace('/.*<body[^>]*>(.*?)<\/body>.*/is', '$1', $body);
+        $body = trim($body);
         // Remove duplicate new lines
         $body = preg_replace("/[\r\n]+/", "\n", $body);
         // new lines with <br />

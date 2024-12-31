@@ -73,84 +73,40 @@ class Customers extends REST_Controller {
      *     }
      */
     public function data_get($id = '') {
-   
+
+
+        /*
+          $this->load->model('clients_model');
+
+          $this->clients_model->add_import_items();
+          exit;
+         * 
+         */
+
         $page = $this->get('page') ? (int) $this->get('page') : 1; // Página atual, padrão 1
         $limit = $this->get('limit') ? (int) $this->get('limit') : 10; // Itens por página, padrão 10
         $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
         $sortField = $this->get('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
         $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
         $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        
+        
+      
 
-        if ($data) {
-            $this->response(['total' => $data['total'], 'data' => $data['clients']], REST_Controller::HTTP_OK);
-        } else {
+        if ($data['total'] == 0) {
+            
             $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-        }
-    }
 
-    /**
-     * @api {get} api/customers/search/:keysearch Search Customer Information
-     * @apiName GetCustomerSearch
-     * @apiGroup Customer
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {String} keysearch Search Keywords.
-     *
-     * @apiSuccess {Object} customer information.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *          "id": "28",
-     *          "name": "Test1",
-     *          "description": null,
-     *          "status": "1",
-     *          "clientid": "11",
-     *          "billing_type": "3",
-     *          "start_date": "2019-04-19",
-     *          "deadline": "2019-08-30",
-     *          "customer_created": "2019-07-16",
-     *          "date_finished": null,
-     *          "progress": "0",
-     *          "progress_from_tasks": "1",
-     *          "customer_cost": "0.00",
-     *          "customer_rate_per_hour": "0.00",
-     *          "estimated_hours": "0.00",
-     *          "addedfrom": "5",
-     *          "rel_type": "customer",
-     *          "potential_revenue": "0.00",
-     *          "potential_margin": "0.00",
-     *          "external": "E",
-     *         ...
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message No data were found.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "No data were found"
-     *     }
-     */
-    public function data_search_get($key = '') {
-
-
-        // Get pagination parameters
-        $page = $this->get('page') ? (int) $this->get('page') : 1; // Current page, default is 1
-        $limit = $this->get('limit') ? (int) $this->get('limit') : 10; // Items per page, default is 10
-        // Call the search method
-        $data = $this->Api_model->search_api('customer', $key, $page, $limit);
-
-        // Check if data exists and return response
-        if ($data && isset($data['total'], $data['customers'])) {
-            $this->response(['total' => $data['total'], 'data' => $data['customers']], REST_Controller::HTTP_OK); // Include total customers
         } else {
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND); // NOT_FOUND (404) HTTP response code
+
+            if ($data) {
+                $this->response(['status' => true,'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
         }
     }
+   
 
     /**
      * @api {post} api/customers Add New Customer
@@ -235,37 +191,75 @@ class Customers extends REST_Controller {
      */
     public function data_post() {
 
-        $this->load->model('clients_model');
 
-        //  $this->clients_model->add_import_items();
 
         \modules\api\core\Apiinit::the_da_vinci_code('api');
-        // form validation
-        $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Company'));
-        if ($this->form_validation->run() == FALSE) {
-            // form validation error
-            $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        } else {
-            $groups_in = $this->Api_model->value($this->input->post('groups_in', TRUE));
-            $insert_data = ['company' => $this->input->post('company', TRUE), 'vat' => $this->Api_model->value($this->input->post('vat', TRUE)), 'phonenumber' => $this->Api_model->value($this->input->post('phonenumber', TRUE)), 'website' => $this->Api_model->value($this->input->post('website', TRUE)), 'default_currency' => $this->Api_model->value($this->input->post('default_currency', TRUE)), 'default_language' => $this->Api_model->value($this->input->post('default_language', TRUE)), 'address' => $this->Api_model->value($this->input->post('address', TRUE)), 'city' => $this->Api_model->value($this->input->post('city', TRUE)), 'state' => $this->Api_model->value($this->input->post('state', TRUE)), 'zip' => $this->Api_model->value($this->input->post('zip', TRUE)), 'country' => $this->Api_model->value($this->input->post('country', TRUE)), 'billing_street' => $this->Api_model->value($this->input->post('billing_street', TRUE)), 'billing_city' => $this->Api_model->value($this->input->post('billing_city', TRUE)), 'billing_state' => $this->Api_model->value($this->input->post('billing_state', TRUE)), 'billing_zip' => $this->Api_model->value($this->input->post('billing_zip', TRUE)), 'billing_country' => $this->Api_model->value($this->input->post('billing_country', TRUE)), 'shipping_street' => $this->Api_model->value($this->input->post('shipping_street', TRUE)), 'shipping_city' => $this->Api_model->value($this->input->post('shipping_city', TRUE)), 'shipping_state' => $this->Api_model->value($this->input->post('shipping_state', TRUE)), 'shipping_zip' => $this->Api_model->value($this->input->post('shipping_zip', TRUE)), 'shipping_country' => $this->Api_model->value($this->input->post('shipping_country', TRUE))];
-            if (!empty($this->input->post('custom_fields', TRUE))) {
-                $insert_data['custom_fields'] = $this->Api_model->value($this->input->post('custom_fields', TRUE));
-            }
-            if ($groups_in != '') {
-                $insert_data['groups_in'] = $groups_in;
-            }
-            // insert data
+// Recebendo e decodificando os dados
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-            $output = $this->clients_model->add($insert_data);
-            if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Client add successful.');
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Client add fail.');
+// Verificando se os dados são um único objeto
+        if (is_array($_POST) && count($_POST) === 0) {
+            // Caso de um array vazio
+            echo "O array está vazio.";
+            exit;
+        } elseif (is_array($_POST) && isset($_POST[0]) && is_array($_POST[0])) {
+            // Se for um array de objetos
+            foreach ($_POST as $representante) {
+                $output = $this->clients_model->add($representante);
+            }
+
+            $message = array('status' => TRUE, 'message' => 'Import add successful.', 'data' => []);
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+
+
+            /*
+              if (is_array($insert_data)) {
+              // Se for um array e conter mais de um objeto
+              foreach ($insert_data as $representante) {
+              // Processar cada representante para cadastro em massa
+              echo "Cadastro em massa para o representante: ";
+              print_r($representante);
+              }
+              }
+             * 
+             */
+
+
+            // form validation
+            $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Company'));
+            if ($this->form_validation->run() == FALSE) {
+                // form validation error
+                $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            } else {
+                $groups_in = $this->Api_model->value($this->input->post('groups_in', TRUE));
+
+                /*
+                  $insert_data = ['company' => $this->input->post('company', TRUE), 'vat' => $this->Api_model->value($this->input->post('vat', TRUE)), 'phonenumber' => $this->Api_model->value($this->input->post('phonenumber', TRUE)), 'website' => $this->Api_model->value($this->input->post('website', TRUE)), 'default_currency' => $this->Api_model->value($this->input->post('default_currency', TRUE)), 'default_language' => $this->Api_model->value($this->input->post('default_language', TRUE)), 'address' => $this->Api_model->value($this->input->post('address', TRUE)), 'city' => $this->Api_model->value($this->input->post('city', TRUE)), 'state' => $this->Api_model->value($this->input->post('state', TRUE)), 'zip' => $this->Api_model->value($this->input->post('zip', TRUE)), 'country' => $this->Api_model->value($this->input->post('country', TRUE)), 'billing_street' => $this->Api_model->value($this->input->post('billing_street', TRUE)), 'billing_city' => $this->Api_model->value($this->input->post('billing_city', TRUE)), 'billing_state' => $this->Api_model->value($this->input->post('billing_state', TRUE)), 'billing_zip' => $this->Api_model->value($this->input->post('billing_zip', TRUE)), 'billing_country' => $this->Api_model->value($this->input->post('billing_country', TRUE)), 'shipping_street' => $this->Api_model->value($this->input->post('shipping_street', TRUE)), 'shipping_city' => $this->Api_model->value($this->input->post('shipping_city', TRUE)), 'shipping_state' => $this->Api_model->value($this->input->post('shipping_state', TRUE)), 'shipping_zip' => $this->Api_model->value($this->input->post('shipping_zip', TRUE)), 'shipping_country' => $this->Api_model->value($this->input->post('shipping_country', TRUE))];
+                  if (!empty($this->input->post('custom_fields', TRUE))) {
+                  $insert_data['custom_fields'] = $this->Api_model->value($this->input->post('custom_fields', TRUE));
+                  }
+                  if ($groups_in != '') {
+                  $insert_data['groups_in'] = $groups_in;
+                  }
+                 * 
+                 */
+                // insert data
+                
+                
+              
+
+                $output = $this->clients_model->add($_POST);
+                if ($output > 0 && !empty($output)) {
+                    // success
+                    $message = array('status' => TRUE, 'message' => 'Client add successful.', 'data' => $this->clients_model->get($output));
+                    $this->response($message, REST_Controller::HTTP_OK);
+                } else {
+                    // error
+                    $message = array('status' => FALSE, 'message' => 'Client add fail.');
+                    $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+                }
             }
         }
     }
@@ -396,7 +390,10 @@ class Customers extends REST_Controller {
      *     }
      */
     public function data_put($id = '') {
+
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
         if (empty($_POST) || !isset($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
@@ -412,7 +409,7 @@ class Customers extends REST_Controller {
             $output = $this->clients_model->update($update_data, $id);
             if ($output > 0 && !empty($output)) {
                 // success
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.');
+                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->clients_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 // error
@@ -421,4 +418,5 @@ class Customers extends REST_Controller {
             }
         }
     }
+
 }

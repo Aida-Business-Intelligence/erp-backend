@@ -4,7 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
 /** @noinspection PhpIncludeInspection */
-require __DIR__.'/REST_Controller.php';
+require __DIR__ . '/REST_Controller.php';
 
 /**
  * This is an example of a few basic user interaction methods you could use
@@ -19,150 +19,37 @@ require __DIR__.'/REST_Controller.php';
  */
 class Staffs extends REST_Controller {
 
-    function __construct()
-    {
+    function __construct() {
         // Construct the parent class
         parent::__construct();
         $this->load->model('Staff_model');
-
     }
 
-    /**
-     * @api {get} api/staffs/:id Request Staff information
-     * @apiName GetStaff
-     * @apiGroup Staff
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {Number} id Staff unique ID.
-     *
-     * @apiSuccess {Object} Staff information.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *          "staffid": "8",
-     *          "email": "data1.gsts@gmail.com",
-     *          "firstname": "Đào Quang Dân",
-     *          "lastname": "",
-     *          "facebook": "",
-     *          "linkedin": "",
-     *          "phonenumber": "",
-     *          "skype": "",
-     *          "password": "$2a$08$ySLokLAM.AqmW9ZjY2YREO0CIrd5K4Td\/Bpfp8d9QJamWNUfreQuK",
-     *          "datecreated": "2019-02-25 09:11:31",
-     *          "profile_image": "8.png",
-     *         ...
-     *     }
-     *
-     * @apiError StaffNotFound The id of the Staff was not found.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "No data were found"
-     *     }
-     */
-    public function data_get_bck($id = '')
-    {
-        // If the id parameter doesn't exist return all the
-        $data = $this->Api_model->get_table('staffs', $id);
+    public function permissions_get($userid) {
 
-        // Check if the data store contains
-        if ($data)
-        {
-            $data = $this->Api_model->get_api_custom_data($data,"staff", $id);
+        $permissions = $this->Staff_model->get_staff_permissions($userid);
+        if (count($permissions)) {
+            $this->response(['data' => $permissions], REST_Controller::HTTP_OK);
+        }
 
-            // Set the response and exit
-            $this->response($data, REST_Controller::HTTP_OK); // OK (200) being the HTTP response code
-        }
-        else
-        {
-            // Set the response and exit
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No data were found'
-            ], REST_Controller::HTTP_NOT_FOUND); // NOT_FOUND (404) being the HTTP response code
-        }
+        $this->response(['data' => 'Not permissios'], REST_Controller::HTTP_NOT_FOUND);
     }
-    
+
     public function data_get($id = '') {
-   
+
         $page = $this->get('page') ? (int) $this->get('page') : 1; // Página atual, padrão 1
         $limit = $this->get('limit') ? (int) $this->get('limit') : 10; // Itens por página, padrão 10
         $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->get('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
+        $sortField = $this->get('sortField') ?: 'staffid'; // Campo para ordenação, padrão 'id'
         $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-        
-        
-        $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
-        
-        
-     
+        $type = $this->get('type') == null ? 'employee' : $this->get('type'); // Ordem, padrão crescente
+
+        $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $type);
 
         if ($data) {
             $this->response(['total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
         } else {
             $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-        }
-    }
-    
-    /**
-     * @api {get} api/staffs/search/:keysearch Search Staff Information
-     * @apiName GetStaffSearch
-     * @apiGroup Staff
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {String} keysearch Search keywords.
-     *
-     * @apiSuccess {Object} Staff information.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *          "staffid": "8",
-     *          "email": "data1.gsts@gmail.com",
-     *          "firstname": "Đào Quang Dân",
-     *          "lastname": "",
-     *          "facebook": "",
-     *          "linkedin": "",
-     *          "phonenumber": "",
-     *          "skype": "",
-     *          "password": "$2a$08$ySLokLAM.AqmW9ZjY2YREO0CIrd5K4Td\/Bpfp8d9QJamWNUfreQuK",
-     *          "datecreated": "2019-02-25 09:11:31",
-     *          "profile_image": "8.png",
-     *         ...
-     *     }
-     *
-     * @apiError StaffNotFound The id of the Staff was not found.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "No data were found"
-     *     }
-     */
-    public function data_search_get($key = '')
-    {
-        $data = $this->Api_model->search('staff', $key);
-        // Check if the data store contains
-        if ($data)
-        {
-            $data = $this->Api_model->get_api_custom_data($data,"staff");
-
-            // Set the response and exit
-            $this->response($data, REST_Controller::HTTP_OK); // OK (200) being the HTTP response code
-        }
-        else
-        {
-            // Set the response and exit
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No data were found'
-            ], REST_Controller::HTTP_NOT_FOUND); // NOT_FOUND (404) being the HTTP response code
         }
     }
 
@@ -234,25 +121,24 @@ class Staffs extends REST_Controller {
      *     }
      * 
      */
-    public function data_post()
-    {
+    public function data_post() {
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
         \modules\api\core\Apiinit::the_da_vinci_code('api');
         // form validation
         $this->form_validation->set_rules('firstname', 'First Name', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Staff First Name'));
         $this->form_validation->set_rules('email', 'Email', 'trim|required|valid_email', array('is_unique' => 'This %s already exists please enter another Staff Email'));
         $this->form_validation->set_rules('password', 'Password', 'trim|required', array('is_unique' => 'This %s already exists please enter another Staff password'));
-        if ($this->form_validation->run() == FALSE)
-        {
+        if ($this->form_validation->run() == FALSE) {
             // form validation error
             $message = array(
                 'status' => FALSE,
                 'error' => $this->form_validation->error_array(),
-                'message' => validation_errors() 
+                'message' => validation_errors()
             );
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        }
-        else
-        {
+        } else {
             $departments = $this->Api_model->value($this->input->post('departments', TRUE));
             $insert_data = [
                 'firstname' => $this->input->post('firstname', TRUE),
@@ -268,34 +154,35 @@ class Staffs extends REST_Controller {
                 'email_signature' => $this->Api_model->value($this->input->post('email_signature', TRUE)),
                 'direction' => $this->Api_model->value($this->input->post('direction', TRUE)),
                 'send_welcome_email' => $this->Api_model->value($this->input->post('send_welcome_email', TRUE)),
+                 'type' => $this->Api_model->value($this->input->post('type', TRUE)),
                 'role' => '1',
-                'permissions' => array( 
-                    'bulk_pdf_exporter' => array('view'), 
-                    'contracts' => array('create','edit','delete'),
-                    'credit_notes' => array('create','edit','delete'),
-                    'customers' => array('view','create','edit','delete'),
-                    'email_templates' => array('view','edit'),
-                    'estimates' => array('create','edit','delete'),
-                    'expenses' => array('create','edit','delete'),
-                    'invoices' => array('create','edit','delete'),
-                    'items' => array('view','create','edit','delete'),
-                    'knowledge_base' => array('view','create','edit','delete'),
-                    'payments' => array('view','create','edit','delete'),
-                    'projects' => array('view','create','edit','delete'),
-                    'proposals' => array('create','edit','delete'),
+                'permissions' => array(
+                    'bulk_pdf_exporter' => array('view'),
+                    'contracts' => array('create', 'edit', 'delete'),
+                    'credit_notes' => array('create', 'edit', 'delete'),
+                    'customers' => array('view', 'create', 'edit', 'delete'),
+                    'email_templates' => array('view', 'edit'),
+                    'estimates' => array('create', 'edit', 'delete'),
+                    'expenses' => array('create', 'edit', 'delete'),
+                    'invoices' => array('create', 'edit', 'delete'),
+                    'items' => array('view', 'create', 'edit', 'delete'),
+                    'knowledge_base' => array('view', 'create', 'edit', 'delete'),
+                    'payments' => array('view', 'create', 'edit', 'delete'),
+                    'projects' => array('view', 'create', 'edit', 'delete'),
+                    'proposals' => array('create', 'edit', 'delete'),
                     'contracts' => array('view'),
-                    'roles' => array('view','create','edit','delete'),
-                    'settings' => array('view','edit'),
-                    'staff' => array('view','create','edit','delete'),
-                    'subscriptions' => array('create','edit','delete'),
-                    'tasks' => array('view','create','edit','delete'),
-                    'checklist_templates' => array('create','delete'),
-                    'leads' => array('view','delete'),
-                    'goals' => array('view','create','edit','delete'),
-                    'surveys' => array('view','create','edit','delete'),
+                    'roles' => array('view', 'create', 'edit', 'delete'),
+                    'settings' => array('view', 'edit'),
+                    'staff' => array('view', 'create', 'edit', 'delete'),
+                    'subscriptions' => array('create', 'edit', 'delete'),
+                    'tasks' => array('view', 'create', 'edit', 'delete'),
+                    'checklist_templates' => array('create', 'delete'),
+                    'leads' => array('view', 'delete'),
+                    'goals' => array('view', 'create', 'edit', 'delete'),
+                    'surveys' => array('view', 'create', 'edit', 'delete'),
                 )
             ];
-            if($departments != ''){
+            if ($departments != '') {
                 $insert_data['departments'] = $departments;
             }
             if (!empty($this->input->post('custom_fields', TRUE))) {
@@ -304,25 +191,24 @@ class Staffs extends REST_Controller {
             // insert data
             $this->load->model('staff_model');
             $output = $this->staff_model->add($insert_data);
-            if($output > 0 && !empty($output)){
+            if ($output > 0 && !empty($output)) {
                 // success
                 $message = array(
-                'status' => TRUE,
-                'message' => 'Staff add successful.'
+                    'status' => TRUE,
+                    'data' => $output,
+                    'message' => 'Staff add successful.'
                 );
                 $this->response($message, REST_Controller::HTTP_OK);
-            }else{
+            } else {
                 // error
                 $message = array(
-                'status' => FALSE,
-                'message' => 'Staff add fail.'
+                    'status' => FALSE,
+                    'message' => 'Staff add fail.'
                 );
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
         }
-
     }
-
 
     /**
      * @api {delete} api/delete/staffs/:id Delete a Staff
@@ -353,40 +239,35 @@ class Staffs extends REST_Controller {
      *       "message": "Staff Not Delete."
      *     }
      */
-    public function data_delete($id)
-    {
+    public function data_delete($id) {
         $id = $this->security->xss_clean($id);
-        if(empty($id) && !is_numeric($id))
-        {
+        if (empty($id) && !is_numeric($id)) {
             $message = array(
-            'status' => FALSE,
-            'message' => 'Invalid Staff ID'
-        );
-        $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        }
-        else
-        {
+                'status' => FALSE,
+                'message' => 'Invalid Staff ID'
+            );
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
             // delete data
             $this->load->model('staff_model');
             $output = $this->staff_model->delete($id, 0);
-            if($output === TRUE){
+            if ($output === TRUE) {
                 // success
                 $message = array(
-                'status' => TRUE,
-                'message' => 'Staff Delete Successful.'
+                    'status' => TRUE,
+                    'message' => 'Staff Delete Successful.'
                 );
                 $this->response($message, REST_Controller::HTTP_OK);
-            }else{
+            } else {
                 // error
                 $message = array(
-                'status' => FALSE,
-                'message' => 'Staff Delete Fail.'
+                    'status' => FALSE,
+                    'message' => 'Staff Delete Fail.'
                 );
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
         }
     }
-
 
     /**
      * @api {put} api/staffs/:id Update a Staff
@@ -448,48 +329,43 @@ class Staffs extends REST_Controller {
      *       "message": "Staff Update Fail."
      *     }
      */
-    public function data_put($id)
-    {
+    public function data_put($id) {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        if(empty($_POST ) || !isset($_POST ))
-        {
+        if (empty($_POST) || !isset($_POST)) {
             $message = array(
-            'status' => FALSE,
-            'message' => 'Data Not Acceptable OR Not Provided'
+                'status' => FALSE,
+                'message' => 'Data Not Acceptable OR Not Provided'
             );
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
         }
         $this->form_validation->set_data($_POST);
-        
-        if(empty($id) && !is_numeric($id))
-        {
+
+        if (empty($id) && !is_numeric($id)) {
             $message = array(
-            'status' => FALSE,
-            'message' => 'Invalid Staff ID'
+                'status' => FALSE,
+                'message' => 'Invalid Staff ID'
             );
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        }
-        else
-        {
+        } else {
 
             $update_data = $this->input->post();
-         
+
             // update data
             $this->load->model('staff_model');
             $output = $this->staff_model->update($update_data, $id);
 
-            if($output > 0 && !empty($output)){
+            if ($output > 0 && !empty($output)) {
                 // success
                 $message = array(
-                'status' => TRUE,
-                'message' => 'Staff Update Successful.'
+                    'status' => TRUE,
+                    'message' => 'Staff Update Successful.'
                 );
                 $this->response($message, REST_Controller::HTTP_OK);
-            }else{
+            } else {
                 // error
                 $message = array(
-                'status' => FALSE,
-                'message' => 'Staff Update Fail.'
+                    'status' => FALSE,
+                    'message' => 'Staff Update Fail.'
                 );
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }

@@ -82,6 +82,11 @@ class Staff_model extends App_Model
             'staff_id' => $transfer_data_to,
         ]);
 
+        $this->db->where('staff_id', $id);
+        $this->db->update('filters', [
+            'staff_id' => $transfer_data_to,
+        ]);
+        
         $this->db->where('staffid', $id);
         $this->db->update(db_prefix() . 'project_files', [
             'staffid' => $transfer_data_to,
@@ -358,65 +363,6 @@ class Staff_model extends App_Model
 
         return $this->db->get(db_prefix() . 'staff')->result_array();
     }
-    
-    
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC') {
-    
-    if (!is_numeric($id)) {
-        // Adicionar condições de busca
-        if (!empty($search)) {
-            $this->db->group_start(); // Começa um agrupamento de condição
-            $this->db->like('firstname', $search); // Busca pelo campo 'company'
-            $this->db->or_like('lastname', $search);
-             $this->db->or_like('email', $search);
-            $this->db->group_end(); // Fecha o agrupamento de condição
-        }
-
-        // Implementar lógica para ordenação
-        $this->db->order_by($sortField, $sortOrder);
-
-        // Implementar a limitação e o deslocamento
-        $this->db->limit($limit, ($page - 1) * $limit);
-        
-        // Obtenha todos os clientes
-        $data = $this->db->get(db_prefix() . 'staff')->result_array();
-        
-     
-        // Contar o total de clientes (considerando a busca)
-        $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
-
-        if (!empty($search)) {
-            // Condições de busca para contar os resultados
-            $this->db->group_start(); // Começa um agrupamento de condição
-            $this->db->like('firstname', $search);
-            $this->db->or_like('lastname', $search);
-            $this->db->or_like('email', $search);
-            $this->db->group_end(); // Fecha o agrupamento de condição
-        }
-        
-        // Seleciona o total de clientes
-        $this->db->select('COUNT(*) as total');
-        $total = $this->db->get(db_prefix() . 'staff')->row()->total;
-        
-        
-      
-
-        return ['data' => $data, 'total' => $total]; // Retorne os clientes e o total
-    }else{
-        
-   
-
-
-return ['data' => (array)$this->get($id), 'total' => 1]; 
-     
-       
-        
-        
-    }
-
-    // (O resto do código existente para quando $id é válido)
-}
-    
 
     /**
      * Get staff permissions
@@ -567,12 +513,6 @@ return ['data' => (array)$this->get($id), 'total' => 1];
      */
     public function update($data, $id)
     {
-        
-        unset($data['department']);
-         unset($data['designation']);
-        
-        
-    
         if (isset($data['fakeusernameremembered'])) {
             unset($data['fakeusernameremembered']);
         }
@@ -581,8 +521,6 @@ return ['data' => (array)$this->get($id), 'total' => 1];
         }
 
         $data = hooks()->apply_filters('before_update_staff_member', $data, $id);
-        
-   
 
         if (is_admin()) {
             if (isset($data['administrator'])) {
@@ -828,6 +766,7 @@ return ['data' => (array)$this->get($id), 'total' => 1];
         ]);
 
         log_activity('Staff Status Changed [StaffID: ' . $id . ' - Status(Active/Inactive): ' . $status . ']');
+        hooks()->do_action('after_staff_status_change', $id);
     }
 
     public function get_logged_time_data($id = '', $filter_data = [])

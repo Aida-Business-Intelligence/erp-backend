@@ -3843,16 +3843,92 @@ $lang['search_estimates']                = 'Tahminlerde Ara';
 $lang['quick_create']                    = 'Hızlı Oluştur';
 
 # Version 3.0.5
-$lang['subscription_last_sent']                             = 'Last Sent';
-$lang['automatically_set_logged_in_staff_sales_agent']      = 'Automatically assign logged in staff as sale agent';
-$lang['automatically_set_logged_in_staff_sales_agent_help'] = 'Applicable for: Estimates, invoices, proposal';
-$lang['permission_view_all_templates']                      = 'View All Templates';
-$lang['settings_contract_sign_reminder_every_days_info']    = 'Sign reminders are sent to the customer contacts after the contract is first time sent to the customer and they are automatically stopped when the contract is signed.';
-$lang['contract_sign_reminder_every_days']                  = 'Send sign reminder every (days)';
-$lang['contract_sign_reminders']                            = 'Sign Reminders';
-$lang['payment_gateway_fee_percentage']                     = 'Percentage Fee';
-$lang['payment_gateway_fee_fixed']                          = 'Fixed Fee';
-$lang['payment_attempt_amount']                             = 'Invoice Total';
-$lang['payment_attempt_fee']                                = 'Payment Fee';
-$lang['feature']                                            = 'Feature';
-$lang['capabilities']                                       = 'Capabilities';
+$lang['subscription_last_sent']                             = 'Son Gönderim';
+$lang['automatically_set_logged_in_staff_sales_agent']      = 'Giriş yapmış personeli otomatik olarak satış temsilcisi olarak ata';
+$lang['automatically_set_logged_in_staff_sales_agent_help'] = 'Geçerli: Teklifler, faturalar, öneriler';
+$lang['permission_view_all_templates']                      = 'Tüm Şablonları Görüntüle';
+$lang['settings_contract_sign_reminder_every_days_info']    = 'İmza hatırlatmaları, sözleşme ilk kez müşteriye gönderildikten sonra müşteri kişilerine gönderilir ve sözleşme imzalandığında otomatik olarak durdurulur.';
+$lang['contract_sign_reminder_every_days']                  = 'İmza hatırlatmasını her (gün) gönder';
+$lang['contract_sign_reminders']                            = 'İmza Hatırlatmaları';
+$lang['payment_gateway_fee_percentage']                     = 'Yüzde Ücreti';
+$lang['payment_gateway_fee_fixed']                          = 'Sabit Ücret';
+$lang['payment_attempt_amount']                             = 'Fatura Toplamı';
+$lang['payment_attempt_fee']                                = 'Ödeme Ücreti';
+$lang['feature']                                            = 'Özellik';
+$lang['capabilities']                                       = 'Yetenekler';
+
+# Version 3.1.0
+$lang['filter_boolean_yes'] = 'Evet';
+$lang['filter_boolean_no'] = 'Hayır';
+$lang['filter_matchtype_and'] = 've';
+$lang['filter_matchtype_or'] = 'veya';
+$lang['filter_share'] = 'Diğer ekip üyeleriyle paylaş?';
+$lang['filter_mark_as_default'] = 'Varsayılan olarak işaretle';
+$lang['filter_unmark_as_default'] = 'Varsayılan işaretini kaldır';
+$lang['filter_save'] = 'Filtreyi Kaydet';
+$lang['filter_name'] = 'Filtre adı';
+$lang['filter_apply'] = 'Uygula';
+$lang['filter_apply_and_save'] = 'Uygula ve Kaydet';
+$lang['filter_use_dynamic_dates'] = 'Dinamik tarihleri kullan';
+$lang['filter_new'] = 'Yeni Filtre';
+$lang['filter_clear_active'] = 'Filtreyi Temizle';
+$lang['filter_edit'] = 'Düzenle';
+$lang['filter_create'] = 'Filtre Oluştur';
+$lang['filter_update'] = 'Filtreyi Güncelle';
+$lang['filter_delete'] = 'Filtreyi Sil';
+$lang['filter_cannot_be_shared'] = 'Bu filtre, tüm kullanıcılar için mevcut olmayabilecek kurallar içerdiği için diğer ekip üyeleriyle paylaşılamaz.';
+$lang['filter_add_rule'] = 'Kural Ekle';
+
+$lang['filter_operator_is_empty'] = 'bilinmiyor';
+$lang['filter_operator_is_not_empty'] = 'biliniyor';
+$lang['filter_operator_equal'] = 'eşittir';
+$lang['filter_operator_not_equal'] = 'eşit değildir';
+$lang['filter_operator_begins_with'] = 'ile başlar';
+$lang['filter_operator_not_begins_with'] = 'ile başlamaz';
+$lang['filter_operator_contains'] = 'içerir';
+$lang['filter_operator_not_contains'] = 'içermez';
+$lang['filter_operator_ends_with'] = 'ile biter';
+$lang['filter_operator_not_ends_with'] = 'ile bitmez';
+$lang['filter_operator_in'] = 'içinde';
+$lang['filter_operator_not_in'] = 'dışında';
+$lang['filter_operator_between'] = 'arasında';
+$lang['filter_operator_not_between'] = 'arasında değil';
+$lang['filter_operator_dynamic'] = 'dinamik';
+$lang['filter_operator_greater'] = 'büyüktür';
+$lang['filter_operator_greater_or_equal'] = 'büyük veya eşit';
+$lang['filter_operator_less'] = 'küçüktür';
+$lang['filter_operator_less_or_equal'] = 'küçük veya eşit';
+$lang['no_filters_found'] = 'Kayıtlı filtre bulunamadı, yeni bir filtre oluşturarak başlayın.';
+
+$lang['staff_logged_in_public_ticket_warning'] = 'Bir personel üyesi olarak giriş yaptınız, bilete personel olarak yanıt vermek istiyorsanız, yanıtı yönetim alanı üzerinden yapmalısınız.';
+
+# Version 3.1.2
+$lang['allow_non_admin_members_to_delete_tickets_and_replies'] = 'Yönetici olmayan personel üyelerinin biletleri ve yanıtları silmesine izin ver';
+$lang['default_filter_info'] = 'Filtre yalnızca sizin hesabınız için varsayılan olarak işaretlenecektir.';
+$lang['required_register_fields'] = 'Kayıt için gerekli alanlar (müşteri alanı)';
+
+# Version 3.1.6
+$lang['allow_non_admin_members_to_edit_ticket_messages'] = 'Yönetici olmayan personel üyelerinin biletleri ve yanıtları silmesine izin ver';
+$lang['proposal_auto_convert_to_invoice_on_client_accept'] = 'Müşteri kabul ettikten sonra öneriyi otomatik olarak faturaya çevir (yalnızca müşteri ile ilgili öneriler)';
+$lang['invoice_activity_auto_converted_from_proposal']      = '%s numaralı öneriden otomatik olarak oluşturulan fatura';
+$lang['clients_proposal_invoiced_successfully'] = 'Öneriyi kabul ettiğiniz için teşekkür ederiz. Öneri için oluşturulan faturayı inceleyin.';
+
+# Version 3.2.0
+$lang['ideal_payment_failure_message'] = 'Ödeme başarısız oldu veya iptal edildi.';
+$lang['ideal_api_publishable_key'] = 'Stripe Yayınlanabilir Anahtarı';
+$lang['ideal_api_secret_key'] = 'Stripe API Gizli Anahtarı';
+$lang['filters'] = 'Filtreler';
+$lang['view_financial_stats'] = 'Finansal İstatistikleri Görüntüle';
+$lang['timesheet_summary'] = 'Çalışma Zamanı Özeti';
+$lang['timesheet_detailed_overview'] = 'Günlüğe Kaydedilen Çalışma Zamanları ve Saatlerin Detaylı Görünümü';
+$lang['ticket_request_history'] = 'Talep Geçmişi';
+$lang['integrations'] = 'Entegrasyonlar';
+$lang['settings_group_other'] = 'Diğer';
+$lang['settings_group_configure_features'] = 'Özellikleri Yapılandır';
+$lang['disable_ticket_public_url'] = 'Biletin Genel URL’sini Devre Dışı Bırak';
+
+# Version 3.2.1
+$lang['ideal_gateway_keys_not_configured'] = 'iDEAL Payment Gateway API not configured.';
+$lang['ideal_gateway_cannot_be_activated_keys_not_configured'] = 'iDEAL Payment Gateway cannot be activated as the Stripe Publishable/API key is not configured.';
+$lang['company_logo_light'] = 'Company Logo Light';
+$lang['welcome_back_sign_in'] = 'Welcome, please sign in to your dashboard';

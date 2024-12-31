@@ -21,7 +21,7 @@ foreach ($rResult as $aRow) {
     for ($i = 0; $i < count($aColumns); $i++) {
         $_data = $aRow[$aColumns[$i]];
         if ($aColumns[$i] == 'subject') {
-            $_data = '<a href="' . admin_url('surveys/survey/' . $aRow['surveyid']) . '">' . $_data . '</a>';
+            $_data = '<a href="' . admin_url('surveys/survey/' . $aRow['surveyid']) . '" class="tw-font-medium">' . e($_data) . '</a>';
 
             $_data .= '<div class="row-options">';
 
@@ -33,13 +33,13 @@ foreach ($rResult as $aRow) {
 
             $_data .= ' | <a href="' . admin_url('surveys/survey/' . $aRow['surveyid']) . '">' . _l('edit') . '</a>';
 
-            if (has_permission('surveys', '', 'delete')) {
-                $_data .= ' | <a href="' . admin_url('surveys/delete/' . $aRow['surveyid']) . '" class="text-danger _delete">' . _l('delete') . '</a>';
+            if (staff_can('delete',  'surveys')) {
+                $_data .= ' | <a href="' . admin_url('surveys/delete/' . $aRow['surveyid']) . '" class="_delete">' . _l('delete') . '</a>';
             }
 
             $_data .= '</div>';
         } elseif ($aColumns[$i] == 'datecreated') {
-            $_data = _dt($_data);
+            $_data = e(_dt($_data));
         } elseif ($aColumns[$i] == 'active') {
             $checked = '';
             if ($aRow['active'] == 1) {

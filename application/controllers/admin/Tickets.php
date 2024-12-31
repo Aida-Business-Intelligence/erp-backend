@@ -10,7 +10,7 @@ class Tickets extends AdminController
     public function __construct()
     {
         parent::__construct();
-        if (get_option('access_tickets_to_none_staff_members') == 0 && !is_staff_member()) {
+        if (get_option('access_tickets_to_none_staff_members') == 0 && ! is_staff_member()) {
             redirect(admin_url());
         }
         $this->load->model('tickets_model');
@@ -20,12 +20,14 @@ class Tickets extends AdminController
     {
         close_setup_menu();
 
-        if (!is_numeric($status)) {
+        if (! is_numeric($status)) {
             $status = '';
         }
 
+        $data['table'] = App_table::find('tickets');
+
         if ($this->input->is_ajax_request()) {
-            if (!$this->input->post('filters_ticket_id')) {
+            if (! $this->input->post('via_ticket')) {
                 $tableParams = [
                     'status' => $status,
                     'userid' => $userid,
@@ -33,16 +35,16 @@ class Tickets extends AdminController
             } else {
                 // request for othes tickets when single ticket is opened
                 $tableParams = [
-                'userid'              => $this->input->post('filters_userid'),
-                'where_not_ticket_id' => $this->input->post('filters_ticket_id'),
-            ];
+                    'userid'     => $this->input->post('via_ticket_userid'),
+                    'via_ticket' => $this->input->post('via_ticket'),
+                ];
+
                 if ($tableParams['userid'] == 0) {
                     unset($tableParams['userid']);
-                    $tableParams['by_email'] = $this->input->post('filters_email');
+                    $tableParams['by_email'] = $this->input->post('via_ticket_email');
                 }
             }
-
-            $this->app->get_table_data('tickets', $tableParams);
+            $data['table']->output($tableParams);
         }
 
         $data['chosen_ticket_status']              = $status;
@@ -84,7 +86,7 @@ class Tickets extends AdminController
         $data['predefined_replies'] = $this->tickets_model->get_predefined_reply();
         $data['priorities']         = $this->tickets_model->get_priority();
         $data['services']           = $this->tickets_model->get_service();
-        $whereStaff                 = [];
+        $whereStaff                 = ['active' => 1];
         if (get_option('access_tickets_to_none_staff_members') == 0) {
             $whereStaff['is_not_staff'] = 0;
         }
@@ -118,8 +120,12 @@ class Tickets extends AdminController
 
     public function delete($ticketid)
     {
-        if (!$ticketid) {
+        if (! $ticketid) {
             redirect(admin_url('tickets'));
+        }
+
+        if (! can_staff_delete_ticket()) {
+            access_denied('delete ticket');
         }
 
         $response = $this->tickets_model->delete($ticketid);
@@ -130,23 +136,25 @@ class Tickets extends AdminController
             set_alert('warning', _l('problem_deleting', _l('ticket_lowercase')));
         }
 
-        if (strpos($_SERVER['HTTP_REFERER'], 'tickets/ticket') !== false) {
+        // ensure if deleted from single ticket page, user is redirected to index
+        if (str_contains(previous_url(), 'ticket/' . $ticketid)) {
             redirect(admin_url('tickets'));
-        } else {
-            redirect($_SERVER['HTTP_REFERER']);
+
+            return;
         }
+        redirect(previous_url() ?: $_SERVER['HTTP_REFERER']);
     }
 
     public function delete_attachment($id)
     {
-        if (is_admin() || (!is_admin() && get_option('allow_non_admin_staff_to_delete_ticket_attachments') == '1')) {
-            if (get_option('staff_access_only_assigned_departments') == 1 && !is_admin()) {
+        if (is_admin() || (! is_admin() && get_option('allow_non_admin_staff_to_delete_ticket_attachments') == '1')) {
+            if (get_option('staff_access_only_assigned_departments') == 1 && ! is_admin()) {
                 $attachment = $this->tickets_model->get_ticket_attachment($id);
                 $ticket     = $this->tickets_model->get_ticket_by_id($attachment->ticketid);
 
                 $this->load->model('departments_model');
                 $staff_departments = $this->departments_model->get_staff_departments(get_staff_user_id(), true);
-                if (!in_array($ticket->department, $staff_departments)) {
+                if (! in_array($ticket->department, $staff_departments)) {
                     set_alert('danger', _l('ticket_access_by_department_denied'));
                     redirect(admin_url('access_denied'));
                 }
@@ -155,14 +163,15 @@ class Tickets extends AdminController
             $this->tickets_model->delete_ticket_attachment($id);
         }
 
-        redirect($_SERVER['HTTP_REFERER']);
+        redirect(previous_url() ?: $_SERVER['HTTP_REFERER']);
     }
 
     public function update_staff_replying($ticketId, $userId = '')
     {
         if ($this->input->is_ajax_request()) {
             echo json_encode(['success' => $this->tickets_model->update_staff_replying($ticketId, $userId)]);
-            die;
+
+            exit;
         }
     }
 
@@ -173,30 +182,31 @@ class Tickets extends AdminController
             $isAnotherReplying = $ticket->staff_id_replying !== null && $ticket->staff_id_replying !== get_staff_user_id();
             echo json_encode([
                 'is_other_staff_replying' => $isAnotherReplying,
-                'message'                 => $isAnotherReplying ? _l('staff_is_currently_replying', get_staff_full_name($ticket->staff_id_replying)) : '',
+                'message'                 => $isAnotherReplying ? e(_l('staff_is_currently_replying', get_staff_full_name($ticket->staff_id_replying))) : '',
             ]);
-            die;
+
+            exit;
         }
     }
 
     public function ticket($id)
     {
-        if (!$id) {
+        if (! $id) {
             redirect(admin_url('tickets/add'));
         }
 
         $data['ticket']         = $this->tickets_model->get_ticket_by_id($id);
         $data['merged_tickets'] = $this->tickets_model->get_merged_tickets_by_primary_id($id);
 
-        if (!$data['ticket']) {
+        if (! $data['ticket']) {
             blank_page(_l('ticket_not_found'));
         }
 
         if (get_option('staff_access_only_assigned_departments') == 1) {
-            if (!is_admin()) {
+            if (! is_admin()) {
                 $this->load->model('departments_model');
                 $staff_departments = $this->departments_model->get_staff_departments(get_staff_user_id(), true);
-                if (!in_array($data['ticket']->department, $staff_departments)) {
+                if (! in_array($data['ticket']->department, $staff_departments)) {
                     set_alert('danger', _l('ticket_access_by_department_denied'));
                     redirect(admin_url('access_denied'));
                 }
@@ -218,7 +228,7 @@ class Tickets extends AdminController
             if ($replyid) {
                 set_alert('success', _l('replied_to_ticket_successfully', $id));
             }
-            if (!$returnToTicketList) {
+            if (! $returnToTicketList) {
                 redirect(admin_url('tickets/ticket/' . $id));
             } else {
                 set_ticket_open(0, $id);
@@ -236,15 +246,18 @@ class Tickets extends AdminController
         $data['predefined_replies'] = $this->tickets_model->get_predefined_reply();
         $data['priorities']         = $this->tickets_model->get_priority();
         $data['services']           = $this->tickets_model->get_service();
-        $whereStaff                 = [];
+        $whereStaff                 = ['active' => 1];
         if (get_option('access_tickets_to_none_staff_members') == 0) {
             $whereStaff['is_not_staff'] = 0;
         }
-        $data['staff']                = $this->staff_model->get('', $whereStaff);
-        $data['articles']             = $this->knowledge_base_model->get();
-        $data['ticket_replies']       = $this->tickets_model->get_ticket_replies($id);
-        $data['bodyclass']            = 'top-tabs ticket single-ticket';
-        $data['title']                = $data['ticket']->subject;
+        $data['staff']          = $this->staff_model->get('', $whereStaff);
+        $data['articles']       = $this->knowledge_base_model->get();
+        $data['ticket_replies'] = $this->tickets_model->get_ticket_replies($id);
+        $data['bodyclass']      = 'top-tabs ticket single-ticket';
+        $data['title']          = $data['ticket']->subject;
+        $data['sender_blocked'] = total_rows(db_prefix() . 'spam_filters', [
+            'type' => 'sender', 'value' => $data['ticket']->ticket_email, 'rel_type' => 'tickets',
+        ]) > 0;
         $data['ticket']->ticket_notes = $this->misc_model->get_notes($id, 'ticket');
         add_admin_tickets_js_assets();
         $this->load->view('admin/tickets/single', $data);
@@ -252,6 +265,10 @@ class Tickets extends AdminController
 
     public function edit_message()
     {
+        if (! can_staff_edit_ticket_message()) {
+            access_denied();
+        }
+
         if ($this->input->post()) {
             $data         = $this->input->post();
             $data['data'] = html_purify($this->input->post('data', false));
@@ -276,9 +293,14 @@ class Tickets extends AdminController
 
     public function delete_ticket_reply($ticket_id, $reply_id)
     {
-        if (!$reply_id) {
+        if (! $reply_id) {
             redirect(admin_url('tickets'));
         }
+
+        if (! can_staff_delete_ticket_reply()) {
+            access_denied('delete ticket');
+        }
+
         $response = $this->tickets_model->delete_ticket_reply($ticket_id, $reply_id);
         if ($response == true) {
             set_alert('success', _l('deleted', _l('ticket_reply')));
@@ -298,11 +320,8 @@ class Tickets extends AdminController
     public function update_single_ticket_settings()
     {
         if ($this->input->post()) {
-            $this->session->mark_as_flash('active_tab');
-            $this->session->mark_as_flash('active_tab_settings');
-
             if ($this->input->post('merge_ticket_ids') !== 0) {
-                $ticketsToMerge = explode(',', $this->input->post('merge_ticket_ids'));
+                $ticketsToMerge = explode(',', $this->input->post('merge_ticket_ids') ?: '');
 
                 $alreadyMergedTickets = $this->tickets_model->get_already_merged_tickets($ticketsToMerge);
                 if (count($alreadyMergedTickets) > 0) {
@@ -311,25 +330,24 @@ class Tickets extends AdminController
                         'message' => _l('cannot_merge_tickets_with_ids', implode(',', $alreadyMergedTickets)),
                     ]);
 
-                    die();
+                    exit();
                 }
             }
 
             $success = $this->tickets_model->update_single_ticket_settings($this->input->post());
             if ($success) {
-                $this->session->set_flashdata('active_tab', true);
-                $this->session->set_flashdata('active_tab_settings', true);
                 if (get_option('staff_access_only_assigned_departments') == 1) {
                     $ticket = $this->tickets_model->get_ticket_by_id($this->input->post('ticketid'));
                     $this->load->model('departments_model');
                     $staff_departments = $this->departments_model->get_staff_departments(get_staff_user_id(), true);
-                    if (!in_array($ticket->department, $staff_departments) && !is_admin()) {
+                    if (! in_array($ticket->department, $staff_departments) && ! is_admin()) {
                         set_alert('success', _l('ticket_settings_updated_successfully_and_reassigned', $ticket->department_name));
                         echo json_encode([
                             'success'               => $success,
                             'department_reassigned' => true,
                         ]);
-                        die();
+
+                        exit();
                     }
                 }
                 set_alert('success', _l('ticket_settings_updated_successfully'));
@@ -337,15 +355,16 @@ class Tickets extends AdminController
             echo json_encode([
                 'success' => $success,
             ]);
-            die();
+
+            exit();
         }
     }
 
     // Priorities
-    /* Get all ticket priorities */
+    // Get all ticket priorities
     public function priorities()
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Ticket Priorities');
         }
         $data['priorities'] = $this->tickets_model->get_priority();
@@ -353,14 +372,14 @@ class Tickets extends AdminController
         $this->load->view('admin/tickets/priorities/manage', $data);
     }
 
-    /* Add new priority od update existing*/
+    // Add new priority od update existing
     public function priority()
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Ticket Priorities');
         }
         if ($this->input->post()) {
-            if (!$this->input->post('id')) {
+            if (! $this->input->post('id')) {
                 $id = $this->tickets_model->add_priority($this->input->post());
                 if ($id) {
                     set_alert('success', _l('added_successfully', _l('ticket_priority')));
@@ -374,17 +393,18 @@ class Tickets extends AdminController
                     set_alert('success', _l('updated_successfully', _l('ticket_priority')));
                 }
             }
-            die;
+
+            exit;
         }
     }
 
-    /* Delete ticket priority */
+    // Delete ticket priority
     public function delete_priority($id)
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Ticket Priorities');
         }
-        if (!$id) {
+        if (! $id) {
             redirect(admin_url('tickets/priorities'));
         }
         $response = $this->tickets_model->delete_priority($id);
@@ -398,10 +418,10 @@ class Tickets extends AdminController
         redirect(admin_url('tickets/priorities'));
     }
 
-    /* List all ticket predefined replies */
+    // List all ticket predefined replies
     public function predefined_replies()
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Predefined Replies');
         }
         if ($this->input->is_ajax_request()) {
@@ -415,23 +435,25 @@ class Tickets extends AdminController
             ]);
             $output  = $result['output'];
             $rResult = $result['rResult'];
+
             foreach ($rResult as $aRow) {
                 $row = [];
+
                 for ($i = 0; $i < count($aColumns); $i++) {
                     $_data = $aRow[$aColumns[$i]];
                     if ($aColumns[$i] == 'name') {
-                        $_data = '<a href="' . admin_url('tickets/predefined_reply/' . $aRow['id']) . '">' . $_data . '</a>';
+                        $_data = '<a href="' . admin_url('tickets/predefined_reply/' . $aRow['id']) . '" class="tw-font-medium">' . e($_data) . '</a>';
                     }
                     $row[] = $_data;
                 }
 
-                $options = '<div class="tw-flex tw-items-center tw-space-x-3">';
+                $options = '<div class="tw-flex tw-items-center tw-space-x-2">';
                 $options .= '<a href="' . admin_url('tickets/predefined_reply/' . $aRow['id']) . '" class="tw-text-neutral-500 hover:tw-text-neutral-700 focus:tw-text-neutral-700">
                     <i class="fa-regular fa-pen-to-square fa-lg"></i>
                 </a>';
 
                 $options .= '<a href="' . admin_url('tickets/delete_predefined_reply/' . $aRow['id']) . '"
-                class="tw-mt-px tw-text-neutral-500 hover:tw-text-neutral-700 focus:tw-text-neutral-700 _delete">
+                class="tw-text-neutral-500 hover:tw-text-neutral-700 focus:tw-text-neutral-700 _delete">
                     <i class="fa-regular fa-trash-can fa-lg"></i>
                 </a>';
                 $options .= '</div>';
@@ -439,7 +461,8 @@ class Tickets extends AdminController
                 $output['aaData'][] = $row;
             }
             echo json_encode($output);
-            die();
+
+            exit();
         }
         $data['title'] = _l('predefined_replies');
         $this->load->view('admin/tickets/predefined_replies/manage', $data);
@@ -461,10 +484,10 @@ class Tickets extends AdminController
         }
     }
 
-    /* Add new reply or edit existing */
+    // Add new reply or edit existing
     public function predefined_reply($id = '')
     {
-        if (!is_admin() && get_option('staff_members_save_tickets_predefined_replies') == '0') {
+        if (! is_admin() && get_option('staff_members_save_tickets_predefined_replies') == '0') {
             access_denied('Predefined Reply');
         }
         if ($this->input->post()) {
@@ -478,14 +501,15 @@ class Tickets extends AdminController
 
             if ($id == '') {
                 $id = $this->tickets_model->add_predefined_reply($data);
-                if (!$ticketAreaRequest) {
+                if (! $ticketAreaRequest) {
                     if ($id) {
                         set_alert('success', _l('added_successfully', _l('predefined_reply')));
                         redirect(admin_url('tickets/predefined_reply/' . $id));
                     }
                 } else {
                     echo json_encode(['success' => $id ? true : false, 'id' => $id]);
-                    die;
+
+                    exit;
                 }
             } else {
                 $success = $this->tickets_model->update_predefined_reply($data, $id);
@@ -496,23 +520,23 @@ class Tickets extends AdminController
             }
         }
         if ($id == '') {
-            $title = _l('add_new', _l('predefined_reply_lowercase'));
+            $title = _l('add_new', _l('predefined_reply'));
         } else {
             $predefined_reply         = $this->tickets_model->get_predefined_reply($id);
             $data['predefined_reply'] = $predefined_reply;
-            $title                    = _l('edit', _l('predefined_reply_lowercase')) . ' ' . $predefined_reply->name;
+            $title                    = _l('edit', _l('predefined_reply')) . ' ' . $predefined_reply->name;
         }
         $data['title'] = $title;
         $this->load->view('admin/tickets/predefined_replies/reply', $data);
     }
 
-    /* Delete ticket reply from database */
+    // Delete ticket reply from database
     public function delete_predefined_reply($id)
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Delete Predefined Reply');
         }
-        if (!$id) {
+        if (! $id) {
             redirect(admin_url('tickets/predefined_replies'));
         }
         $response = $this->tickets_model->delete_predefined_reply($id);
@@ -525,10 +549,10 @@ class Tickets extends AdminController
     }
 
     // Ticket statuses
-    /* Get all ticket statuses */
+    // Get all ticket statuses
     public function statuses()
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Ticket Statuses');
         }
         $data['statuses'] = $this->tickets_model->get_ticket_status();
@@ -536,14 +560,14 @@ class Tickets extends AdminController
         $this->load->view('admin/tickets/tickets_statuses/manage', $data);
     }
 
-    /* Add new or edit existing status */
+    // Add new or edit existing status
     public function status()
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Ticket Statuses');
         }
         if ($this->input->post()) {
-            if (!$this->input->post('id')) {
+            if (! $this->input->post('id')) {
                 $id = $this->tickets_model->add_ticket_status($this->input->post());
                 if ($id) {
                     set_alert('success', _l('added_successfully', _l('ticket_status')));
@@ -557,17 +581,18 @@ class Tickets extends AdminController
                     set_alert('success', _l('updated_successfully', _l('ticket_status')));
                 }
             }
-            die;
+
+            exit;
         }
     }
 
-    /* Delete ticket status from database */
+    // Delete ticket status from database
     public function delete_ticket_status($id)
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Ticket Statuses');
         }
-        if (!$id) {
+        if (! $id) {
             redirect(admin_url('tickets/statuses'));
         }
         $response = $this->tickets_model->delete_ticket_status($id);
@@ -583,10 +608,10 @@ class Tickets extends AdminController
         redirect(admin_url('tickets/statuses'));
     }
 
-    /* List all ticket services */
+    // List all ticket services
     public function services()
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Ticket Services');
         }
         if ($this->input->is_ajax_request()) {
@@ -601,45 +626,53 @@ class Tickets extends AdminController
             ]);
             $output  = $result['output'];
             $rResult = $result['rResult'];
+
             foreach ($rResult as $aRow) {
                 $row = [];
+
                 for ($i = 0; $i < count($aColumns); $i++) {
                     $_data = $aRow[$aColumns[$i]];
                     if ($aColumns[$i] == 'name') {
-                        $_data = '<a href="#" onclick="edit_service(this,' . $aRow['serviceid'] . ');return false" data-name="' . $aRow['name'] . '">' . $_data . '</a>';
+                        $_data = '<a href="#" class="tw-font-medium" onclick="edit_service(this,' . $aRow['serviceid'] . ');return false" data-name="' . $aRow['name'] . '">' . $_data . '</a>';
                     }
                     $row[] = $_data;
                 }
-                $options = icon_btn('#', 'fa-regular fa-pen-to-square', 'btn-default', [
-                    'data-name' => $aRow['name'],
-                    'onclick'   => 'edit_service(this,' . $aRow['serviceid'] . '); return false;',
-                ]);
-                $row[]              = $options .= icon_btn('tickets/delete_service/' . $aRow['serviceid'], 'fa fa-remove', 'btn-danger _delete');
+
+                $options = '<a href="#" onclick="edit_service(this,' . $aRow['serviceid'] . '); return false;"  data-name="' . $aRow['name'] . '"class="tw-text-neutral-500 hover:tw-text-neutral-700 focus:tw-text-neutral-700 tw-mr-2">
+                <i class="fa-regular fa-pen-to-square fa-lg"></i>
+            </a>';
+
+                $options .= '<a href="' . admin_url('tickets/delete_service/' . $aRow['serviceid']) . '" class="tw-text-neutral-500 hover:tw-text-neutral-700 focus:tw-text-neutral-700 _delete">
+            <i class="fa-regular fa-trash-can fa-lg"></i>
+        </a>';
+
+                $row[]              = $options;
                 $output['aaData'][] = $row;
             }
             echo json_encode($output);
-            die();
+
+            exit();
         }
         $data['title'] = _l('services');
         $this->load->view('admin/tickets/services/manage', $data);
     }
 
-    /* Add new service od delete existing one */
+    // Add new service od delete existing one
     public function service($id = '')
     {
-        if (!is_admin() && get_option('staff_members_save_tickets_predefined_replies') == '0') {
+        if (! is_admin() && get_option('staff_members_save_tickets_predefined_replies') == '0') {
             access_denied('Ticket Services');
         }
 
         if ($this->input->post()) {
             $post_data = $this->input->post();
-            if (!$this->input->post('id')) {
+            if (! $this->input->post('id')) {
                 $requestFromTicketArea = isset($post_data['ticket_area']);
                 if (isset($post_data['ticket_area'])) {
                     unset($post_data['ticket_area']);
                 }
                 $id = $this->tickets_model->add_service($post_data);
-                if (!$requestFromTicketArea) {
+                if (! $requestFromTicketArea) {
                     if ($id) {
                         set_alert('success', _l('added_successfully', _l('service')));
                     }
@@ -654,17 +687,18 @@ class Tickets extends AdminController
                     set_alert('success', _l('updated_successfully', _l('service')));
                 }
             }
-            die;
+
+            exit;
         }
     }
 
-    /* Delete ticket service from database */
+    // Delete ticket service from database
     public function delete_service($id)
     {
-        if (!is_admin()) {
+        if (! is_admin()) {
             access_denied('Ticket Services');
         }
-        if (!$id) {
+        if (! $id) {
             redirect(admin_url('tickets/services'));
         }
         $response = $this->tickets_model->delete_service($id);
@@ -694,10 +728,11 @@ class Tickets extends AdminController
     {
         hooks()->do_action('before_do_bulk_action_for_tickets');
         if ($this->input->post()) {
-            $ids      = $this->input->post('ids');
-            $is_admin = is_admin();
+            $ids                  = $this->input->post('ids');
+            $is_admin             = is_admin();
+            $staffCanDeleteTicket = can_staff_delete_ticket();
 
-            if (!is_array($ids)) {
+            if (! is_array($ids)) {
                 return;
             }
 
@@ -714,12 +749,16 @@ class Tickets extends AdminController
                 $total_merged = $this->tickets_model->merge($primary_ticket, $status, $ids);
             } elseif ($this->input->post('mass_delete')) {
                 $total_deleted = 0;
-                if ($is_admin) {
+                if ($is_admin || $staffCanDeleteTicket) {
                     foreach ($ids as $id) {
                         if ($this->tickets_model->delete($id)) {
                             $total_deleted++;
                         }
                     }
+                } else {
+                    ajax_access_denied();
+
+                    return;
                 }
             } else {
                 $status     = $this->input->post('status');

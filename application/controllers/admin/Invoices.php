@@ -20,8 +20,8 @@ class Invoices extends AdminController
     /* List all invoices datatables */
     public function list_invoices($id = '')
     {
-        if (!has_permission('invoices', '', 'view')
-            && !has_permission('invoices', '', 'view_own')
+        if (staff_cant('view', 'invoices')
+            && staff_cant('view_own', 'invoices')
             && get_option('allow_staff_view_invoices_assigned') == '0') {
             access_denied('invoices');
         }
@@ -35,15 +35,16 @@ class Invoices extends AdminController
         $data['invoices_years']       = $this->invoices_model->get_invoices_years();
         $data['invoices_sale_agents'] = $this->invoices_model->get_sale_agents();
         $data['invoices_statuses']    = $this->invoices_model->get_statuses();
-        $data['bodyclass']            = 'invoices-total-manual';
+        $data['invoices_table'] = App_table::find('invoices');
+        
         $this->load->view('admin/invoices/manage', $data);
     }
 
     /* List all recurring invoices */
     public function recurring($id = '')
     {
-        if (!has_permission('invoices', '', 'view')
-            && !has_permission('invoices', '', 'view_own')
+        if (staff_cant('view', 'invoices')
+            && staff_cant('view_own', 'invoices')
             && get_option('allow_staff_view_invoices_assigned') == '0') {
             access_denied('invoices');
         }
@@ -59,19 +60,25 @@ class Invoices extends AdminController
 
     public function table($clientid = '')
     {
-        if (!has_permission('invoices', '', 'view')
-            && !has_permission('invoices', '', 'view_own')
+        if (staff_cant('view', 'invoices')
+            && staff_cant('view_own', 'invoices')
             && get_option('allow_staff_view_invoices_assigned') == '0') {
             ajax_access_denied();
         }
-
+        
         $this->load->model('payment_modes_model');
         $data['payment_modes'] = $this->payment_modes_model->get('', [], true);
 
-        $this->app->get_table_data(($this->input->get('recurring') ? 'recurring_invoices' : 'invoices'), [
-            'clientid' => $clientid,
-            'data'     => $data,
-        ]);
+        if($this->input->get('recurring')) {
+            $this->app->get_table_data('recurring_invoices', [
+                'data'     => $data,
+            ]);
+        } else {
+            App_table::find('invoices')->output([
+                'clientid' => $clientid,
+                'data'     => $data,
+            ]);
+        }
     }
 
     public function client_change_data($customer_id, $current_invoice = '')
@@ -110,22 +117,21 @@ class Invoices extends AdminController
             'success' => false,
             'message' => '',
         ];
-        if (has_permission('invoices', '', 'edit')) {
-            $affected_rows = 0;
 
+        if (staff_can('edit',  'invoices')) {
             $this->db->where('id', $id);
             $this->db->update(db_prefix() . 'invoices', [
                 'prefix' => $this->input->post('prefix'),
             ]);
+            
             if ($this->db->affected_rows() > 0) {
-                $affected_rows++;
-            }
-
-            if ($affected_rows > 0) {
+                $this->invoices_model->save_formatted_number($id);
+               
                 $response['success'] = true;
                 $response['message'] = _l('updated_successfully', _l('invoice'));
             }
         }
+        
         echo json_encode($response);
         die;
     }
@@ -175,7 +181,7 @@ class Invoices extends AdminController
 
     public function pause_overdue_reminders($id)
     {
-        if (has_permission('invoices', '', 'edit')) {
+        if (staff_can('edit',  'invoices')) {
             $this->db->where('id', $id);
             $this->db->update(db_prefix() . 'invoices', ['cancel_overdue_reminders' => 1]);
         }
@@ -184,7 +190,7 @@ class Invoices extends AdminController
 
     public function resume_overdue_reminders($id)
     {
-        if (has_permission('invoices', '', 'edit')) {
+        if (staff_can('edit',  'invoices')) {
             $this->db->where('id', $id);
             $this->db->update(db_prefix() . 'invoices', ['cancel_overdue_reminders' => 0]);
         }
@@ -193,7 +199,7 @@ class Invoices extends AdminController
 
     public function mark_as_cancelled($id)
     {
-        if (!has_permission('invoices', '', 'edit') && !has_permission('invoices', '', 'create')) {
+        if (staff_cant('edit', 'invoices') && staff_cant('create', 'invoices')) {
             access_denied('invoices');
         }
 
@@ -208,7 +214,7 @@ class Invoices extends AdminController
 
     public function unmark_as_cancelled($id)
     {
-        if (!has_permission('invoices', '', 'edit') && !has_permission('invoices', '', 'create')) {
+        if (staff_cant('edit', 'invoices') && staff_cant('create', 'invoices')) {
             access_denied('invoices');
         }
         $success = $this->invoices_model->unmark_as_cancelled($id);
@@ -223,7 +229,7 @@ class Invoices extends AdminController
         if (!$id) {
             redirect(admin_url('invoices'));
         }
-        if (!has_permission('invoices', '', 'create')) {
+        if (staff_cant('create', 'invoices')) {
             access_denied('invoices');
         }
         $new_id = $this->invoices_model->copy($id);
@@ -296,7 +302,7 @@ class Invoices extends AdminController
         if ($this->input->post()) {
             $invoice_data = $this->input->post();
             if ($id == '') {
-                if (!has_permission('invoices', '', 'create')) {
+                if (staff_cant('create', 'invoices')) {
                     access_denied('invoices');
                 }
 
@@ -327,7 +333,7 @@ class Invoices extends AdminController
                     redirect($redUrl);
                 }
             } else {
-                if (!has_permission('invoices', '', 'edit')) {
+                if (staff_cant('edit', 'invoices')) {
                     access_denied('invoices');
                 }
 
@@ -370,7 +376,7 @@ class Invoices extends AdminController
             $data['edit']           = true;
             $data['billable_tasks'] = $this->tasks_model->get_billable_tasks($invoice->clientid, !empty($invoice->project_id) ? $invoice->project_id : '');
 
-            $title = _l('edit', _l('invoice_lowercase')) . ' - ' . format_invoice_number($invoice->id);
+            $title = _l('edit', _l('invoice')) . ' - ' . format_invoice_number($invoice->id);
         }
 
         if ($this->input->get('customer_id')) {
@@ -409,8 +415,8 @@ class Invoices extends AdminController
     /* Get all invoice data used when user click on invoiec number in a datatable left side*/
     public function get_invoice_data_ajax($id)
     {
-        if (!has_permission('invoices', '', 'view')
-            && !has_permission('invoices', '', 'view_own')
+        if (staff_cant('view', 'invoices')
+            && staff_cant('view_own', 'invoices')
             && get_option('allow_staff_view_invoices_assigned') == '0') {
             echo _l('access_denied');
             die;
@@ -522,7 +528,7 @@ class Invoices extends AdminController
     /* This is where invoice payment record $_POST data is send */
     public function record_payment()
     {
-        if (!has_permission('payments', '', 'create')) {
+        if (staff_cant('create', 'payments')) {
             access_denied('Record Payment');
         }
         if ($this->input->post()) {
@@ -545,7 +551,7 @@ class Invoices extends AdminController
         if (!$canView) {
             access_denied('Invoices');
         } else {
-            if (!has_permission('invoices', '', 'view') && !has_permission('invoices', '', 'view_own') && $canView == false) {
+            if (staff_cant('view', 'invoices') && staff_cant('view_own', 'invoices') && $canView == false) {
                 access_denied('Invoices');
             }
         }
@@ -588,7 +594,7 @@ class Invoices extends AdminController
     /* Delete invoice payment*/
     public function delete_payment($id, $invoiceid)
     {
-        if (!has_permission('payments', '', 'delete')) {
+        if (staff_cant('delete', 'payments')) {
             access_denied('payments');
         }
         $this->load->model('payments_model');
@@ -607,7 +613,7 @@ class Invoices extends AdminController
     /* Delete invoice */
     public function delete($id)
     {
-        if (!has_permission('invoices', '', 'delete')) {
+        if (staff_cant('delete', 'invoices')) {
             access_denied('invoices');
         }
         if (!$id) {
@@ -620,11 +626,7 @@ class Invoices extends AdminController
         } else {
             set_alert('warning', _l('problem_deleting', _l('invoice_lowercase')));
         }
-        if (strpos($_SERVER['HTTP_REFERER'], 'list_invoices') !== false) {
-            redirect(admin_url('invoices/list_invoices'));
-        } else {
-            redirect($_SERVER['HTTP_REFERER']);
-        }
+        redirect(previous_url() ?: $_SERVER['HTTP_REFERER']);
     }
 
     public function delete_attachment($id)
@@ -646,7 +648,7 @@ class Invoices extends AdminController
         if (!$canView) {
             access_denied('Invoices');
         } else {
-            if (!has_permission('invoices', '', 'view') && !has_permission('invoices', '', 'view_own') && $canView == false) {
+            if (staff_cant('view', 'invoices') && staff_cant('view_own', 'invoices') && $canView == false) {
                 access_denied('Invoices');
             }
         }
@@ -671,7 +673,7 @@ class Invoices extends AdminController
         if (!$canView) {
             access_denied('Invoices');
         } else {
-            if (!has_permission('invoices', '', 'view') && !has_permission('invoices', '', 'view_own') && $canView == false) {
+            if (staff_cant('view', 'invoices') && staff_cant('view_own', 'invoices') && $canView == false) {
                 access_denied('Invoices');
             }
         }

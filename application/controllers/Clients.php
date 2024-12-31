@@ -725,7 +725,7 @@ class Clients extends ClientsController
                     'custom_fields' => isset($data['custom_fields']) && is_array($data['custom_fields'])
                     ? $data['custom_fields']
                     : [],
-                    'message'   => $data['message'],
+                    'message'   => $this->input->post('message', false),
                     'contactid' => get_contact_user_id(),
                     'userid'    => get_client_user_id(),
                 ]);
@@ -768,16 +768,16 @@ class Clients extends ClientsController
             $this->form_validation->set_rules('message', _l('ticket_reply'), 'required');
 
             if ($this->form_validation->run() !== false) {
-                $data = $this->input->post();
-
                 $replyid = $this->tickets_model->add_reply([
-                    'message'   => $data['message'],
+                    'message'   => $this->input->post('message', false),
                     'contactid' => get_contact_user_id(),
                     'userid'    => get_client_user_id(),
                 ], $id);
+
                 if ($replyid) {
                     set_alert('success', _l('replied_to_ticket_successfully', $id));
                 }
+
                 redirect(site_url('clients/ticket/' . $id));
             }
         }
@@ -850,11 +850,16 @@ class Clients extends ClientsController
         }
 
         $data = [];
+        
         // Default to this month
         $from = _d(date('Y-m-01'));
         $to   = _d(date('Y-m-t'));
 
         if ($this->input->get('from') && $this->input->get('to')) {
+            if(!is_string($this->input->get('from')) || !is_string($this->input->get('from'))) {
+                redirect(site_url('clients/statement'));
+            }
+
             $from = $this->input->get('from');
             $to   = $this->input->get('to');
         }
@@ -922,6 +927,10 @@ class Clients extends ClientsController
 
         $from = $this->input->get('from');
         $to   = $this->input->get('to');
+
+        if(!is_string($from) && !is_string($to)) {
+            show_404();
+        }
 
         $data['statement'] = $this->clients_model->get_statement(
             get_client_user_id(),
@@ -1183,7 +1192,7 @@ class Clients extends ClientsController
     public function dismiss_announcement($id)
     {
         $this->misc_model->dismiss_announcement($id, false);
-        redirect($_SERVER['HTTP_REFERER']);
+        redirect(previous_url() ?: $_SERVER['HTTP_REFERER']);
     }
 
     public function update_credit_card()
@@ -1382,7 +1391,7 @@ class Clients extends ClientsController
             set_alert('danger', $e->getMessage());
         }
 
-        redirect($_SERVER['HTTP_REFERER']);
+        redirect(site_url('clients/subscriptions'));
     }
 
     public function gdpr()
@@ -1419,11 +1428,7 @@ class Clients extends ClientsController
 
         set_contact_language($lang);
 
-        if (isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER'])) {
-            redirect($_SERVER['HTTP_REFERER']);
-        } else {
-            redirect(site_url());
-        }
+        redirect(previous_url() ?: $_SERVER['HTTP_REFERER']);
     }
 
     public function export()
@@ -1482,10 +1487,10 @@ class Clients extends ClientsController
                 foreach ($payments as $payment) {
                     $_month = date('F', strtotime($payment['date']));
                     if ($_month == $month) {
-                        $data['temp'][$i][] = $payment['amount'];
+                        $data['temp'][$i][] = round($payment['amount'], get_decimal_places());
                     }
                 }
-                $data['total'][] = array_sum($data['temp'][$i]);
+                $data['total'][] = round(array_sum($data['temp'][$i]), get_decimal_places());
                 $i++;
             }
 

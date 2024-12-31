@@ -86,6 +86,8 @@ class Contacts extends REST_Controller {
      *     }
      */
     public function data_get($customer_id = '', $contact_id = '') {
+        
+        
         // If the id parameter doesn't exist return all the
         if (empty($contact_id) && !empty($customer_id)) {
             $data = $this->Api_model->get_table('all_contacts', $customer_id);
@@ -299,7 +301,7 @@ class Contacts extends REST_Controller {
             $id = $this->clients_model->add_contact($data, $customer_id);
             if ($id > 0 && !empty($id)) {
                 // success
-                $message = array('status' => TRUE, 'message' => 'Contact added successfully.');
+                $message = array('status' => TRUE, 'message' => 'Contact added successfully.', 'data'=>$this->clients_model->get_contact($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 // error
@@ -497,7 +499,7 @@ class Contacts extends REST_Controller {
                 }
             }
             if ($updated == true) {
-                $message = array('status' => TRUE, 'message' => $message_str);
+                $message = array('status' => TRUE, 'message' => $message_str, 'data'=>$this->clients_model->get_contact($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 // error

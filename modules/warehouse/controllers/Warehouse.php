@@ -7,9 +7,14 @@ defined('BASEPATH') or exit('No direct script access allowed');
  */
 class warehouse extends AdminController {
 	public function __construct() {
+            
+              
+            
 		parent::__construct();
 		$this->load->model('warehouse_model');
 		hooks()->do_action('warehouse_init');
+           
+                
 	}
 
 	/**
@@ -551,6 +556,8 @@ class warehouse extends AdminController {
 	 * @return array
 	 */
 	public function table_commodity_list() {
+       
+            
 		$this->app->get_table_data(module_views_path('warehouse', 'table_commodity_list'));
 	}
 
@@ -560,6 +567,9 @@ class warehouse extends AdminController {
 	 * @return load view
 	 */
 	public function commodity_list($id = '') {
+            
+           
+            
 		$this->load->model('departments_model');
 		$this->load->model('staff_model');
 

@@ -13,7 +13,7 @@ $aColumns = [
     '(SELECT GROUP_CONCAT(name SEPARATOR ",") FROM ' . db_prefix() . 'taggables JOIN ' . db_prefix() . 'tags ON ' . db_prefix() . 'taggables.tag_id = ' . db_prefix() . 'tags.id WHERE rel_id = ' . db_prefix() . 'proposals.id and rel_type="proposal" ORDER by tag_order ASC) as tags',
     'datecreated',
     'status',
-    ];
+];
 
 $sIndexColumn = 'id';
 $sTable       = db_prefix() . 'proposals';
@@ -35,7 +35,7 @@ if ($rel_type == 'customer') {
     $this->ci->db->where('userid', $rel_id);
     $customer = $this->ci->db->get(db_prefix() . 'clients')->row();
     if ($customer) {
-        if (!is_null($customer->leadid)) {
+        if (! is_null($customer->leadid)) {
             $where .= ' OR rel_type="lead" AND rel_id=' . $customer->leadid;
         }
     }
@@ -43,7 +43,7 @@ if ($rel_type == 'customer') {
 
 $where = [$where];
 
-if (!has_permission('proposals', '', 'view')) {
+if (staff_cant('view', 'proposals')) {
     array_push($where, 'AND ' . get_proposals_sql_where_staff(get_staff_user_id()));
 }
 
@@ -58,7 +58,7 @@ $result = data_tables_init($aColumns, $sIndexColumn, $sTable, $join, $where, [
     'currency',
     'invoice_id',
     'hash',
-    ]);
+]);
 
 $output  = $result['output'];
 $rResult = $result['rResult'];
@@ -66,21 +66,21 @@ $rResult = $result['rResult'];
 foreach ($rResult as $aRow) {
     $row = [];
 
-    $numberOutput = '<a href="' . admin_url('proposals/list_proposals/' . $aRow['id']) . '">' . format_proposal_number($aRow['id']) . '</a>';
+    $numberOutput = '<a href="' . admin_url('proposals/list_proposals/' . $aRow['id']) . '">' . e(format_proposal_number($aRow['id'])) . '</a>';
 
     $numberOutput .= '<div class="row-options">';
 
     $numberOutput .= '<a href="' . site_url('proposal/' . $aRow['id'] . '/' . $aRow['hash']) . '" target="_blank">' . _l('view') . '</a>';
-    if (has_permission('proposals', '', 'edit')) {
+    if (staff_can('edit', 'proposals')) {
         $numberOutput .= ' | <a href="' . admin_url('proposals/proposal/' . $aRow['id']) . '">' . _l('edit') . '</a>';
     }
     $numberOutput .= '</div>';
 
     $row[] = $numberOutput;
 
-    $row[] = '<a href="' . admin_url('proposals/list_proposals/' . $aRow['id']) . '">' . $aRow['subject'] . '</a>';
+    $row[] = '<a href="' . admin_url('proposals/list_proposals/' . $aRow['id']) . '">' . e($aRow['subject']) . '</a>';
 
-    $amount = app_format_money($aRow['total'], ($aRow['currency'] != 0 ? get_currency($aRow['currency']) : $baseCurrency));
+    $amount = '<span class="tw-font-medium">' . e(app_format_money($aRow['total'], ($aRow['currency'] != 0 ? get_currency($aRow['currency']) : $baseCurrency))) . '</span>';
 
     if ($aRow['invoice_id']) {
         $amount .= '<br /> <span class="hide"> - </span><span class="text-success">' . _l('estimate_invoiced') . '</span>';
@@ -88,14 +88,13 @@ foreach ($rResult as $aRow) {
 
     $row[] = $amount;
 
+    $row[] = e(_d($aRow['date']));
 
-    $row[] = _d($aRow['date']);
-
-    $row[] = _d($aRow['open_till']);
+    $row[] = e(_d($aRow['open_till']));
 
     $row[] = render_tags($aRow['tags']);
 
-    $row[] = _d($aRow['datecreated']);
+    $row[] = e(_d($aRow['datecreated']));
 
     $row[] = format_proposal_status($aRow['status']);
 

@@ -2,185 +2,215 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-$project_id = $this->ci->input->post('project_id');
+$this->ci->load->model('estimates_model');
 
-$aColumns = [
-    'number',
-    'total',
-    'total_tax',
-    'YEAR(date) as year',
-    get_sql_select_client_company(),
-    db_prefix() . 'projects.name as project_name',
-    '(SELECT GROUP_CONCAT(name SEPARATOR ",") FROM ' . db_prefix() . 'taggables JOIN ' . db_prefix() . 'tags ON ' . db_prefix() . 'taggables.tag_id = ' . db_prefix() . 'tags.id WHERE rel_id = ' . db_prefix() . 'estimates.id and rel_type="estimate" ORDER by tag_order ASC) as tags',
-    'date',
-    'expirydate',
-    'reference_no',
-    db_prefix() . 'estimates.status',
-    ];
+return App_table::find('estimates')
+    ->outputUsing(function ($params) {
+        $clientid            = $params['clientid'];
+        $customFieldsColumns = $params['customFieldsColumns'];
 
-$join = [
-    'LEFT JOIN ' . db_prefix() . 'clients ON ' . db_prefix() . 'clients.userid = ' . db_prefix() . 'estimates.clientid',
-    'LEFT JOIN ' . db_prefix() . 'currencies ON ' . db_prefix() . 'currencies.id = ' . db_prefix() . 'estimates.currency',
-    'LEFT JOIN ' . db_prefix() . 'projects ON ' . db_prefix() . 'projects.id = ' . db_prefix() . 'estimates.project_id',
-];
+        $project_id = $this->ci->input->post('project_id');
 
-$sIndexColumn = 'id';
-$sTable       = db_prefix() . 'estimates';
+        $aColumns = [
+            'number',
+            'total',
+            'total_tax',
+            'YEAR(date) as year',
+            get_sql_select_client_company(),
+            db_prefix() . 'projects.name as project_name',
+            '(SELECT GROUP_CONCAT(name SEPARATOR ",") FROM ' . db_prefix() . 'taggables JOIN ' . db_prefix() . 'tags ON ' . db_prefix() . 'taggables.tag_id = ' . db_prefix() . 'tags.id WHERE rel_id = ' . db_prefix() . 'estimates.id and rel_type="estimate" ORDER by tag_order ASC) as tags',
+            'date',
+            'expirydate',
+            'reference_no',
+            db_prefix() . 'estimates.status',
+        ];
 
-$custom_fields = get_table_custom_fields('estimate');
+        $join = [
+            'LEFT JOIN ' . db_prefix() . 'clients ON ' . db_prefix() . 'clients.userid = ' . db_prefix() . 'estimates.clientid',
+            'LEFT JOIN ' . db_prefix() . 'currencies ON ' . db_prefix() . 'currencies.id = ' . db_prefix() . 'estimates.currency',
+            'LEFT JOIN ' . db_prefix() . 'projects ON ' . db_prefix() . 'projects.id = ' . db_prefix() . 'estimates.project_id',
+        ];
 
-foreach ($custom_fields as $key => $field) {
-    $selectAs = (is_cf_date($field) ? 'date_picker_cvalue_' . $key : 'cvalue_' . $key);
-    array_push($customFieldsColumns, $selectAs);
-    array_push($aColumns, 'ctable_' . $key . '.value as ' . $selectAs);
-    array_push($join, 'LEFT JOIN ' . db_prefix() . 'customfieldsvalues as ctable_' . $key . ' ON ' . db_prefix() . 'estimates.id = ctable_' . $key . '.relid AND ctable_' . $key . '.fieldto="' . $field['fieldto'] . '" AND ctable_' . $key . '.fieldid=' . $field['id']);
-}
+        $sIndexColumn = 'id';
+        $sTable       = db_prefix() . 'estimates';
 
-$where  = [];
-$filter = [];
+        $custom_fields = get_table_custom_fields('estimate');
 
-if ($this->ci->input->post('not_sent')) {
-    array_push($filter, 'OR (sent= 0 AND ' . db_prefix() . 'estimates.status NOT IN (2,3,4))');
-}
-if ($this->ci->input->post('invoiced')) {
-    array_push($filter, 'OR invoiceid IS NOT NULL');
-}
+        foreach ($custom_fields as $key => $field) {
+            $selectAs = (is_cf_date($field) ? 'date_picker_cvalue_' . $key : 'cvalue_' . $key);
+            array_push($customFieldsColumns, $selectAs);
+            array_push($aColumns, 'ctable_' . $key . '.value as ' . $selectAs);
+            array_push($join, 'LEFT JOIN ' . db_prefix() . 'customfieldsvalues as ctable_' . $key . ' ON ' . db_prefix() . 'estimates.id = ctable_' . $key . '.relid AND ctable_' . $key . '.fieldto="' . $field['fieldto'] . '" AND ctable_' . $key . '.fieldid=' . $field['id']);
+        }
 
-if ($this->ci->input->post('not_invoiced')) {
-    array_push($filter, 'OR invoiceid IS NULL');
-}
-$statuses  = $this->ci->estimates_model->get_statuses();
-$statusIds = [];
-foreach ($statuses as $status) {
-    if ($this->ci->input->post('estimates_' . $status)) {
-        array_push($statusIds, $status);
-    }
-}
-if (count($statusIds) > 0) {
-    array_push($filter, 'AND ' . db_prefix() . 'estimates.status IN (' . implode(', ', $statusIds) . ')');
-}
+        $where = [];
 
-$agents    = $this->ci->estimates_model->get_sale_agents();
-$agentsIds = [];
-foreach ($agents as $agent) {
-    if ($this->ci->input->post('sale_agent_' . $agent['sale_agent'])) {
-        array_push($agentsIds, $agent['sale_agent']);
-    }
-}
-if (count($agentsIds) > 0) {
-    array_push($filter, 'AND sale_agent IN (' . implode(', ', $agentsIds) . ')');
-}
+        if ($filtersWhere = $this->getWhereFromRules()) {
+            $where[] = $filtersWhere;
+        }
 
-$years      = $this->ci->estimates_model->get_estimates_years();
-$yearsArray = [];
-foreach ($years as $year) {
-    if ($this->ci->input->post('year_' . $year['year'])) {
-        array_push($yearsArray, $year['year']);
-    }
-}
-if (count($yearsArray) > 0) {
-    array_push($filter, 'AND YEAR(date) IN (' . implode(', ', $yearsArray) . ')');
-}
+        if ($clientid != '') {
+            array_push($where, 'AND ' . db_prefix() . 'estimates.clientid=' . $this->ci->db->escape_str($clientid));
+        }
 
-if (count($filter) > 0) {
-    array_push($where, 'AND (' . prepare_dt_filter($filter) . ')');
-}
+        if ($project_id) {
+            array_push($where, 'AND project_id=' . $this->ci->db->escape_str($project_id));
+        }
 
-if ($clientid != '') {
-    array_push($where, 'AND ' . db_prefix() . 'estimates.clientid=' . $this->ci->db->escape_str($clientid));
-}
+        if (staff_cant('view', 'estimates')) {
+            $userWhere = 'AND ' . get_estimates_where_sql_for_staff(get_staff_user_id());
+            array_push($where, $userWhere);
+        }
 
-if ($project_id) {
-    array_push($where, 'AND project_id=' . $this->ci->db->escape_str($project_id));
-}
+        $aColumns = hooks()->apply_filters('estimates_table_sql_columns', $aColumns);
 
-if (!has_permission('estimates', '', 'view')) {
-    $userWhere = 'AND ' . get_estimates_where_sql_for_staff(get_staff_user_id());
-    array_push($where, $userWhere);
-}
+        // Fix for big queries. Some hosting have max_join_limit
+        if (count($custom_fields) > 4) {
+            @$this->ci->db->query('SET SQL_BIG_SELECTS=1');
+        }
 
-$aColumns = hooks()->apply_filters('estimates_table_sql_columns', $aColumns);
+        $result = data_tables_init($aColumns, $sIndexColumn, $sTable, $join, $where, [
+            db_prefix() . 'estimates.id',
+            db_prefix() . 'estimates.clientid',
+            db_prefix() . 'estimates.invoiceid',
+            db_prefix() . 'currencies.name as currency_name',
+            'formatted_number',
+            'project_id',
+            'deleted_customer_name',
+            'hash',
+        ]);
 
-// Fix for big queries. Some hosting have max_join_limit
-if (count($custom_fields) > 4) {
-    @$this->ci->db->query('SET SQL_BIG_SELECTS=1');
-}
+        $output  = $result['output'];
+        $rResult = $result['rResult'];
 
-$result = data_tables_init($aColumns, $sIndexColumn, $sTable, $join, $where, [
-    db_prefix() . 'estimates.id',
-    db_prefix() . 'estimates.clientid',
-    db_prefix() . 'estimates.invoiceid',
-    db_prefix() . 'currencies.name as currency_name',
-    'project_id',
-    'deleted_customer_name',
-    'hash',
-]);
+        foreach ($rResult as $aRow) {
+            $formattedNumber = format_estimate_number($aRow['id']);
 
-$output  = $result['output'];
-$rResult = $result['rResult'];
+            if(empty($aRow['formatted_number']) || $formattedNumber !== $aRow['formatted_number']) {
+                $this->ci->estimates_model->save_formatted_number($aRow['id']);
+            }
 
-foreach ($rResult as $aRow) {
-    $row = [];
+            $row = [];
 
-    $numberOutput = '';
-    // If is from client area table or projects area request
-    if (is_numeric($clientid) || $project_id) {
-        $numberOutput = '<a href="' . admin_url('estimates/list_estimates/' . $aRow['id']) . '" target="_blank">' . format_estimate_number($aRow['id']) . '</a>';
-    } else {
-        $numberOutput = '<a href="' . admin_url('estimates/list_estimates/' . $aRow['id']) . '" onclick="init_estimate(' . $aRow['id'] . '); return false;">' . format_estimate_number($aRow['id']) . '</a>';
-    }
+            $numberOutput = '';
+            // If is from client area table or projects area request
+            if (is_numeric($clientid) || $project_id) {
+                $numberOutput = '<a href="' . admin_url('estimates/list_estimates/' . $aRow['id']) . '" target="_blank" class="tw-font-medium">' . e($formattedNumber) . '</a>';
+            } else {
+                $numberOutput = '<a href="' . admin_url('estimates/list_estimates/' . $aRow['id']) . '" onclick="init_estimate(' . $aRow['id'] . '); return false;" class="tw-font-medium">' . e($formattedNumber) . '</a>';
+            }
 
-    $numberOutput .= '<div class="row-options">';
+            $numberOutput .= '<div class="row-options">';
 
-    $numberOutput .= '<a href="' . site_url('estimate/' . $aRow['id'] . '/' . $aRow['hash']) . '" target="_blank">' . _l('view') . '</a>';
-    if (has_permission('estimates', '', 'edit')) {
-        $numberOutput .= ' | <a href="' . admin_url('estimates/estimate/' . $aRow['id']) . '">' . _l('edit') . '</a>';
-    }
-    $numberOutput .= '</div>';
+            $numberOutput .= '<a href="' . site_url('estimate/' . $aRow['id'] . '/' . $aRow['hash']) . '" target="_blank">' . _l('view') . '</a>';
+            if (staff_can('edit', 'estimates')) {
+                $numberOutput .= ' | <a href="' . admin_url('estimates/estimate/' . $aRow['id']) . '">' . _l('edit') . '</a>';
+            }
+            $numberOutput .= '</div>';
 
-    $row[] = $numberOutput;
+            $row[] = $numberOutput;
 
-    $amount = app_format_money($aRow['total'], $aRow['currency_name']);
+            $amount = '<span class="tw-font-medium">' . e(app_format_money($aRow['total'], $aRow['currency_name'])) . '</span>';
 
-    if ($aRow['invoiceid']) {
-        $amount .= '<br /><span class="hide"> - </span><span class="text-success tw-text-sm">' . _l('estimate_invoiced') . '</span>';
-    }
+            if ($aRow['invoiceid']) {
+                $amount .= '<br /><span class="hide"> - </span><span class="text-success tw-text-sm tw-font-medium">' . _l('estimate_invoiced') . '</span>';
+            }
 
-    $row[] = $amount;
+            $row[] = $amount;
 
-    $row[] = app_format_money($aRow['total_tax'], $aRow['currency_name']);
+            $row[] = '<span class="tw-font-medium">' . e(app_format_money($aRow['total_tax'], $aRow['currency_name'])) . '</span>';
 
-    $row[] = $aRow['year'];
+            $row[] = $aRow['year'];
 
-    if (empty($aRow['deleted_customer_name'])) {
-        $row[] = '<a href="' . admin_url('clients/client/' . $aRow['clientid']) . '">' . $aRow['company'] . '</a>';
-    } else {
-        $row[] = $aRow['deleted_customer_name'];
-    }
+            if (empty($aRow['deleted_customer_name'])) {
+                $row[] = '<a href="' . admin_url('clients/client/' . $aRow['clientid']) . '">' . e($aRow['company']) . '</a>';
+            } else {
+                $row[] = e($aRow['deleted_customer_name']);
+            }
 
-    $row[] = '<a href="' . admin_url('projects/view/' . $aRow['project_id']) . '">' . $aRow['project_name'] . '</a>';
+            $row[] = '<a href="' . admin_url('projects/view/' . $aRow['project_id']) . '">' . e($aRow['project_name']) . '</a>';
 
-    $row[] = render_tags($aRow['tags']);
+            $row[] = render_tags($aRow['tags']);
 
-    $row[] = _d($aRow['date']);
+            $row[] = e(_d($aRow['date']));
 
-    $row[] = _d($aRow['expirydate']);
+            $row[] = e(_d($aRow['expirydate']));
 
-    $row[] = $aRow['reference_no'];
+            $row[] = e($aRow['reference_no']);
 
-    $row[] = format_estimate_status($aRow[db_prefix() . 'estimates.status']);
+            $row[] = format_estimate_status($aRow[db_prefix() . 'estimates.status']);
 
-    // Custom fields add values
-    foreach ($customFieldsColumns as $customFieldColumn) {
-        $row[] = (strpos($customFieldColumn, 'date_picker_') !== false ? _d($aRow[$customFieldColumn]) : $aRow[$customFieldColumn]);
-    }
+            // Custom fields add values
+            foreach ($customFieldsColumns as $customFieldColumn) {
+                $row[] = (strpos($customFieldColumn, 'date_picker_') !== false ? _d($aRow[$customFieldColumn]) : $aRow[$customFieldColumn]);
+            }
 
-    $row['DT_RowClass'] = 'has-row-options';
+            $row['DT_RowClass'] = 'has-row-options';
 
-    $row = hooks()->apply_filters('estimates_table_row_data', $row, $aRow);
+            $row = hooks()->apply_filters('estimates_table_row_data', $row, $aRow);
 
-    $output['aaData'][] = $row;
-}
+            $output['aaData'][] = $row;
+        }
 
-echo json_encode($output);
-die();
+        return $output;
+    })->setRules([
+        App_table_filter::new('number', 'NumberRule')->label(_l('estimate_add_edit_number')),
+        App_table_filter::new('reference_no', 'TextRule')->label(_l('reference_no')),
+        App_table_filter::new('total', 'NumberRule')->label(_l('estimate_total')),
+        App_table_filter::new('subtotal', 'NumberRule')->label(_l('estimate_subtotal')),
+        App_table_filter::new('date', 'DateRule')->label(_l('estimate_data_date')),
+        App_table_filter::new('expirydate', 'DateRule')
+            ->label(_l('estimate_dt_table_heading_expirydate'))
+            ->withEmptyOperators(),
+        App_table_filter::new('sent', 'BooleanRule')->label(_l('estimate_status_sent'))->raw(function ($value) {
+            if ($value == '1') {
+                return 'sent = 1';
+            }
+
+            return 'sent = 0 and ' . db_prefix() . 'estimates.status NOT IN (2,3,4)';
+        }),
+        App_table_filter::new('invoiced', 'BooleanRule')->label(_l('estimate_invoiced'))->raw(function ($value) {
+            return $value == '1' ? 'invoiceid IS NOT NULL' : 'invoiceid IS NULL';
+        }),
+        App_table_filter::new('signed', 'BooleanRule')->label(_l('contracts_view_signed'))
+            ->raw(function ($value) {
+                return $value == '1' ? 'signature IS NOT NULL' : 'signature IS NULL';
+            }),
+        App_table_filter::new('sale_agent', 'SelectRule')->label(_l('sale_agent_string'))
+            ->withEmptyOperators()
+            ->emptyOperatorValue(0)
+            ->isVisible(fn () => staff_can('view', 'estimates'))
+            ->options(function ($ci) {
+                return collect($ci->estimates_model->get_sale_agents())->map(function ($data) {
+                    return [
+                        'value' => $data['sale_agent'],
+                        'label' => get_staff_full_name($data['sale_agent']),
+                    ];
+                })->all();
+            }),
+
+        App_table_filter::new('status', 'MultiSelectRule')
+            ->label(_l('estimate_status'))
+            ->options(function ($ci) {
+                return collect($ci->estimates_model->get_statuses())->map(fn ($status) => [
+                    'value' => (string) $status,
+                    'label' => format_estimate_status($status, '', false),
+                ])->all();
+            }),
+
+        App_table_filter::new('year', 'MultiSelectRule')
+            ->label(_l('year'))
+            ->raw(function ($value, $operator) {
+                if ($operator == 'in') {
+                    return 'YEAR(date) IN (' . implode(',', $value) . ')';
+                }
+
+                return 'YEAR(date) NOT IN (' . implode(',', $value) . ')';
+            })
+            ->options(function ($ci) {
+                return collect($ci->estimates_model->get_estimates_years())->map(fn ($data) => [
+                    'value' => $data['year'],
+                    'label' => $data['year'],
+                ])->all();
+            }),
+    ]);

@@ -4,7 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
 
 /** @noinspection PhpIncludeInspection */
-require __DIR__ . '/REST_Controller.php';
+require __DIR__ . '/../REST_Controller.php';
 
 /**
  * This is an example of a few basic user interaction methods you could use
@@ -17,7 +17,7 @@ require __DIR__ . '/REST_Controller.php';
  * @license         MIT
  * @link            https://github.com/chriskacerguis/codeigniter-restserver
  */
-class Dashboard extends REST_Controller {
+class Settings extends REST_Controller {
 
     function __construct() {
         // Construct the parent class
@@ -26,187 +26,187 @@ class Dashboard extends REST_Controller {
     }
     
     
-     public function get_post() {
+     public function options_get() {
 $data = [
-    "balance" => [
-        "credit" => 0,
-        "debit" => 0,
-        "total" => 0,
-        "percent" => -100
-    ],
-    "product" => [
-        "credit" => 0,
-        "debit" => 0,
-        "total" => 0,
-        "percent" => 0
-    ],
-    "seller" => [
-        "credit" => 0,
-        "debit" => 0,
-        "total" => 0,
-        "percent" => 0
-    ],
-    "lastDays" => [
-        "balance" => [
-            "categories" => [
-                "21/12/2024",
-                "22/12/2024",
-                "23/12/2024",
-                "24/12/2024",
-                "25/12/2024",
-                "26/12/2024",
-                "27/12/2024",
-                "28/12/2024",
-                "29/12/2024",
-                "30/12/2024"
-            ],
-            "series" => [
-                0,
-                0,
-                0,
-                5799.98,
-                0,
-                179.98,
-                0,
-                0,
-                0,
-                0
-            ],
-            "total" => 5979.959999999999
-        ],
-        "product" => [
-            "categories" => [
-                "21/12/2024",
-                "22/12/2024",
-                "23/12/2024",
-                "24/12/2024",
-                "25/12/2024",
-                "26/12/2024",
-                "27/12/2024",
-                "28/12/2024",
-                "29/12/2024",
-                "30/12/2024"
-            ],
-            "series" => [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "total" => 0
-        ],
-        "seller" => [
-            "categories" => [
-                "21/12/2024",
-                "22/12/2024",
-                "23/12/2024",
-                "24/12/2024",
-                "25/12/2024",
-                "26/12/2024",
-                "27/12/2024",
-                "28/12/2024",
-                "29/12/2024",
-                "30/12/2024"
-            ],
-            "series" => [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "total" => 0
-        ]
-    ],
-    "lastMonth" => [
-        "categories" => [
-            "1/2024",
-            "2/2024",
-            "3/2024",
-            "4/2024",
-            "5/2024",
-            "6/2024",
-            "7/2024",
-            "8/2024",
-            "9/2024",
-            "10/2024",
-            "11/2024",
-            "12/2024"
-        ],
-        "series" => [
-            [
-                "name" => "2024",
-                "data" => [
-                    [
-                        "name" => "product",
-                        "data" => [
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0
-                        ],
-                        "total" => 0
-                    ],
-                    [
-                        "name" => "seller",
-                        "data" => [
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0
-                        ],
-                        "total" => 0
-                    ],
-                    [
-                        "name" => "balance",
-                        "data" => [
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            5979.959999999999
-                        ],
-                        "total" => 5979.959999999999
-                    ]
+    [
+        "type" => "menu",
+        "category" => "system",
+        "list" => [
+            "menu" => [
+                [
+                    "value" => "dashboard",
+                    "label" => "home",
+                    "color" => "",
+                    "icon" => "lucide:chart-pie",
+                    "width" => "",
+                    "path" => "/dashboard"
+                ],
+                [
+                    "value" => "products",
+                    "label" => "home",
+                    "color" => "",
+                    "icon" => "lucide:album",
+                    "width" => "",
+                    "path" => "/products"
+                ],
+                [
+                    "value" => "cash",
+                    "label" => "home",
+                    "color" => "",
+                    "icon" => "lucide:shopping-cart",
+                    "width" => "",
+                    "path" => "/cash"
+                ],
+                [
+                    "value" => "pdv",
+                    "label" => "home",
+                    "color" => "",
+                    "icon" => "lucide:shopping-cart",
+                    "width" => "",
+                    "path" => "/pdv"
+                ],
+                [
+                    "value" => "transactions",
+                    "label" => "Transações",
+                    "color" => "",
+                    "icon" => "lucide:receipt",
+                    "width" => "",
+                    "path" => "/transactions"
+                ],
+                [
+                    "value" => "clients",
+                    "label" => "my_account",
+                    "color" => "",
+                    "icon" => "lucide:book-user",
+                    "width" => "",
+                    "path" => "/client"
+                ],
+                [
+                    "value" => "product_1",
+                    "label" => "manager",
+                    "color" => "",
+                    "icon" => "lucide:edit",
+                    "width" => "",
+                    "path" => "/produto"
+                ],
+                [
+                    "value" => "financial",
+                    "label" => "manager",
+                    "color" => "",
+                    "icon" => "lucide:credit-card",
+                    "width" => "",
+                    "path" => "/financial"
+                ],
+                [
+                    "value" => "sales_orders",
+                    "label" => "manager",
+                    "color" => "",
+                    "icon" => "lucide:shopping-bag",
+                    "width" => "",
+                    "path" => "/sales-orders"
+                ],
+                [
+                    "value" => "reports",
+                    "label" => "manager",
+                    "color" => "",
+                    "icon" => "lucide:file-text",
+                    "width" => "",
+                    "path" => "/reports"
+                ],
+                [
+                    "value" => "users",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:users",
+                    "width" => "",
+                    "path" => "/admin/user/list"
+                ],
+                [
+                    "value" => "languages",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:globe-2",
+                    "width" => "",
+                    "path" => "/admin/languages"
+                ],
+                [
+                    "value" => "options",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:sliders-horizontal",
+                    "width" => "",
+                    "path" => "/admin/options"
+                ],
+                [
+                    "value" => "config",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:settings",
+                    "width" => "",
+                    "path" => "/admin/config"
+                ],
+                [
+                    "value" => "emails",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:mail",
+                    "width" => "",
+                    "path" => "/admin/emails"
+                ],
+                [
+                    "value" => "apis",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:unlock-keyhole",
+                    "width" => "",
+                    "path" => "/admin/apis"
                 ]
             ]
+        ]
+    ],
+    [
+        "type" => "status",
+        "category" => "system",
+        "list" => [
+            "status" => [
+                [
+                    "value" => "active",
+                    "label" => "Active",
+                    "color" => "success",
+                    "icon" => "solar:check-bold",
+                    "width" => "",
+                    "path" => ""
+                ],
+                [
+                    "value" => "inactive",
+                    "label" => "Pending",
+                    "color" => "warning",
+                    "icon" => "solar:clock-bold",
+                    "width" => "",
+                    "path" => ""
+                ],
+                [
+                    "value" => "banned",
+                    "label" => "Banned",
+                    "color" => "error",
+                    "icon" => "solar:ban-bold",
+                    "width" => "",
+                    "path" => ""
+                ],
+                [
+                    "value" => "rejected",
+                    "label" => "Rejected",
+                    "color" => "default",
+                    "icon" => "solar:close-circle-bold",
+                    "width" => "",
+                    "path" => ""
+                ]
             ]
+        ]
     ]
 ];
+        
+
           $this->response($data, REST_Controller::HTTP_OK);
        
     }

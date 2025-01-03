@@ -113,67 +113,48 @@ class Invoice_items_model extends App_Model
     }
 
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC') {
-        // Obtenha todas as colunas da tabela 'items'
-        $columns             = $this->db->list_fields(db_prefix() . 'items');
-        $rateCurrencyColumns = '';
+        // Correctly specify the table for the join and order by
+        $this->db->select('items.id as itemid, items.rate,');  //removed redundant ','
+        $this->db->select('t1.taxrate as taxrate, t1.id as taxid, t1.name as taxname,');
+        $this->db->select('t2.taxrate as taxrate_2, t2.id as taxid_2, t2.name as taxname_2,');
+        $this->db->select('items.description, items.long_description, items.group_id, items_groups.name as group_name, items.unit');
 
-        // Concatene as colunas que começam com 'rate_currency_'
-        foreach ($columns as $column) {
-            if (strpos($column, 'rate_currency_') !== false) {
-                $rateCurrencyColumns .= $column . ',';
-            }
-        }
+        $this->db->from('items');
+        $this->db->join('taxes t1', 't1.id = items.tax', 'left');
+        $this->db->join('taxes t2', 't2.id = items.tax2', 'left');
+        $this->db->join('items_groups', 'items_groups.id = items.group_id', 'left');
 
-        $this->db->select($rateCurrencyColumns . '' . db_prefix() . 'items.id as itemid,rate,
-        t1.taxrate as taxrate,t1.id as taxid,t1.name as taxname,
-        t2.taxrate as taxrate_2,t2.id as taxid_2,t2.name as taxname_2,
-        description,long_description,group_id,' . db_prefix() . 'items_groups.name as group_name,unit');
-        $this->db->from(db_prefix() . 'items');
-        $this->db->join('' . db_prefix() . 'taxes t1', 't1.id = ' . db_prefix() . 'items.tax', 'left');
-        $this->db->join('' . db_prefix() . 'taxes t2', 't2.id = ' . db_prefix() . 'items.tax2', 'left');
-        $this->db->join(db_prefix() . 'items_groups', '' . db_prefix() . 'items_groups.id = ' . db_prefix() . 'items.group_id', 'left');
-
-        // Se $id for numérico, obtenha o item específico
         if (is_numeric($id)) {
-            $this->db->where(db_prefix() . 'items.id', $id);
+            $this->db->where('items.id', $id);
             $item = $this->db->get()->row();
-
-            $total = 0;
-            if ($item) {
-                $total = 1;
-            }
-
-            return ['data' => (array)$item, 'total' => $total];
+            return ['data' => (array) $item, 'total' => ($item) ? 1 : 0];
         } else {
-            // Caso contrário, implemente a lógica de pesquisa e paginação
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like('description', $search);
-                $this->db->or_like('long_description', $search);
-                $this->db->or_like('rate', $search);
+                $this->db->like('items.description', $search);
+                $this->db->or_like('items.long_description', $search);
+                $this->db->or_like('items.rate', $search);
                 $this->db->group_end();
             }
 
-            // Ordenação
-            $this->db->order_by($sortField, $sortOrder);
-
-            // Limitação e deslocamento
+            $this->db->order_by('items.' . $sortField, $sortOrder);
             $this->db->limit($limit, ($page - 1) * $limit);
 
-            // Obtenha os itens
             $items = $this->db->get()->result_array();
 
-            // Contagem total de itens com a mesma busca
             $this->db->reset_query();
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like('description', $search);
-                $this->db->or_like('long_description', $search);
-                $this->db->or_like('rate', $search);
+                $this->db->like('items.description', $search);
+                $this->db->or_like('items.long_description', $search);
+                $this->db->or_like('items.rate', $search);
                 $this->db->group_end();
             }
+
             $this->db->select('COUNT(*) as total');
-            $total = $this->db->get(db_prefix() . 'items')->row()->total;
+            $this->db->from('items');
+            $result = $this->db->get()->row();
+            $total = $result->total;
 
             return ['data' => $items, 'total' => $total];
         }

@@ -1,2 +1,52 @@
+# PHP & CodeIgniter .gitignore
 
+# Arquivos temporários e de cache
+*.log
+*.cache
+*.tmp
+logs/
+cache/
+tmp/
+sessions/
+.DS_Store
+
+# Arquivos gerados pelo compilador
+*.class.php
+*.phtml
+*.php~
+*.swp
+
+
+# Arquivos de teste
+tests/
+*_test.php
+*.spec.php
+*.test.php
+
+# Arquivos de deploy/ambiente
+deploy/
+deploy.php
+config/
+# Excluir arquivos de configuração de banco de dados
+config/.env
+config/database.php.dist
+
+# Arquivos não utilizados
+.idea/
+vendor/
+composer.lock
+
+
+#Arquivos do CodeIgniter
+system/
+application/cache/
+application/logs/
+application/third_party/
+.htaccess
+robots.txt
+public/
+
+# Arquivos com senhas e credenciais
+.env
+config/database.php
 .codegpt

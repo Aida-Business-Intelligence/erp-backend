@@ -17,14 +17,14 @@ require __DIR__ . '/../REST_Controller.php';
  * @license         MIT
  * @link            https://github.com/chriskacerguis/codeigniter-restserver
  */
-class Client extends REST_Controller
+class Users extends REST_Controller
 {
 
     function __construct()
     {
         // Construct the parent class
         parent::__construct();
-        $this->load->model('Clients_model');
+        $this->load->model('Staff_model');
     }
 
     /**
@@ -78,23 +78,15 @@ class Client extends REST_Controller
     {
 
 
-        /*
-          $this->load->model('clients_model');
-
-          $this->clients_model->add_import_items();
-          exit;
-         * 
-         */
-
         $page = $this->post('page') ? (int) $this->post('page') : 1; // Página atual, padrão 1
 
         $page = $page + 1;
 
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
         $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
+        $sortField = $this->post('sortField') ?: 'staffid'; // Campo para ordenação, padrão 'id'
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-        $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, 'pdv');
 
         if ($data['total'] == 0) {
 

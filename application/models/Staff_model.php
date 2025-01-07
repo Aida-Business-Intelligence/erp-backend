@@ -888,8 +888,11 @@ class Staff_model extends App_Model
 
             $this->db->order_by($sortField, $sortOrder);
             $this->db->limit($limit, ($page - 1) * $limit);
-            $this->db->where('type',$type);
+            ///$this->db->where('type','employee');
             $data = $this->db->get(db_prefix() . 'staff')->result_array();
+            
+        
+            
             $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
             if (!empty($search)) {
                 // Condições de busca para contar os resultados
@@ -900,8 +903,8 @@ class Staff_model extends App_Model
                 $this->db->group_end(); // Fecha o agrupamento de condição
             }
 
-            $this->db->select('COUNT(*) as total');
-            $total = $this->db->get(db_prefix() . 'staff')->row()->total;
+        
+            $total = count($data);
 
             return ['data' => $data, 'total' => $total]; // Retorne os clientes e o total
             } else {

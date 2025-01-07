@@ -398,8 +398,8 @@ class Translations extends REST_Controller
 
             "settings_options_delete_content" => "Tem certeza de que deseja excluir esta opção?",
             "settings_options_delete_title" => "Confirmação de exclusão de opção",
-            "settings_client_delete_content" => "Tem certeza de que deseja excluir esta opção?",
-            "settings_client_delete_title" => "Confirmação de exclusão de opção",
+            "settings_client_delete_content" => "Tem certeza de que deseja excluir este cliente?",
+            "settings_client_delete_title" => "Confirmação de exclusão de cliente",
             "settings_client_delete" => "Excluir",
             "settings_options_delete" => "Excluir",
             "shipper_link_required" => "Link do remetente é obrigatório",

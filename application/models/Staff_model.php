@@ -888,8 +888,9 @@ class Staff_model extends App_Model
 
             $this->db->order_by($sortField, $sortOrder);
             $this->db->limit($limit, ($page - 1) * $limit);
-            ///$this->db->where('type','employee');
+            $this->db->where('type',$type);
             $data = $this->db->get(db_prefix() . 'staff')->result_array();
+            
             
         
             
@@ -902,6 +903,8 @@ class Staff_model extends App_Model
                 $this->db->or_like('email', $search);
                 $this->db->group_end(); // Fecha o agrupamento de condição
             }
+            
+            
 
         
             $total = count($data);

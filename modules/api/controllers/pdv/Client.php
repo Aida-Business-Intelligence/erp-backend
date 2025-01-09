@@ -86,7 +86,7 @@ class Client extends REST_Controller
          * 
          */
 
-        $page = $this->post('page') ? (int) $this->post('page') : 1; // Página atual, padrão 1
+        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
 
         $page = $page + 1;
 

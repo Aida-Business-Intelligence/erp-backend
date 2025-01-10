@@ -291,54 +291,95 @@ class Cash extends REST_Controller
      *       "message": "Customer Delete Fail."
      *     }
      */
-    public function remove_post()
-    {
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    
+public function remove_post()
+{
+    // Lê o corpo da requisição como JSON
+    $data = json_decode(file_get_contents("php://input"), true);
+//    var_dump($data);  // Verifique o conteúdo recebido
+//    exit;
 
-        if (!isset($_POST['rows']) || empty($_POST['rows'])) {
-            $message = array('status' => FALSE, 'message' => 'Invalid request: rows array is required');
-            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
-            return;
+    // Verifique se a senha master foi fornecida
+    if (!isset($data['master_password']) || $data['master_password'] !== '1234') {
+        $this->response([
+            'status' => FALSE,
+            'message' => 'Senha master incorreta.'
+        ], REST_Controller::HTTP_UNAUTHORIZED);
+        return;
+    }
+
+    // Verifique se os ids dos caixas foram fornecidos
+    if (!isset($data['rows']) || empty($data['rows'])) {
+        $this->response([
+            'status' => FALSE,
+            'message' => 'Invalid request: rows array is required'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
+    }
+
+    // Obter os IDs dos caixas a serem deletados
+    $ids = $data['rows'];
+    $success_count = 0;
+    $failed_ids = [];
+
+    // Verifique se o array "rows" é válido
+    if (!is_array($ids)) {
+        $this->response([
+            'status' => FALSE,
+            'message' => 'O campo "rows" deve ser um array.'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
+    }
+
+    // Loop para excluir cada caixa
+    foreach ($ids as $id) {
+        var_dump($id);  // Para verificar o ID antes de tentar excluir
+
+        $id = $this->security->xss_clean($id);
+
+        // Valide o ID antes de tentar excluir
+        if (empty($id) || !is_numeric($id)) {
+            $failed_ids[] = $id;
+            continue;
         }
 
-        $ids = $_POST['rows'];
-        $success_count = 0;
-        $failed_ids = [];
-
-        foreach ($ids as $id) {
-            $id = $this->security->xss_clean($id);
-
-            if (empty($id) || !is_numeric($id)) {
-                $failed_ids[] = $id;
-                continue;
-            }
-
+        // Tente excluir o caixa
+        try {
             $output = $this->cashs_model->delete($id);
             if ($output === TRUE) {
                 $success_count++;
             } else {
                 $failed_ids[] = $id;
             }
-        }
-
-        if ($success_count > 0) {
-            $message = array(
-                'status' => TRUE,
-                'message' => $success_count . ' customer(s) deleted successfully'
-            );
-            if (!empty($failed_ids)) {
-                $message['failed_ids'] = $failed_ids;
-            }
-            $this->response($message, REST_Controller::HTTP_OK);
-        } else {
-            $message = array(
+        } catch (Exception $e) {
+            $this->response([
                 'status' => FALSE,
-                'message' => 'Failed to delete customers',
-                'failed_ids' => $failed_ids
-            );
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+                'message' => 'Erro ao tentar excluir: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
         }
     }
+    
+
+    // Resposta com o status da exclusão
+    if ($success_count > 0) {
+        $message = [
+            'status' => TRUE,
+            'message' => $success_count . ' caixa(s) deletado(s) com sucesso.'
+        ];
+        if (!empty($failed_ids)) {
+            $message['failed_ids'] = $failed_ids;
+        }
+        $this->response($message, REST_Controller::HTTP_OK);
+    } else {
+        $message = [
+            'status' => FALSE,
+            'message' => 'Falha ao deletar caixa(s)',
+            'failed_ids' => $failed_ids
+        ];
+        $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+    }
+}
 
     /**
      * @api {get} api/pdv/client/get/:id Get Client by ID

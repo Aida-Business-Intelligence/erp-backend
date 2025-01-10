@@ -106,6 +106,27 @@ class Cashs_model extends App_Model {
     }
 }
 
+public function delete($id) {
+    // Verifica se o ID é válido e se é numérico
+    if (is_numeric($id)) {
+        // Sanitize o ID para evitar ataques de injeção
+        $id = $this->security->xss_clean($id);
+        
+        // Deleta o caixa com o ID fornecido
+        $this->db->where('id', $id);
+        $this->db->delete(db_prefix() . 'cashs');
+        
+        // Verifique se a exclusão foi bem-sucedida
+        if ($this->db->affected_rows() > 0) {
+            return true; // Sucesso
+        }
+    }
+    
+    // Se falhou, retorne false
+    return false;
+}
+
+
     
    
 }

@@ -292,14 +292,10 @@ class Cash extends REST_Controller
      *     }
      */
     
-public function remove_post()
-{
-    // Lê o corpo da requisição como JSON
-    $data = json_decode(file_get_contents("php://input"), true);
-//    var_dump($data);  // Verifique o conteúdo recebido
-//    exit;
+public function remove_post(){
 
-    // Verifique se a senha master foi fornecida
+    $data = json_decode(file_get_contents("php://input"), true);
+
     if (!isset($data['master_password']) || $data['master_password'] !== '1234') {
         $this->response([
             'status' => FALSE,
@@ -308,7 +304,6 @@ public function remove_post()
         return;
     }
 
-    // Verifique se os ids dos caixas foram fornecidos
     if (!isset($data['rows']) || empty($data['rows'])) {
         $this->response([
             'status' => FALSE,
@@ -317,12 +312,10 @@ public function remove_post()
         return;
     }
 
-    // Obter os IDs dos caixas a serem deletados
     $ids = $data['rows'];
     $success_count = 0;
     $failed_ids = [];
 
-    // Verifique se o array "rows" é válido
     if (!is_array($ids)) {
         $this->response([
             'status' => FALSE,
@@ -331,19 +324,16 @@ public function remove_post()
         return;
     }
 
-    // Loop para excluir cada caixa
     foreach ($ids as $id) {
         var_dump($id);  // Para verificar o ID antes de tentar excluir
 
         $id = $this->security->xss_clean($id);
 
-        // Valide o ID antes de tentar excluir
         if (empty($id) || !is_numeric($id)) {
             $failed_ids[] = $id;
             continue;
         }
 
-        // Tente excluir o caixa
         try {
             $output = $this->cashs_model->delete($id);
             if ($output === TRUE) {
@@ -360,8 +350,6 @@ public function remove_post()
         }
     }
     
-
-    // Resposta com o status da exclusão
     if ($success_count > 0) {
         $message = [
             'status' => TRUE,

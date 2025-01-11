@@ -240,10 +240,10 @@ class Produto extends REST_Controller
             return;
         }
 
-        $product = $this->Invoice_items_model->get($id);
+        $product = $this->Invoice_items_model->get_item($id);
 
-        echo $this->db->last_query();
-        exit;
+        // echo $this->db->last_query();
+        // exit;
 
         if ($product) {
             $this->response([
@@ -335,6 +335,29 @@ class Produto extends REST_Controller
                 $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
+        }
+    }
+
+    public function groups_post()
+    {
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: '';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+
+        $data = $this->Invoice_items_model->get_groups($page, $limit, $search, $sortOrder);
+
+        if ($data['total'] > 0) {
+            $this->response([
+                'status' => TRUE,
+                'total' => $data['total'],
+                'data' => $data['data']
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No groups were found'
+            ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
 }

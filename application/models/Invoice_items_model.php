@@ -362,11 +362,23 @@ class Invoice_items_model extends App_Model
         return false;
     }
 
-    public function get_groups()
+    public function get_groups($page = 1, $limit = 10, $search = '', $sortOrder = 'ASC')
     {
-        $this->db->order_by('name', 'asc');
+        $this->db->select('id, name');
+        $this->db->from(db_prefix() . 'items_groups');
 
-        return $this->db->get(db_prefix() . 'items_groups')->result_array();
+        if (!empty($search)) {
+            $this->db->like('name', $search);
+        }
+
+        $total = $this->db->count_all_results('', false);
+
+        $this->db->order_by('name', $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $groups = $this->db->get()->result_array();
+
+        return ['data' => $groups, 'total' => $total];
     }
 
     public function add_group($data)

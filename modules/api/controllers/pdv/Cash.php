@@ -196,52 +196,71 @@ class Cash extends REST_Controller
      */
 
 
-    public function create_post()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-        // Recebendo e decodificando os dados
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    public function create_post() {
+    // Lê os dados do corpo da requisição
+    $input = json_decode(file_get_contents('php://input'), true);
 
-        $_input['vat'] = $_POST['documentNumber'] ?? null;
-        $_input['email_default'] = $_POST['email'] ?? null;
-        $_input['phonenumber'] = $_POST['primaryPhone'] ?? null;
-        $_input['zip'] = $_POST['cep'] ?? null;
-        $_input['billing_street'] = $_POST['street'] ?? null;
-        $_input['billing_city'] = $_POST['city'] ?? null;
-        $_input['billing_state'] = $_POST['state'] ?? null;
-        $_input['billing_number'] = $_POST['number'] ?? null;
-        $_input['billing_complement'] = $_POST['complement'] ?? null;
-        $_input['billing_neighborhood'] = $_POST['neighborhood'] ?? null;
-        $_input['company'] = $_POST['fullName'] ?? null;
-        $_POST['company'] = $_POST['fullName'] ?? null;
-
-
-
-        $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
-
-        // email
-        $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
-
-
-        if ($this->form_validation->run() == FALSE) {
-            // form validation error
-            $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        } else {
-
-
-            $output = $this->cashs_model->add($_input);
-            if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => 'success', 'message' => 'auth_signup_success', 'data' => $this->cashs_model->get($output));
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Cash add fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            }
-        }
+    // Verifica se os dados foram recebidos
+    if (empty($input)) {
+        log_message('error', 'Nenhum dado recebido.');
+        $this->response([
+            'status' => false,
+            'message' => 'Nenhum dado recebido.'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
     }
+
+    // Log do payload recebido
+    log_message('debug', 'Dados recebidos do cliente: ' . print_r($input, true));
+
+    // Prepara os dados para inserção
+    $_input = [
+        'status' => isset($input['status']) ? (int)$input['status'] : null,
+        'open_value' => isset($input['open_value']) ? (float)$input['open_value'] : null,
+        'open_cash' => isset($input['open_cash']) ? (float)$input['open_cash'] : null,
+        'user_id' => isset($input['user_id']) ? (int)$input['user_id'] : null,
+        'balance' => isset($input['balance']) ? (float)$input['balance'] : null,
+    ];
+
+    // Valida os campos obrigatórios
+    if (in_array(null, $_input, true)) {
+        log_message('error', 'Erro de validação: Campos obrigatórios estão ausentes ou mal formados.');
+        $this->response([
+            'status' => false,
+            'message' => 'Campos obrigatórios estão ausentes ou mal formados.'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
+    }
+
+    // Insere os dados no banco de dados
+    try {
+        if ($this->db->insert('cashs', $_input)) {
+            log_message('debug', 'Dados inseridos com sucesso: ' . $this->db->last_query());
+            $this->response([
+                'status' => true,
+                'message' => 'Caixa criado com sucesso.',
+                'data' => [
+                    'id' => $this->db->insert_id(),
+                    'input' => $_input
+                ]
+            ], REST_Controller::HTTP_OK);
+        } else {
+            // Log em caso de erro de inserção
+            log_message('error', 'Erro ao inserir dados: ' . $this->db->last_query());
+            $this->response([
+                'status' => false,
+                'message' => 'Erro ao criar caixa. Tente novamente.'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    } catch (Exception $e) {
+        log_message('error', 'Exceção ao inserir dados: ' . $e->getMessage());
+        $this->response([
+            'status' => false,
+            'message' => 'Erro interno no servidor. Tente novamente mais tarde.'
+        ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+}
+
 
     /**
      * @api {delete} api/delete/customers/:id Delete a Customer
@@ -272,54 +291,83 @@ class Cash extends REST_Controller
      *       "message": "Customer Delete Fail."
      *     }
      */
-    public function remove_post()
-    {
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    
+public function remove_post(){
 
-        if (!isset($_POST['rows']) || empty($_POST['rows'])) {
-            $message = array('status' => FALSE, 'message' => 'Invalid request: rows array is required');
-            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
-            return;
+    $data = json_decode(file_get_contents("php://input"), true);
+
+    if (!isset($data['master_password']) || $data['master_password'] !== '1234') {
+        $this->response([
+            'status' => FALSE,
+            'message' => 'Senha master incorreta.'
+        ], REST_Controller::HTTP_UNAUTHORIZED);
+        return;
+    }
+
+    if (!isset($data['rows']) || empty($data['rows'])) {
+        $this->response([
+            'status' => FALSE,
+            'message' => 'Invalid request: rows array is required'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
+    }
+
+    $ids = $data['rows'];
+    $success_count = 0;
+    $failed_ids = [];
+
+    if (!is_array($ids)) {
+        $this->response([
+            'status' => FALSE,
+            'message' => 'O campo "rows" deve ser um array.'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
+    }
+
+    foreach ($ids as $id) {
+        var_dump($id);  // Para verificar o ID antes de tentar excluir
+
+        $id = $this->security->xss_clean($id);
+
+        if (empty($id) || !is_numeric($id)) {
+            $failed_ids[] = $id;
+            continue;
         }
 
-        $ids = $_POST['rows'];
-        $success_count = 0;
-        $failed_ids = [];
-
-        foreach ($ids as $id) {
-            $id = $this->security->xss_clean($id);
-
-            if (empty($id) || !is_numeric($id)) {
-                $failed_ids[] = $id;
-                continue;
-            }
-
+        try {
             $output = $this->cashs_model->delete($id);
             if ($output === TRUE) {
                 $success_count++;
             } else {
                 $failed_ids[] = $id;
             }
-        }
-
-        if ($success_count > 0) {
-            $message = array(
-                'status' => TRUE,
-                'message' => $success_count . ' customer(s) deleted successfully'
-            );
-            if (!empty($failed_ids)) {
-                $message['failed_ids'] = $failed_ids;
-            }
-            $this->response($message, REST_Controller::HTTP_OK);
-        } else {
-            $message = array(
+        } catch (Exception $e) {
+            $this->response([
                 'status' => FALSE,
-                'message' => 'Failed to delete customers',
-                'failed_ids' => $failed_ids
-            );
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+                'message' => 'Erro ao tentar excluir: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
         }
     }
+    
+    if ($success_count > 0) {
+        $message = [
+            'status' => TRUE,
+            'message' => $success_count . ' caixa(s) deletado(s) com sucesso.'
+        ];
+        if (!empty($failed_ids)) {
+            $message['failed_ids'] = $failed_ids;
+        }
+        $this->response($message, REST_Controller::HTTP_OK);
+    } else {
+        $message = [
+            'status' => FALSE,
+            'message' => 'Falha ao deletar caixa(s)',
+            'failed_ids' => $failed_ids
+        ];
+        $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+    }
+}
 
     /**
      * @api {get} api/pdv/client/get/:id Get Client by ID

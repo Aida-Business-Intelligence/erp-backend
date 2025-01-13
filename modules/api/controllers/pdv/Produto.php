@@ -311,7 +311,9 @@ class Produto extends REST_Controller
     {
 
 
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        // $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        var_dump($this->input->post());
+        exit;
 
         if (empty($_POST) || !isset($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
@@ -357,6 +359,46 @@ class Produto extends REST_Controller
             $this->response([
                 'status' => FALSE,
                 'message' => 'No groups were found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function subgroups_post($group_id)
+    {
+        $page = $this->post('page') ? (int) $this->post('page') : 0;
+        $page = $page + 1;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: '';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+
+        $this->db->select('*');
+        $this->db->from(db_prefix() . 'wh_sub_group');
+        $this->db->where('group_id', $group_id);
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('sub_group_name', $search);
+            $this->db->or_like('sub_group_code', $search);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results('', false);
+
+        $this->db->order_by('sub_group_name', $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $subgroups = $this->db->get()->result_array();
+
+        if ($total > 0) {
+            $this->response([
+                'status' => TRUE,
+                'total' => $total,
+                'data' => $subgroups
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No subgroups were found'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }

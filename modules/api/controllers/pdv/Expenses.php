@@ -469,33 +469,45 @@ class Expenses extends REST_Controller {
      *       "message": "Customer Update Fail."
      *     }
      */
-    public function data_put($id = '') {
-
-
+    public function data_put() 
+    {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        if (empty($_POST) || !isset($_POST)) {
+        if (empty($_POST) || !isset($_POST)) 
+        {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+            return;
         }
+
         $this->form_validation->set_data($_POST);
-        if (empty($id) && !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
+
+        // Validando se o id foi enviado
+        if (empty($_POST['id']) || !is_numeric($_POST['id'])) 
+        {
+            $message = array('status' => FALSE, 'message' => 'Invalid Expense ID');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        } else {
-            $update_data = $this->input->post();
-            // update data
-            $this->load->model('clients_model');
-            $output = $this->clients_model->update($update_data, $id);
-            if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->clients_model->get($id));
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            }
+            return;
         }
+
+        $update_data = $this->input->post();
+        $expense_id = $_POST['id'];
+        
+        $this->load->model('Expenses_model');
+        $output = $this->Expenses_model->update($update_data, $expense_id);
+
+        if (!$output || empty($output)) 
+        {
+            $message = array('status' => FALSE, 'message' => 'Expenses Update Fail.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        $message = array(
+            'status' => TRUE, 
+            'message' => 'Expenses Update Successful.', 
+            'data' => $this->Expenses_model->get($expense_id)
+        );
+        $this->response($message, REST_Controller::HTTP_OK);
     }
 }

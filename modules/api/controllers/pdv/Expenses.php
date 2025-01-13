@@ -370,25 +370,29 @@ class Expenses extends REST_Controller {
      *       "message": "Customer Delete Fail."
      *     }
      */
-    public function data_delete($id = '') {
+    public function data_delete($id = '')
+    {
         $id = $this->security->xss_clean($id);
-        if (empty($id) && !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Customer ID');
+
+        if (empty($id) || !is_numeric($id))
+        {
+            $message = array('status' => FALSE, 'message' => 'Invalid Expense ID');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        } else {
-            // delete data
-            $this->load->model('clients_model');
-            $output = $this->clients_model->delete($id);
-            if ($output === TRUE) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Customer Delete Successful.');
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Customer Delete Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            }
+            return;
         }
+
+        $this->load->model('Expenses_model');
+        $output = $this->Expenses_model->delete($id);
+
+        if (!$output)
+        {
+            $message = array('status' => FALSE, 'message' => 'Expense Delete Failed');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        $message = array('status' => TRUE, 'message' => 'Expense Deleted Successfully');
+        $this->response($message, REST_Controller::HTTP_OK);
     }
 
 
@@ -483,7 +487,7 @@ class Expenses extends REST_Controller {
         $this->form_validation->set_data($_POST);
 
         // Validando se o id foi enviado
-        if (empty($_POST['id']) || !is_numeric($_POST['id'])) 
+        if (empty($_POST['id']) || !is_numeric($_POST['id']))
         {
             $message = array('status' => FALSE, 'message' => 'Invalid Expense ID');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
@@ -492,11 +496,11 @@ class Expenses extends REST_Controller {
 
         $update_data = $this->input->post();
         $expense_id = $_POST['id'];
-        
+
         $this->load->model('Expenses_model');
         $output = $this->Expenses_model->update($update_data, $expense_id);
 
-        if (!$output || empty($output)) 
+        if (!$output || empty($output))
         {
             $message = array('status' => FALSE, 'message' => 'Expenses Update Fail.');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
@@ -504,8 +508,8 @@ class Expenses extends REST_Controller {
         }
 
         $message = array(
-            'status' => TRUE, 
-            'message' => 'Expenses Update Successful.', 
+            'status' => TRUE,
+            'message' => 'Expenses Update Successful.',
             'data' => $this->Expenses_model->get($expense_id)
         );
         $this->response($message, REST_Controller::HTTP_OK);

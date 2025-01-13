@@ -4,11 +4,13 @@ use app\services\utilities\Arr;
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Clients_model extends App_Model {
+class Clients_model extends App_Model
+{
 
     private $contact_columns;
 
-    public function __construct() {
+    public function __construct()
+    {
         parent::__construct();
 
         $this->contact_columns = hooks()->apply_filters('contact_columns', ['firstname', 'lastname', 'email', 'phonenumber', 'title', 'password', 'send_set_password_email', 'donotsendwelcomeemail', 'permissions', 'direction', 'invoice_emails', 'estimate_emails', 'credit_note_emails', 'contract_emails', 'task_emails', 'project_emails', 'ticket_emails', 'is_primary']);
@@ -22,7 +24,70 @@ class Clients_model extends App_Model {
      * @param  array  $where
      * @return mixed
      */
-    public function get($id = '', $where = []) {
+
+    public function get_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    {
+        // Base query to get only suppliers
+        $this->db->where('is_supplier', 1);
+
+        if (!is_numeric($id)) {
+            // Add search conditions
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('company', $search);
+                $this->db->or_like('billing_city', $search);
+                $this->db->or_like('billing_state', $search);
+                $this->db->or_like('vat', $search);
+                // Search CNPJ without formatting
+                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+                $this->db->group_end();
+            }
+
+            // Implement sorting
+            $this->db->order_by($sortField, $sortOrder);
+
+            // Implement pagination
+            $this->db->limit($limit, ($page - 1) * $limit);
+
+            // Get suppliers
+            $suppliers = $this->db->get(db_prefix() . 'clients')->result_array();
+
+            // Count total suppliers (considering search)
+            $this->db->reset_query();
+
+            // Re-add supplier condition for count
+            $this->db->where('is_supplier', 1);
+
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('company', $search);
+                $this->db->or_like('billing_city', $search);
+                $this->db->or_like('billing_state', $search);
+                $this->db->or_like('vat', $search);
+                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+                $this->db->group_end();
+            }
+
+            $this->db->select('COUNT(*) as total');
+            $total = $this->db->get(db_prefix() . 'clients')->row()->total;
+
+            return ['data' => $suppliers, 'total' => $total];
+        } else {
+            // Get single supplier
+            $this->db->where('userid', $id);
+            $supplier = $this->db->get(db_prefix() . 'clients')->row();
+
+            $total = 0;
+            if ($supplier) {
+                $total = 1;
+            }
+
+            return ['data' => (array) $supplier, 'total' => $total];
+        }
+    }
+
+    public function get($id = '', $where = [])
+    {
         $this->db->select(implode(',', prefixed_table_fields_array(db_prefix() . 'clients')) . ',' . get_sql_select_client_company());
 
         $this->db->join(db_prefix() . 'countries', '' . db_prefix() . 'countries.country_id = ' . db_prefix() . 'clients.country', 'left');
@@ -49,9 +114,10 @@ class Clients_model extends App_Model {
 
         return $this->db->get(db_prefix() . 'clients')->result_array();
     }
-    
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC') {
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    {
 
         if (!is_numeric($id)) {
             // Adicionar condições de busca
@@ -98,7 +164,7 @@ class Clients_model extends App_Model {
 
             $client = $this->get($id);
             $total = 0;
-            if($client){
+            if ($client) {
                 $total = 1;
             }
 
@@ -115,11 +181,12 @@ class Clients_model extends App_Model {
      * @param  array $whereIn     perform whereIn query
      * @return array
      */
-    public function get_contacts($customer_id = '', $where = ['active' => 1], $whereIn = []) {
-        
-       
-         $this->db->select('userid, id, firstname,lastname, email,phonenumber, is_primary');
-        
+    public function get_contacts($customer_id = '', $where = ['active' => 1], $whereIn = [])
+    {
+
+
+        $this->db->select('userid, id, firstname,lastname, email,phonenumber, is_primary');
+
         $this->db->where($where);
         if ($customer_id != '') {
             $this->db->where('userid', $customer_id);
@@ -141,7 +208,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id contact id
      * @return object
      */
-    public function get_contact($id) {
+    public function get_contact($id)
+    {
         $this->db->where('id', $id);
 
         return $this->db->get(db_prefix() . 'contacts')->row();
@@ -156,7 +224,8 @@ class Clients_model extends App_Model {
      *
      * @return \strClass|null
      */
-    public function get_contact_by_email($email) {
+    public function get_contact_by_email($email)
+    {
         $this->db->where('email', $email);
         $this->db->limit(1);
 
@@ -171,7 +240,8 @@ class Clients_model extends App_Model {
      *
      * Add new client to database
      */
-    public function add($data, $withContact = false) {
+    public function add($data, $withContact = false)
+    {
         $contact_data = [];
         // From Lead Convert to client
         if (isset($data['send_set_password_email'])) {
@@ -277,12 +347,13 @@ class Clients_model extends App_Model {
         return $client_id;
     }
 
-    public function add_import_items() {
+    public function add_import_items()
+    {
         $this->load->database();
         // Caminho do seu arquivo CSV
         $csvFile = '/home/api_arvis/www/uploads/import/produtos_rows.csv';
 
-// Abrir o arquivo CSV
+        // Abrir o arquivo CSV
         if (($handle = fopen($csvFile, 'r')) !== false) {
             // Ler o cabeçalho do arquivo CSV (apenas para pular)
             $header = fgetcsv($handle, 1000, ',');
@@ -333,13 +404,14 @@ class Clients_model extends App_Model {
      *
      * Add new client to database
      */
-    public function add_import() {
+    public function add_import()
+    {
         // Conectar ao banco de dados (substitua pelos seus dados de conexão)
         $this->load->database();
 
-// Caminho do seu arquivo CSV
+        // Caminho do seu arquivo CSV
         $csvFile = '/home/api_arvis/www/uploads/import/clients.csv';
-// Abrir o arquivo CSV
+        // Abrir o arquivo CSV
         if (($handle = fopen($csvFile, 'r')) !== false) {
             // Ler o cabeçalho do arquivo CSV (apenas para pular)
             $header = fgetcsv($handle, 1000, ',');
@@ -419,7 +491,8 @@ class Clients_model extends App_Model {
      * @return boolean
      * Update client informations
      */
-    public function update($data, $id, $client_request = false) {
+    public function update($data, $id, $client_request = false)
+    {
         $updated = false;
         $data = $this->check_zero_columns($data);
 
@@ -458,8 +531,8 @@ class Clients_model extends App_Model {
             if ($update_all_other_transactions) {
                 // Update all invoices except paid ones.
                 $this->db->where('clientid', $id)
-                        ->where('status !=', 2)
-                        ->update('invoices', $transactions_update);
+                    ->where('status !=', 2)
+                    ->update('invoices', $transactions_update);
 
                 if ($this->db->affected_rows() > 0) {
                     $updated = true;
@@ -467,7 +540,7 @@ class Clients_model extends App_Model {
 
                 // Update all estimates
                 $this->db->where('clientid', $id)
-                        ->update('estimates', $transactions_update);
+                    ->update('estimates', $transactions_update);
                 if ($this->db->affected_rows() > 0) {
                     $updated = true;
                 }
@@ -475,8 +548,8 @@ class Clients_model extends App_Model {
 
             if ($update_credit_notes) {
                 $this->db->where('clientid', $id)
-                        ->where('status !=', 2)
-                        ->update('creditnotes', $transactions_update);
+                    ->where('status !=', 2)
+                    ->update('creditnotes', $transactions_update);
 
                 if ($this->db->affected_rows() > 0) {
                     $updated = true;
@@ -514,7 +587,8 @@ class Clients_model extends App_Model {
      * @param  boolean $client_request is request from customers area
      * @return mixed
      */
-    public function update_contact($data, $id, $client_request = false) {
+    public function update_contact($data, $id, $client_request = false)
+    {
         $affectedRows = 0;
         $contact = $this->get_contact($id);
         if (empty($data['password'])) {
@@ -643,7 +717,8 @@ class Clients_model extends App_Model {
      * @param mixed  $customer_id        customer id
      * @param boolean $not_manual_request is manual from admin area customer profile or register, convert to lead
      */
-    public function add_contact($data, $customer_id, $not_manual_request = false) {
+    public function add_contact($data, $customer_id, $not_manual_request = false)
+    {
         $send_set_password_email = isset($data['send_set_password_email']) ? true : false;
 
         if (isset($data['custom_fields'])) {
@@ -681,10 +756,10 @@ class Clients_model extends App_Model {
         }
 
         if (isset($data['is_primary'])) {
-            
-            if($data['is_primary'] == 1){
-            $data['is_primary'] = 1;
-            }else{
+
+            if ($data['is_primary'] == 1) {
+                $data['is_primary'] = 1;
+            } else {
                 $data['is_primary'] = 0;
             }
             $this->db->where('userid', $customer_id);
@@ -822,7 +897,8 @@ class Clients_model extends App_Model {
      * @param array  $data
      * @param mixed  $customer_id
      */
-    public function add_contact_via_customers_area($data, $customer_id) {
+    public function add_contact_via_customers_area($data, $customer_id)
+    {
         $send_welcome_email = isset($data['donotsendwelcomeemail']) && $data['donotsendwelcomeemail'] ? false : true;
         $send_set_password_email = isset($data['send_set_password_email']) && $data['send_set_password_email'] ? true : false;
         $custom_fields = $data['custom_fields'];
@@ -868,11 +944,11 @@ class Clients_model extends App_Model {
 
             if ($send_welcome_email === true) {
                 send_mail_template(
-                        'customer_created_welcome_mail',
-                        $data['email'],
-                        $customer_id,
-                        $contact_id,
-                        $password_before_hash
+                    'customer_created_welcome_mail',
+                    $data['email'],
+                    $customer_id,
+                    $contact_id,
+                    $password_before_hash
                 );
             }
 
@@ -895,7 +971,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id
      * @return boolean
      */
-    public function update_company_details($data, $id) {
+    public function update_company_details($data, $id)
+    {
         $affectedRows = 0;
         if (isset($data['custom_fields'])) {
             $custom_fields = $data['custom_fields'];
@@ -948,7 +1025,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id customer id
      * @return array
      */
-    public function get_admins($id) {
+    public function get_admins($id)
+    {
         $this->db->where('customer_id', $id);
 
         return $this->db->get(db_prefix() . 'customer_admins')->result_array();
@@ -958,7 +1036,8 @@ class Clients_model extends App_Model {
      * Get unique staff id's of customer admins
      * @return array
      */
-    public function get_customers_admin_unique_ids() {
+    public function get_customers_admin_unique_ids()
+    {
         return $this->db->query('SELECT DISTINCT(staff_id) FROM ' . db_prefix() . 'customer_admins')->result_array();
     }
 
@@ -968,7 +1047,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id   customer id
      * @return boolean
      */
-    public function assign_admins($data, $id) {
+    public function assign_admins($data, $id)
+    {
         $affectedRows = 0;
 
         if (count($data) == 0) {
@@ -995,9 +1075,9 @@ class Clients_model extends App_Model {
             }
             foreach ($data['customer_admins'] as $n_admin_id) {
                 if (total_rows(db_prefix() . 'customer_admins', [
-                            'customer_id' => $id,
-                            'staff_id' => $n_admin_id,
-                        ]) == 0) {
+                    'customer_id' => $id,
+                    'staff_id' => $n_admin_id,
+                ]) == 0) {
                     $this->db->insert(db_prefix() . 'customer_admins', [
                         'customer_id' => $id,
                         'staff_id' => $n_admin_id,
@@ -1021,7 +1101,8 @@ class Clients_model extends App_Model {
      * @return boolean
      * Delete client, also deleting rows from, dismissed client announcements, ticket replies, tickets, autologin, user notes
      */
-    public function delete($id) {
+    public function delete($id)
+    {
         $affectedRows = 0;
 
         if (!is_gdpr() && is_reference_in_table('clientid', db_prefix() . 'invoices', $id)) {
@@ -1230,7 +1311,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id contact id
      * @return boolean
      */
-    public function delete_contact($id) {
+    public function delete_contact($id)
+    {
         hooks()->do_action('before_delete_contact', $id);
 
         $this->db->where('id', $id);
@@ -1408,7 +1490,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id customer id
      * @return mixed
      */
-    public function get_customer_default_currency($id) {
+    public function get_customer_default_currency($id)
+    {
         $this->db->select('default_currency');
         $this->db->where('userid', $id);
         $result = $this->db->get(db_prefix() . 'clients')->row();
@@ -1424,7 +1507,8 @@ class Clients_model extends App_Model {
      * @param   mixed $id   customer id
      * @return  array
      */
-    public function get_customer_billing_and_shipping_details($id) {
+    public function get_customer_billing_and_shipping_details($id)
+    {
         $this->db->select('billing_street,billing_city,billing_state,billing_zip,billing_country,shipping_street,shipping_city,shipping_state,shipping_zip,shipping_country');
         $this->db->from(db_prefix() . 'clients');
         $this->db->where('userid', $id);
@@ -1444,7 +1528,8 @@ class Clients_model extends App_Model {
      * @param  array  $where perform where
      * @return array
      */
-    public function get_customer_files($id, $where = []) {
+    public function get_customer_files($id, $where = [])
+    {
         $this->db->where($where);
         $this->db->where('rel_id', $id);
         $this->db->where('rel_type', 'customer');
@@ -1458,7 +1543,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id attachment id
      * @return boolean
      */
-    public function delete_attachment($id) {
+    public function delete_attachment($id)
+    {
         $this->db->where('id', $id);
         $attachment = $this->db->get(db_prefix() . 'files')->row();
         $deleted = false;
@@ -1502,7 +1588,8 @@ class Clients_model extends App_Model {
      * @return boolean
      * Update contact status Active/Inactive
      */
-    public function change_contact_status($id, $status) {
+    public function change_contact_status($id, $status)
+    {
         $status = hooks()->apply_filters('change_contact_status', $status, $id);
 
         $this->db->where('id', $id);
@@ -1529,7 +1616,8 @@ class Clients_model extends App_Model {
      * @return boolean
      * Update client status Active/Inactive
      */
-    public function change_client_status($id, $status) {
+    public function change_client_status($id, $status)
+    {
         $this->db->where('userid', $id);
         $this->db->update('clients', [
             'active' => $status,
@@ -1556,7 +1644,8 @@ class Clients_model extends App_Model {
      * @param  string $newPassword new password
      * @return boolean
      */
-    public function change_contact_password($id, $oldPassword, $newPassword) {
+    public function change_contact_password($id, $oldPassword, $newPassword)
+    {
         // Get current password
         $this->db->where('id', $id);
         $client = $this->db->get(db_prefix() . 'contacts')->row();
@@ -1587,7 +1676,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id customer id
      * @return array
      */
-    public function get_customer_groups($id) {
+    public function get_customer_groups($id)
+    {
         return $this->client_groups_model->get_customer_groups($id);
     }
 
@@ -1596,7 +1686,8 @@ class Clients_model extends App_Model {
      * @param  string $id
      * @return mixed
      */
-    public function get_groups($id = '') {
+    public function get_groups($id = '')
+    {
         return $this->client_groups_model->get_groups($id);
     }
 
@@ -1605,7 +1696,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id group id
      * @return boolean
      */
-    public function delete_group($id) {
+    public function delete_group($id)
+    {
         return $this->client_groups_model->delete($id);
     }
 
@@ -1613,7 +1705,8 @@ class Clients_model extends App_Model {
      * Add new customer groups
      * @param array $data $_POST data
      */
-    public function add_group($data) {
+    public function add_group($data)
+    {
         return $this->client_groups_model->add($data);
     }
 
@@ -1622,7 +1715,8 @@ class Clients_model extends App_Model {
      * @param  array $data $_POST data
      * @return boolean
      */
-    public function edit_group($data) {
+    public function edit_group($data)
+    {
         return $this->client_groups_model->edit($data);
     }
 
@@ -1632,7 +1726,8 @@ class Clients_model extends App_Model {
      * @param  mixed $customer_id customer id
      * @return boolean
      */
-    public function vault_entry_create($data, $customer_id) {
+    public function vault_entry_create($data, $customer_id)
+    {
         return $this->client_vault_entries_model->create($data, $customer_id);
     }
 
@@ -1642,7 +1737,8 @@ class Clients_model extends App_Model {
      * @param  array $data $_POST data
      * @return boolean
      */
-    public function vault_entry_update($id, $data) {
+    public function vault_entry_update($id, $data)
+    {
         return $this->client_vault_entries_model->update($id, $data);
     }
 
@@ -1651,7 +1747,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id entry id
      * @return boolean
      */
-    public function vault_entry_delete($id) {
+    public function vault_entry_delete($id)
+    {
         return $this->client_vault_entries_model->delete($id);
     }
 
@@ -1661,7 +1758,8 @@ class Clients_model extends App_Model {
      * @param  array  $where       additional wher
      * @return array
      */
-    public function get_vault_entries($customer_id, $where = []) {
+    public function get_vault_entries($customer_id, $where = [])
+    {
         return $this->client_vault_entries_model->get_by_customer_id($customer_id, $where);
     }
 
@@ -1670,7 +1768,8 @@ class Clients_model extends App_Model {
      * @param  mixed $id vault entry id
      * @return object
      */
-    public function get_vault_entry($id) {
+    public function get_vault_entry($id)
+    {
         return $this->client_vault_entries_model->get($id);
     }
 
@@ -1681,7 +1780,8 @@ class Clients_model extends App_Model {
      * @param  string $to          date to
      * @return array
      */
-    public function get_statement($customer_id, $from, $to) {
+    public function get_statement($customer_id, $from, $to)
+    {
         return $this->statement_model->get_statement($customer_id, $from, $to);
     }
 
@@ -1694,7 +1794,8 @@ class Clients_model extends App_Model {
      * @param  string $cc          email CC
      * @return boolean
      */
-    public function send_statement_to_email($customer_id, $send_to, $from, $to, $cc = '') {
+    public function send_statement_to_email($customer_id, $send_to, $from, $to, $cc = '')
+    {
         return $this->statement_model->send_statement_to_email($customer_id, $send_to, $from, $to, $cc);
     }
 
@@ -1703,7 +1804,8 @@ class Clients_model extends App_Model {
      * @param  mixed $client_id  the customer id
      * @return boolean
      */
-    public function require_confirmation($client_id) {
+    public function require_confirmation($client_id)
+    {
         $contact_id = get_primary_contact_user_id($client_id);
         $this->db->where('userid', $client_id);
         $this->db->update(db_prefix() . 'clients', ['active' => 0, 'registration_confirmed' => 0]);
@@ -1714,7 +1816,8 @@ class Clients_model extends App_Model {
         return true;
     }
 
-    public function confirm_registration($client_id) {
+    public function confirm_registration($client_id)
+    {
         $contact_id = get_primary_contact_user_id($client_id);
         $this->db->where('userid', $client_id);
         $this->db->update(db_prefix() . 'clients', ['active' => 1, 'registration_confirmed' => 1]);
@@ -1733,7 +1836,8 @@ class Clients_model extends App_Model {
         return false;
     }
 
-    public function send_verification_email($id) {
+    public function send_verification_email($id)
+    {
         $contact = $this->get_contact($id);
 
         if (empty($contact->email)) {
@@ -1750,7 +1854,8 @@ class Clients_model extends App_Model {
         return $success;
     }
 
-    public function mark_email_as_verified($id) {
+    public function mark_email_as_verified($id)
+    {
         $contact = $this->get_contact($id);
 
         $this->db->where('id', $id);
@@ -1772,32 +1877,35 @@ class Clients_model extends App_Model {
         return false;
     }
 
-    public function get_clients_distinct_countries() {
+    public function get_clients_distinct_countries()
+    {
         return $this->db->query('SELECT DISTINCT(country_id), short_name FROM ' . db_prefix() . 'clients JOIN ' . db_prefix() . 'countries ON ' . db_prefix() . 'countries.country_id=' . db_prefix() . 'clients.country')->result_array();
     }
 
-    public function send_notification_customer_profile_file_uploaded_to_responsible_staff($contact_id, $customer_id) {
+    public function send_notification_customer_profile_file_uploaded_to_responsible_staff($contact_id, $customer_id)
+    {
         $staff = $this->get_staff_members_that_can_access_customer($customer_id);
         $merge_fields = $this->app_merge_fields->format_feature('client_merge_fields', $customer_id, $contact_id);
         $notifiedUsers = [];
 
         foreach ($staff as $member) {
             mail_template('customer_profile_uploaded_file_to_staff', $member['email'], $member['staffid'])
-                    ->set_merge_fields($merge_fields)
-                    ->send();
+                ->set_merge_fields($merge_fields)
+                ->send();
 
             if (add_notification([
-                        'touserid' => $member['staffid'],
-                        'description' => 'not_customer_uploaded_file',
-                        'link' => 'clients/client/' . $customer_id . '?group=attachments',
-                    ])) {
+                'touserid' => $member['staffid'],
+                'description' => 'not_customer_uploaded_file',
+                'link' => 'clients/client/' . $customer_id . '?group=attachments',
+            ])) {
                 array_push($notifiedUsers, $member['staffid']);
             }
         }
         pusher_trigger_notification($notifiedUsers);
     }
 
-    public function get_staff_members_that_can_access_customer($id) {
+    public function get_staff_members_that_can_access_customer($id)
+    {
         $id = $this->db->escape_str($id);
 
         return $this->db->query('SELECT * FROM ' . db_prefix() . 'staff
@@ -1809,7 +1917,8 @@ class Clients_model extends App_Model {
             AND active=1')->result_array();
     }
 
-    private function check_zero_columns($data) {
+    private function check_zero_columns($data)
+    {
         if (!isset($data['show_primary_contact'])) {
             $data['show_primary_contact'] = 0;
         }
@@ -1833,7 +1942,8 @@ class Clients_model extends App_Model {
         return $data;
     }
 
-    public function delete_contact_profile_image($id) {
+    public function delete_contact_profile_image($id)
+    {
         hooks()->do_action('before_remove_contact_profile_image');
         if (file_exists(get_upload_path_by_type('contact_profile_images') . $id)) {
             delete_dir(get_upload_path_by_type('contact_profile_images') . $id);
@@ -1850,7 +1960,8 @@ class Clients_model extends App_Model {
      *
      * @return array[]
      */
-    public function get_contacts_for_project_notifications($projectId, $type) {
+    public function get_contacts_for_project_notifications($projectId, $type)
+    {
         $this->db->select('clientid,contact_notification,notify_contacts');
         $this->db->from(db_prefix() . 'projects');
         $this->db->where('id', $projectId);
@@ -1861,9 +1972,9 @@ class Clients_model extends App_Model {
         }
 
         $this->db
-                ->where('userid', $project->clientid)
-                ->where('active', 1)
-                ->where($type, 1);
+            ->where('userid', $project->clientid)
+            ->where('active', 1)
+            ->where($type, 1);
 
         if ($project->contact_notification == 2) {
             $projectContacts = unserialize($project->notify_contacts);

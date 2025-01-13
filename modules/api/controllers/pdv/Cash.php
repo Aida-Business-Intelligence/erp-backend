@@ -17,247 +17,18 @@ require __DIR__ . '/../REST_Controller.php';
  * @license         MIT
  * @link            https://github.com/chriskacerguis/codeigniter-restserver
  */
-class Settings extends REST_Controller
+class Cash extends REST_Controller
 {
 
     function __construct()
     {
         // Construct the parent class
         parent::__construct();
-        // $this->load->model('Carriers_model');
+        $this->load->model('cashs_model');
     }
-
-
-    public function options_get()
-    {
-        $data = [
-            [
-                "type" => "menu",
-                "category" => "system",
-                "list" => [
-                    "menu" => [
-                        [
-                            "value" => "indice",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:home",
-                            "width" => "",
-                            "path" => "/indice"
-                        ],
-                        [
-                            "value" => "dashboard",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:chart-pie",
-                            "width" => "",
-                            "path" => "/dashboard"
-                        ],
-                        [
-                            "value" => "products",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:album",
-                            "width" => "",
-                            "path" => "/products"
-                        ],
-                        [
-                            "value" => "categories",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:table-properties",
-                            "width" => "",
-                            "path" => "/categories"
-                        ],
-                        [
-                            "value" => "cash",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:shopping-cart",
-                            "width" => "",
-                            "path" => "/cash"
-                        ],
-                        [
-                            "value" => "pdv",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:shopping-cart",
-                            "width" => "",
-                            "path" => "/pdv"
-                        ],
-                        [
-                            "value" => "transactions",
-                            "label" => "Transações",
-                            "color" => "",
-                            "icon" => "lucide:receipt",
-                            "width" => "",
-                            "path" => "/transactions"
-                        ],
-                        [
-                            "value" => "clients",
-                            "label" => "my_account",
-                            "color" => "",
-                            "icon" => "lucide:book-user",
-                            "width" => "",
-                            "path" => "/client"
-                        ],
-                        [
-                            "value" => "product_1",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/produto"
-                        ],
-                        [
-                            "value" => "financial",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:credit-card",
-                            "width" => "",
-                            "path" => "/financial"
-                        ],
-                        [
-                            "value" => "sales_orders",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:shopping-bag",
-                            "width" => "",
-                            "path" => "/sales-orders"
-                        ],
-                        [
-                            "value" => "reports",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:file-text",
-                            "width" => "",
-                            "path" => "/reports"
-                        ],
-                        [
-                            "value" => "users",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:users",
-                            "width" => "",
-                            "path" => "/admin/user/list"
-                        ],
-                        [
-                            "value" => "languages",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:globe-2",
-                            "width" => "",
-                            "path" => "/admin/languages"
-                        ],
-                        [
-                            "value" => "options",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:sliders-horizontal",
-                            "width" => "",
-                            "path" => "/admin/options"
-                        ],
-                        [
-                            "value" => "config",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:settings",
-                            "width" => "",
-                            "path" => "/admin/config"
-                        ],
-                        [
-                            "value" => "emails",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:mail",
-                            "width" => "",
-                            "path" => "/admin/emails"
-                        ],
-                        [
-                            "value" => "apis",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:unlock-keyhole",
-                            "width" => "",
-                            "path" => "/admin/apis"
-                        ]
-                    ]
-                ]
-            ],
-            [
-                "type" => "status",
-                "category" => "system",
-                "list" => [
-                    "status" => [
-                        [
-                            "value" => "indice",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:home",
-                            "width" => "",
-                            "path" => "/indice"
-                        ],
-                        [
-                            "value" => "active",
-                            "label" => "Active",
-                            "color" => "success",
-                            "icon" => "solar:check-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "inactive",
-                            "label" => "Pending",
-                            "color" => "warning",
-                            "icon" => "solar:clock-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "banned",
-                            "label" => "Banned",
-                            "color" => "error",
-                            "icon" => "solar:ban-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "rejected",
-                            "label" => "Rejected",
-                            "color" => "default",
-                            "icon" => "solar:close-circle-bold",
-                            "width" => "",
-                            "path" => ""
-                        ]
-                    ]
-                ]
-            ]
-        ];
-
-
-        $this->response($data, REST_Controller::HTTP_OK);
-    }
-
-    public function config_get()
-    {
-
-        $data = [
-            "appName" => "Sobre",
-            "logoDark" => null,
-            "logoLight" => null,
-            "iconDark" => null,
-            "iconLight" => null
-        ];
-
-
-        $this->response($data, REST_Controller::HTTP_OK);
-    }
-
-
-
-
 
     /**
-     * @api {get} api/customers/:id Request customer information
+     * @api {get} api/client/:id Request customer information
      * @apiName GetCustomer
      * @apiGroup Customer
      *
@@ -303,26 +74,44 @@ class Settings extends REST_Controller
      *       "message": "No data were found"
      *     }
      */
-    public function data_get($id = '')
+    public function list_post($id = '')
     {
 
+        /*
+          $this->load->model('clients_model');
 
+          $this->clients_model->add_import_items();
+          exit;
+         * 
+         */
 
-        $page = $this->get('page') ? (int) $this->get('page') : 1; // Página atual, padrão 1
-        $limit = $this->get('limit') ? (int) $this->get('limit') : 10; // Itens por página, padrão 10
-        $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->get('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
 
+        $page = $page + 1;
 
-        $data = $this->Carriers_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
+        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
+        $sortField = $this->post('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $data = $this->cashs_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        
+        if ($data['total'] == 0) {
 
-        if ($data) {
-            $this->response(['total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
-        } else {
             $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+
+            if ($data) {
+                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
         }
+           
+        
     }
+    
+
+
 
     /**
      * @api {post} api/customers Add New Customer
@@ -405,28 +194,51 @@ class Settings extends REST_Controller
      *     }
      *
      */
-    public function data_post()
-    {
 
+
+    public function create_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
+        $_input['vat'] = $_POST['documentNumber'] ?? null;
+        $_input['email_default'] = $_POST['email'] ?? null;
+        $_input['phonenumber'] = $_POST['primaryPhone'] ?? null;
+        $_input['zip'] = $_POST['cep'] ?? null;
+        $_input['billing_street'] = $_POST['street'] ?? null;
+        $_input['billing_city'] = $_POST['city'] ?? null;
+        $_input['billing_state'] = $_POST['state'] ?? null;
+        $_input['billing_number'] = $_POST['number'] ?? null;
+        $_input['billing_complement'] = $_POST['complement'] ?? null;
+        $_input['billing_neighborhood'] = $_POST['neighborhood'] ?? null;
+        $_input['company'] = $_POST['fullName'] ?? null;
+        $_POST['company'] = $_POST['fullName'] ?? null;
 
-        $this->load->model('Carriers_model');
-        $this->form_validation->set_rules('nome', 'nome', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Company'));
+
+
+        $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
+
+        // email
+        $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
+
+
         if ($this->form_validation->run() == FALSE) {
             // form validation error
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
 
-            $output = $this->Carriers_model->add($_POST);
 
+            $output = $this->cashs_model->add($_input);
             if ($output > 0 && !empty($output)) {
                 // success
-                $message = array('status' => TRUE, 'message' => 'Carrier add successful.', 'data' => $output);
+                $message = array('status' => 'success', 'message' => 'auth_signup_success', 'data' => $this->cashs_model->get($output));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                $this->response('Error', REST_Controller::HTTP_NOT_ACCEPTABLE);
+                // error
+                $message = array('status' => FALSE, 'message' => 'Cash add fail.');
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
         }
     }
@@ -460,26 +272,112 @@ class Settings extends REST_Controller
      *       "message": "Customer Delete Fail."
      *     }
      */
-    public function data_delete($id = '')
+    public function remove_post()
     {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $id = $this->security->xss_clean($id);
-        if (empty($id) && !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Address ID');
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        } else {
-            // delete data
-            $this->load->model('Carriers_model');
-            $output = $this->Carriers_model->delete($id);
-            if ($output === TRUE) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Carrier Delete Successful.');
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Carrier Delete Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        if (!isset($_POST['rows']) || empty($_POST['rows'])) {
+            $message = array('status' => FALSE, 'message' => 'Invalid request: rows array is required');
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $ids = $_POST['rows'];
+        $success_count = 0;
+        $failed_ids = [];
+
+        foreach ($ids as $id) {
+            $id = $this->security->xss_clean($id);
+
+            if (empty($id) || !is_numeric($id)) {
+                $failed_ids[] = $id;
+                continue;
             }
+
+            $output = $this->cashs_model->delete($id);
+            if ($output === TRUE) {
+                $success_count++;
+            } else {
+                $failed_ids[] = $id;
+            }
+        }
+
+        if ($success_count > 0) {
+            $message = array(
+                'status' => TRUE,
+                'message' => $success_count . ' customer(s) deleted successfully'
+            );
+            if (!empty($failed_ids)) {
+                $message['failed_ids'] = $failed_ids;
+            }
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array(
+                'status' => FALSE,
+                'message' => 'Failed to delete customers',
+                'failed_ids' => $failed_ids
+            );
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    /**
+     * @api {get} api/pdv/client/get/:id Get Client by ID
+     * @apiName GetClient
+     * @apiGroup Client
+     *
+     * @apiHeader {String} Authorization Basic Access Authentication token.
+     *
+     * @apiParam {Number} id Client unique ID.
+     *
+     * @apiSuccess {Boolean} status Request status.
+     * @apiSuccess {Object} data Client information.
+     *
+     * @apiSuccessExample Success-Response:
+     *     HTTP/1.1 200 OK
+     *     {
+     *       "status": true,
+     *       "data": {
+     *         "userid": "1",
+     *         "company": "Test Company",
+     *         "vat": "123456789",
+     *         "phonenumber": "123-456-7890",
+     *         ...
+     *       }
+     *     }
+     *
+     * @apiError {Boolean} status Request status.
+     * @apiError {String} message No data were found.
+     *
+     * @apiErrorExample Error-Response:
+     *     HTTP/1.1 404 Not Found
+     *     {
+     *       "status": false,
+     *       "message": "No data were found"
+     *     }
+     */
+    public function get_get($id = '')
+    {
+        if (empty($id) || !is_numeric($id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid Cash ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $cash = $this->Cashs_model->get($id);
+
+        if ($cash) {
+            $this->response([
+                'status' => TRUE,
+                'data' => $cash
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No data were found'
+            ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
 
@@ -558,8 +456,10 @@ class Settings extends REST_Controller
      *       "message": "Customer Update Fail."
      *     }
      */
-    public function data_put($id = '')
+    public function update_put($id = '')
     {
+
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST) || !isset($_POST)) {
@@ -567,18 +467,17 @@ class Settings extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
         }
         $this->form_validation->set_data($_POST);
-
         if (empty($id) && !is_numeric($id)) {
             $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
             $update_data = $this->input->post();
             // update data
-            $this->load->model('Carriers_model');
-            $output = $this->Carriers_model->update($update_data, $id);
+            $this->load->model('cashs_model');
+            $output = $this->cashs_model->update($update_data, $id);
             if ($output > 0 && !empty($output)) {
                 // success
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->Carriers_model->get($id));
+                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->cashs_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 // error

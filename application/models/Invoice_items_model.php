@@ -101,23 +101,22 @@ class Invoice_items_model extends App_Model
 
         return $this->db->get()->result_array();
     }
-    
+
     public function get_item($id = '')
     {
-       $this->db->from(db_prefix() . 'items');
-            $this->db->where(db_prefix() . 'items.id', $id);
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where(db_prefix() . 'items.id', $id);
 
-            return $this->db->get()->row();
-       
-
+        return $this->db->get()->row();
     }
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC') {
-        // Correctly specify the table for the join and order by
-        $this->db->select('items.id as itemid, items.rate,');  //removed redundant ','
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $statusFilter = null)
+    {
+        $this->db->select('items.id as itemid, items.rate,');
         $this->db->select('t1.taxrate as taxrate, t1.id as taxid, t1.name as taxname,');
         $this->db->select('t2.taxrate as taxrate_2, t2.id as taxid_2, t2.name as taxname_2,');
         $this->db->select('items.description, items.long_description, items.group_id, items_groups.name as group_name, items.unit');
+        $this->db->select('items.sku_code, items.image, items.barcode, items.status, items.cost, items.promoPrice, items.promoStart, items.promoEnd, items.stock, items.minStock, items.product_unit, items.createdAt, items.updatedAt');
 
         $this->db->from('items');
         $this->db->join('taxes t1', 't1.id = items.tax', 'left');
@@ -129,6 +128,11 @@ class Invoice_items_model extends App_Model
             $item = $this->db->get()->row();
             return ['data' => (array) $item, 'total' => ($item) ? 1 : 0];
         } else {
+            // Add status filter
+            if (!empty($statusFilter) && is_array($statusFilter)) {
+                $this->db->where_in('items.status', $statusFilter);
+            }
+
             if (!empty($search)) {
                 $this->db->group_start();
                 $this->db->like('items.description', $search);
@@ -142,7 +146,14 @@ class Invoice_items_model extends App_Model
 
             $items = $this->db->get()->result_array();
 
-            $this->db->reset_query();
+            // Get total count with same filters but without limit
+            $this->db->select('COUNT(*) as total');
+            $this->db->from('items');
+
+            if (!empty($statusFilter) && is_array($statusFilter)) {
+                $this->db->where_in('items.status', $statusFilter);
+            }
+
             if (!empty($search)) {
                 $this->db->group_start();
                 $this->db->like('items.description', $search);
@@ -151,8 +162,6 @@ class Invoice_items_model extends App_Model
                 $this->db->group_end();
             }
 
-            $this->db->select('COUNT(*) as total');
-            $this->db->from('items');
             $result = $this->db->get()->row();
             $total = $result->total;
 
@@ -353,11 +362,23 @@ class Invoice_items_model extends App_Model
         return false;
     }
 
-    public function get_groups()
+    public function get_groups($page = 1, $limit = 10, $search = '', $sortOrder = 'ASC')
     {
-        $this->db->order_by('name', 'asc');
+        $this->db->select('id, name');
+        $this->db->from(db_prefix() . 'items_groups');
 
-        return $this->db->get(db_prefix() . 'items_groups')->result_array();
+        if (!empty($search)) {
+            $this->db->like('name', $search);
+        }
+
+        $total = $this->db->count_all_results('', false);
+
+        $this->db->order_by('name', $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $groups = $this->db->get()->result_array();
+
+        return ['data' => $groups, 'total' => $total];
     }
 
     public function add_group($data)

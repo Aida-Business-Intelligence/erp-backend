@@ -136,16 +136,14 @@ class Invoices_model extends App_Model
 
         return $this->db->get()->result_array();
     }
-    
-    
-     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
-         
 
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
         if (!is_numeric($id)) {
             // Adicionar condições de busca
             if (!empty($search)) {
                 $this->db->group_start(); // Começa um agrupamento de condição
-                $this->db->like('number', $search); // Busca pelo campo 'company'
+                $this->db->like('number', $search);
                 $this->db->or_like('duedate', $search);
                 $this->db->or_like('total', $search);
                 $this->db->group_end(); // Fecha o agrupamento de condição
@@ -157,35 +155,48 @@ class Invoices_model extends App_Model
             // Implementar a limitação e o deslocamento
             $this->db->limit($limit, ($page - 1) * $limit);
 
-            // Obtenha todos os clientes
-            $clients = $this->db->get(db_prefix() . 'invoices')->result_array();
+            // Fazer o JOIN nas tabelas users e suppliers
+            $this->db->select('
+            invoices.*,
+            clients.company as customer,
+            s.company as supplier
+        ');
+            $this->db->from(db_prefix() . 'invoices as invoices');
+            $this->db->join(db_prefix() . 'clients as clients', 'invoices.clientid = clients.userid', 'left');
+            $this->db->join(db_prefix() . 'clients as s', 'invoices.supplier_id = s.userid', 'left');
+
+            // Obtenha todos os resultados
+            $clients = $this->db->get()->result_array();
 
             // Contar o total de clientes (considerando a busca)
             $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
 
             if (!empty($search)) {
-                // Condições de busca para contar os resultados
-                $this->db->group_start(); // Começa um agrupamento de condição
-               $this->db->like('number', $search); // Busca pelo campo 'company'
+                $this->db->group_start();
+                $this->db->like('number', $search);
                 $this->db->or_like('duedate', $search);
-                $this->db->or_like('total', $search);    $this->db->group_end(); // Fecha o agrupamento de condição
+                $this->db->or_like('total', $search);
+                $this->db->group_end();
             }
 
-            // Seleciona o total de clientes
-            $this->db->select('COUNT(*) as total');
-            $total = $this->db->get(db_prefix() . 'invoices')->row()->total;
+            $this->db->from(db_prefix() . 'invoices as invoices');
+            $this->db->join(db_prefix() . 'clients as clients', 'invoices.clientid = clients.userid', 'left');
+            $this->db->join(db_prefix() . 'clients as s', 'invoices.supplier_id = s.userid', 'left');
 
-            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
+            foreach ($clients as $key => $client)
+            {
+                $items= $this->get_items_invoices($client['id']);
+                $clients[$key]['items'] = $items;
+            }
+
+            $total = count($clients);
+
+            return ['data' => $clients, 'total' => $total];
         } else {
-
-
-
-
             return ['data' => (array) $this->get($id), 'total' => 1];
         }
-
-        // (O resto do código existente para quando $id é válido)
     }
+
 
     /**
      * Get invoice by id
@@ -249,7 +260,16 @@ class Invoices_model extends App_Model
 
         return $this->db->get(db_prefix() . 'itemable')->row();
     }
+    public function get_items_invoices($id)
+    {
+        $this->db->select('
+            sum(qty)as qty,sum(qty_provided) as qty_provided
+        ');
+        $this->db->where('rel_id', $id);
+        $this->db->where('rel_type', 'invoice');
 
+        return $this->db->get(db_prefix() . 'itemable')->row();
+    }
     public function mark_as_cancelled($id)
     {
         $isDraft = $this->is_draft($id);

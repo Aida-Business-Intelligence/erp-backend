@@ -68,19 +68,19 @@ class Expenses extends REST_Controller {
      * @apiErrorExample Error-Response:
      *     HTTP/1.1 404 Not Found
      *     {
-     *       "status": false,
+     *       "status": faget
      *       "message": "No data were found"
      *     }
      */
-    public function list_post() {
+    public function list_get() {
 
         // Pegando os parâmetros de entrada
-        $page = $this->post('page') ? (int) $this->post('page') : 0;
+        $page = $this->get('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $search = $this->post('search') ?: ''; // Parâmetro de busca
-        $sortField = $this->post('sortField') ?: db_prefix() . 'expenses.id'; // Ordenação padrão pelo campo 'id' da tabela de despesas
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, crescente por padrão
+        $limit = $this->get('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->get('search') ?: ''; // Parâmetro de busca
+        $sortField = $this->get('sortField') ?: db_prefix() . 'expenses.id'; // Ordenação padrão pelo campo 'id' da tabela de despesas
+        $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, crescente por padrão
 
         // Configurando a query com base no contexto de despesas
         $this->db->select('*,' . db_prefix() . 'expenses.id as id,' . db_prefix() . 'expenses_categories.name as category_name,' . db_prefix() . 'payment_modes.name as payment_mode_name,' . db_prefix() . 'taxes.name as tax_name, ' . db_prefix() . 'taxes.taxrate as taxrate,' . db_prefix() . 'taxes_2.name as tax_name2, ' . db_prefix() . 'taxes_2.taxrate as taxrate2, ' . db_prefix() . 'expenses.id as expenseid,' . db_prefix() . 'expenses.addedfrom as addedfrom, recurring_from');
@@ -120,12 +120,77 @@ class Expenses extends REST_Controller {
             }
             $total = $this->db->count_all_results();
 
-            // Respondendo com os dados e o total
             $this->response(['status' => TRUE, 'total' => $total, 'data' => $data], REST_Controller::HTTP_OK);
         }
     }
 
+    public function list_by_date_get() {
+        $page = $this->get('page') ? (int) $this->get('page') : 0;
+        $page = $page + 1;
+        $limit = $this->get('pageSize') ? (int) $this->get('pageSize') : 10;
+        $search = $this->get('search') ?: '';
+        $sortField = $this->get('sortField') ?: db_prefix() . 'expenses.id';
+        $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
+        $start_date = $this->get('start_date');
+        $end_date = $this->get('end_date');
+
+        $this->db->select('*,' . db_prefix() . 'expenses.id as id,' . db_prefix() . 'expenses_categories.name as category_name,' . db_prefix() . 'payment_modes.name as payment_mode_name,' . db_prefix() . 'taxes.name as tax_name, ' . db_prefix() . 'taxes.taxrate as taxrate,' . db_prefix() . 'taxes_2.name as tax_name2, ' . db_prefix() . 'taxes_2.taxrate as taxrate2, ' . db_prefix() . 'expenses.id as expenseid,' . db_prefix() . 'expenses.addedfrom as addedfrom, recurring_from');
+        $this->db->from(db_prefix() . 'expenses');
+        $this->db->join(db_prefix() . 'clients', '' . db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses.clientid', 'left');
+        $this->db->join(db_prefix() . 'payment_modes', '' . db_prefix() . 'payment_modes.id = ' . db_prefix() . 'expenses.paymentmode', 'left');
+        $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
+        $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category');
+
+        if (!empty($start_date))
+        {
+            $this->db->where('date >=', $start_date);
+        }
+        if (!empty($end_date))
+        {
+            $this->db->where('date <=', $end_date);
+        }
+
+        if (!empty($search))
+        {
+            $this->db->group_start();
+            $this->db->like('expenses.note', $search);
+            $this->db->or_like('clients.company', $search);
+            $this->db->or_like('expenses_categories.name', $search);
+            $this->db->group_end();
+        }
+
+        $this->db->order_by($sortField, $sortOrder);
+
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $data = $this->db->get()->result_array();
+
+        if (empty($data))
+        {
+            $this->response(['status' => FALSE, 'message' => 'Nenhum dado foi encontrado'], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        $this->db->from(db_prefix() . 'expenses');
+        if (!empty($search))
+        {
+            $this->db->like('expenses.note', $search);
+            $this->db->or_like('clients.company', $search);
+            $this->db->or_like('expenses_categories.name', $search);
+        }
+        if (!empty($start_date))
+        {
+            $this->db->where('date >=', $start_date);
+        }
+        if (!empty($end_date)) {
+            $this->db->where('date <=', $end_date);
+        }
+        $total = $this->db->count_all_results();
+
+        $this->response(['status' => TRUE, 'total' => $total, 'data' => $data], REST_Controller::HTTP_OK);
+    }
 
 
     private function format_currency($value) {
@@ -216,51 +281,63 @@ class Expenses extends REST_Controller {
 
 
     public function create_post() {
-
-
-
         \modules\api\core\Apiinit::the_da_vinci_code('api');
-// Recebendo e decodificando os dados
+
+        // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $_input['vat'] = $_POST['documentNumber'] ?? null;
-        $_input['email_default'] = $_POST['email'] ?? null;
-        $_input['phonenumber'] = $_POST['primaryPhone'] ?? null;
-        $_input['zip'] = $_POST['cep'] ?? null;
-        $_input['billing_street'] = $_POST['street'] ?? null;
-        $_input['billing_city'] = $_POST['city'] ?? null;
-        $_input['billing_state'] = $_POST['state'] ?? null;
-        $_input['billing_number'] = $_POST['number'] ?? null;
-        $_input['billing_complement'] = $_POST['complement'] ?? null;
-        $_input['billing_neighborhood'] = $_POST['neighborhood'] ?? null;
-        $_input['company'] = $_POST['fullName'] ?? null;
-        $_POST['company'] = $_POST['fullName'] ?? null;
+        // Validações obrigatórias
+        $this->form_validation->set_rules('category', 'Categoria', 'required');
+        $this->form_validation->set_rules('amount', 'Valor', 'required|numeric');
+        $this->form_validation->set_rules('date', 'Data', 'required');
+        $this->form_validation->set_rules('note', 'Descrição', 'required');
 
+        if ($this->form_validation->run() == FALSE) {
+            $message = array(
+                'status' => FALSE,
+                'error' => $this->form_validation->error_array(),
+                'message' => validation_errors()
+            );
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
+        }
+        else
+        {
+            // Preparando os dados para inserção
+            $data = array(
+                'category' => $this->input->post('category'),
+                'amount' => $this->input->post('amount'),
+                'date' => $this->input->post('date'),
+                'note' => $this->input->post('note'),
+                'clientid' => $this->input->post('clientid') ?? null,
+                'paymentmode' => $this->input->post('paymentmode') ?? null,
+                'tax' => $this->input->post('tax') ?? null,
+                'tax2' => $this->input->post('tax2') ?? null,
+                'reference_no' => $this->input->post('reference_no') ?? null,
+                'currency' => $this->input->post('currency') ?? get_base_currency(),
+                'addedfrom' => get_staff_user_id()
+            );
 
+            // Tentando criar a despesa
+            $expense_id = $this->Expenses_model->add($data);
 
-            $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
-
-            // email
-            $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
-            
-
-            if ($this->form_validation->run() == FALSE) {
-                // form validation error
-                $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            } else {
-                
-            
-                $output = $this->clients_model->add($_input);
-                if ($output > 0 && !empty($output)) {
-                    // success
-                    $message = array('status' => 'success', 'message' => 'auth_signup_success', 'data' => $this->clients_model->get($output));
-                    $this->response($message, REST_Controller::HTTP_OK);
-                } else {
-                    // error
-                    $message = array('status' => FALSE, 'message' => 'Client add fail.');
-                    $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-                }
+            if ($expense_id) {
+                // Sucesso na criação
+                $expense = $this->Expenses_model->get($expense_id);
+                $message = array(
+                    'status' => TRUE,
+                    'message' => 'Despesa criada com sucesso',
+                    'data' => $expense
+                );
+                $this->response($message, REST_Controller::HTTP_CREATED);
+            }
+            else
+            {
+                $message = array(
+                    'status' => FALSE,
+                    'message' => 'Falha ao criar despesa'
+                );
+                $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
         }
     }
 
@@ -313,6 +390,9 @@ class Expenses extends REST_Controller {
             }
         }
     }
+
+
+
 
     /**
      * @api {put} api/customers/:id Update a Customer

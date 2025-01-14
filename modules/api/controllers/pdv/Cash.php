@@ -505,33 +505,38 @@ public function remove_post(){
      *     }
      */
     public function update_put($id = '')
-    {
+{
+//    $headers = $this->input->request_headers();
+//    log_message('debug', 'Headers Received: ' . json_encode($headers));
+//
+//    if (!isset($headers['Authorization'])) {
+//        $this->response(['status' => FALSE, 'message' => 'Authorization header not found.'], REST_Controller::HTTP_UNAUTHORIZED);
+//        return;
+//    }
 
+    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    if (empty($_POST)) {
+        $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+        $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+    }
 
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    $this->form_validation->set_data($_POST);
+    if (empty($id) || !is_numeric($id)) {
+        $message = array('status' => FALSE, 'message' => 'Invalid Cash Register ID');
+        $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+    } else {
+        $update_data = $_POST;
+        $this->load->model('cashs_model');
+        $output = $this->cashs_model->update($update_data, $id);
 
-        if (empty($_POST) || !isset($_POST)) {
-            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
-            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
-        }
-        $this->form_validation->set_data($_POST);
-        if (empty($id) && !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Cash Register Update Successful.', 'data' => $this->cashs_model->get($id));
+            $this->response($message, REST_Controller::HTTP_OK);
         } else {
-            $update_data = $this->input->post();
-            // update data
-            $this->load->model('cashs_model');
-            $output = $this->cashs_model->update($update_data, $id);
-            if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->cashs_model->get($id));
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            }
+            $message = array('status' => FALSE, 'message' => 'Cash Register Update Failed.');
+            $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+}
+
 }

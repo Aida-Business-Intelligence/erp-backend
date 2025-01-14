@@ -127,6 +127,10 @@ public function delete($id) {
 }
 
 
-    
-   
+public function update($data, $id)
+{
+    $this->db->where('id', $id);
+    return $this->db->update('cashs', $data);
+}
+ 
 }

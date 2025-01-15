@@ -427,6 +427,25 @@ class Cash extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
+    
+    public function extracts_get($id = ''){
+        error_reporting(-1);
+		ini_set('display_errors', 1);
+        
+        $cash = $this->cashs_model->get_extracts($id);
+
+        if ($cash) {
+            $this->response([
+                'status' => TRUE,
+                'data' => $cash
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No data were found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
 
     /**
      * @api {put} api/customers/:id Update a Customer

@@ -106,6 +106,78 @@ class Cashs_model extends App_Model {
     }
 }
 
+
+public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
+
+    if (!is_numeric($id)) {
+        // JOIN com a tabela staff
+        $this->db->select('cashs.*, staff.firstname, staff.lastname, clients.company');
+        $this->db->from(db_prefix() . 'cashextracts as cashs');
+        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left'); // LEFT JOIN para vincular as tabelas
+        $this->db->join(db_prefix() . 'clients', 'clients.userid = cashs.user_id', 'left');
+
+        // Adicionar condições de busca
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.type', $search);
+            $this->db->or_like('cashs.total', $search);
+            $this->db->group_end();
+        }
+
+        $this->db->order_by($sortField, $sortOrder);
+
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        // Obtenha os registros com as informações do staff
+        $clients = $this->db->get()->result_array();
+        
+        foreach ($clients as $key => $client){
+            $items= $this->get_items_cashs($client['cash_id']);
+            $clients[$key]['items'] = $items;
+        }
+
+        // Contar o total de registros (considerando a busca)
+        $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+        $this->db->from(db_prefix() . 'cashextracts as cashs');
+        $this->db->select('cashs.*, staff.firstname, staff.lastname, clients.company');
+        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+        $this->db->join(db_prefix() . 'clients', 'clients.userid = cashs.user_id', 'left');
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.type', $search);
+            $this->db->or_like('cashs.total', $search);
+            $this->db->group_end();
+        }
+
+        $this->db->select('COUNT(*) as total');
+        $total = $this->db->get()->row()->total;
+
+        return ['data' => $clients, 'total' => $total]; // Retorne os dados e o total
+    } else {
+        $this->db->select('cashs.*, staff.firstname, staff.lastname');
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+        $this->db->where('cashs.id', $id);
+
+        $client = $this->db->get()->row();
+        $total = $client ? 1 : 0;
+
+        return ['data' => (array) $client, 'total' => $total];
+    }
+}
+
+public function get_items_cashs($id)
+    {
+//        $this->db->select('
+//            sum(qty)as qty,sum(qty_provided) as qty_provided
+//        ');
+        $this->db->where('cash_id', $id);
+
+        return $this->db->get(db_prefix() . 'itemcash')->result_array();
+    }
+
+
 public function delete($id) {
     // Verifica se o ID é válido e se é numérico
     if (is_numeric($id)) {

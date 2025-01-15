@@ -138,44 +138,56 @@ class Invoices_model extends App_Model
     }
     
     
-     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
+     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $start_date = '', $end_date = '') {
          
 
         if (!is_numeric($id)) {
-            // Adicionar condições de busca
+            // Add date filtering conditions
+            if (!empty($start_date)) {
+                $this->db->where('createdAt >=', $start_date);
+            }
+            if (!empty($end_date)) {
+                $this->db->where('createdAt <=', $end_date);
+            }
+
+            // Existing search conditions
             if (!empty($search)) {
-                $this->db->group_start(); // Começa um agrupamento de condição
-                $this->db->like('number', $search); // Busca pelo campo 'company'
+                $this->db->group_start();
+                $this->db->like('number', $search);
                 $this->db->or_like('duedate', $search);
                 $this->db->or_like('total', $search);
-                $this->db->group_end(); // Fecha o agrupamento de condição
+                $this->db->group_end();
             }
 
-            // Implementar lógica para ordenação
+            // Sorting and pagination
             $this->db->order_by($sortField, $sortOrder);
-
-            // Implementar a limitação e o deslocamento
             $this->db->limit($limit, ($page - 1) * $limit);
 
-            // Obtenha todos os clientes
-            $clients = $this->db->get(db_prefix() . 'invoices')->result_array();
+            // Get filtered results
+            $invoices = $this->db->get(db_prefix() . 'invoices')->result_array();
 
-            // Contar o total de clientes (considerando a busca)
-            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+            // Count total (with filters)
+            $this->db->reset_query();
 
+            // Apply the same filters for counting
+            if (!empty($start_date)) {
+                $this->db->where('createdAt >=', $start_date);
+            }
+            if (!empty($end_date)) {
+                $this->db->where('createdAt <=', $end_date);
+            }
             if (!empty($search)) {
-                // Condições de busca para contar os resultados
-                $this->db->group_start(); // Começa um agrupamento de condição
-               $this->db->like('number', $search); // Busca pelo campo 'company'
+                $this->db->group_start();
+                $this->db->like('number', $search);
                 $this->db->or_like('duedate', $search);
-                $this->db->or_like('total', $search);    $this->db->group_end(); // Fecha o agrupamento de condição
+                $this->db->or_like('total', $search);
+                $this->db->group_end();
             }
 
-            // Seleciona o total de clientes
             $this->db->select('COUNT(*) as total');
             $total = $this->db->get(db_prefix() . 'invoices')->row()->total;
 
-            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
+            return ['data' => $invoices, 'total' => $total];
         } else {
 
 

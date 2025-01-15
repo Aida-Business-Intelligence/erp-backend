@@ -141,6 +141,9 @@ class Produto extends REST_Controller
             $statusFilter = $status;
         }
 
+        $start_date = $this->post('startDate') ?: '';
+        $end_date = $this->post('endDate') ?: '';
+
         $data = $this->Invoice_items_model->get_api(
             $id,
             $page,
@@ -148,7 +151,9 @@ class Produto extends REST_Controller
             $search,
             $sortField,
             $sortOrder,
-            $statusFilter
+            $statusFilter,
+            $start_date,
+            $end_date
         );
 
         // echo $this->db->last_query();
@@ -310,10 +315,11 @@ class Produto extends REST_Controller
     public function data_put($id = '')
     {
 
+        error_reporting(-1);
+        ini_set('display_errors', 1);
 
-        // $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        var_dump($this->input->post());
-        exit;
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST) || !isset($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
@@ -327,7 +333,7 @@ class Produto extends REST_Controller
             $update_data = $this->input->post();
             // update data
             $this->load->model('Invoice_items_model');
-            $output = $this->Invoice_items_model->update($update_data, $id);
+            $output = $this->Invoice_items_model->edit($update_data, $id);
             if ($output > 0 && !empty($output)) {
                 // success
                 $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->Invoice_items_model->get($id));

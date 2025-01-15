@@ -110,6 +110,42 @@ class Cash extends REST_Controller
         
     }
     
+    public function extracts_post($id = '')
+    {
+
+        /*
+          $this->load->model('clients_model');
+
+          $this->clients_model->add_import_items();
+          exit;
+         * 
+         */
+
+        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
+
+        $page = $page + 1;
+
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
+        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
+        $sortField = $this->post('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $data = $this->cashs_model->get_extracts($id, $page, $limit, $search, $sortField, $sortOrder);
+        
+        if ($data['total'] == 0) {
+
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+
+            if ($data) {
+                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+           
+        
+    }
+    
 
 
 

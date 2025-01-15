@@ -111,10 +111,10 @@ public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $so
 
     if (!is_numeric($id)) {
         // JOIN com a tabela staff
-        $this->db->select('cashs.*, staff.firstname, staff.lastname, clients.company');
         $this->db->from(db_prefix() . 'cashextracts as cashs');
-        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left'); // LEFT JOIN para vincular as tabelas
-        $this->db->join(db_prefix() . 'clients', 'clients.userid = cashs.user_id', 'left');
+        $this->db->select('cashs.*, clients.company');
+//        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = clients.userid', 'left');
+        $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
 
         // Adicionar condições de busca
         if (!empty($search)) {
@@ -139,9 +139,9 @@ public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $so
         // Contar o total de registros (considerando a busca)
         $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
         $this->db->from(db_prefix() . 'cashextracts as cashs');
-        $this->db->select('cashs.*, staff.firstname, staff.lastname, clients.company');
-        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
-        $this->db->join(db_prefix() . 'clients', 'clients.userid = cashs.user_id', 'left');
+        $this->db->select('cashs.*, clients.company');
+//        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = clients.userid', 'left');
+        $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -155,9 +155,10 @@ public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $so
 
         return ['data' => $clients, 'total' => $total]; // Retorne os dados e o total
     } else {
-        $this->db->select('cashs.*, staff.firstname, staff.lastname');
-        $this->db->from(db_prefix() . 'cashs');
-        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+        $this->db->from(db_prefix() . 'cashextracts as cashs');
+        $this->db->select('cashs.*, clients.company');
+//      $this->db->join(db_prefix() . 'staff', 'cashs.user_id = clients.userid', 'left');
+        $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
         $this->db->where('cashs.id', $id);
 
         $client = $this->db->get()->row();

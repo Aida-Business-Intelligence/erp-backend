@@ -142,10 +142,7 @@ class Cash extends REST_Controller
                 $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
             }
         }
-           
-        
     }
-    
 
 
 
@@ -584,5 +581,25 @@ class Cash extends REST_Controller
             }
         }
     }
-
+    
+    public function update_patch($id = ''){
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        
+        $update_data=array(
+            'status'=>$_POST['status']
+        );
+        
+         if($this->cashs_model->update_extracts($update_data, $id)) {
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Status atualizado com sucesso',
+                'data' => $subgroups
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Erro ao atualizar status'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        } 
+    }
 }

@@ -106,7 +106,6 @@ class Cashs_model extends App_Model {
     }
 }
 
-
 public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
 
     if (!is_numeric($id)) {
@@ -179,31 +178,34 @@ public function get_items_cashs($id)
     }
 
 
-public function delete($id) {
-    // Verifica se o ID é válido e se é numérico
-    if (is_numeric($id)) {
-        // Sanitize o ID para evitar ataques de injeção
-        $id = $this->security->xss_clean($id);
-        
-        // Deleta o caixa com o ID fornecido
-        $this->db->where('id', $id);
-        $this->db->delete(db_prefix() . 'cashs');
-        
-        // Verifique se a exclusão foi bem-sucedida
-        if ($this->db->affected_rows() > 0) {
-            return true; // Sucesso
+    public function delete($id) {
+        // Verifica se o ID é válido e se é numérico
+        if (is_numeric($id)) {
+            // Sanitize o ID para evitar ataques de injeção
+            $id = $this->security->xss_clean($id);
+
+            // Deleta o caixa com o ID fornecido
+            $this->db->where('id', $id);
+            $this->db->delete(db_prefix() . 'cashs');
+
+            // Verifique se a exclusão foi bem-sucedida
+            if ($this->db->affected_rows() > 0) {
+                return true; // Sucesso
+            }
         }
+
+        // Se falhou, retorne false
+        return false;
+    }
+
+    public function update($data, $id){
+        $this->db->where('id', $id);
+        return $this->db->update('cashs', $data);
     }
     
-    // Se falhou, retorne false
-    return false;
-}
+    public function update_extracts($data, $id){
+        $this->db->where('id', $id);
+        return $this->db->update('cashextracts', $data);
+    }
 
-
-public function update($data, $id)
-{
-    $this->db->where('id', $id);
-    return $this->db->update('cashs', $data);
-}
- 
 }

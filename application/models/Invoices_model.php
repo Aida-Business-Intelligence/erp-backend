@@ -136,6 +136,7 @@ class Invoices_model extends App_Model
 
         return $this->db->get()->result_array();
     }
+
     
     
      public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $start_date = '', $end_date = '') {
@@ -152,7 +153,9 @@ class Invoices_model extends App_Model
 
             // Existing search conditions
             if (!empty($search)) {
+
                 $this->db->group_start();
+
                 $this->db->like('number', $search);
                 $this->db->or_like('duedate', $search);
                 $this->db->or_like('total', $search);
@@ -165,6 +168,20 @@ class Invoices_model extends App_Model
 
             // Get filtered results
             $invoices = $this->db->get(db_prefix() . 'invoices')->result_array();
+
+            // Fazer o JOIN nas tabelas users e suppliers
+            $this->db->select('
+            invoices.*,
+            clients.company as customer,
+            s.company as supplier
+        ');
+            $this->db->from(db_prefix() . 'invoices as invoices');
+            $this->db->join(db_prefix() . 'clients as clients', 'invoices.clientid = clients.userid', 'left');
+            $this->db->join(db_prefix() . 'clients as s', 'invoices.supplier_id = s.userid', 'left');
+
+            // Obtenha todos os resultados
+            $clients = $this->db->get()->result_array();
+
 
             // Count total (with filters)
             $this->db->reset_query();
@@ -191,13 +208,25 @@ class Invoices_model extends App_Model
         } else {
 
 
+            $this->db->from(db_prefix() . 'invoices as invoices');
+            $this->db->join(db_prefix() . 'clients as clients', 'invoices.clientid = clients.userid', 'left');
+            $this->db->join(db_prefix() . 'clients as s', 'invoices.supplier_id = s.userid', 'left');
 
 
+            foreach ($clients as $key => $client)
+            {
+                $items= $this->get_items_invoices($client['id']);
+                $clients[$key]['items'] = $items;
+            }
+
+            $total = count($clients);
+
+            return ['data' => $clients, 'total' => $total];
+        } else {
             return ['data' => (array) $this->get($id), 'total' => 1];
         }
-
-        // (O resto do código existente para quando $id é válido)
     }
+
 
     /**
      * Get invoice by id
@@ -261,7 +290,16 @@ class Invoices_model extends App_Model
 
         return $this->db->get(db_prefix() . 'itemable')->row();
     }
+    public function get_items_invoices($id)
+    {
+        $this->db->select('
+            sum(qty)as qty,sum(qty_provided) as qty_provided
+        ');
+        $this->db->where('rel_id', $id);
+        $this->db->where('rel_type', 'invoice');
 
+        return $this->db->get(db_prefix() . 'itemable')->row();
+    }
     public function mark_as_cancelled($id)
     {
         $isDraft = $this->is_draft($id);

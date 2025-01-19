@@ -30,102 +30,6 @@ class Produto extends REST_Controller
 
     public function list_post($id = '')
     {
-
-        // $data = [
-        //     "sum" => 4,
-        //     "data" => [
-        //         [
-        //             "id" => "4a28cf4c-8737-40aa-8bef-42816f600319",
-        //             "productName" => "Mochila Escolar",
-        //             "image" => "https://tse4.mm.bing.net/th?id=OIP.mmfw6ve4N9t6F1tFS4pS2QHaJc&pid=Api",
-        //             "sku" => "BAG12345",
-        //             "barcode" => "7891234567892",
-        //             "category" => "Acessórios",
-        //             "brand" => "Genérica",
-        //             "description" => "Mochila escolar resistente com compartimentos para laptop e outros itens.",
-        //             "unit" => "unidade",
-        //             "price" => 89.99,
-        //             "cost" => 50,
-        //             "promoPrice" => 79.99,
-        //             "promoStart" => "2024-12-01T00:00:00.000Z",
-        //             "promoEnd" => "2024-12-31T23:59:59.000Z",
-        //             "stock" => 100,
-        //             "minStock" => 20,
-        //             "active" => true,
-        //             "variations" => '[{"sku":"BAG12345-BLUE","price":89.99,"cost":50,"stock":50},{"sku":"BAG12345-RED","price":89.99,"cost":50,"stock":50}]',
-        //             "createdAt" => "2024-12-20T14:00:00.000Z",
-        //             "updatedAt" => "2024-12-20T14:00:00.000Z"
-        //         ],
-        //         [
-        //             "id" => "1785d627-4bb1-4a03-8c1f-7c9b617f4d2d",
-        //             "productName" => "Relógio Smartwatch",
-        //             "image" => "https://dcdn.mitiendanube.com/stores/002/578/628/products/eadba2c14d7ea47ccb1018b89f27a31bawsaccesskeyidakiatclmsgfx4j7tu445expires1692742014signaturerdlpzol2fyhojccxget5athm2bec3d-cbab12e3ce3d2b306d16901500672419-1024-1024.jpg",
-        //             "sku" => "WATCH12345",
-        //             "barcode" => "7891234567894",
-        //             "category" => "Eletrônicos",
-        //             "brand" => "Xiaomi",
-        //             "description" => "Relógio inteligente com monitoramento de saúde, notificações e bateria de longa duração.",
-        //             "unit" => "unidade",
-        //             "price" => 349.99,
-        //             "cost" => 200,
-        //             "promoPrice" => 299.99,
-        //             "promoStart" => "2024-12-01T00:00:00.000Z",
-        //             "promoEnd" => "2024-12-31T23:59:59.000Z",
-        //             "stock" => 50,
-        //             "minStock" => 10,
-        //             "active" => true,
-        //             "variations" => '[{"sku":"WATCH12345-BLACK","price":349.99,"cost":200,"stock":30},{"sku":"WATCH12345-WHITE","price":349.99,"cost":200,"stock":20}]',
-        //             "createdAt" => "2024-12-20T14:00:00.000Z",
-        //             "updatedAt" => "2024-12-20T14:00:00.000Z"
-        //         ],
-        //         [
-        //             "id" => "fd0d2f12-769c-4a82-b554-80e92bfa5283",
-        //             "productName" => "Smartphone Samsung",
-        //             "image" => "https://tse4.mm.bing.net/th?id=OIP.hlaa3ABICuuMTIAQdP0ntAHaHa&pid=Api",
-        //             "sku" => "SAM12345",
-        //           *  "barcode" => "7891234567890",
-        //           *  "category" => "Eletrônicos",
-        //           *  "brand" => "Samsung",
-        //             "description" => "Smartphone Samsung Galaxy com tela AMOLED, câmera tripla e 128GB de armazenamento.",
-        //           *  "unit" => "unidade",
-        //             "price" => 1299.99,
-        //            * "cost" => 1000,
-        //            * "promoPrice" => 1199,
-        //            * "promoPrice" => 1199.99,
-        //            * "promoStart" => "2024-12-01T00:00:00.000Z",
-        //            * "promoEnd" => "2024-12-31T23:59:59.000Z",
-        //           *  "stock" => 50,
-        //           *  "minStock" => 10,
-        //           *  "active" => true,
-        //             "variations" => '[{"sku":"SAM12345-BLACK","price":1299.99,"cost":1000,"stock":20},{"sku":"SAM12345-WHITE","price":1299.99,"cost":1000,"stock":30}]',
-        //           *  "createdAt" => "2024-12-20T14:00:00.000Z",
-        //           * "updatedAt" => "2024-12-20T14:00:00.000Z"
-        //         ],
-        //         [
-        //             "id" => "b2ac96fd-5b93-48d0-832c-cf812ee65542",
-        //             "productName" => "Notebook Dell",
-        //             "image" => "https://tse3.mm.bing.net/th?id=OIP.yBoZgRb7vhXPhv8qLY8JLAHaFj&pid=Api",
-        //             "sku" => "DELL12345",
-        //             "barcode" => "7891234567891",
-        //             "category" => "Computadores",
-        //             "brand" => "Dell",
-        //             "description" => "Notebook Dell com processador Intel Core i5, 8GB RAM e 256GB SSD.",
-        //             "unit" => "unidade",
-        //             "price" => 2899.99,
-        //             "cost" => 2500,
-        //             "promoPrice" => 2699.99,
-        //             "promoStart" => "2024-12-01T00:00:00.000Z",
-        //             "promoEnd" => "2024-12-31T23:59:59.000Z",
-        //             "stock" => 30,
-        //             "minStock" => 5,
-        //             "active" => true,
-        //             "variations" => '[{"sku":"DELL12345-SILVER","price":2899.99,"cost":2500,"stock":10},{"sku":"DELL12345-BLACK","price":2899.99,"cost":2500,"stock":20}]',
-        //             "createdAt" => "2024-12-20T14:00:00.000Z",
-        //             "updatedAt" => "2024-12-20T14:00:00.000Z"
-        //         ]
-        //     ]
-        // ];
-        // $this->response($data, REST_Controller::HTTP_OK);
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -141,6 +45,9 @@ class Produto extends REST_Controller
             $statusFilter = $status;
         }
 
+        $start_date = $this->post('startDate') ?: '';
+        $end_date = $this->post('endDate') ?: '';
+
         $data = $this->Invoice_items_model->get_api(
             $id,
             $page,
@@ -148,7 +55,9 @@ class Produto extends REST_Controller
             $search,
             $sortField,
             $sortOrder,
-            $statusFilter
+            $statusFilter,
+            $start_date,
+            $end_date
         );
 
         // echo $this->db->last_query();
@@ -178,13 +87,8 @@ class Produto extends REST_Controller
         }
     }
 
-
-
     public function create_post()
     {
-
-
-
         \modules\api\core\Apiinit::the_da_vinci_code('api');
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -202,13 +106,10 @@ class Produto extends REST_Controller
         $_input['company'] = $_POST['fullName'] ?? null;
         $_POST['company'] = $_POST['fullName'] ?? null;
 
-
-
         $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
 
         // email
         $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
-
 
         if ($this->form_validation->run() == FALSE) {
             // form validation error
@@ -310,10 +211,11 @@ class Produto extends REST_Controller
     public function data_put($id = '')
     {
 
+        error_reporting(-1);
+        ini_set('display_errors', 1);
 
-        // $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        var_dump($this->input->post());
-        exit;
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST) || !isset($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
@@ -327,7 +229,7 @@ class Produto extends REST_Controller
             $update_data = $this->input->post();
             // update data
             $this->load->model('Invoice_items_model');
-            $output = $this->Invoice_items_model->update($update_data, $id);
+            $output = $this->Invoice_items_model->edit($update_data, $id);
             if ($output > 0 && !empty($output)) {
                 // success
                 $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->Invoice_items_model->get($id));
@@ -347,13 +249,32 @@ class Produto extends REST_Controller
         $search = $this->post('search') ?: '';
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
-        $data = $this->Invoice_items_model->get_groups($page, $limit, $search, $sortOrder);
+        // Get groups with counts
+        $this->db->select('g.*, 
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'wh_sub_group WHERE group_id = g.id) as subcategories_count,
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'items WHERE group_id = g.id) as total_products
+        ');
+        $this->db->from(db_prefix() . 'items_groups g');
 
-        if ($data['total'] > 0) {
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('name', $search);
+            $this->db->or_like('commodity_group_code', $search);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results('', false);
+
+        $this->db->order_by('name', $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $groups = $this->db->get()->result_array();
+
+        if ($total > 0) {
             $this->response([
                 'status' => TRUE,
-                'total' => $data['total'],
-                'data' => $data['data']
+                'total' => $total,
+                'data' => $groups
             ], REST_Controller::HTTP_OK);
         } else {
             $this->response([
@@ -400,6 +321,239 @@ class Produto extends REST_Controller
                 'status' => FALSE,
                 'message' => 'No subgroups were found'
             ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function del_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['rows']) || empty($_POST['rows'])) {
+            $message = array('status' => FALSE, 'message' => 'Invalid request: rows array is required');
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $ids = $_POST['rows'];
+        $success_count = 0;
+        $failed_ids = [];
+
+        foreach ($ids as $id) {
+            $id = $this->security->xss_clean($id);
+
+            if (empty($id) || !is_numeric($id)) {
+                $failed_ids[] = $id;
+                continue;
+            }
+
+            $output = $this->Invoice_items_model->delete_group($id);
+            if ($output === TRUE) {
+                $success_count++;
+            } else {
+                $failed_ids[] = $id;
+            }
+        }
+
+        if ($success_count > 0) {
+            $message = array(
+                'status' => TRUE,
+                'message' => $success_count . 'deleted successfully'
+            );
+            if (!empty($failed_ids)) {
+                $message['failed_ids'] = $failed_ids;
+            }
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array(
+                'status' => FALSE,
+                'message' => 'Failed to delete',
+                'failed_ids' => $failed_ids
+            );
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function groups_put($id = '')
+    {
+
+        error_reporting(-1);
+        ini_set('display_errors', 1);
+
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST)) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+        $this->form_validation->set_data($_POST);
+        if (empty($id) && !is_numeric($id)) {
+            $message = array('status' => FALSE, 'message' => 'Invalid Category ID');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $update_data = $this->input->post();
+            // update data
+            $this->load->model('Invoice_items_model');
+            $output = $this->Invoice_items_model->edit_group($update_data, $id);
+            if ($output > 0 && !empty($output)) {
+                // success
+                $message = array('status' => TRUE, 'message' => 'Category Update Successful.');
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                // error
+                $message = array('status' => FALSE, 'message' => 'Category Update Fail.');
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+    }
+
+    public function groupcreate_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        $this->form_validation->set_rules('name', 'Name', 'trim|required|max_length[100]');
+
+        if ($this->form_validation->run() == FALSE) {
+            $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $output = $this->Invoice_items_model->add_group($_POST);
+            if ($output > 0 && !empty($output)) {
+                $message = array('status' => 'success', 'message' => 'Group add sucess');
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $message = array('status' => FALSE, 'message' => 'Group add fail.');
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+    }
+
+    public function subgroupcreate_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        // Set validation rules
+        $this->form_validation->set_rules('group_id', 'Group ID', 'trim|required|numeric');
+        $this->form_validation->set_rules('sub_group_name', 'Subgroup Name', 'trim|required|max_length[100]');
+
+        if ($this->form_validation->run() == FALSE) {
+            $message = array(
+                'status' => FALSE,
+                'error' => $this->form_validation->error_array(),
+                'message' => validation_errors()
+            );
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            // Prepare data for insertion
+            $data = array(
+                'group_id' => $_POST['group_id'],
+                'sub_group_name' => $_POST['sub_group_name'],
+                'display' => 1, // Default to displayed
+                'order' => 0    // Default order
+            );
+
+            $output = $this->Invoice_items_model->add_subgroup($data);
+            if ($output > 0 && !empty($output)) {
+                $message = array(
+                    'status' => 'success',
+                    'message' => 'Subgroup added successfully',
+                    'id' => $output
+                );
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $message = array(
+                    'status' => FALSE,
+                    'message' => 'Failed to add subgroup'
+                );
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+    }
+
+    public function subgroup_put($id = '')
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST)) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        if (empty($id) && !is_numeric($id)) {
+            $message = array('status' => FALSE, 'message' => 'Invalid Subgroup ID');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+
+        // Set validation rules
+        $this->form_validation->set_data($_POST);
+        $this->form_validation->set_rules('group_id', 'Group ID', 'trim|required|numeric');
+        $this->form_validation->set_rules('sub_group_name', 'Subgroup Name', 'trim|required|max_length[100]');
+
+        if ($this->form_validation->run() == FALSE) {
+            $message = array(
+                'status' => FALSE,
+                'error' => $this->form_validation->error_array(),
+                'message' => validation_errors()
+            );
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+
+        $update_data = array(
+            'group_id' => $_POST['group_id'],
+            'sub_group_name' => $_POST['sub_group_name']
+        );
+
+        // Optional fields
+        if (isset($_POST['display'])) {
+            $update_data['display'] = $_POST['display'];
+        }
+        if (isset($_POST['order'])) {
+            $update_data['order'] = $_POST['order'];
+        }
+
+        $output = $this->Invoice_items_model->edit_subgroup($update_data, $id);
+
+        if ($output) {
+            $message = array(
+                'status' => TRUE,
+                'message' => 'Subgroup updated successfully'
+            );
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array(
+                'status' => FALSE,
+                'message' => 'Failed to update subgroup'
+            );
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function subgroup_del_post($id = '')
+    {
+        if (empty($id) || !is_numeric($id)) {
+            $message = array('status' => FALSE, 'message' => 'Invalid Subgroup ID');
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $output = $this->Invoice_items_model->delete_subgroup($id);
+
+        if ($output === TRUE) {
+            $message = array(
+                'status' => TRUE,
+                'message' => 'Subgroup deleted successfully'
+            );
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array(
+                'status' => FALSE,
+                'message' => 'Failed to delete subgroup'
+            );
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }
 }

@@ -170,7 +170,13 @@ function credit_note_pdf($credit_note, $tag = '')
  */
 function estimate_pdf($estimate, $tag = '')
 {
+   
     return app_pdf('estimate', LIBSPATH . 'pdf/Estimate_pdf', $estimate, $tag);
+}
+
+function generic_pdf($content)
+{
+    return app_pdf('generic', LIBSPATH . 'pdf/Generic_pdf', $content);
 }
 
 /**

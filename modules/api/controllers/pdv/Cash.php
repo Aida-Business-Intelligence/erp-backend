@@ -110,6 +110,26 @@ class Cash extends REST_Controller
         
     }
     
+     public function list_inactive_get()
+    {
+
+        $data = $this->cashs_model->get_inactive();
+        
+        if ($data['total'] == 0) {
+
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+
+            if ($data) {
+                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+           
+        
+    }
+    
     public function extracts_post($id = '')
     {
 

@@ -222,7 +222,7 @@ class Invoices_model extends App_Model
             $total = count($clients);
 
             return ['data' => $clients, 'total' => $total];
-        } else {
+      
             return ['data' => (array) $this->get($id), 'total' => 1];
         }
     }

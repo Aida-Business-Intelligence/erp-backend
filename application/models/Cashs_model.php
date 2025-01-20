@@ -106,6 +106,29 @@ class Cashs_model extends App_Model {
     }
 }
 
+public function get_inactive() {
+    // JOIN com a tabela staff
+  //  $this->db->select('cashs.*, staff.firstname, staff.lastname');
+    $this->db->from(db_prefix() . 'cashs');
+ //   $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left'); // LEFT JOIN para vincular as tabelas
+
+    // Filtra somente as caixas ativas (status=1)
+    $this->db->where('cashs.status', '0');
+
+    // Ordena os resultados
+    $this->db->order_by('cashs.number');
+
+    // Executa a consulta e obtém os resultados
+    $clients = $this->db->get()->result_array();
+
+    // Retorne os dados com o total de resultados
+    return [
+        'status' => true, // Indica que a operação foi bem-sucedida
+        'total' => count($clients), // Conta o total de resultados
+        'data' => $clients
+    ];
+}
+
 public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
 
     if (!is_numeric($id)) {

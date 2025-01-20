@@ -1,6 +1,7 @@
 <?php
 
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
+
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
 
 /** @noinspection PhpIncludeInspection */
@@ -16,7 +17,8 @@ require __DIR__ . '/../REST_Controller.php';
  * @author          Phil Sturgeon, Chris Kacerguis
  * @license         MIT
  * @link            https://github.com/chriskacerguis/codeigniter-restserver
- */
+*/
+
 class Expenses extends REST_Controller {
 
     function __construct() {
@@ -72,7 +74,7 @@ class Expenses extends REST_Controller {
      *       "message": "No data were found"
      *     }
      */
-    public function list_get() {
+    public function list_post() {
 
         // Pegando os parâmetros de entrada
         $page = $this->get('page') ? (int) $this->post('page') : 0;
@@ -514,4 +516,135 @@ class Expenses extends REST_Controller {
         );
         $this->response($message, REST_Controller::HTTP_OK);
     }
+    /**
+     * @api {get} api/pdv/expenses/totals_by_period Totais por Período
+     * @apiName GetTotalsByPeriod
+     * @apiGroup Expenses
+     *
+     * @apiHeader {String} Authorization Basic Access Authentication token
+     *
+     * @apiParam {String} [start_date] Data inicial (YYYY-MM-DD)
+     * @apiParam {String} [end_date] Data final (YYYY-MM-DD)
+     *
+     * @apiSuccess {Boolean} status Status da requisição
+     * @apiSuccess {Object} data Dados dos totais
+     * @apiSuccess {String} data.total_amount Valor total das despesas
+     * @apiSuccess {Number} data.total_expenses Quantidade de despesas
+     * @apiSuccess {Object} data.period Período consultado
+     *
+     * @apiSuccessExample Success-Response:
+     *     HTTP/1.1 200 OK
+     *     {
+     *       "status": true,
+     *       "data": {
+     *         "total_amount": "5000.00",
+     *         "total_expenses": 10,
+     *         "period": {
+     *           "start": "2024-01-01",
+     *           "end": "2024-12-31"
+     *         }
+     *       }
+     *     }
+     */
+    public function totals_by_period_get()
+    {
+        $start_date = $this->get('start_date');
+        $end_date = $this->get('end_date');
+
+        $this->db->select('SUM(amount) as total_amount, COUNT(*) as total_expenses');
+        $this->db->from(db_prefix() . 'expenses');
+
+        if (!empty($start_date))
+        {
+            $this->db->where('date >=', $start_date);
+        }
+
+        if (!empty($end_date))
+        {
+            $this->db->where('date <=', $end_date);
+        }
+
+        $result = $this->db->get()->row();
+
+        if (empty($result) || $result->total_expenses == 0)
+        {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Nenhuma despesa encontrada no período'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'data' => [
+                'total_amount' => $result->total_amount,
+                'total_expenses' => $result->total_expenses,
+                'period' => [
+                    'start' => $start_date ?? 'all',
+                    'end' => $end_date ?? 'all'
+                ]
+            ]
+        ], REST_Controller::HTTP_OK);
+    }//http://localhost/aida/erp-backend/api/pdv/expenses/totals_by_period?start_date=2024-01-01&end_date=2024-12-31
+
+    /**
+     * @api {get} api/pdv/expenses/categories Listar Categorias
+     * @apiName ListCategories
+     * @apiGroup Expenses
+     *
+     * @apiHeader {String} Authorization Basic Access Authentication token
+     *
+     * @apiSuccess {Boolean} status Status da requisição
+     * @apiSuccess {Object[]} data Lista de categorias
+     *
+     * @apiSuccessExample Success-Response:
+     *     HTTP/1.1 200 OK
+     *     {
+     *       "status": true,
+     *       "data": [{
+     *         "id": 1,
+     *         "name": "Nome da Categoria"
+     *       }]
+     *     }
+     *
+     * @apiError {Boolean} status Status da requisição
+     * @apiError {String} message Mensagem de erro
+     * @apiError {String} [error] Detalhes do erro
+     */
+    public function categories_get()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        $this->load->model('expenses_model');
+
+        try
+        {
+            $categories = $this->expenses_model->get_category();
+
+            if (empty($categories))
+            {
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Nenhuma categoria encontrada'
+                ], REST_Controller::HTTP_NOT_FOUND);
+                return;
+            }
+
+            $this->response([
+                'status' => TRUE,
+                'data' => $categories
+            ], REST_Controller::HTTP_OK);
+        }
+        catch (Exception $e)
+        {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Erro ao buscar categorias',
+                'error' => $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+    }
+
 }

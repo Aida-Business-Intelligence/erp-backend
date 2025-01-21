@@ -61,6 +61,7 @@ class Cashs_model extends App_Model {
             $this->db->or_like('cashs.id', $search);
             $this->db->or_like('cashs.open_value', $search);
             $this->db->or_like('cashs.balance', $search);
+            $this->db->or_like('cashs.number', $search);
             $this->db->or_like('cashs.user_id', $search);
             $this->db->or_like('cashs.open_cash', $search);
             $this->db->group_end();
@@ -84,6 +85,7 @@ class Cashs_model extends App_Model {
             $this->db->or_like('cashs.id', $search);
             $this->db->or_like('cashs.open_value', $search);
             $this->db->or_like('cashs.balance', $search);
+            $this->db->or_like('cashs.number', $search);
             $this->db->or_like('cashs.user_id', $search);
             $this->db->or_like('cashs.open_cash', $search);
             $this->db->group_end();

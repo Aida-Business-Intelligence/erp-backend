@@ -268,6 +268,7 @@ class Cash extends REST_Controller
 
     // Prepara os dados para inserção
     $_input = [
+        'number' => isset($input['number']) ? (int)$input['number'] : null,
         'status' => isset($input['status']) ? (int)$input['status'] : null,
         'open_value' => isset($input['open_value']) ? (float)$input['open_value'] : null,
         'open_cash' => isset($input['open_cash']) ? (float)$input['open_cash'] : null,

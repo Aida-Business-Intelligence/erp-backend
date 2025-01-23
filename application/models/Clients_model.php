@@ -85,6 +85,50 @@ class Clients_model extends App_Model
             return ['data' => (array) $supplier, 'total' => $total];
         }
     }
+    /**
+     * Add a new supplier
+     * @param array $data Supplier data
+     * @return int|bool Supplier ID or false on failure
+     */
+    public function add_supplier($data)
+    {
+        $data['is_supplier'] = 1;
+
+        $this->db->insert(db_prefix() . 'clients', $data);
+
+        return $this->db->insert_id();
+    }
+
+    /**
+     * Update an existing supplier
+     * @param int $id Supplier ID
+     * @param array $data Supplier data
+     * @return bool True on success, false on failure
+     */
+    public function update_supplier($id, $data)
+    {
+        $data['is_supplier'] = 1;
+
+        // Update the supplier
+        $this->db->where('userid', $id);
+        $this->db->update(db_prefix() . 'clients', $data);
+
+        return $this->db->affected_rows() > 0;
+    }
+
+    /**
+     * Delete a supplier
+     * @param int $id Supplier ID
+     * @return bool True on success, false on failure
+     */
+    public function delete_supplier($id)
+    {
+        $this->db->where('userid', $id);
+        $this->db->delete(db_prefix() . 'clients');
+
+        return $this->db->affected_rows() > 0;
+    }
+
 
     public function get($id = '', $where = [])
     {
@@ -543,7 +587,7 @@ class Clients_model extends App_Model
                     continue; // Pular linhas em branco ou inválidas
                 }
 
-                // Mapeia os dados do CSV para os campos da tabela 
+                // Mapeia os dados do CSV para os campos da tabela
                 $clientData = array(
                     'company' => $data[1], // Nome da empresa (tcl_razao)
                     'vat' => $data[9], // CNPJ (tcl_cnpj)
@@ -983,7 +1027,7 @@ class Clients_model extends App_Model
               $password_before_hash
               );
               }
-             * 
+             *
              */
 
             if ($send_set_password_email) {

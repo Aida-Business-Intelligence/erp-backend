@@ -178,7 +178,7 @@ class Authorization_Token
                     return ['status' => TRUE, 'token' => $header_value];
             }
         }
-        return ['status' => FALSE, 'message' => 'Token is not defined.'];
+        return ['status' => FALSE, 'message' => 'Token is not defined 1.'];
     }
 
     private function token($headers)
@@ -189,6 +189,6 @@ class Authorization_Token
                     return $header_value;
             }
         }
-        return 'Token is not defined.';
+        return 'Token is not defined .';
     }
 }

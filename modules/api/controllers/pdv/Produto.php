@@ -460,9 +460,6 @@ class Produto extends REST_Controller
         
     }
     
-     
-
-
 
     public function del_post()
     {

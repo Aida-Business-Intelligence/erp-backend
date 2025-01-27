@@ -114,6 +114,68 @@ class Clients_model extends App_Model
 
         return $this->db->get(db_prefix() . 'clients')->result_array();
     }
+    
+    public function get_api_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    {
+
+        if (!is_numeric($id)) {
+            // Adicionar condições de busca
+            if (!empty($search)) {
+                $this->db->group_start(); // Começa um agrupamento de condição
+                $this->db->like('company', $search); // Busca pelo campo 'company'
+                $this->db->or_like('billing_city', $search);
+                $this->db->or_like('billing_state', $search);
+                $this->db->or_like('vat', $search); // Busca pelo campo 'vat'
+                // Pesquisa o CNPJ sem formatação
+                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+                $this->db->group_end(); // Fecha o agrupamento de condição
+            }
+            
+          
+
+
+            // Implementar lógica para ordenação
+            $this->db->order_by($sortField, $sortOrder);
+
+            // Implementar a limitação e o deslocamento
+            $this->db->limit($limit, ($page - 1) * $limit);
+            
+            $this->db->where('is_supplier', 1);
+
+            // Obtenha todos os clientes
+            $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+            
+
+            // Contar o total de clientes (considerando a busca)
+            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+
+            if (!empty($search)) {
+                // Condições de busca para contar os resultados
+                $this->db->group_start(); // Começa um agrupamento de condição
+                $this->db->like('company', $search);
+                $this->db->or_like('billing_city', $search);
+                $this->db->or_like('billing_state', $search);
+                $this->db->or_like('vat', $search);
+                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+                $this->db->group_end(); // Fecha o agrupamento de condição
+            }
+
+            $total = count($clients);
+
+            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
+        } else {
+
+            $client = $this->get($id);
+            $total = 0;
+            if ($client) {
+                $total = 1;
+            }
+
+            return ['data' => (array) $client, 'total' => $total];
+        }
+
+        // (O resto do código existente para quando $id é válido)
+    }
 
 
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
@@ -140,6 +202,7 @@ class Clients_model extends App_Model
 
             // Obtenha todos os clientes
             $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+         
 
             // Contar o total de clientes (considerando a busca)
             $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
@@ -156,8 +219,7 @@ class Clients_model extends App_Model
             }
 
             // Seleciona o total de clientes
-            $this->db->select('COUNT(*) as total');
-            $total = $this->db->get(db_prefix() . 'clients')->row()->total;
+            $total = count($clients);
 
             return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
         } else {

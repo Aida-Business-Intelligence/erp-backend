@@ -45,6 +45,15 @@ class Cashs_model extends App_Model {
         return $this->db->get(db_prefix() . 'cashs')->result_array();
     }
     
+     public function get_by_number($id) {
+
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->where('cashs.number', $id);
+        $client = $this->db->get()->row();
+
+        return $client;
+    
+}
 
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
 
@@ -189,6 +198,22 @@ public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $so
         return ['data' => (array) $client, 'total' => $total];
     }
 }
+            
+            public function add_extract($data)
+    {
+        $this->db->insert(db_prefix().'cashextracts', $data);
+
+        $insert_id = $this->db->insert_id();
+
+        if ($insert_id) {
+            log_activity('Extract insert user:, ', $data['user_id']);
+
+            return $insert_id;
+        }
+
+        return false;
+    }
+
 
 public function get_items_cashs($id)
     {
@@ -199,6 +224,8 @@ public function get_items_cashs($id)
 
         return $this->db->get(db_prefix() . 'itemcash')->result_array();
     }
+    
+            
 
 
     public function delete($id) {
@@ -223,6 +250,11 @@ public function get_items_cashs($id)
 
     public function update($data, $id){
         $this->db->where('id', $id);
+        return $this->db->update('cashs', $data);
+    }
+    
+    public function update_by_number($data, $number){
+        $this->db->where('number', $number);
         return $this->db->update('cashs', $data);
     }
     

@@ -22,7 +22,7 @@ class suppliers extends REST_Controller {
     function __construct() {
         // Construct the parent class
         parent::__construct();
-       // $this->load->model('Suppliers_model');
+        $this->load->model('Clients_model');
     }
 
     /**
@@ -88,7 +88,7 @@ class suppliers extends REST_Controller {
         $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
         $sortField = $this->get('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
         $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-        $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        $data = $this->Clients_model->get_api_supplier($id, $page, $limit, $search, $sortField, $sortOrder);
 
         if ($data) {
             $this->response(['total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);

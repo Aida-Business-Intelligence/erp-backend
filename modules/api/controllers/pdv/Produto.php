@@ -25,8 +25,7 @@ class Produto extends REST_Controller
         // Construct the parent class
         parent::__construct();
         $this->load->model('Invoice_items_model');
-                $this->load->library('upload');
-
+        $this->load->library('upload');
     }
 
 
@@ -114,7 +113,6 @@ class Produto extends REST_Controller
         $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
 
         if ($this->form_validation->run() == FALSE) {
-            // form validation error
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
@@ -132,117 +130,100 @@ class Produto extends REST_Controller
             }
         }
     }
-    
-   public function upload_put($item_id) {
-    // Captura o conteúdo da requisição bruta
-    $raw_body = $this->input->raw_input_stream;
 
-    // Defina o boundary (o valor do 'boundary' deve estar presente nos cabeçalhos da requisição)
-    preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
-    $boundary = '--' . trim($matches[1]);
+    public function upload_put($item_id)
+    {
+        $raw_body = $this->input->raw_input_stream;
 
-    // Divide a contagem com base no boundary
-    $parts = explode($boundary, $raw_body);
+        preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
+        $boundary = '--' . trim($matches[1]);
 
-    // Define o diretório de upload
-    $upload_dir = './uploads/items/' . $item_id . '/';
+        $parts = explode($boundary, $raw_body);
 
-    // Cria o diretório se não existir
-    if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0777, true); // Criação recursiva do diretório
-    }
+        $upload_dir = './uploads/items/' . $item_id . '/';
 
-    foreach ($parts as $part) {
-        // Verifique se a parte contém dados de arquivo
-        if (strpos($part, 'Content-Disposition:') !== false) {
-            // Extraia o nome do arquivo e seu conteúdo
-            preg_match('/name="([^"]+)"/', $part, $name_match);
-            preg_match('/filename="([^"]+)"/', $part, $filename_match);
-            preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
-            
-            if (isset($filename_match[1])) {
-                $file_content_start = strpos($part, "\r\n\r\n") + 4; // Ignora os cabeçalhos
-                $file_content = substr($part, $file_content_start, -4); // Remove os delimitadores no final
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0777, true); // Criação recursiva do diretório
+        }
 
-                // Validação do tipo de arquivo
-                $extension = pathinfo($filename_match[1], PATHINFO_EXTENSION);
-                $allowed_types = ['jpeg', 'jpg', 'png'];
-                $file_size = strlen($file_content); // Tamanho do arquivo em bytes
+        foreach ($parts as $part) {
+            if (strpos($part, 'Content-Disposition:') !== false) {
+                preg_match('/name="([^"]+)"/', $part, $name_match);
+                preg_match('/filename="([^"]+)"/', $part, $filename_match);
+                preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
 
-                if (!in_array(strtolower($extension), $allowed_types)) {
-                    echo json_encode(['status' => FALSE, 'message' => 'Tipo de arquivo não permitido.']);
+                if (isset($filename_match[1])) {
+                    $file_content_start = strpos($part, "\r\n\r\n") + 4;
+                    $file_content = substr($part, $file_content_start, -4);
+
+                    $extension = pathinfo($filename_match[1], PATHINFO_EXTENSION);
+                    $allowed_types = ['jpeg', 'jpg', 'png'];
+                    $file_size = strlen($file_content);
+                    if (!in_array(strtolower($extension), $allowed_types)) {
+                        echo json_encode(['status' => FALSE, 'message' => 'Tipo de arquivo não permitido.']);
+                        return;
+                    }
+
+                    $max_file_size = 2 * 1024 * 1024; // 2MB
+                    if ($file_size > $max_file_size) {
+                        echo json_encode(['status' => FALSE, 'message' => 'O arquivo é muito grande.']);
+                        return;
+                    }
+
+                    $upload_path = $upload_dir . basename($filename_match[1]);
+
+                    file_put_contents($upload_path, $file_content);
+
+                    $server_url = base_url();
+                    $relative_path = str_replace('./', '', $upload_path);
+                    $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+
+                    echo json_encode(['status' => TRUE, 'file' => $full_url]);
                     return;
                 }
+            }
+        }
 
-                // Limitar o tamanho do arquivo (por exemplo: 2MB)
-                $max_file_size = 2 * 1024 * 1024; // 2MB
-                if ($file_size > $max_file_size) {
-                    echo json_encode(['status' => FALSE, 'message' => 'O arquivo é muito grande.']);
-                    return;
+        echo json_encode(['status' => FALSE, 'message' => 'Nenhuma parte de arquivo encontrada.']);
+    }
+
+
+    public function upload_mult_put($product_id)
+    {
+
+        $raw_body = $this->input->raw_input_stream;
+
+        preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
+        $boundary = '--' . trim($matches[1]);
+
+        $parts = explode($boundary, $raw_body);
+        $uploaded_files = [];
+
+        foreach ($parts as $part) {
+            if (strpos($part, 'Content-Disposition:') !== false) {
+                preg_match('/name="([^"]+)"/', $part, $name_match);
+                preg_match('/filename="([^"]+)"/', $part, $filename_match);
+                preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
+
+                if (isset($filename_match[1])) {
+                    $file_content_start = strpos($part, "\r\n\r\n") + 4;
+                    $file_content = substr($part, $file_content_start, -4);
+
+                    $upload_path = './uploads/' . $filename_match[1];
+
+                    file_put_contents($upload_path, $file_content);
+
+                    $uploaded_files[] = $upload_path;
                 }
-
-                $upload_path = $upload_dir . basename($filename_match[1]);
-
-                // Salva o arquivo
-                file_put_contents($upload_path, $file_content);
-
-                echo json_encode(['status' => TRUE, 'file' => $upload_path]);
-                return; // Para evitar que outros arquivos sejam processados
             }
         }
-    }
-    
-    echo json_encode(['status' => FALSE, 'message' => 'Nenhuma parte de arquivo encontrada.']);
-}
-    
-    
-     
-    
-    
-    public function upload_mult_put($product_id) {
-        
-   
-    // Captura o conteúdo da requisição bruta
-    $raw_body = $this->input->raw_input_stream;
 
-    // Define o boundary (o valor do 'boundary' deve estar presente nos cabeçalhos da requisição)
-    preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
-    $boundary = '--' . trim($matches[1]);
-
-    // Divide o conteúdo com base no boundary
-    $parts = explode($boundary, $raw_body);
-    $uploaded_files = [];
-
-    foreach ($parts as $part) {
-        // Procura por cabeçalho de Content-Disposition
-        if (strpos($part, 'Content-Disposition:') !== false) {
-            // Extrai o nome do arquivo, seu conteúdo e outros detalhes
-            preg_match('/name="([^"]+)"/', $part, $name_match);
-            preg_match('/filename="([^"]+)"/', $part, $filename_match);
-            preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
-            
-            if (isset($filename_match[1])) {
-                $file_content_start = strpos($part, "\r\n\r\n") + 4; // Ignora os cabeçalhos
-                $file_content = substr($part, $file_content_start, -4); // Remove os delimitadores no final
-
-                // Diretório de upload e salva o arquivo
-                $upload_path = './uploads/' . $filename_match[1];
-                
-                file_put_contents($upload_path, $file_content);
-
-                // Armazena o caminho do arquivo enviado
-                $uploaded_files[] = $upload_path;
-            }
+        if (!empty($uploaded_files)) {
+            echo json_encode(['status' => TRUE, 'files' => $uploaded_files]);
+        } else {
+            echo json_encode(['status' => FALSE, 'message' => 'No file parts found.']);
         }
     }
-
-    // Resposta com arquivos carregados ou mensagem de erro
-    if (!empty($uploaded_files)) {
-        echo json_encode(['status' => TRUE, 'files' => $uploaded_files]);
-    } else {
-        echo json_encode(['status' => FALSE, 'message' => 'No file parts found.']);
-    }
-}
 
     public function get_get($id = '')
     {
@@ -255,9 +236,6 @@ class Produto extends REST_Controller
         }
 
         $product = $this->Invoice_items_model->get_item($id);
-
-        // echo $this->db->last_query();
-        // exit;
 
         if ($product) {
             $this->response([
@@ -340,15 +318,12 @@ class Produto extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
             $update_data = $this->input->post();
-            // update data
             $this->load->model('Invoice_items_model');
             $output = $this->Invoice_items_model->edit($update_data, $id);
             if ($output > 0 && !empty($output)) {
-                // success
                 $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->Invoice_items_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                // error
                 $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
@@ -362,7 +337,6 @@ class Produto extends REST_Controller
         $search = $this->post('search') ?: '';
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
-        // Get groups with counts
         $this->db->select('g.*, 
             (SELECT COUNT(*) FROM ' . db_prefix() . 'wh_sub_group WHERE group_id = g.id) as subcategories_count,
             (SELECT COUNT(*) FROM ' . db_prefix() . 'items WHERE group_id = g.id) as total_products
@@ -437,29 +411,27 @@ class Produto extends REST_Controller
         }
     }
 
-    
-    function generate_pdf_post() {
-        
-            try {
-                $pdf = generic_pdf(array());
-            } catch (Exception $e) {
-                echo $e->getMessage();
-                die;
-            }
 
-            $estimate_number = format_estimate_number($estimate->id);
-            $companyname     = get_option('invoice_company_name');
-            if ($companyname != '') {
-                $estimate_number .= '-' . mb_strtoupper(slug_it($companyname), 'UTF-8');
-            }
+    function generate_pdf_post()
+    {
+        try {
+            $pdf = generic_pdf(array());
+        } catch (Exception $e) {
+            echo $e->getMessage();
+            die;
+        }
 
-            $filename = hooks()->apply_filters('customers_area_download_estimate_filename', mb_strtoupper(slug_it($estimate_number), 'UTF-8') . '.pdf', $estimate);
+        $estimate_number = format_estimate_number($estimate->id);
+        $companyname     = get_option('invoice_company_name');
+        if ($companyname != '') {
+            $estimate_number .= '-' . mb_strtoupper(slug_it($companyname), 'UTF-8');
+        }
 
-            $pdf->Output($filename, 'D');
-            die();
-        
+        $filename = hooks()->apply_filters('customers_area_download_estimate_filename', mb_strtoupper(slug_it($estimate_number), 'UTF-8') . '.pdf', $estimate);
+
+        $pdf->Output($filename, 'D');
+        die();
     }
-    
 
     public function del_post()
     {
@@ -573,7 +545,6 @@ class Produto extends REST_Controller
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        // Set validation rules
         $this->form_validation->set_rules('group_id', 'Group ID', 'trim|required|numeric');
         $this->form_validation->set_rules('sub_group_name', 'Subgroup Name', 'trim|required|max_length[100]');
 
@@ -585,12 +556,11 @@ class Produto extends REST_Controller
             );
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
-            // Prepare data for insertion
             $data = array(
                 'group_id' => $_POST['group_id'],
                 'sub_group_name' => $_POST['sub_group_name'],
-                'display' => 1, // Default to displayed
-                'order' => 0    // Default order
+                'display' => 1,
+                'order' => 0
             );
 
             $output = $this->Invoice_items_model->add_subgroup($data);
@@ -625,7 +595,6 @@ class Produto extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
 
-        // Set validation rules
         $this->form_validation->set_data($_POST);
         $this->form_validation->set_rules('group_id', 'Group ID', 'trim|required|numeric');
         $this->form_validation->set_rules('sub_group_name', 'Subgroup Name', 'trim|required|max_length[100]');
@@ -644,7 +613,6 @@ class Produto extends REST_Controller
             'sub_group_name' => $_POST['sub_group_name']
         );
 
-        // Optional fields
         if (isset($_POST['display'])) {
             $update_data['display'] = $_POST['display'];
         }
@@ -694,4 +662,101 @@ class Produto extends REST_Controller
         }
     }
 
+    public function check_stock_post()
+    {
+        $this->db->select('
+            id,
+            description as name,
+            sku_code as sku,
+            stock as currentStock,
+            minStock as minimumStock,
+            unit as product_unit,
+            status,
+            updatedAt as lastOrderDate
+        ');
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where('stock <= minStock');
+
+        $products = $this->db->get()->result_array();
+
+        $purchase_needs = [];
+
+        foreach ($products as $product) {
+            $suggested_qty = (int)($product['minimumStock'] - $product['currentStock'] + ($product['minimumStock'] * 0.2));
+
+            $status = 'pending';
+            if ($product['status'] === 'ordered') {
+                $status = 'ordered';
+            } else if ($product['status'] === 'cancelled') {
+                $status = 'cancelled';
+            }
+
+            $purchase_needs[] = [
+                'product' => [
+                    'id' => $product['id'],
+                    'name' => $product['name'],
+                    'sku' => $product['sku']
+                ],
+                'currentStock' => (int)$product['currentStock'],
+                'minimumStock' => (int)$product['minimumStock'],
+                'suggestedOrderQuantity' => $suggested_qty,
+                'lastOrderDate' => $product['lastOrderDate'],
+                'status' => $status
+            ];
+        }
+
+        if (empty($purchase_needs)) {
+            $this->response([
+                'status' => TRUE,
+                'data' => []
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => TRUE,
+                'data' => $purchase_needs
+            ], REST_Controller::HTTP_OK);
+        }
+    }
+
+    public function create_purchase_order_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['items']) || empty($_POST['items'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No items provided for purchase order'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            $this->db->trans_start();
+
+            foreach ($_POST['items'] as $item) {
+                $this->db->where('itemid', $item['product']['id']);
+                $this->db->update(db_prefix() . 'items', ['status' => 'ordered']);
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Failed to create purchase order'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
+
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Purchase order created successfully'
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error creating purchase order: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

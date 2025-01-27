@@ -25,6 +25,8 @@ class Produto extends REST_Controller
         // Construct the parent class
         parent::__construct();
         $this->load->model('Invoice_items_model');
+                $this->load->library('upload');
+
     }
 
 
@@ -130,6 +132,117 @@ class Produto extends REST_Controller
             }
         }
     }
+    
+   public function upload_put($item_id) {
+    // Captura o conteúdo da requisição bruta
+    $raw_body = $this->input->raw_input_stream;
+
+    // Defina o boundary (o valor do 'boundary' deve estar presente nos cabeçalhos da requisição)
+    preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
+    $boundary = '--' . trim($matches[1]);
+
+    // Divide a contagem com base no boundary
+    $parts = explode($boundary, $raw_body);
+
+    // Define o diretório de upload
+    $upload_dir = './uploads/items/' . $item_id . '/';
+
+    // Cria o diretório se não existir
+    if (!file_exists($upload_dir)) {
+        mkdir($upload_dir, 0777, true); // Criação recursiva do diretório
+    }
+
+    foreach ($parts as $part) {
+        // Verifique se a parte contém dados de arquivo
+        if (strpos($part, 'Content-Disposition:') !== false) {
+            // Extraia o nome do arquivo e seu conteúdo
+            preg_match('/name="([^"]+)"/', $part, $name_match);
+            preg_match('/filename="([^"]+)"/', $part, $filename_match);
+            preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
+            
+            if (isset($filename_match[1])) {
+                $file_content_start = strpos($part, "\r\n\r\n") + 4; // Ignora os cabeçalhos
+                $file_content = substr($part, $file_content_start, -4); // Remove os delimitadores no final
+
+                // Validação do tipo de arquivo
+                $extension = pathinfo($filename_match[1], PATHINFO_EXTENSION);
+                $allowed_types = ['jpeg', 'jpg', 'png'];
+                $file_size = strlen($file_content); // Tamanho do arquivo em bytes
+
+                if (!in_array(strtolower($extension), $allowed_types)) {
+                    echo json_encode(['status' => FALSE, 'message' => 'Tipo de arquivo não permitido.']);
+                    return;
+                }
+
+                // Limitar o tamanho do arquivo (por exemplo: 2MB)
+                $max_file_size = 2 * 1024 * 1024; // 2MB
+                if ($file_size > $max_file_size) {
+                    echo json_encode(['status' => FALSE, 'message' => 'O arquivo é muito grande.']);
+                    return;
+                }
+
+                $upload_path = $upload_dir . basename($filename_match[1]);
+
+                // Salva o arquivo
+                file_put_contents($upload_path, $file_content);
+
+                echo json_encode(['status' => TRUE, 'file' => $upload_path]);
+                return; // Para evitar que outros arquivos sejam processados
+            }
+        }
+    }
+    
+    echo json_encode(['status' => FALSE, 'message' => 'Nenhuma parte de arquivo encontrada.']);
+}
+    
+    
+     
+    
+    
+    public function upload_mult_put($product_id) {
+        
+   
+    // Captura o conteúdo da requisição bruta
+    $raw_body = $this->input->raw_input_stream;
+
+    // Define o boundary (o valor do 'boundary' deve estar presente nos cabeçalhos da requisição)
+    preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
+    $boundary = '--' . trim($matches[1]);
+
+    // Divide o conteúdo com base no boundary
+    $parts = explode($boundary, $raw_body);
+    $uploaded_files = [];
+
+    foreach ($parts as $part) {
+        // Procura por cabeçalho de Content-Disposition
+        if (strpos($part, 'Content-Disposition:') !== false) {
+            // Extrai o nome do arquivo, seu conteúdo e outros detalhes
+            preg_match('/name="([^"]+)"/', $part, $name_match);
+            preg_match('/filename="([^"]+)"/', $part, $filename_match);
+            preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
+            
+            if (isset($filename_match[1])) {
+                $file_content_start = strpos($part, "\r\n\r\n") + 4; // Ignora os cabeçalhos
+                $file_content = substr($part, $file_content_start, -4); // Remove os delimitadores no final
+
+                // Diretório de upload e salva o arquivo
+                $upload_path = './uploads/' . $filename_match[1];
+                
+                file_put_contents($upload_path, $file_content);
+
+                // Armazena o caminho do arquivo enviado
+                $uploaded_files[] = $upload_path;
+            }
+        }
+    }
+
+    // Resposta com arquivos carregados ou mensagem de erro
+    if (!empty($uploaded_files)) {
+        echo json_encode(['status' => TRUE, 'files' => $uploaded_files]);
+    } else {
+        echo json_encode(['status' => FALSE, 'message' => 'No file parts found.']);
+    }
+}
 
     public function get_get($id = '')
     {
@@ -323,6 +436,30 @@ class Produto extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
+
+    
+    function generate_pdf_post() {
+        
+            try {
+                $pdf = generic_pdf(array());
+            } catch (Exception $e) {
+                echo $e->getMessage();
+                die;
+            }
+
+            $estimate_number = format_estimate_number($estimate->id);
+            $companyname     = get_option('invoice_company_name');
+            if ($companyname != '') {
+                $estimate_number .= '-' . mb_strtoupper(slug_it($companyname), 'UTF-8');
+            }
+
+            $filename = hooks()->apply_filters('customers_area_download_estimate_filename', mb_strtoupper(slug_it($estimate_number), 'UTF-8') . '.pdf', $estimate);
+
+            $pdf->Output($filename, 'D');
+            die();
+        
+    }
+    
 
     public function del_post()
     {
@@ -556,4 +693,5 @@ class Produto extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }
+
 }

@@ -3,11 +3,12 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-
-
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Produto.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/index.php</file>
             <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Translations.php</file>
-
-            <file>file:/Applications/XAMPP/htdocs/aida/erp-backend/modules/api/controllers/pdv/Cash.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Expenses.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Cash.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Client.php</file>
         </group>
     </open-files>
 </project-private>

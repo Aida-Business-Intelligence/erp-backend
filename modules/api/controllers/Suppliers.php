@@ -37,9 +37,8 @@ class Suppliers extends REST_Controller {
         $search = $this->get('search') ?: '';
         $sortField = $this->get('sortField') ?: 'userid';
         $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
-
-        // Chama o método do modelo
         $data = $this->Clients_model->get_supplier($id, $page, $limit, $search, $sortField, $sortOrder);
+
 
         if ($data) {
             $this->response(['total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);

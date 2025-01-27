@@ -1,6 +1,7 @@
 <?php
 
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
+
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
 
 /** @noinspection PhpIncludeInspection */
@@ -16,7 +17,8 @@ require __DIR__ . '/../REST_Controller.php';
  * @author          Phil Sturgeon, Chris Kacerguis
  * @license         MIT
  * @link            https://github.com/chriskacerguis/codeigniter-restserver
- */
+*/
+
 class Expenses extends REST_Controller {
 
     function __construct() {
@@ -644,4 +646,5 @@ class Expenses extends REST_Controller {
             return;
         }
     }
+
 }

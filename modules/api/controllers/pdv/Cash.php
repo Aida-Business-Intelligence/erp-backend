@@ -19,71 +19,43 @@ require __DIR__ . '/../REST_Controller.php';
  */
 class Cash extends REST_Controller
 {
+    
 
     function __construct()
     {
         // Construct the parent class
         parent::__construct();
         $this->load->model('cashs_model');
+        $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+        if (!$decodedToken['status']) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Usuario nao autenticado '
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+        
+        
+        
     }
-
-    /**
-     * @api {get} api/client/:id Request customer information
-     * @apiName GetCustomer
-     * @apiGroup Customer
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {Number} id customer unique ID.
-     *
-     * @apiSuccess {Object} customer information.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *          "id": "28",
-     *          "name": "Test1",
-     *          "description": null,
-     *          "status": "1",
-     *          "clientid": "11",
-     *          "billing_type": "3",
-     *          "start_date": "2019-04-19",
-     *          "deadline": "2019-08-30",
-     *          "customer_created": "2019-07-16",
-     *          "date_finished": null,
-     *          "progress": "0",
-     *          "progress_from_tasks": "1",
-     *          "customer_cost": "0.00",
-     *          "customer_rate_per_hour": "0.00",
-     *          "estimated_hours": "0.00",
-     *          "addedfrom": "5",
-     *          "rel_type": "customer",
-     *          "potential_revenue": "0.00",
-     *          "potential_margin": "0.00",
-     *          "external": "E",
-     *         ...
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message No data were found.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "No data were found"
-     *     }
-     */
+     public function get_by_number_get($id)
+    {
+         
+         
+      
+        $data = $this->cashs_model->get_by_number($id);
+            if ($data) {
+                $this->response(['status' => true, 'total' => 1, 'data' => $data], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
+        
+           
+        
+    }
     public function list_post($id = '')
     {
-
-        /*
-          $this->load->model('clients_model');
-
-          $this->clients_model->add_import_items();
-          exit;
-         * 
-         */
+      
+            
 
         $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
 
@@ -110,90 +82,62 @@ class Cash extends REST_Controller
         
     }
     
+     public function list_inactive_get()
+    {
+
+        $data = $this->cashs_model->get_inactive();
+        
+        if ($data['total'] == 0) {
+
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+
+            if ($data) {
+                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+           
+        
+    }
+    
+    public function extracts_post($id = '')
+    {
+
+        /*
+          $this->load->model('clients_model');
+
+          $this->clients_model->add_import_items();
+          exit;
+         * 
+         */
+
+        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
+
+        $page = $page + 1;
+
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
+        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
+        $sortField = $this->post('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $data = $this->cashs_model->get_extracts($id, $page, $limit, $search, $sortField, $sortOrder);
+        
+        if ($data['total'] == 0) {
+
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+
+            if ($data) {
+                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+    }
 
 
 
-    /**
-     * @api {post} api/customers Add New Customer
-     * @apiName PostCustomer
-     * @apiGroup Customer
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {String} company               Mandatory Customer company.
-     * @apiParam {String} [vat]                 Optional Vat.
-     * @apiParam {String} [phonenumber]         Optional Customer Phone.
-     * @apiParam {String} [website]             Optional Customer Website.
-     * @apiParam {Number[]} [groups_in]         Optional Customer groups.
-     * @apiParam {String} [default_language]    Optional Customer Default Language.
-     * @apiParam {String} [default_currency]    Optional default currency.
-     * @apiParam {String} [address]             Optional Customer address.
-     * @apiParam {String} [city]                Optional Customer City.
-     * @apiParam {String} [state]               Optional Customer state.
-     * @apiParam {String} [zip]                 Optional Zip Code.
-     * @apiParam {String} [partnership_type]    Optional Customer partnership type.
-     * @apiParam {String} [country]             Optional country.
-     * @apiParam {String} [billing_street]      Optional Billing Address: Street.
-     * @apiParam {String} [billing_city]        Optional Billing Address: City.
-     * @apiParam {Number} [billing_state]       Optional Billing Address: State.
-     * @apiParam {String} [billing_zip]         Optional Billing Address: Zip.
-     * @apiParam {String} [billing_country]     Optional Billing Address: Country.
-     * @apiParam {String} [shipping_street]     Optional Shipping Address: Street.
-     * @apiParam {String} [shipping_city]       Optional Shipping Address: City.
-     * @apiParam {String} [shipping_state]      Optional Shipping Address: State.
-     * @apiParam {String} [shipping_zip]        Optional Shipping Address: Zip.
-     * @apiParam {String} [shipping_country]    Optional Shipping Address: Country.
-     *
-     * @apiParamExample {Multipart Form} Request-Example:
-     *   array (size=22)
-     *     'company' => string 'Themesic Interactive' (length=38)
-     *     'vat' => string '123456789' (length=9)
-     *     'phonenumber' => string '123456789' (length=9)
-     *     'website' => string 'AAA.com' (length=7)
-     *     'groups_in' =>
-     *       array (size=2)
-     *         0 => string '1' (length=1)
-     *         1 => string '4' (length=1)
-     *     'default_currency' => string '3' (length=1)
-     *     'default_language' => string 'english' (length=7)
-     *     'address' => string '1a The Alexander Suite Silk Point' (length=27)
-     *     'city' => string 'London' (length=14)
-     *     'state' => string 'London' (length=14)
-     *     'zip' => string '700000' (length=6)
-     *     'country' => string '243' (length=3)
-     *     'billing_street' => string '1a The Alexander Suite Silk Point' (length=27)
-     *     'billing_city' => string 'London' (length=14)
-     *     'billing_state' => string 'London' (length=14)
-     *     'billing_zip' => string '700000' (length=6)
-     *     'billing_country' => string '243' (length=3)
-     *     'shipping_street' => string '1a The Alexander Suite Silk Point' (length=27)
-     *     'shipping_city' => string 'London' (length=14)
-     *     'shipping_state' => string 'London' (length=14)
-     *     'shipping_zip' => string '700000' (length=6)
-     *     'shipping_country' => string '243' (length=3)
-     *
-     *
-     * @apiSuccess {Boolean} status Request status.
-     * @apiSuccess {String} message Customer add successful.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "status": true,
-     *       "message": "Customer add successful."
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message Customer add fail.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "Customer add fail."
-     *     }
-     *
-     */
 
 
     public function create_post() {
@@ -261,151 +205,85 @@ class Cash extends REST_Controller
     }
 }
 
-
-    /**
-     * @api {delete} api/delete/customers/:id Delete a Customer
-     * @apiName DeleteCustomer
-     * @apiGroup Customer
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {Number} id Customer unique ID.
-     *
-     * @apiSuccess {String} status Request status.
-     * @apiSuccess {String} message Customer Delete Successful.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "status": true,
-     *       "message": "Customer Delete Successful."
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message Customer Delete Fail.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "Customer Delete Fail."
-     *     }
-     */
     
-public function remove_post(){
+    public function remove_post(){
+        $data = json_decode(file_get_contents("php://input"), true);
 
-    $data = json_decode(file_get_contents("php://input"), true);
-
-    if (!isset($data['master_password']) || $data['master_password'] !== '1234') {
-        $this->response([
-            'status' => FALSE,
-            'message' => 'Senha master incorreta.'
-        ], REST_Controller::HTTP_UNAUTHORIZED);
-        return;
-    }
-
-    if (!isset($data['rows']) || empty($data['rows'])) {
-        $this->response([
-            'status' => FALSE,
-            'message' => 'Invalid request: rows array is required'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-        return;
-    }
-
-    $ids = $data['rows'];
-    $success_count = 0;
-    $failed_ids = [];
-
-    if (!is_array($ids)) {
-        $this->response([
-            'status' => FALSE,
-            'message' => 'O campo "rows" deve ser um array.'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-        return;
-    }
-
-    foreach ($ids as $id) {
-        var_dump($id);  // Para verificar o ID antes de tentar excluir
-
-        $id = $this->security->xss_clean($id);
-
-        if (empty($id) || !is_numeric($id)) {
-            $failed_ids[] = $id;
-            continue;
-        }
-
-        try {
-            $output = $this->cashs_model->delete($id);
-            if ($output === TRUE) {
-                $success_count++;
-            } else {
-                $failed_ids[] = $id;
-            }
-        } catch (Exception $e) {
+        if (!isset($data['master_password']) || $data['master_password'] !== '1234') {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Erro ao tentar excluir: ' . $e->getMessage()
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                'message' => 'Senha master incorreta.'
+            ], REST_Controller::HTTP_UNAUTHORIZED);
             return;
         }
-    }
-    
-    if ($success_count > 0) {
-        $message = [
-            'status' => TRUE,
-            'message' => $success_count . ' caixa(s) deletado(s) com sucesso.'
-        ];
-        if (!empty($failed_ids)) {
-            $message['failed_ids'] = $failed_ids;
-        }
-        $this->response($message, REST_Controller::HTTP_OK);
-    } else {
-        $message = [
-            'status' => FALSE,
-            'message' => 'Falha ao deletar caixa(s)',
-            'failed_ids' => $failed_ids
-        ];
-        $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-    }
-}
 
-    /**
-     * @api {get} api/pdv/client/get/:id Get Client by ID
-     * @apiName GetClient
-     * @apiGroup Client
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {Number} id Client unique ID.
-     *
-     * @apiSuccess {Boolean} status Request status.
-     * @apiSuccess {Object} data Client information.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "status": true,
-     *       "data": {
-     *         "userid": "1",
-     *         "company": "Test Company",
-     *         "vat": "123456789",
-     *         "phonenumber": "123-456-7890",
-     *         ...
-     *       }
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message No data were found.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "No data were found"
-     *     }
-     */
-    public function get_get($id = '')
-    {
+        if (!isset($data['rows']) || empty($data['rows'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid request: rows array is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $ids = $data['rows'];
+        $success_count = 0;
+        $failed_ids = [];
+
+        if (!is_array($ids)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'O campo "rows" deve ser um array.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        foreach ($ids as $id) {
+            var_dump($id);  // Para verificar o ID antes de tentar excluir
+
+            $id = $this->security->xss_clean($id);
+
+            if (empty($id) || !is_numeric($id)) {
+                $failed_ids[] = $id;
+                continue;
+            }
+
+            try {
+                $output = $this->cashs_model->delete($id);
+                if ($output === TRUE) {
+                    $success_count++;
+                } else {
+                    $failed_ids[] = $id;
+                }
+            } catch (Exception $e) {
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Erro ao tentar excluir: ' . $e->getMessage()
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
+        }
+
+        if ($success_count > 0) {
+            $message = [
+                'status' => TRUE,
+                'message' => $success_count . ' caixa(s) deletado(s) com sucesso.'
+            ];
+            if (!empty($failed_ids)) {
+                $message['failed_ids'] = $failed_ids;
+            }
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = [
+                'status' => FALSE,
+                'message' => 'Falha ao deletar caixa(s)',
+                'failed_ids' => $failed_ids
+            ];
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    
+    public function get_get($id = ''){
         if (empty($id) || !is_numeric($id)) {
             $this->response([
                 'status' => FALSE,
@@ -428,110 +306,138 @@ public function remove_post(){
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
+    
+    public function extracts_get($id = ''){
+        error_reporting(-1);
+		ini_set('display_errors', 1);
+        
+        $cash = $this->cashs_model->get_extracts($id);
 
-    /**
-     * @api {put} api/customers/:id Update a Customer
-     * @apiName PutCustomer
-     * @apiGroup Customer
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {String} company               Mandatory Customer company.
-     * @apiParam {String} [vat]                 Optional Vat.
-     * @apiParam {String} [phonenumber]         Optional Customer Phone.
-     * @apiParam {String} [website]             Optional Customer Website.
-     * @apiParam {Number[]} [groups_in]         Optional Customer groups.
-     * @apiParam {String} [default_language]    Optional Customer Default Language.
-     * @apiParam {String} [default_currency]    Optional default currency.
-     * @apiParam {String} [address]             Optional Customer address.
-     * @apiParam {String} [city]                Optional Customer City.
-     * @apiParam {String} [state]               Optional Customer state.
-     * @apiParam {String} [zip]                 Optional Zip Code.
-     * @apiParam {String} [country]             Optional country.
-     * @apiParam {String} [billing_street]      Optional Billing Address: Street.
-     * @apiParam {String} [billing_city]        Optional Billing Address: City.
-     * @apiParam {Number} [billing_state]       Optional Billing Address: State.
-     * @apiParam {String} [billing_zip]         Optional Billing Address: Zip.
-     * @apiParam {String} [billing_country]     Optional Billing Address: Country.
-     * @apiParam {String} [shipping_street]     Optional Shipping Address: Street.
-     * @apiParam {String} [shipping_city]       Optional Shipping Address: City.
-     * @apiParam {String} [shipping_state]      Optional Shipping Address: State.
-     * @apiParam {String} [shipping_zip]        Optional Shipping Address: Zip.
-     * @apiParam {String} [shipping_country]    Optional Shipping Address: Country.
-     *
-     * @apiParamExample {json} Request-Example:
-     *  {
-     *     "company": "Công ty A",
-     *     "vat": "",
-     *     "phonenumber": "0123456789",
-     *     "website": "",
-     *     "default_language": "",
-     *     "default_currency": "0",
-     *     "country": "243",
-     *     "city": "TP London",
-     *     "zip": "700000",
-     *     "state": "Quận 12",
-     *     "address": "hẻm 71, số 34\/3 Đường TA 16, Phường Thới An, Quận 12",
-     *     "billing_street": "hẻm 71, số 34\/3 Đường TA 16, Phường Thới An, Quận 12",
-     *     "billing_city": "TP London",
-     *     "billing_state": "Quận 12",
-     *     "billing_zip": "700000",
-     *     "billing_country": "243",
-     *     "shipping_street": "",
-     *     "shipping_city": "",
-     *     "shipping_state": "",
-     *     "shipping_zip": "",
-     *     "shipping_country": "0"
-     *   }
-     *
-     * @apiSuccess {Boolean} status Request status.
-     * @apiSuccess {String} message Customer Update Successful.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "status": true,
-     *       "message": "Customer Update Successful."
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message Customer Update Fail.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "Customer Update Fail."
-     *     }
-     */
-    public function update_put($id = '')
-    {
+        if ($cash) {
+            $this->response([
+                'status' => TRUE,
+                'data' => $cash
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No data were found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
 
-
+    public function update_put($id = ''){
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-        if (empty($_POST) || !isset($_POST)) {
+        if (empty($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
         }
+
         $this->form_validation->set_data($_POST);
-        if (empty($id) && !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
+        if (empty($id) || !is_numeric($id)) {
+            $message = array('status' => FALSE, 'message' => 'Invalid Cash Register ID');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
-            $update_data = $this->input->post();
-            // update data
+            $update_data = $_POST;
             $this->load->model('cashs_model');
             $output = $this->cashs_model->update($update_data, $id);
-            if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->cashs_model->get($id));
+
+            if ($output) {
+                $message = array('status' => TRUE, 'message' => 'Cash Register Update Successful.', 'data' => $this->cashs_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+                $message = array('status' => FALSE, 'message' => 'Cash Register Update Failed.');
+                $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
+    }
+    
+    public function update_patch($id = ''){
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        
+        $update_data=array(
+            'status'=>$_POST['status']
+        );
+        
+         if($this->cashs_model->update_extracts($update_data, $id)) {
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Status atualizado com sucesso',
+                'data' => $subgroups
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Erro ao atualizar status'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        } 
+    }
+    
+    public function active_patch(){
+        
+        
+       
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        $number = $_POST['caixaId'];
+        $valor = $_POST['valor'];
+        $status = $_POST['status'];
+        $client_id = $_POST['client_id'];
+        $status_txt_caixa = $status==0?"Fechado":"Aberto";
+        $status_caixa = $status==0?"close_cash":"open_cash";
+        $nota_caixa = $status==0?"Fechado de Caixa":"Abertura de Caixa";
+        $type = $status==0?"debito":"credito";
+        $user_id = $this->authservice->user->staffid;
+        
+       
+        $update_data=array(
+            'status'=>$status,
+            'open_value'=>$valor,
+            'user_id'=>$user_id,
+            
+        );
+        
+        $detalhes_caixa = $this->cashs_model->get_by_number($number);
+        if(!$detalhes_caixa){
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Caixa nao encontrado'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+        if($status == $detalhes_caixa->status ){
+            
+             $this->response([
+                'status' => FALSE,
+                'message' => 'Caixa já esta '. $status_txt_caixa
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+        
+         if($this->cashs_model->update_by_number($update_data, $number)) {
+            
+             $data_extract = array(
+                 'client_id'=>$client_id,
+                 'user_id'=>$user_id,
+                 'cash_id'=>$detalhes_caixa->id,
+                 'type'=>$type,
+                 'subtotal'=>$valor,
+                 'total'=>$valor,
+                 'nota'=>$nota_caixa,
+                 'status'=>$status_caixa
+                 
+                 );
+            $this->cashs_model->add_extract($data_extract);
+             
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Caixa '.$status_txt_caixa.' com sucesso',
+                'data' => $detalhes_caixa
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Erro ao atualizar status'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+        
+        
     }
 }

@@ -124,7 +124,10 @@ class Invoice_items_model extends App_Model
         $this->db->join('items_groups', 'items_groups.id = items.group_id', 'left');
 
         if (is_numeric($id)) {
-            $this->db->where('items.id', $id);
+             $this->db->where('items.id', $id);
+                $this->db->or_where('items.commodity_code', $id); // Adiciona a condição para commodity_code
+                $this->db->or_where('items.commodity_barcode', $id); // Adiciona a condição para commodity_barcode
+   
             $item = $this->db->get()->row();
             return ['data' => (array) $item, 'total' => ($item) ? 1 : 0];
         } else {

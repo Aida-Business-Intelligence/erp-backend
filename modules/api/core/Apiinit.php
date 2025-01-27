@@ -10,8 +10,12 @@ use Firebase\JWT\Key as api_Key;
 use WpOrg\Requests\Requests as api_Requests;
 
 class Apiinit {
+    
+    
 
     public static function the_da_vinci_code($module_name) {
+        
+      
         
         /*   $module = get_instance()->app_modules->get($module_name);
           $verification_id =  !empty(get_option($module_name.'_verification_id')) ? base64_decode(get_option($module_name.'_verification_id')) : '';

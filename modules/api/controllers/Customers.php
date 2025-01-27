@@ -72,6 +72,42 @@ class Customers extends REST_Controller {
      *       "message": "No data were found"
      *     }
      */
+    
+     public function suppliers_get($id = '') {
+
+
+        /*
+          $this->load->model('clients_model');
+
+          $this->clients_model->add_import_items();
+          exit;
+         * 
+         */
+
+        $page = $this->get('page') ? (int) $this->get('page') : 1; // Página atual, padrão 1
+        $limit = $this->get('limit') ? (int) $this->get('limit') : 10; // Itens por página, padrão 10
+        $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
+        $sortField = $this->get('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
+        $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $data = $this->Clients_model->get_api_supplier($id, $page, $limit, $search, $sortField, $sortOrder);
+        
+        
+      
+
+        if ($data['total'] == 0) {
+            
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+
+        } else {
+
+            if ($data) {
+                $this->response(['status' => true,'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+    }
+    
     public function data_get($id = '') {
 
 

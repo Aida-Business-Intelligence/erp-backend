@@ -1,553 +1,269 @@
 <?php
 
+use app\services\utilities\Arr;
+
 defined('BASEPATH') or exit('No direct script access allowed');
-// This can be removed if you use __autoload() in config.php OR use Modular Extensions
 
-/** @noinspection PhpIncludeInspection */
-require __DIR__ . '/../REST_Controller.php';
+class Cashs_model extends App_Model {
 
-/**
- * This is an example of a few basic user interaction methods you could use
- * all done with a hardcoded array
- *
- * @package         CodeIgniter
- * @subpackage      Rest Server
- * @category        Controller
- * @author          Phil Sturgeon, Chris Kacerguis
- * @license         MIT
- * @link            https://github.com/chriskacerguis/codeigniter-restserver
- */
-class Cash extends REST_Controller
-{
-    
-
-    function __construct()
-    {
-        // Construct the parent class
+    public function __construct() {
         parent::__construct();
-        $this->load->model('cashs_model');
-        $this->load->model('Authentication_model');
-        
-        $decodedToken = $this->authservice->decodeToken($this->token_jwt);
-        if (!$decodedToken['status']) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Usuario nao autenticado '
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-        
-        
-        
+
     }
-     public function get_by_number_get($id)
-    {
-         
-         
-      
-        $data = $this->cashs_model->get_by_number($id);
-            if ($data) {
-                $this->response(['status' => true, 'total' => 1, 'data' => $data], REST_Controller::HTTP_OK);
-            } else {
-                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-            }
-        
-           
-        
-    }
-    public function list_post($id = '')
-    {
-      
-            
 
-        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
+    /**
+     * Get client object based on passed clientid if not passed clientid return array of all clients
+     * @param  mixed $id    client id
+     * @param  array  $where
+     * @return mixed
+     */
+    public function get($id = '', $where = []) {
+        $this->db->select(implode(',', prefixed_table_fields_array(db_prefix() . 'clients')) . ',' . get_sql_select_client_company());
 
-        $page = $page + 1;
+        $this->db->join(db_prefix() . 'countries', '' . db_prefix() . 'countries.country_id = ' . db_prefix() . 'clients.country', 'left');
+        $this->db->join(db_prefix() . 'contacts', '' . db_prefix() . 'contacts.userid = ' . db_prefix() . 'clients.userid AND is_primary = 1', 'left');
 
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
-        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-        $data = $this->cashs_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
-        
-        if ($data['total'] == 0) {
-
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-        } else {
-
-            if ($data) {
-                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
-            } else {
-                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-            }
+        if ((is_array($where) && count($where) > 0) || (is_string($where) && $where != '')) {
+            $this->db->where($where);
         }
-           
-        
+
+        if (is_numeric($id)) {
+            $this->db->where('staffid', $id);
+            $client = $this->db->get(db_prefix() . 'clients')->row();
+
+            if ($client && get_option('company_requires_vat_number_field') == 0) {
+                $client->vat = null;
+            }
+
+            $GLOBALS['client'] = $client;
+
+            return $client;
+        }
+
+        $this->db->order_by('open_cash', 'asc');
+
+        return $this->db->get(db_prefix() . 'cashs')->result_array();
     }
     
-     public function list_inactive_get()
-    {
+     public function get_by_number($id) {
 
-        $data = $this->cashs_model->get_inactive();
-        
-        if ($data['total'] == 0) {
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->where('cashs.number', $id);
+        $client = $this->db->get()->row();
 
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-        } else {
-
-            if ($data) {
-                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
-            } else {
-                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-            }
-        }
-           
-        
-    }
+        return $client;
     
-    public function extracts_get($id = '')
-    {
+}
 
-        /*
-          $this->load->model('clients_model');
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
 
-          $this->clients_model->add_import_items();
-          exit;
-         * 
-         */
+    if (!is_numeric($id)) {
+        // JOIN com a tabela staff
+        $this->db->select('cashs.*, staff.firstname, staff.lastname');
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left'); // LEFT JOIN para vincular as tabelas
 
-        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
-
-        $page = $page + 1;
-
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
-        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-        $data = $this->cashs_model->get_extracts($id, $page, $limit, $search, $sortField, $sortOrder);
-        
-        if ($data['total'] == 0) {
-
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-        } else {
-
-            if ($data) {
-                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
-            } else {
-                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-            }
+        // Adicionar condições de busca
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.status', $search);
+            $this->db->or_like('cashs.id', $search);
+            $this->db->or_like('cashs.open_value', $search);
+            $this->db->or_like('cashs.balance', $search);
+            $this->db->or_like('cashs.number', $search);
+            $this->db->or_like('cashs.user_id', $search);
+            $this->db->or_like('cashs.open_cash', $search);
+            $this->db->group_end();
         }
-    }
 
+        $this->db->order_by($sortField, $sortOrder);
 
+        $this->db->limit($limit, ($page - 1) * $limit);
 
+        // Obtenha os registros com as informações do staff
+        $clients = $this->db->get()->result_array();
 
+        // Contar o total de registros (considerando a busca)
+        $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
 
-    public function create_post() {
-    // Lê os dados do corpo da requisição
-    $input = json_decode(file_get_contents('php://input'), true);
-
-    // Verifica se os dados foram recebidos
-    if (empty($input)) {
-        log_message('error', 'Nenhum dado recebido.');
-        $this->response([
-            'status' => false,
-            'message' => 'Nenhum dado recebido.'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-        return;
-    }
-
-    // Log do payload recebido
-    log_message('debug', 'Dados recebidos do cliente: ' . print_r($input, true));
-
-    // Prepara os dados para inserção
-    $_input = [
-        'number' => isset($input['number']) ? (int)$input['number'] : null,
-        'status' => isset($input['status']) ? (int)$input['status'] : null,
-        'open_value' => isset($input['open_value']) ? (float)$input['open_value'] : null,
-        'open_cash' => isset($input['open_cash']) ? (float)$input['open_cash'] : null,
-        'user_id' => isset($input['user_id']) ? (int)$input['user_id'] : null,
-        'balance' => isset($input['balance']) ? (float)$input['balance'] : null,
-    ];
-
-    // Valida os campos obrigatórios
-    if (in_array(null, $_input, true)) {
-        log_message('error', 'Erro de validação: Campos obrigatórios estão ausentes ou mal formados.');
-        $this->response([
-            'status' => false,
-            'message' => 'Campos obrigatórios estão ausentes ou mal formados.'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-        return;
-    }
-
-    // Insere os dados no banco de dados
-    try {
-        if ($this->db->insert('cashs', $_input)) {
-            log_message('debug', 'Dados inseridos com sucesso: ' . $this->db->last_query());
-            $this->response([
-                'status' => true,
-                'message' => 'Caixa criado com sucesso.',
-                'data' => [
-                    'id' => $this->db->insert_id(),
-                    'input' => $_input
-                ]
-            ], REST_Controller::HTTP_OK);
-        } else {
-            // Log em caso de erro de inserção
-            log_message('error', 'Erro ao inserir dados: ' . $this->db->last_query());
-            $this->response([
-                'status' => false,
-                'message' => 'Erro ao criar caixa. Tente novamente.'
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.status', $search);
+            $this->db->or_like('cashs.id', $search);
+            $this->db->or_like('cashs.open_value', $search);
+            $this->db->or_like('cashs.balance', $search);
+            $this->db->or_like('cashs.number', $search);
+            $this->db->or_like('cashs.user_id', $search);
+            $this->db->or_like('cashs.open_cash', $search);
+            $this->db->group_end();
         }
-    } catch (Exception $e) {
-        log_message('error', 'Exceção ao inserir dados: ' . $e->getMessage());
-        $this->response([
-            'status' => false,
-            'message' => 'Erro interno no servidor. Tente novamente mais tarde.'
-        ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+
+        $this->db->select('COUNT(*) as total');
+        $total = $this->db->get()->row()->total;
+
+        return ['data' => $clients, 'total' => $total]; // Retorne os dados e o total
+    } else {
+        $this->db->select('cashs.*, staff.firstname, staff.lastname');
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+        $this->db->where('cashs.id', $id);
+
+        $client = $this->db->get()->row();
+        $total = $client ? 1 : 0;
+
+        return ['data' => (array) $client, 'total' => $total];
     }
 }
 
+public function get_inactive() {
+    // JOIN com a tabela staff
+  //  $this->db->select('cashs.*, staff.firstname, staff.lastname');
+    $this->db->from(db_prefix() . 'cashs');
+ //   $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left'); // LEFT JOIN para vincular as tabelas
+
+    // Filtra somente as caixas ativas (status=1)
+    $this->db->where('cashs.status', '0');
+
+    // Ordena os resultados
+    $this->db->order_by('cashs.number');
+
+    // Executa a consulta e obtém os resultados
+    $clients = $this->db->get()->result_array();
+
+    // Retorne os dados com o total de resultados
+    return [
+        'status' => true, // Indica que a operação foi bem-sucedida
+        'total' => count($clients), // Conta o total de resultados
+        'data' => $clients
+    ];
+}
+
+public function get_extracts($cash_id, $id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
+
+   
     
-    public function remove_post(){
-        $data = json_decode(file_get_contents("php://input"), true);
+    if (!is_numeric($id)) {
+        // JOIN com a tabela staff
+        $this->db->from(db_prefix() . 'cashextracts as cashs');
+        $this->db->select('cashs.*, clients.company');
+//        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = clients.userid', 'left');
+        $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
 
-        if (!isset($data['master_password']) || $data['master_password'] !== '1234') {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Senha master incorreta.'
-            ], REST_Controller::HTTP_UNAUTHORIZED);
-            return;
+        // Adicionar condições de busca
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.type', $search);
+            $this->db->or_like('cashs.total', $search);
+            $this->db->group_end();
         }
 
-        if (!isset($data['rows']) || empty($data['rows'])) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Invalid request: rows array is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
+        $this->db->order_by($sortField, $sortOrder);
+
+        $this->db->limit($limit, ($page - 1) * $limit);
+       $this->db->where('cashs.cash_id', $cash_id);
+
+
+        // Obtenha os registros com as informações do staff
+        $clients = $this->db->get()->result_array();
+        
+        foreach ($clients as $key => $client){
+            $items= $this->get_items_cashs($client['cash_id']);
+            $clients[$key]['items'] = $items;
         }
 
-        $ids = $data['rows'];
-        $success_count = 0;
-        $failed_ids = [];
+        // Contar o total de registros (considerando a busca)
+        $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+        $this->db->from(db_prefix() . 'cashextracts as cashs');
+        $this->db->select('cashs.*, clients.company');
+//        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = clients.userid', 'left');
+        $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
 
-        if (!is_array($ids)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'O campo "rows" deve ser um array.'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.type', $search);
+            $this->db->or_like('cashs.total', $search);
+            $this->db->group_end();
         }
 
-        foreach ($ids as $id) {
-            var_dump($id);  // Para verificar o ID antes de tentar excluir
+        return ['data' => $clients, 'total' => count($clients)]; // Retorne os dados e o total
+    } else {
+        $this->db->from(db_prefix() . 'cashextracts as cashs');
+        $this->db->select('cashs.*, clients.company');
+//      $this->db->join(db_prefix() . 'staff', 'cashs.user_id = clients.userid', 'left');
+        $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
+        $this->db->where('cashs.id', $id);
 
+        $client = $this->db->get()->row();
+        $total = $client ? 1 : 0;
+
+        return ['data' => (array) $client, 'total' => $total];
+    }
+}
+            
+            public function add_extract($data)
+    {
+        $this->db->insert(db_prefix().'cashextracts', $data);
+
+        $insert_id = $this->db->insert_id();
+
+        if ($insert_id) {
+            log_activity('Extract insert user:, ', $data['user_id']);
+
+            return $insert_id;
+        }
+
+        return false;
+    }
+
+
+public function get_items_cashs($id)
+    {
+//        $this->db->select('
+//            sum(qty)as qty,sum(qty_provided) as qty_provided
+//        ');
+        $this->db->where('cash_id', $id);
+
+        return $this->db->get(db_prefix() . 'itemcash')->result_array();
+    }
+    
+            
+
+
+    public function delete($id) {
+        // Verifica se o ID é válido e se é numérico
+        if (is_numeric($id)) {
+            // Sanitize o ID para evitar ataques de injeção
             $id = $this->security->xss_clean($id);
 
-            if (empty($id) || !is_numeric($id)) {
-                $failed_ids[] = $id;
-                continue;
-            }
+            // Deleta o caixa com o ID fornecido
+            $this->db->where('id', $id);
+            $this->db->delete(db_prefix() . 'cashs');
 
-            try {
-                $output = $this->cashs_model->delete($id);
-                if ($output === TRUE) {
-                    $success_count++;
-                } else {
-                    $failed_ids[] = $id;
-                }
-            } catch (Exception $e) {
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'Erro ao tentar excluir: ' . $e->getMessage()
-                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-                return;
+            // Verifique se a exclusão foi bem-sucedida
+            if ($this->db->affected_rows() > 0) {
+                return true; // Sucesso
             }
         }
 
-        if ($success_count > 0) {
-            $message = [
-                'status' => TRUE,
-                'message' => $success_count . ' caixa(s) deletado(s) com sucesso.'
-            ];
-            if (!empty($failed_ids)) {
-                $message['failed_ids'] = $failed_ids;
-            }
-            $this->response($message, REST_Controller::HTTP_OK);
-        } else {
-            $message = [
-                'status' => FALSE,
-                'message' => 'Falha ao deletar caixa(s)',
-                'failed_ids' => $failed_ids
-            ];
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        }
+        // Se falhou, retorne false
+        return false;
     }
 
-    
-    public function get_get($id = ''){
-        if (empty($id) || !is_numeric($id)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Invalid Cash ID'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $cash = $this->Cashs_model->get($id);
-
-        if ($cash) {
-            $this->response([
-                'status' => TRUE,
-                'data' => $cash
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No data were found'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
+    public function update($data, $id){
+        $this->db->where('id', $id);
+        return $this->db->update('cashs', $data);
     }
     
-    public function extracts_post($id = ''){
-        
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-        $number = $_POST['caixaId'];
-        $page =$_POST['page'] ? (int) $_POST['page'] : 0; // Página atual, padrão 1
-        $page = $page + 1;
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
-        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-         
-         $detalhes_caixa = $this->cashs_model->get_by_number($number);
-        if(!$detalhes_caixa){
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Caixa nao encontrado'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-     
-
-         
-        $cash = $this->cashs_model->get_extracts($detalhes_caixa->id, $id = '', $page = 1, $limit = 20, $search = '', $sortField = 'id', $sortOrder = 'ASC');
-
-        if ($cash) {
-            $this->response([
-                'status' => TRUE,
-                'data' => $cash
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No data were found'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-    }
-
-    public function update_put($id = ''){
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        if (empty($_POST)) {
-            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
-            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
-        }
-
-        $this->form_validation->set_data($_POST);
-        if (empty($id) || !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Cash Register ID');
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        } else {
-            $update_data = $_POST;
-            $this->load->model('cashs_model');
-            $output = $this->cashs_model->update($update_data, $id);
-
-            if ($output) {
-                $message = array('status' => TRUE, 'message' => 'Cash Register Update Successful.', 'data' => $this->cashs_model->get($id));
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                $message = array('status' => FALSE, 'message' => 'Cash Register Update Failed.');
-                $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-            }
-        }
+    public function update_by_number($data, $number){
+        $this->db->where('number', $number);
+        return $this->db->update('cashs', $data);
     }
     
-    public function update_patch($id = ''){
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        
-        $update_data=array(
-            'status'=>$_POST['status']
-        );
-        
-         if($this->cashs_model->update_extracts($update_data, $id)) {
-            $this->response([
-                'status' => TRUE,
-                'message' => 'Status atualizado com sucesso',
-                'data' => $subgroups
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Erro ao atualizar status'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        } 
+    public function update_extracts($data, $id){
+        $this->db->where('id', $id);
+        return $this->db->update('cashextracts', $data);
     }
-    
-    public function active_patch(){
-        
-        
-       
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        $number = $_POST['caixaId'];
-        $valor = $_POST['valor'];
-        $status = $_POST['status'];
-        $client_id = $_POST['client_id'];
-        $status_txt_caixa = $status==0?"Fechado":"Aberto";
-        $status_caixa = $status==0?"close_cash":"open_cash";
-        $nota_caixa = $status==0?"Fechado de Caixa":"Abertura de Caixa";
-        $type = $status==0?"debito":"credito";
-        $user_id = $this->authservice->user->staffid;
-        
-        $email = $this->authservice->user->email;
-        $password = $_POST['password'];
-        $data = $this->Authentication_model->login_api($email, $password);
-         
-        if (!$data['success']) {
 
-           $this->response([
-                'status' => FALSE,
-                'message' => 'Senha inválida'
-            ], REST_Controller::HTTP_OK);
-        }
-        
-       
-        $update_data=array(
-            'status'=>$status,
-            'open_value'=>$valor,
-            'user_id'=>$user_id,
-            
-        );
-        
-        $detalhes_caixa = $this->cashs_model->get_by_number($number);
-        if(!$detalhes_caixa){
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Caixa nao encontrado'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-        if($status == $detalhes_caixa->status ){
-            
-             $this->response([
-                'status' => FALSE,
-                'message' => 'Caixa já esta '. $status_txt_caixa
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-        
-         if($this->cashs_model->update_by_number($update_data, $number)) {
-            
-             $data_extract = array(
-                 'client_id'=>$client_id,
-                 'user_id'=>$user_id,
-                 'cash_id'=>$detalhes_caixa->id,
-                 'type'=>$type,
-                 'subtotal'=>$valor,
-                 'total'=>$valor,
-                 'nota'=>$nota_caixa,
-                 'operacao'=>$status_caixa
-                 
-                 );
-            $this->cashs_model->add_extract($data_extract);
-             
-            $this->response([
-                'status' => TRUE,
-                'message' => 'Caixa '.$status_txt_caixa.' com sucesso',
-                'data' => $detalhes_caixa
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Erro ao atualizar status'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-        
-        
-    }
-    
-    public function sangria_patch(){
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        $number = $_POST['caixaId'];
-        $valor = $_POST['valor'];
-        $user_id = $this->authservice->user->staffid;
-        
-        $email = $this->authservice->user->email;
-        $password = $_POST['password'];
-        $data = $this->Authentication_model->login_api($email, $password);
-         
-        if (!$data['success']) {
-
-           $this->response([
-                'status' => FALSE,
-                'message' => 'Senha inválida'
-            ], REST_Controller::HTTP_OK);
-        }
-        
-       
-        
-        $detalhes_caixa = $this->cashs_model->get_by_number($number);
-        if(!$detalhes_caixa){
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Caixa nao encontrado'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-       
-        if($valor > $detalhes_caixa->balance_dinheiro){
-             $this->response([
-                'status' => FALSE,
-                'message' => 'Valor em dinheiro insuficiente no caixa '
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-        
-         $balance = $detalhes_caixa->balance-$valor;
-         $balance_dinheiro = $detalhes_caixa->balance_dinheiro-$valor;
-         $sangria = $detalhes_caixa->sangria+$valor;
-         
-       
-        $update_data=array(
-            'balance'=>$balance,
-            'balance_dinheiro'=>$balance_dinheiro,
-            'sangria'=>$sangria,
-            'user_id'=>$user_id
-            
-        );
-        
-         if($this->cashs_model->update_by_number($update_data, $number)) {
-            
-             $data_extract = array(
-                 'user_id'=>$user_id,
-                 'cash_id'=>$detalhes_caixa->id,
-                 'type'=>'debit',
-                 'subtotal'=>$valor,
-                 'total'=>$valor,
-                 'nota'=>'Sangria',
-                 'operacao'=>'sangria'
-                 
-                 );
-            $this->cashs_model->add_extract($data_extract);
-             
-            $this->response([
-                'status' => TRUE,
-                'message' => 'Sangria realizada com sucesso',
-                'data' => $detalhes_caixa
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Erro ao atualizar status'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-        
-        
-    }
 }

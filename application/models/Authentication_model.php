@@ -15,6 +15,7 @@ class Authentication_model extends App_Model
     {
         parent::__construct();
         $this->load->model('user_autologin');
+        $this->load->model('Roles_model');
         $this->autologin();
     }
 
@@ -142,7 +143,12 @@ class Authentication_model extends App_Model
                         return ['success' => false, 'message' => 'Usuário inativo, contate o administrador'];
                     }
                     
-                    $permissoes = $this->staff_model->get_staff_permissions($user->staffid);
+                    //$contacts = $this->staff_model->get_staff_permissions($user->staffid);
+                    
+                    $role = $this->Roles_model->get($user->role);
+                    if($role){
+                        $user->roles = $role;
+                    }
                     
               
                     unset($user->password);
@@ -150,12 +156,22 @@ class Authentication_model extends App_Model
                     $payload = [
                         'iat' => time(), // Data de emissão
                         'exp' => time() + (24 * 60 * 60), // Expira em 1 dia
-                        'permissions' => $permissoes,
                         'user' => $user
                     ];
 
                     $token = JWT::encode($payload, $this->config->item('jwt_key'), $this->config->item('jwt_algorithm'));
+                    
                     unset($user->password);
+                    unset($user->facebook);
+                    unset($user->skype);
+                    unset($user->last_activity);
+                    unset($user->new_pass_key);
+                    unset($user->new_pass_key_requested);
+                    unset($user->direction);
+                    unset($user->hourly_rate);
+                    unset($user->email_signature);
+                    unset($user->perfex_saas_tenant_id);
+                    unset($user->role);
                    // unset($user->staffid);
 
 
@@ -163,7 +179,6 @@ class Authentication_model extends App_Model
                         'success' => true,
                         'message' => 'Logado com sucesso',
                         'user' => $user,
-                        'permissions'=>$permissoes,
                         'token' => $token
                     ];
                 } else {

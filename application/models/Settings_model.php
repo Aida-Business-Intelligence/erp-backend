@@ -19,6 +19,15 @@ class Settings_model extends App_Model
             }
         }
     }
+    public function get_options(){
+        
+           $this->db->select('name,value');
+            $this->db->where('type', 'pdv');
+            return $this->db->get(db_prefix() . 'options')->result_array();
+                    
+        
+        
+    }
 
     /**
      * Update all settings
@@ -201,4 +210,15 @@ class Settings_model extends App_Model
 
         return false;
     }
+
+    
+    public function insert_settings($data) {
+   
+        $this->db->insert(db_prefix() . 'pdvsettings', $data);
+        if ($this->db->affected_rows() > 0) {
+            return $this->db->insert_id(); // Retorna o ID do registro inserido
+        }
+        return false; // Retorna falso em caso de falha
+    }
+
 }

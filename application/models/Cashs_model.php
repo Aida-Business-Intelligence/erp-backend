@@ -140,8 +140,10 @@ public function get_inactive() {
     ];
 }
 
-public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
+public function get_extracts($cash_id, $id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
 
+   
+    
     if (!is_numeric($id)) {
         // JOIN com a tabela staff
         $this->db->from(db_prefix() . 'cashextracts as cashs');
@@ -160,6 +162,8 @@ public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $so
         $this->db->order_by($sortField, $sortOrder);
 
         $this->db->limit($limit, ($page - 1) * $limit);
+       $this->db->where('cashs.cash_id', $cash_id);
+
 
         // Obtenha os registros com as informações do staff
         $clients = $this->db->get()->result_array();
@@ -183,10 +187,7 @@ public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $so
             $this->db->group_end();
         }
 
-        $this->db->select('COUNT(*) as total');
-        $total = $this->db->get()->row()->total;
-
-        return ['data' => $clients, 'total' => $total]; // Retorne os dados e o total
+        return ['data' => $clients, 'total' => count($clients)]; // Retorne os dados e o total
     } else {
         $this->db->from(db_prefix() . 'cashextracts as cashs');
         $this->db->select('cashs.*, clients.company');

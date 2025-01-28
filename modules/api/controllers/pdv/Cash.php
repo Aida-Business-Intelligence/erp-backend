@@ -26,6 +26,8 @@ class Cash extends REST_Controller
         // Construct the parent class
         parent::__construct();
         $this->load->model('cashs_model');
+        $this->load->model('Authentication_model');
+        
         $decodedToken = $this->authservice->decodeToken($this->token_jwt);
         if (!$decodedToken['status']) {
             $this->response([
@@ -102,7 +104,7 @@ class Cash extends REST_Controller
         
     }
     
-    public function extracts_post($id = '')
+    public function extracts_get($id = '')
     {
 
         /*
@@ -308,11 +310,29 @@ class Cash extends REST_Controller
         }
     }
     
-    public function extracts_get($id = ''){
-        error_reporting(-1);
-		ini_set('display_errors', 1);
+    public function extracts_post($id = ''){
         
-        $cash = $this->cashs_model->get_extracts($id);
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        $number = $_POST['caixaId'];
+        $page =$_POST['page'] ? (int) $_POST['page'] : 0; // Página atual, padrão 1
+        $page = $page + 1;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
+        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
+        $sortField = $this->post('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+         
+         $detalhes_caixa = $this->cashs_model->get_by_number($number);
+        if(!$detalhes_caixa){
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Caixa nao encontrado'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+     
+
+         
+        $cash = $this->cashs_model->get_extracts($detalhes_caixa->id, $id = '', $page = 1, $limit = 20, $search = '', $sortField = 'id', $sortOrder = 'ASC');
 
         if ($cash) {
             $this->response([
@@ -389,6 +409,18 @@ class Cash extends REST_Controller
         $type = $status==0?"debito":"credito";
         $user_id = $this->authservice->user->staffid;
         
+        $email = $this->authservice->user->email;
+        $password = $_POST['password'];
+        $data = $this->Authentication_model->login_api($email, $password);
+         
+        if (!$data['success']) {
+
+           $this->response([
+                'status' => FALSE,
+                'message' => 'Senha inválida'
+            ], REST_Controller::HTTP_OK);
+        }
+        
        
         $update_data=array(
             'status'=>$status,
@@ -422,7 +454,7 @@ class Cash extends REST_Controller
                  'subtotal'=>$valor,
                  'total'=>$valor,
                  'nota'=>$nota_caixa,
-                 'status'=>$status_caixa
+                 'operacao'=>$status_caixa
                  
                  );
             $this->cashs_model->add_extract($data_extract);
@@ -430,6 +462,83 @@ class Cash extends REST_Controller
             $this->response([
                 'status' => TRUE,
                 'message' => 'Caixa '.$status_txt_caixa.' com sucesso',
+                'data' => $detalhes_caixa
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Erro ao atualizar status'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+        
+        
+    }
+    
+    public function sangria_patch(){
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        $number = $_POST['caixaId'];
+        $valor = $_POST['valor'];
+        $user_id = $this->authservice->user->staffid;
+        
+        $email = $this->authservice->user->email;
+        $password = $_POST['password'];
+        $data = $this->Authentication_model->login_api($email, $password);
+         
+        if (!$data['success']) {
+
+           $this->response([
+                'status' => FALSE,
+                'message' => 'Senha inválida'
+            ], REST_Controller::HTTP_OK);
+        }
+        
+       
+        
+        $detalhes_caixa = $this->cashs_model->get_by_number($number);
+        if(!$detalhes_caixa){
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Caixa nao encontrado'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+       
+        if($valor > $detalhes_caixa->balance_dinheiro){
+             $this->response([
+                'status' => FALSE,
+                'message' => 'Valor em dinheiro insuficiente no caixa '
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+        
+         $balance = $detalhes_caixa->balance-$valor;
+         $balance_dinheiro = $detalhes_caixa->balance_dinheiro-$valor;
+         $sangria = $detalhes_caixa->sangria+$valor;
+         
+       
+        $update_data=array(
+            'balance'=>$balance,
+            'balance_dinheiro'=>$balance_dinheiro,
+            'sangria'=>$sangria,
+            'user_id'=>$user_id
+            
+        );
+        
+         if($this->cashs_model->update_by_number($update_data, $number)) {
+            
+             $data_extract = array(
+                 'user_id'=>$user_id,
+                 'cash_id'=>$detalhes_caixa->id,
+                 'type'=>'debit',
+                 'subtotal'=>$valor,
+                 'total'=>$valor,
+                 'nota'=>'Sangria',
+                 'operacao'=>'sangria'
+                 
+                 );
+            $this->cashs_model->add_extract($data_extract);
+             
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Sangria realizada com sucesso',
                 'data' => $detalhes_caixa
             ], REST_Controller::HTTP_OK);
         } else {

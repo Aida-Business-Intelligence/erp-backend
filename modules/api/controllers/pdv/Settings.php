@@ -25,7 +25,6 @@ class Settings extends REST_Controller
         // Construct the parent class
         parent::__construct();
         // $this->load->model('Carriers_model');
-//        $this->load->model('Settings_model');
     }
 
 
@@ -588,37 +587,4 @@ class Settings extends REST_Controller
             }
         }
     }
-    
-
-        public function create_post(){
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-//        var_dump($_POST);
-        
-//        	error_reporting(-1);
-//		ini_set('display_errors', 1);	
-        
-        $this->load->model('Settings_model');
-        $this->form_validation->set_rules('title', 'title', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Company'));
-        if ($this->form_validation->run() == FALSE) {
-            // form validation error
-            $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-  
-        } else {
-
-            $output = $this->Settings_model->insert_settings($_POST);
-
-            if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Settings added successful.', 'data' => $output);
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                $this->response('Error', REST_Controller::HTTP_NOT_ACCEPTABLE);
-            }
-        }
-        var_dump($_POST);
-        var_dump($output);
-    }
-    
 }

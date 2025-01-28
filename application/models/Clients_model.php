@@ -85,6 +85,50 @@ class Clients_model extends App_Model
             return ['data' => (array) $supplier, 'total' => $total];
         }
     }
+    /**
+     * Add a new supplier
+     * @param array $data Supplier data
+     * @return int|bool Supplier ID or false on failure
+     */
+    public function add_supplier($data)
+    {
+        $data['is_supplier'] = 1;
+
+        $this->db->insert(db_prefix() . 'clients', $data);
+
+        return $this->db->insert_id();
+    }
+
+    /**
+     * Update an existing supplier
+     * @param int $id Supplier ID
+     * @param array $data Supplier data
+     * @return bool True on success, false on failure
+     */
+    public function update_supplier($id, $data)
+    {
+        $data['is_supplier'] = 1;
+
+        // Update the supplier
+        $this->db->where('userid', $id);
+        $this->db->update(db_prefix() . 'clients', $data);
+
+        return $this->db->affected_rows() > 0;
+    }
+
+    /**
+     * Delete a supplier
+     * @param int $id Supplier ID
+     * @return bool True on success, false on failure
+     */
+    public function delete_supplier($id)
+    {
+        $this->db->where('userid', $id);
+        $this->db->delete(db_prefix() . 'clients');
+
+        return $this->db->affected_rows() > 0;
+    }
+
 
     public function get($id = '', $where = [])
     {
@@ -114,9 +158,8 @@ class Clients_model extends App_Model
 
         return $this->db->get(db_prefix() . 'clients')->result_array();
     }
-
-
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    
+    public function get_api_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
     {
 
         if (!is_numeric($id)) {
@@ -131,15 +174,21 @@ class Clients_model extends App_Model
                 $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
                 $this->db->group_end(); // Fecha o agrupamento de condição
             }
+            
+          
+
 
             // Implementar lógica para ordenação
             $this->db->order_by($sortField, $sortOrder);
 
             // Implementar a limitação e o deslocamento
             $this->db->limit($limit, ($page - 1) * $limit);
+            
+            $this->db->where('is_supplier', 1);
 
             // Obtenha todos os clientes
             $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+            
 
             // Contar o total de clientes (considerando a busca)
             $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
@@ -155,9 +204,7 @@ class Clients_model extends App_Model
                 $this->db->group_end(); // Fecha o agrupamento de condição
             }
 
-            // Seleciona o total de clientes
-            $this->db->select('COUNT(*) as total');
-            $total = $this->db->get(db_prefix() . 'clients')->row()->total;
+            $total = count($clients);
 
             return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
         } else {
@@ -173,6 +220,185 @@ class Clients_model extends App_Model
 
         // (O resto do código existente para quando $id é válido)
     }
+
+
+//    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+//    {
+//
+//        if (!is_numeric($id)) {
+//            // Adicionar condições de busca
+//            if (!empty($search)) {
+//                $this->db->group_start(); // Começa um agrupamento de condição
+//                $this->db->like('company', $search); // Busca pelo campo 'company'
+//                $this->db->or_like('billing_city', $search);
+//                $this->db->or_like('billing_state', $search);
+//                $this->db->or_like('vat', $search); // Busca pelo campo 'vat'
+//                // Pesquisa o CNPJ sem formatação
+//                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+//                $this->db->group_end(); // Fecha o agrupamento de condição
+//            }
+//
+//            // Implementar lógica para ordenação
+//            $this->db->order_by($sortField, $sortOrder);
+//
+//            // Implementar a limitação e o deslocamento
+//            $this->db->limit($limit, ($page - 1) * $limit);
+//
+//            // Obtenha todos os clientes
+//            $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+//
+//            // Contar o total de clientes (considerando a busca)
+//            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+//
+//            if (!empty($search)) {
+//                // Condições de busca para contar os resultados
+//                $this->db->group_start(); // Começa um agrupamento de condição
+//                $this->db->like('company', $search);
+//                $this->db->or_like('billing_city', $search);
+//                $this->db->or_like('billing_state', $search);
+//                $this->db->or_like('vat', $search);
+//                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+//                $this->db->group_end(); // Fecha o agrupamento de condição
+//            }
+//
+//            // Seleciona o total de clientes
+//            $this->db->select('COUNT(*) as total');
+//            $total = $this->db->get(db_prefix() . 'clients')->row()->total;
+//
+//            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
+//        } else {
+//
+//            $client = $this->get($id);
+//            $total = 0;
+//            if ($client) {
+//                $total = 1;
+//            }
+//
+//            return ['data' => (array) $client, 'total' => $total];
+//        }
+//
+//        // (O resto do código existente para quando $id é válido)
+//
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    {
+        if (!is_numeric($id)) {
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('company', $search);
+                $this->db->group_end();
+            }
+
+            $this->db->order_by($sortField, $sortOrder);
+
+            $this->db->limit($limit, ($page - 1) * $limit);
+
+            $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+         
+
+            $this->db->reset_query();
+
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('company', $search);
+                $this->db->group_end();
+            }
+
+
+            // Seleciona o total de clientes
+            $total = count($clients);
+
+
+            return ['data' => $clients, 'total' => $total];
+        } else {
+            $client = $this->get($id);
+            $total = 0;
+            if ($client) {
+                $total = 1;
+            }
+
+            return ['data' => (array) $client, 'total' => $total];
+        }
+    }
+
+    // Busca por cidade
+    public function get_api_by_city($page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    {
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('billing_city', $search);
+            $this->db->group_end();
+        }
+
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+
+        $this->db->reset_query();
+        if (!empty($search)) {
+            $this->db->like('billing_city', $search);
+        }
+        $total = $this->db->count_all_results(db_prefix() . 'clients');
+
+        return ['data' => $clients, 'total' => $total];
+    }
+
+// Busca por estado
+    public function get_api_by_state($page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    {
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('billing_state', $search);
+            $this->db->group_end();
+        }
+
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+
+        // Contar total
+        $this->db->reset_query();
+        if (!empty($search)) {
+            $this->db->like('billing_state', $search);
+        }
+        $total = $this->db->count_all_results(db_prefix() . 'clients');
+
+        return ['data' => $clients, 'total' => $total];
+    }
+
+    //Busca por CNPJ/VAT
+    public function get_api_by_vat($page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    {
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('vat', $search);
+            // Pesquisa o CNPJ sem formatação
+            $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" .
+                $this->db->escape_like_str($search) . "%'");
+            $this->db->group_end();
+        }
+
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+
+        // Contar total
+        $this->db->reset_query();
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('vat', $search);
+            $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" .
+                $this->db->escape_like_str($search) . "%'");
+            $this->db->group_end();
+        }
+        $total = $this->db->count_all_results(db_prefix() . 'clients');
+
+        return ['data' => $clients, 'total' => $total];
+    }
+
 
     /**
      * Get customers contacts
@@ -426,7 +652,7 @@ class Clients_model extends App_Model
                     continue; // Pular linhas em branco ou inválidas
                 }
 
-                // Mapeia os dados do CSV para os campos da tabela 
+                // Mapeia os dados do CSV para os campos da tabela
                 $clientData = array(
                     'company' => $data[1], // Nome da empresa (tcl_razao)
                     'vat' => $data[9], // CNPJ (tcl_cnpj)
@@ -866,7 +1092,7 @@ class Clients_model extends App_Model
               $password_before_hash
               );
               }
-             * 
+             *
              */
 
             if ($send_set_password_email) {

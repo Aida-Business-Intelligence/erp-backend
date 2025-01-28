@@ -95,6 +95,8 @@ class Client extends REST_Controller
         $sortField = $this->post('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
         $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        
+       
 
         if ($data['total'] == 0) {
 

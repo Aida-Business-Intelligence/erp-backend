@@ -191,13 +191,25 @@ class Invoices_model extends App_Model
         } else {
 
 
+            $this->db->from(db_prefix() . 'invoices as invoices');
+            $this->db->join(db_prefix() . 'clients as clients', 'invoices.clientid = clients.userid', 'left');
+            $this->db->join(db_prefix() . 'clients as s', 'invoices.supplier_id = s.userid', 'left');
 
 
+            foreach ($clients as $key => $client)
+            {
+                $items= $this->get_items_invoices($client['id']);
+                $clients[$key]['items'] = $items;
+            }
+
+            $total = count($clients);
+
+            return ['data' => $clients, 'total' => $total];
+      
             return ['data' => (array) $this->get($id), 'total' => 1];
         }
-
-        // (O resto do código existente para quando $id é válido)
     }
+
 
     /**
      * Get invoice by id

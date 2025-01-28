@@ -1,11 +1,13 @@
 <?php
+defined('BASEPATH') or exit('No direct script access allowed');
 
 use BaconQrCode\Renderer\Image\ImagickImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Firebase\JWT\JWT;
 
-defined('BASEPATH') or exit('No direct script access allowed');
+
 
 class Authentication_model extends App_Model
 {
@@ -121,6 +123,60 @@ class Authentication_model extends App_Model
 
         return false;
     }
+    
+     public function login_api($email, $password) {
+         
+            header('Content-Type: application/json');
+            $table = db_prefix() . 'staff';
+            $this->db->where('email', $email);
+            $user = $this->db->get($table)->row();
+            
+         
+            if ($user) {
+                // Email está correto, agora vamos checar a senha
+                if (app_hasher()->CheckPassword($password, $user->password)) {
+                    
+                 
+
+                    if ($user->active == 0) {
+                        return ['success' => false, 'message' => 'Usuário inativo, contate o administrador'];
+                    }
+                    
+                    $permissoes = $this->staff_model->get_staff_permissions($user->staffid);
+                    
+              
+                    unset($user->password);
+                    // Gerar o JWT
+                    $payload = [
+                        'iat' => time(), // Data de emissão
+                        'exp' => time() + (24 * 60 * 60), // Expira em 1 dia
+                        'permissions' => $permissoes,
+                        'user' => $user
+                    ];
+
+                    $token = JWT::encode($payload, $this->config->item('jwt_key'), $this->config->item('jwt_algorithm'));
+                    unset($user->password);
+                   // unset($user->staffid);
+
+
+                    return [
+                        'success' => true,
+                        'message' => 'Logado com sucesso',
+                        'user' => $user,
+                        'permissions'=>$permissoes,
+                        'token' => $token
+                    ];
+                } else {
+                    return ['success' => false, 'message' => 'Login Inválido'];
+                }
+            } else {
+                log_activity('Non Existing User Tried to Login [Email: ' . $email . ', Is Staff Member: ' . (@$staff == true ? 'Yes' : 'No') . ', IP: ' . $this->input->ip_address() . ']');
+                return ['success' => false, 'message' => 'Usuário inexistente'];
+            }
+        
+        
+    }
+
 
     /**
      * @param  boolean If Client or Staff
@@ -701,4 +757,7 @@ class Authentication_model extends App_Model
 
         return $this->encryption->decrypt($string);
     }
+    
+    
+    
 }

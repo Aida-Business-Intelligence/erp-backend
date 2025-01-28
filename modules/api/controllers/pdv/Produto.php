@@ -31,102 +31,6 @@ class Produto extends REST_Controller
 
     public function list_post($id = '')
     {
-
-        // $data = [
-        //     "sum" => 4,
-        //     "data" => [
-        //         [
-        //             "id" => "4a28cf4c-8737-40aa-8bef-42816f600319",
-        //             "productName" => "Mochila Escolar",
-        //             "image" => "https://tse4.mm.bing.net/th?id=OIP.mmfw6ve4N9t6F1tFS4pS2QHaJc&pid=Api",
-        //             "sku" => "BAG12345",
-        //             "barcode" => "7891234567892",
-        //             "category" => "Acessórios",
-        //             "brand" => "Genérica",
-        //             "description" => "Mochila escolar resistente com compartimentos para laptop e outros itens.",
-        //             "unit" => "unidade",
-        //             "price" => 89.99,
-        //             "cost" => 50,
-        //             "promoPrice" => 79.99,
-        //             "promoStart" => "2024-12-01T00:00:00.000Z",
-        //             "promoEnd" => "2024-12-31T23:59:59.000Z",
-        //             "stock" => 100,
-        //             "minStock" => 20,
-        //             "active" => true,
-        //             "variations" => '[{"sku":"BAG12345-BLUE","price":89.99,"cost":50,"stock":50},{"sku":"BAG12345-RED","price":89.99,"cost":50,"stock":50}]',
-        //             "createdAt" => "2024-12-20T14:00:00.000Z",
-        //             "updatedAt" => "2024-12-20T14:00:00.000Z"
-        //         ],
-        //         [
-        //             "id" => "1785d627-4bb1-4a03-8c1f-7c9b617f4d2d",
-        //             "productName" => "Relógio Smartwatch",
-        //             "image" => "https://dcdn.mitiendanube.com/stores/002/578/628/products/eadba2c14d7ea47ccb1018b89f27a31bawsaccesskeyidakiatclmsgfx4j7tu445expires1692742014signaturerdlpzol2fyhojccxget5athm2bec3d-cbab12e3ce3d2b306d16901500672419-1024-1024.jpg",
-        //             "sku" => "WATCH12345",
-        //             "barcode" => "7891234567894",
-        //             "category" => "Eletrônicos",
-        //             "brand" => "Xiaomi",
-        //             "description" => "Relógio inteligente com monitoramento de saúde, notificações e bateria de longa duração.",
-        //             "unit" => "unidade",
-        //             "price" => 349.99,
-        //             "cost" => 200,
-        //             "promoPrice" => 299.99,
-        //             "promoStart" => "2024-12-01T00:00:00.000Z",
-        //             "promoEnd" => "2024-12-31T23:59:59.000Z",
-        //             "stock" => 50,
-        //             "minStock" => 10,
-        //             "active" => true,
-        //             "variations" => '[{"sku":"WATCH12345-BLACK","price":349.99,"cost":200,"stock":30},{"sku":"WATCH12345-WHITE","price":349.99,"cost":200,"stock":20}]',
-        //             "createdAt" => "2024-12-20T14:00:00.000Z",
-        //             "updatedAt" => "2024-12-20T14:00:00.000Z"
-        //         ],
-        //         [
-        //             "id" => "fd0d2f12-769c-4a82-b554-80e92bfa5283",
-        //             "productName" => "Smartphone Samsung",
-        //             "image" => "https://tse4.mm.bing.net/th?id=OIP.hlaa3ABICuuMTIAQdP0ntAHaHa&pid=Api",
-        //             "sku" => "SAM12345",
-        //           *  "barcode" => "7891234567890",
-        //           *  "category" => "Eletrônicos",
-        //           *  "brand" => "Samsung",
-        //             "description" => "Smartphone Samsung Galaxy com tela AMOLED, câmera tripla e 128GB de armazenamento.",
-        //           *  "unit" => "unidade",
-        //             "price" => 1299.99,
-        //            * "cost" => 1000,
-        //            * "promoPrice" => 1199,
-        //            * "promoPrice" => 1199.99,
-        //            * "promoStart" => "2024-12-01T00:00:00.000Z",
-        //            * "promoEnd" => "2024-12-31T23:59:59.000Z",
-        //           *  "stock" => 50,
-        //           *  "minStock" => 10,
-        //           *  "active" => true,
-        //             "variations" => '[{"sku":"SAM12345-BLACK","price":1299.99,"cost":1000,"stock":20},{"sku":"SAM12345-WHITE","price":1299.99,"cost":1000,"stock":30}]',
-        //           *  "createdAt" => "2024-12-20T14:00:00.000Z",
-        //           * "updatedAt" => "2024-12-20T14:00:00.000Z"
-        //         ],
-        //         [
-        //             "id" => "b2ac96fd-5b93-48d0-832c-cf812ee65542",
-        //             "productName" => "Notebook Dell",
-        //             "image" => "https://tse3.mm.bing.net/th?id=OIP.yBoZgRb7vhXPhv8qLY8JLAHaFj&pid=Api",
-        //             "sku" => "DELL12345",
-        //             "barcode" => "7891234567891",
-        //             "category" => "Computadores",
-        //             "brand" => "Dell",
-        //             "description" => "Notebook Dell com processador Intel Core i5, 8GB RAM e 256GB SSD.",
-        //             "unit" => "unidade",
-        //             "price" => 2899.99,
-        //             "cost" => 2500,
-        //             "promoPrice" => 2699.99,
-        //             "promoStart" => "2024-12-01T00:00:00.000Z",
-        //             "promoEnd" => "2024-12-31T23:59:59.000Z",
-        //             "stock" => 30,
-        //             "minStock" => 5,
-        //             "active" => true,
-        //             "variations" => '[{"sku":"DELL12345-SILVER","price":2899.99,"cost":2500,"stock":10},{"sku":"DELL12345-BLACK","price":2899.99,"cost":2500,"stock":20}]',
-        //             "createdAt" => "2024-12-20T14:00:00.000Z",
-        //             "updatedAt" => "2024-12-20T14:00:00.000Z"
-        //         ]
-        //     ]
-        // ];
-        // $this->response($data, REST_Controller::HTTP_OK);
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -184,13 +88,8 @@ class Produto extends REST_Controller
         }
     }
 
-
-
     public function create_post()
     {
-
-
-
         \modules\api\core\Apiinit::the_da_vinci_code('api');
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -208,13 +107,10 @@ class Produto extends REST_Controller
         $_input['company'] = $_POST['fullName'] ?? null;
         $_POST['company'] = $_POST['fullName'] ?? null;
 
-
-
         $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
 
         // email
         $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
-
 
         if ($this->form_validation->run() == FALSE) {
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
@@ -464,8 +360,8 @@ class Produto extends REST_Controller
         if ($total > 0) {
             $this->response([
                 'status' => TRUE,
-                'total' => $data['total'],
-                'data' => $data['data']
+                'total' => $total,
+                'data' => $groups
             ], REST_Controller::HTTP_OK);
         } else {
             $this->response([
@@ -513,6 +409,28 @@ class Produto extends REST_Controller
                 'message' => 'No subgroups were found'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
+    }
+
+
+    function generate_pdf_post()
+    {
+        try {
+            $pdf = generic_pdf(array());
+        } catch (Exception $e) {
+            echo $e->getMessage();
+            die;
+        }
+
+        $estimate_number = format_estimate_number($estimate->id);
+        $companyname     = get_option('invoice_company_name');
+        if ($companyname != '') {
+            $estimate_number .= '-' . mb_strtoupper(slug_it($companyname), 'UTF-8');
+        }
+
+        $filename = hooks()->apply_filters('customers_area_download_estimate_filename', mb_strtoupper(slug_it($estimate_number), 'UTF-8') . '.pdf', $estimate);
+
+        $pdf->Output($filename, 'D');
+        die();
     }
 
     public function del_post()
@@ -627,7 +545,6 @@ class Produto extends REST_Controller
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        // Set validation rules
         $this->form_validation->set_rules('group_id', 'Group ID', 'trim|required|numeric');
         $this->form_validation->set_rules('sub_group_name', 'Subgroup Name', 'trim|required|max_length[100]');
 
@@ -639,12 +556,11 @@ class Produto extends REST_Controller
             );
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
-            // Prepare data for insertion
             $data = array(
                 'group_id' => $_POST['group_id'],
                 'sub_group_name' => $_POST['sub_group_name'],
-                'display' => 1, // Default to displayed
-                'order' => 0    // Default order
+                'display' => 1,
+                'order' => 0
             );
 
             $output = $this->Invoice_items_model->add_subgroup($data);
@@ -679,7 +595,6 @@ class Produto extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
 
-        // Set validation rules
         $this->form_validation->set_data($_POST);
         $this->form_validation->set_rules('group_id', 'Group ID', 'trim|required|numeric');
         $this->form_validation->set_rules('sub_group_name', 'Subgroup Name', 'trim|required|max_length[100]');
@@ -698,7 +613,6 @@ class Produto extends REST_Controller
             'sub_group_name' => $_POST['sub_group_name']
         );
 
-        // Optional fields
         if (isset($_POST['display'])) {
             $update_data['display'] = $_POST['display'];
         }
@@ -745,6 +659,104 @@ class Produto extends REST_Controller
                 'message' => 'Failed to delete subgroup'
             );
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function check_stock_post()
+    {
+        $this->db->select('
+            id,
+            description as name,
+            sku_code as sku,
+            stock as currentStock,
+            minStock as minimumStock,
+            unit as product_unit,
+            status,
+            updatedAt as lastOrderDate
+        ');
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where('stock <= minStock');
+
+        $products = $this->db->get()->result_array();
+
+        $purchase_needs = [];
+
+        foreach ($products as $product) {
+            $suggested_qty = (int)($product['minimumStock'] - $product['currentStock'] + ($product['minimumStock'] * 0.2));
+
+            $status = 'pending';
+            if ($product['status'] === 'ordered') {
+                $status = 'ordered';
+            } else if ($product['status'] === 'cancelled') {
+                $status = 'cancelled';
+            }
+
+            $purchase_needs[] = [
+                'product' => [
+                    'id' => $product['id'],
+                    'name' => $product['name'],
+                    'sku' => $product['sku']
+                ],
+                'currentStock' => (int)$product['currentStock'],
+                'minimumStock' => (int)$product['minimumStock'],
+                'suggestedOrderQuantity' => $suggested_qty,
+                'lastOrderDate' => $product['lastOrderDate'],
+                'status' => $status
+            ];
+        }
+
+        if (empty($purchase_needs)) {
+            $this->response([
+                'status' => TRUE,
+                'data' => []
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => TRUE,
+                'data' => $purchase_needs
+            ], REST_Controller::HTTP_OK);
+        }
+    }
+
+    public function create_purchase_order_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['items']) || empty($_POST['items'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No items provided for purchase order'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            $this->db->trans_start();
+
+            foreach ($_POST['items'] as $item) {
+                $this->db->where('itemid', $item['product']['id']);
+                $this->db->update(db_prefix() . 'items', ['status' => 'ordered']);
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Failed to create purchase order'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
+
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Purchase order created successfully'
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error creating purchase order: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

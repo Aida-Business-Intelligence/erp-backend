@@ -426,23 +426,4 @@ class Invoice_items_model extends App_Model
 
         return false;
     }
-
-    public function add_subgroup($data)
-    {
-        $this->db->insert(db_prefix() . 'wh_sub_group', $data);
-        log_activity('Sub Group Created [Name: ' . $data['sub_group_name'] . ']');
-        return $this->db->insert_id();
-    }
-
-    public function edit_subgroup($data, $id)
-    {
-        $this->db->where('id', $id);
-        return $this->db->update(db_prefix() . 'wh_sub_group', $data);
-    }
-
-    public function delete_subgroup($id)
-    {
-        $this->db->where('id', $id);
-        return $this->db->delete(db_prefix() . 'wh_sub_group');
-    }
 }

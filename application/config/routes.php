@@ -84,11 +84,6 @@ $route['admin/items/search'] = 'admin/invoice_items/search';
 $route['/'] = 'clients';
 
 /**
- * In case if client access directly to url without the arguments redirect to clients url
- */
-$route['api/cash/update'] = 'cash/update_put';
-
-/**
  * @deprecated
  */
 $route['viewinvoice/(:num)/(:any)'] = 'invoice/index/$1/$2';

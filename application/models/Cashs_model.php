@@ -68,7 +68,7 @@ class Cashs_model extends App_Model {
             $this->db->group_start();
             $this->db->like('cashs.status', $search);
             $this->db->or_like('cashs.id', $search);
-            $this->db->or_like('cashs.open_value', $search);
+            $this->db->or_like('cashs.open_cash', $search);
             $this->db->or_like('cashs.balance', $search);
             $this->db->or_like('cashs.number', $search);
             $this->db->or_like('cashs.user_id', $search);
@@ -92,7 +92,7 @@ class Cashs_model extends App_Model {
             $this->db->group_start();
             $this->db->like('cashs.status', $search);
             $this->db->or_like('cashs.id', $search);
-            $this->db->or_like('cashs.open_value', $search);
+            $this->db->or_like('cashs.open_cash', $search);
             $this->db->or_like('cashs.balance', $search);
             $this->db->or_like('cashs.number', $search);
             $this->db->or_like('cashs.user_id', $search);
@@ -257,6 +257,10 @@ public function get_items_cashs($id)
     }
     
     public function update_by_number($data, $number){
+        
+        $data['open_cash'] = $data['open_value'];
+        unset($data['open_value']);
+        
         $this->db->where('number', $number);
         return $this->db->update('cashs', $data);
     }

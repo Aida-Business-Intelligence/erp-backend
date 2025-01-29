@@ -25,13 +25,108 @@ class Produto extends REST_Controller
         // Construct the parent class
         parent::__construct();
         $this->load->model('Invoice_items_model');
-                $this->load->library('upload');
-
+        $this->load->library('upload');
     }
 
 
     public function list_post($id = '')
     {
+
+        // $data = [
+        //     "sum" => 4,
+        //     "data" => [
+        //         [
+        //             "id" => "4a28cf4c-8737-40aa-8bef-42816f600319",
+        //             "productName" => "Mochila Escolar",
+        //             "image" => "https://tse4.mm.bing.net/th?id=OIP.mmfw6ve4N9t6F1tFS4pS2QHaJc&pid=Api",
+        //             "sku" => "BAG12345",
+        //             "barcode" => "7891234567892",
+        //             "category" => "Acessórios",
+        //             "brand" => "Genérica",
+        //             "description" => "Mochila escolar resistente com compartimentos para laptop e outros itens.",
+        //             "unit" => "unidade",
+        //             "price" => 89.99,
+        //             "cost" => 50,
+        //             "promoPrice" => 79.99,
+        //             "promoStart" => "2024-12-01T00:00:00.000Z",
+        //             "promoEnd" => "2024-12-31T23:59:59.000Z",
+        //             "stock" => 100,
+        //             "minStock" => 20,
+        //             "active" => true,
+        //             "variations" => '[{"sku":"BAG12345-BLUE","price":89.99,"cost":50,"stock":50},{"sku":"BAG12345-RED","price":89.99,"cost":50,"stock":50}]',
+        //             "createdAt" => "2024-12-20T14:00:00.000Z",
+        //             "updatedAt" => "2024-12-20T14:00:00.000Z"
+        //         ],
+        //         [
+        //             "id" => "1785d627-4bb1-4a03-8c1f-7c9b617f4d2d",
+        //             "productName" => "Relógio Smartwatch",
+        //             "image" => "https://dcdn.mitiendanube.com/stores/002/578/628/products/eadba2c14d7ea47ccb1018b89f27a31bawsaccesskeyidakiatclmsgfx4j7tu445expires1692742014signaturerdlpzol2fyhojccxget5athm2bec3d-cbab12e3ce3d2b306d16901500672419-1024-1024.jpg",
+        //             "sku" => "WATCH12345",
+        //             "barcode" => "7891234567894",
+        //             "category" => "Eletrônicos",
+        //             "brand" => "Xiaomi",
+        //             "description" => "Relógio inteligente com monitoramento de saúde, notificações e bateria de longa duração.",
+        //             "unit" => "unidade",
+        //             "price" => 349.99,
+        //             "cost" => 200,
+        //             "promoPrice" => 299.99,
+        //             "promoStart" => "2024-12-01T00:00:00.000Z",
+        //             "promoEnd" => "2024-12-31T23:59:59.000Z",
+        //             "stock" => 50,
+        //             "minStock" => 10,
+        //             "active" => true,
+        //             "variations" => '[{"sku":"WATCH12345-BLACK","price":349.99,"cost":200,"stock":30},{"sku":"WATCH12345-WHITE","price":349.99,"cost":200,"stock":20}]',
+        //             "createdAt" => "2024-12-20T14:00:00.000Z",
+        //             "updatedAt" => "2024-12-20T14:00:00.000Z"
+        //         ],
+        //         [
+        //             "id" => "fd0d2f12-769c-4a82-b554-80e92bfa5283",
+        //             "productName" => "Smartphone Samsung",
+        //             "image" => "https://tse4.mm.bing.net/th?id=OIP.hlaa3ABICuuMTIAQdP0ntAHaHa&pid=Api",
+        //             "sku" => "SAM12345",
+        //           *  "barcode" => "7891234567890",
+        //           *  "category" => "Eletrônicos",
+        //           *  "brand" => "Samsung",
+        //             "description" => "Smartphone Samsung Galaxy com tela AMOLED, câmera tripla e 128GB de armazenamento.",
+        //           *  "unit" => "unidade",
+        //             "price" => 1299.99,
+        //            * "cost" => 1000,
+        //            * "promoPrice" => 1199,
+        //            * "promoPrice" => 1199.99,
+        //            * "promoStart" => "2024-12-01T00:00:00.000Z",
+        //            * "promoEnd" => "2024-12-31T23:59:59.000Z",
+        //           *  "stock" => 50,
+        //           *  "minStock" => 10,
+        //           *  "active" => true,
+        //             "variations" => '[{"sku":"SAM12345-BLACK","price":1299.99,"cost":1000,"stock":20},{"sku":"SAM12345-WHITE","price":1299.99,"cost":1000,"stock":30}]',
+        //           *  "createdAt" => "2024-12-20T14:00:00.000Z",
+        //           * "updatedAt" => "2024-12-20T14:00:00.000Z"
+        //         ],
+        //         [
+        //             "id" => "b2ac96fd-5b93-48d0-832c-cf812ee65542",
+        //             "productName" => "Notebook Dell",
+        //             "image" => "https://tse3.mm.bing.net/th?id=OIP.yBoZgRb7vhXPhv8qLY8JLAHaFj&pid=Api",
+        //             "sku" => "DELL12345",
+        //             "barcode" => "7891234567891",
+        //             "category" => "Computadores",
+        //             "brand" => "Dell",
+        //             "description" => "Notebook Dell com processador Intel Core i5, 8GB RAM e 256GB SSD.",
+        //             "unit" => "unidade",
+        //             "price" => 2899.99,
+        //             "cost" => 2500,
+        //             "promoPrice" => 2699.99,
+        //             "promoStart" => "2024-12-01T00:00:00.000Z",
+        //             "promoEnd" => "2024-12-31T23:59:59.000Z",
+        //             "stock" => 30,
+        //             "minStock" => 5,
+        //             "active" => true,
+        //             "variations" => '[{"sku":"DELL12345-SILVER","price":2899.99,"cost":2500,"stock":10},{"sku":"DELL12345-BLACK","price":2899.99,"cost":2500,"stock":20}]',
+        //             "createdAt" => "2024-12-20T14:00:00.000Z",
+        //             "updatedAt" => "2024-12-20T14:00:00.000Z"
+        //         ]
+        //     ]
+        // ];
+        // $this->response($data, REST_Controller::HTTP_OK);
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -89,8 +184,13 @@ class Produto extends REST_Controller
         }
     }
 
+
+
     public function create_post()
     {
+
+
+
         \modules\api\core\Apiinit::the_da_vinci_code('api');
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -108,13 +208,15 @@ class Produto extends REST_Controller
         $_input['company'] = $_POST['fullName'] ?? null;
         $_POST['company'] = $_POST['fullName'] ?? null;
 
+
+
         $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
 
         // email
         $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
 
+
         if ($this->form_validation->run() == FALSE) {
-            // form validation error
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
@@ -132,117 +234,100 @@ class Produto extends REST_Controller
             }
         }
     }
-    
-   public function upload_put($item_id) {
-    // Captura o conteúdo da requisição bruta
-    $raw_body = $this->input->raw_input_stream;
 
-    // Defina o boundary (o valor do 'boundary' deve estar presente nos cabeçalhos da requisição)
-    preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
-    $boundary = '--' . trim($matches[1]);
+    public function upload_put($item_id)
+    {
+        $raw_body = $this->input->raw_input_stream;
 
-    // Divide a contagem com base no boundary
-    $parts = explode($boundary, $raw_body);
+        preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
+        $boundary = '--' . trim($matches[1]);
 
-    // Define o diretório de upload
-    $upload_dir = './uploads/items/' . $item_id . '/';
+        $parts = explode($boundary, $raw_body);
 
-    // Cria o diretório se não existir
-    if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0777, true); // Criação recursiva do diretório
-    }
+        $upload_dir = './uploads/items/' . $item_id . '/';
 
-    foreach ($parts as $part) {
-        // Verifique se a parte contém dados de arquivo
-        if (strpos($part, 'Content-Disposition:') !== false) {
-            // Extraia o nome do arquivo e seu conteúdo
-            preg_match('/name="([^"]+)"/', $part, $name_match);
-            preg_match('/filename="([^"]+)"/', $part, $filename_match);
-            preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
-            
-            if (isset($filename_match[1])) {
-                $file_content_start = strpos($part, "\r\n\r\n") + 4; // Ignora os cabeçalhos
-                $file_content = substr($part, $file_content_start, -4); // Remove os delimitadores no final
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0777, true); // Criação recursiva do diretório
+        }
 
-                // Validação do tipo de arquivo
-                $extension = pathinfo($filename_match[1], PATHINFO_EXTENSION);
-                $allowed_types = ['jpeg', 'jpg', 'png'];
-                $file_size = strlen($file_content); // Tamanho do arquivo em bytes
+        foreach ($parts as $part) {
+            if (strpos($part, 'Content-Disposition:') !== false) {
+                preg_match('/name="([^"]+)"/', $part, $name_match);
+                preg_match('/filename="([^"]+)"/', $part, $filename_match);
+                preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
 
-                if (!in_array(strtolower($extension), $allowed_types)) {
-                    echo json_encode(['status' => FALSE, 'message' => 'Tipo de arquivo não permitido.']);
+                if (isset($filename_match[1])) {
+                    $file_content_start = strpos($part, "\r\n\r\n") + 4;
+                    $file_content = substr($part, $file_content_start, -4);
+
+                    $extension = pathinfo($filename_match[1], PATHINFO_EXTENSION);
+                    $allowed_types = ['jpeg', 'jpg', 'png'];
+                    $file_size = strlen($file_content);
+                    if (!in_array(strtolower($extension), $allowed_types)) {
+                        echo json_encode(['status' => FALSE, 'message' => 'Tipo de arquivo não permitido.']);
+                        return;
+                    }
+
+                    $max_file_size = 2 * 1024 * 1024; // 2MB
+                    if ($file_size > $max_file_size) {
+                        echo json_encode(['status' => FALSE, 'message' => 'O arquivo é muito grande.']);
+                        return;
+                    }
+
+                    $upload_path = $upload_dir . basename($filename_match[1]);
+
+                    file_put_contents($upload_path, $file_content);
+
+                    $server_url = base_url();
+                    $relative_path = str_replace('./', '', $upload_path);
+                    $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+
+                    echo json_encode(['status' => TRUE, 'file' => $full_url]);
                     return;
                 }
+            }
+        }
 
-                // Limitar o tamanho do arquivo (por exemplo: 2MB)
-                $max_file_size = 2 * 1024 * 1024; // 2MB
-                if ($file_size > $max_file_size) {
-                    echo json_encode(['status' => FALSE, 'message' => 'O arquivo é muito grande.']);
-                    return;
+        echo json_encode(['status' => FALSE, 'message' => 'Nenhuma parte de arquivo encontrada.']);
+    }
+
+
+    public function upload_mult_put($product_id)
+    {
+
+        $raw_body = $this->input->raw_input_stream;
+
+        preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
+        $boundary = '--' . trim($matches[1]);
+
+        $parts = explode($boundary, $raw_body);
+        $uploaded_files = [];
+
+        foreach ($parts as $part) {
+            if (strpos($part, 'Content-Disposition:') !== false) {
+                preg_match('/name="([^"]+)"/', $part, $name_match);
+                preg_match('/filename="([^"]+)"/', $part, $filename_match);
+                preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
+
+                if (isset($filename_match[1])) {
+                    $file_content_start = strpos($part, "\r\n\r\n") + 4;
+                    $file_content = substr($part, $file_content_start, -4);
+
+                    $upload_path = './uploads/' . $filename_match[1];
+
+                    file_put_contents($upload_path, $file_content);
+
+                    $uploaded_files[] = $upload_path;
                 }
-
-                $upload_path = $upload_dir . basename($filename_match[1]);
-
-                // Salva o arquivo
-                file_put_contents($upload_path, $file_content);
-
-                echo json_encode(['status' => TRUE, 'file' => $upload_path]);
-                return; // Para evitar que outros arquivos sejam processados
             }
         }
-    }
-    
-    echo json_encode(['status' => FALSE, 'message' => 'Nenhuma parte de arquivo encontrada.']);
-}
-    
-    
-     
-    
-    
-    public function upload_mult_put($product_id) {
-        
-   
-    // Captura o conteúdo da requisição bruta
-    $raw_body = $this->input->raw_input_stream;
 
-    // Define o boundary (o valor do 'boundary' deve estar presente nos cabeçalhos da requisição)
-    preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
-    $boundary = '--' . trim($matches[1]);
-
-    // Divide o conteúdo com base no boundary
-    $parts = explode($boundary, $raw_body);
-    $uploaded_files = [];
-
-    foreach ($parts as $part) {
-        // Procura por cabeçalho de Content-Disposition
-        if (strpos($part, 'Content-Disposition:') !== false) {
-            // Extrai o nome do arquivo, seu conteúdo e outros detalhes
-            preg_match('/name="([^"]+)"/', $part, $name_match);
-            preg_match('/filename="([^"]+)"/', $part, $filename_match);
-            preg_match('/Content-Type: ([\S]+)/', $part, $type_match);
-            
-            if (isset($filename_match[1])) {
-                $file_content_start = strpos($part, "\r\n\r\n") + 4; // Ignora os cabeçalhos
-                $file_content = substr($part, $file_content_start, -4); // Remove os delimitadores no final
-
-                // Diretório de upload e salva o arquivo
-                $upload_path = './uploads/' . $filename_match[1];
-                
-                file_put_contents($upload_path, $file_content);
-
-                // Armazena o caminho do arquivo enviado
-                $uploaded_files[] = $upload_path;
-            }
+        if (!empty($uploaded_files)) {
+            echo json_encode(['status' => TRUE, 'files' => $uploaded_files]);
+        } else {
+            echo json_encode(['status' => FALSE, 'message' => 'No file parts found.']);
         }
     }
-
-    // Resposta com arquivos carregados ou mensagem de erro
-    if (!empty($uploaded_files)) {
-        echo json_encode(['status' => TRUE, 'files' => $uploaded_files]);
-    } else {
-        echo json_encode(['status' => FALSE, 'message' => 'No file parts found.']);
-    }
-}
 
     public function get_get($id = '')
     {
@@ -255,9 +340,6 @@ class Produto extends REST_Controller
         }
 
         $product = $this->Invoice_items_model->get_item($id);
-
-        // echo $this->db->last_query();
-        // exit;
 
         if ($product) {
             $this->response([
@@ -340,15 +422,12 @@ class Produto extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
             $update_data = $this->input->post();
-            // update data
             $this->load->model('Invoice_items_model');
             $output = $this->Invoice_items_model->edit($update_data, $id);
             if ($output > 0 && !empty($output)) {
-                // success
                 $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->Invoice_items_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                // error
                 $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
@@ -362,7 +441,6 @@ class Produto extends REST_Controller
         $search = $this->post('search') ?: '';
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
-        // Get groups with counts
         $this->db->select('g.*, 
             (SELECT COUNT(*) FROM ' . db_prefix() . 'wh_sub_group WHERE group_id = g.id) as subcategories_count,
             (SELECT COUNT(*) FROM ' . db_prefix() . 'items WHERE group_id = g.id) as total_products
@@ -386,8 +464,8 @@ class Produto extends REST_Controller
         if ($total > 0) {
             $this->response([
                 'status' => TRUE,
-                'total' => $total,
-                'data' => $groups
+                'total' => $data['total'],
+                'data' => $data['data']
             ], REST_Controller::HTTP_OK);
         } else {
             $this->response([
@@ -436,30 +514,6 @@ class Produto extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
-
-    
-    function generate_pdf_post() {
-        
-            try {
-                $pdf = generic_pdf(array());
-            } catch (Exception $e) {
-                echo $e->getMessage();
-                die;
-            }
-
-            $estimate_number = format_estimate_number($estimate->id);
-            $companyname     = get_option('invoice_company_name');
-            if ($companyname != '') {
-                $estimate_number .= '-' . mb_strtoupper(slug_it($companyname), 'UTF-8');
-            }
-
-            $filename = hooks()->apply_filters('customers_area_download_estimate_filename', mb_strtoupper(slug_it($estimate_number), 'UTF-8') . '.pdf', $estimate);
-
-            $pdf->Output($filename, 'D');
-            die();
-        
-    }
-    
 
     public function del_post()
     {
@@ -693,5 +747,4 @@ class Produto extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }
-
 }

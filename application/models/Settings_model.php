@@ -9,9 +9,6 @@ class Settings_model extends App_Model
     public function __construct()
     {
         parent::__construct();
-//        $this->load->database();
-        $this->load->model('payment_modes_model');
-        
         $payment_gateways = $this->payment_modes_model->get_payment_gateways(true);
         foreach ($payment_gateways as $gateway) {
             $settings = $gateway['instance']->getSettings();
@@ -213,6 +210,7 @@ class Settings_model extends App_Model
 
         return false;
     }
+
     
     public function insert_settings($data) {
    
@@ -222,4 +220,5 @@ class Settings_model extends App_Model
         }
         return false; // Retorna falso em caso de falha
     }
+
 }

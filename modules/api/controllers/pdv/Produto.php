@@ -507,9 +507,6 @@ class Produto extends REST_Controller
     public function groups_put($id = '')
     {
 
-        error_reporting(-1);
-        ini_set('display_errors', 1);
-
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -778,6 +775,155 @@ class Produto extends REST_Controller
             $this->response([
                 'status' => FALSE,
                 'message' => 'Error creating purchase order: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function import_post()
+    {
+        if (!isset($_FILES['file']) || empty($_FILES['file'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No file was uploaded'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['mapping'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No field mapping provided'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $file = $_FILES['file'];
+        $mapping = json_decode($_POST['mapping'], true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid mapping JSON format'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $mapping = array_filter($mapping, function($value) {
+            return !empty($value);
+        });
+
+        $field_translations = [
+            'sku' => 'sku_code',
+            'name' => 'description',
+            'price' => 'rate',
+            'quantity' => 'stock'
+        ];
+
+        $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if ($file_ext !== 'csv') {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Only CSV files are allowed'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $handle = fopen($file['tmp_name'], 'r');
+        if ($handle === FALSE) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Failed to read file'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        $headers = fgetcsv($handle);
+        if ($headers === FALSE) {
+            fclose($handle);
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Empty CSV file'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $success_count = 0;
+        $errors = [];
+        $row_number = 1;
+
+        try {
+            $this->db->trans_start();
+
+            while (($row = fgetcsv($handle)) !== FALSE) {
+                $row_number++;
+                $product_data = [
+                    'createdAt' => date('Y-m-d H:i:s'),
+                    'updatedAt' => date('Y-m-d H:i:s')
+                ];
+
+                foreach ($mapping as $csv_field => $csv_column) {
+                    $column_index = array_search($csv_column, $headers);
+                    if ($column_index !== FALSE && isset($row[$column_index])) {
+                        $db_field = isset($field_translations[$csv_field]) ? $field_translations[$csv_field] : $csv_field;
+                        $product_data[$db_field] = $row[$column_index];
+                    }
+                }
+
+                if (empty($product_data['description'])) {
+                    $errors[] = "Row {$row_number}: Product name/description is required";
+                    continue;
+                }
+
+                if (isset($product_data['rate'])) {
+                    $product_data['rate'] = floatval(str_replace(['R$', ' ', ','], ['', '', '.'], $product_data['rate']));
+                }
+                if (isset($product_data['stock'])) {
+                    $product_data['stock'] = intval($product_data['stock']);
+                }
+
+                $product_data['status'] = $product_data['status'] ?? 'pending';
+                $product_data['group_id'] = $product_data['group_id'] ?? 0;
+
+                $product_id = $this->Invoice_items_model->add($product_data);
+                if ($product_id) {
+                    $success_count++;
+                } else {
+                    $errors[] = "Row {$row_number}: Failed to insert product";
+                }
+            }
+
+            $this->db->trans_complete();
+
+            fclose($handle);
+
+            if ($this->db->trans_status() === FALSE) {
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Transaction failed',
+                    'errors' => $errors
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
+
+            $response = [
+                'status' => TRUE,
+                'message' => "{$success_count} products imported successfully"
+            ];
+
+            if (!empty($errors)) {
+                $response['warnings'] = $errors;
+            }
+
+            $this->response($response, REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Import failed: ' . $e->getMessage(),
+                'errors' => $errors
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

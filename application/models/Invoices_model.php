@@ -438,6 +438,9 @@ class Invoices_model extends App_Model
      */
     public function add($data, $expense = false)
     {
+        
+       
+        
         $data['prefix'] = get_option('invoice_prefix');
 
         $data['number_format'] = get_option('invoice_number_format');
@@ -2008,4 +2011,6 @@ class Invoices_model extends App_Model
             'active' => 1, 'invoice_emails' => 1,
         ]);
     }
+    
+    
 }

@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project-private xmlns="http://www.netbeans.org/ns/project-private/1">
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
-<<<<<<< HEAD
-=======
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Produto.php</file>
-            <file>file:/C:/xampp/htdocs/aida/erp-backend/index.php</file>
-            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Translations.php</file>
-            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Expenses.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/config/jwt.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/config/routes.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/Customers.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Auth.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/libraries/AuthService.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/libraries/Authorization_Token.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/config/autoload.php</file>
             <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Cash.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Payment.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/REST_Controller.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Produto.php</file>
             <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Client.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/pdv/Settings.php</file>
+            <file>file:/C:/xampp/htdocs/aida/erp-backend/modules/api/controllers/Suppliers.php</file>
         </group>
     </open-files>
->>>>>>> origin/main
 </project-private>

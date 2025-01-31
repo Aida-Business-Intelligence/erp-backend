@@ -27,209 +27,168 @@ class Settings extends REST_Controller {
 
     public function options_get() {
         $data = [
-            [
-                "type" => "menu",
-                "category" => "system",
-                "list" => [
-                    "menu" => [
-                        [
-                            "value" => "indice",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:home",
-                            "width" => "",
-                            "path" => "/indice"
-                        ],
-                        [
-                            "value" => "dashboard",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:chart-pie",
-                            "width" => "",
-                            "path" => "/dashboard"
-                        ],
-                        [
-                            "value" => "products",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:album",
-                            "width" => "",
-                            "path" => "/products"
-                        ],
-                        [
-                            "value" => "categories",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:table-properties",
-                            "width" => "",
-                            "path" => "/categories"
-                        ],
-                        [
-                            "value" => "cash",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:shopping-cart",
-                            "width" => "",
-                            "path" => "/cash"
-                        ],
-                        [
-                            "value" => "pdv",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:shopping-cart",
-                            "width" => "",
-                            "path" => "/pdv"
-                        ],
-                        [
-                            "value" => "transactions",
-                            "label" => "Transações",
-                            "color" => "",
-                            "icon" => "lucide:receipt",
-                            "width" => "",
-                            "path" => "/transactions"
-                        ],
-                        [
-                            "value" => "clients",
-                            "label" => "my_account",
-                            "color" => "",
-                            "icon" => "lucide:book-user",
-                            "width" => "",
-                            "path" => "/client"
-                        ],
-                        [
-                            "value" => "product_1",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/produto"
-                        ],
-                        [
-                            "value" => "financial",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:credit-card",
-                            "width" => "",
-                            "path" => "/financial"
-                        ],
-                        [
-                            "value" => "sales_orders",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:shopping-bag",
-                            "width" => "",
-                            "path" => "/sales-orders"
-                        ],
-                        [
-                            "value" => "reports",
-                            "label" => "manager",
-                            "color" => "",
-                            "icon" => "lucide:file-text",
-                            "width" => "",
-                            "path" => "/reports"
-                        ],
-                        [
-                            "value" => "users",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:users",
-                            "width" => "",
-                            "path" => "/admin/user/list"
-                        ],
-                        [
-                            "value" => "languages",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:globe-2",
-                            "width" => "",
-                            "path" => "/admin/languages"
-                        ],
-                        [
-                            "value" => "options",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:sliders-horizontal",
-                            "width" => "",
-                            "path" => "/admin/options"
-                        ],
-                        [
-                            "value" => "config",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:settings",
-                            "width" => "",
-                            "path" => "/admin/config"
-                        ],
-                        [
-                            "value" => "emails",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:mail",
-                            "width" => "",
-                            "path" => "/admin/emails"
-                        ],
-                        [
-                            "value" => "apis",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:unlock-keyhole",
-                            "width" => "",
-                            "path" => "/admin/apis"
-                        ]
-                    ]
+    [
+        "type" => "menu",
+        "category" => "system",
+        "list" => [
+            "menu" => [
+                
+                [
+                    "value" => "dashboard",
+                    "label" => "home",
+                    "color" => "",
+                    "icon" => "lucide:chart-pie",
+                    "width" => "",
+                    "path" => "/dashboard"
+                ],
+               
+                [
+                    "value" => "Catálogo",
+                    "label" => "home",
+                    "color" => "",
+                    "icon" => "lucide:album",
+                    "width" => "",
+                    "path" => "/products"
+                ],
+                [
+                    "value" => "cash",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:calculator",
+                    "width" => "",
+                    "path" => "/cash"
+                ],
+                [
+                    "value" => "POS",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:monitor",
+                    "width" => "",
+                    "path" => "/pdv"
+                ],
+                [
+                    "value" => "Ordens de Compra",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:shopping-bag",
+                    "width" => "",
+                    "path" => "/buy-orders"
+                ],
+                [
+                    "value" => "Vendas",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:receipt",
+                    "width" => "",
+                    "path" => "/transactions"
+                ],
+                [
+                    "value" => "clients",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:book-user",
+                    "width" => "",
+                    "path" => "/client-pdv"
+                ],
+               
+                [
+                    "value" => "Categorias",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:list",
+                    "width" => "",
+                    "path" => "/categories"
+                ],
+        
+                [
+                    "value" => "product",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:edit",
+                    "width" => "",
+                    "path" => "/produto"
+                ],
+                [
+                    "value" => "Contas a pagar",
+                    "label" => "financial",
+                    "color" => "",
+                    "icon" => "lucide:wallet",
+                    "width" => "",
+                    "path" => "/financial"
+                ],
+                [
+                    "value" => "Relatórios",
+                    "label" =>  "home",
+                    "color" => "",
+                    "icon" => "lucide:file-text",
+                    "width" => "",
+                    "path" => "/reports"
+                ],
+                [
+                    "value" => "users",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:users",
+                    "width" => "",
+                    "path" => "/admin/user/list"
+                ],
+               
+                [
+                    "value" => "config",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:settings",
+                    "width" => "",
+                    "path" => "/admin/config"
                 ]
-            ],
-            [
-                "type" => "status",
-                "category" => "system",
-                "list" => [
-                    "status" => [
-                        [
-                            "value" => "indice",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:home",
-                            "width" => "",
-                            "path" => "/indice"
-                        ],
-                        [
-                            "value" => "active",
-                            "label" => "Active",
-                            "color" => "success",
-                            "icon" => "solar:check-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "inactive",
-                            "label" => "Pending",
-                            "color" => "warning",
-                            "icon" => "solar:clock-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "banned",
-                            "label" => "Banned",
-                            "color" => "error",
-                            "icon" => "solar:ban-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "rejected",
-                            "label" => "Rejected",
-                            "color" => "default",
-                            "icon" => "solar:close-circle-bold",
-                            "width" => "",
-                            "path" => ""
-                        ]
-                    ]
+                
+            ]
+        ]
+    ],
+    [
+        "type" => "status",
+        "category" => "system",
+        "list" => [
+            "status" => [
+                [
+                    "value" => "active",
+                    "label" => "Active",
+                    "color" => "success",
+                    "icon" => "solar:check-bold",
+                    "width" => "",
+                    "path" => ""
+                ],
+                [
+                    "value" => "inactive",
+                    "label" => "Pending",
+                    "color" => "warning",
+                    "icon" => "solar:clock-bold",
+                    "width" => "",
+                    "path" => ""
+                ],
+                [
+                    "value" => "banned",
+                    "label" => "Banned",
+                    "color" => "error",
+                    "icon" => "solar:ban-bold",
+                    "width" => "",
+                    "path" => ""
+                ],
+                [
+                    "value" => "rejected",
+                    "label" => "Rejected",
+                    "color" => "default",
+                    "icon" => "solar:close-circle-bold",
+                    "width" => "",
+                    "path" => ""
                 ]
             ]
-        ];
+        ]
+    ]
+];
+        
 
-        $this->response($data, REST_Controller::HTTP_OK);
+          $this->response($data, REST_Controller::HTTP_OK);
     }
 
     public function create_post() {
@@ -257,6 +216,7 @@ class Settings extends REST_Controller {
     
     public function config_get(){
         
+   
          $output = $this->Settings_model->get_options();
 
             $this->load->model('Settings_model');

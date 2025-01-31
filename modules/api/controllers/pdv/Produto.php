@@ -60,6 +60,9 @@ class Produto extends REST_Controller
             $start_date,
             $end_date
         );
+        
+        
+       
 
         // echo $this->db->last_query();
         // exit;

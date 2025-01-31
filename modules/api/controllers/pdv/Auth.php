@@ -4,6 +4,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
 /** @noinspection PhpIncludeInspection */
+
 require __DIR__ . '/../REST_Controller.php';
 
 /**
@@ -23,15 +24,16 @@ class Auth extends REST_Controller {
         // Construct the parent class
         parent::__construct();
         $this->load->model('Api_model');
+        $this->load->model('Authentication_model');
     }
 
     public function data_post() {
         
-
+    
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
+        
         $email = $_POST['email'];
-        $password = $_POST['password'];;
+        $password = $_POST['password'];
         $data = $this->Authentication_model->login_api($email, $password);
         if (is_array($data) && isset($data['token'])) {
 

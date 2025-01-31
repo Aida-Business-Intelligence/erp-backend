@@ -451,10 +451,6 @@ class Produto extends REST_Controller
         die();
     }
 
-
-
-
-
     public function del_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -779,6 +775,7 @@ class Produto extends REST_Controller
         }
     }
 
+
     public function import_post()
     {
         if (!isset($_FILES['file']) || empty($_FILES['file'])) {
@@ -927,4 +924,5 @@ class Produto extends REST_Controller
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+}
 }

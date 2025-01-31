@@ -124,7 +124,10 @@ class Invoice_items_model extends App_Model
         $this->db->join('items_groups', 'items_groups.id = items.group_id', 'left');
 
         if (is_numeric($id)) {
-            $this->db->where('items.id', $id);
+             $this->db->where('items.id', $id);
+                $this->db->or_where('items.commodity_code', $id); // Adiciona a condição para commodity_code
+                $this->db->or_where('items.commodity_barcode', $id); // Adiciona a condição para commodity_barcode
+   
             $item = $this->db->get()->row();
             return ['data' => (array) $item, 'total' => ($item) ? 1 : 0];
         } else {
@@ -422,24 +425,5 @@ class Invoice_items_model extends App_Model
         }
 
         return false;
-    }
-
-    public function add_subgroup($data)
-    {
-        $this->db->insert(db_prefix() . 'wh_sub_group', $data);
-        log_activity('Sub Group Created [Name: ' . $data['sub_group_name'] . ']');
-        return $this->db->insert_id();
-    }
-
-    public function edit_subgroup($data, $id)
-    {
-        $this->db->where('id', $id);
-        return $this->db->update(db_prefix() . 'wh_sub_group', $data);
-    }
-
-    public function delete_subgroup($id)
-    {
-        $this->db->where('id', $id);
-        return $this->db->delete(db_prefix() . 'wh_sub_group');
     }
 }

@@ -269,5 +269,62 @@ public function get_items_cashs($id)
         $this->db->where('id', $id);
         return $this->db->update('cashextracts', $data);
     }
+    public function add($data)
+    {
+     
+       $data['hash'] = app_generate_hash();
+
+     
+       $items = [];
+
+        if (isset($data['newitems'])) {
+            $items = $data['newitems'];
+            unset($data['newitems']);
+        }
+
+        $this->db->insert(db_prefix() . 'cashextracts', $data);
+        $insert_id = $this->db->insert_id();
+        
+        if ($insert_id) {
+            
+        
+           
+            
+            foreach(json_decode($data['form_payments']) as $payment){
+                
+                $data_payment = array(
+                    'cashid'=>$data['cash_id'],
+                    'amount'=>$payment->value,
+                    'parcelas'=>$payment->parcelas,
+                    'paymentmethod'=>$payment->type,
+                    'note'=>'pagamento',
+                    'transactionid'=>app_generate_hash()
+                );
+                $this->db->insert(db_prefix() . 'cashpaymentrecords', $data_payment);
+            
+            }
+           
+
+            foreach ($items as $key => $item) {
+                
+                 $this->db->insert(db_prefix() . 'itemcash', [
+                    'description'      => $item['description'],
+                    'long_description' => nl2br($item['description']),
+                    'qty'              => $item['qty'],
+                    'rate'             => number_format($item['rate'], get_decimal_places(), '.', ''),
+                    'item_id'           =>   $item['id'],
+                     'cash_id'           =>   $insert_id,
+                    'item_order'       => $item['item_order'],
+                    'unit'             => $item['unit'],
+                ]);
+                
+            }
+
+            return $insert_id;
+        }
+
+        return false;
+    }
+    
 
 }

@@ -60,6 +60,9 @@ class Produto extends REST_Controller
             $start_date,
             $end_date
         );
+        
+        
+       
 
         if ($data['total'] == 0) {
             $this->response(

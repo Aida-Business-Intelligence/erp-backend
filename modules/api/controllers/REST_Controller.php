@@ -567,6 +567,7 @@ abstract class REST_Controller extends CI_Controller {
         // load authorization token library
         $this->load->library('Authorization_Token');
         $this->load->model('Api_model');
+       
         $is_valid_token = $this->authorization_token->validateToken();
         
         
@@ -575,11 +576,14 @@ abstract class REST_Controller extends CI_Controller {
      
         
         $check_token = $this->Api_model->check_token($token);
+        $session_segment = $this->uri->segment(4);
+     
+        if(('session' != $session_segment)){
         
-      
         if ($is_valid_token['status'] == false || $check_token === false) {
             $message = array('status' => FALSE, 'message' => $is_valid_token['message']);
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
         }
    
         

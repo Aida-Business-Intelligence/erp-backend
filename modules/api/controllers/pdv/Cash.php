@@ -65,7 +65,7 @@ class Cash extends REST_Controller
 
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
         $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
+        $sortField = $this->post('sortField') ?: 'number'; // Campo para ordenação, padrão 'id'
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
         $data = $this->cashs_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
         
@@ -163,10 +163,7 @@ class Cash extends REST_Controller
     $_input = [
         'number' => isset($input['number']) ? (int)$input['number'] : null,
         'status' => isset($input['status']) ? (int)$input['status'] : null,
-        'open_value' => isset($input['open_value']) ? (float)$input['open_value'] : null,
-        'open_cash' => isset($input['open_cash']) ? (float)$input['open_cash'] : null,
-        'user_id' => isset($input['user_id']) ? (int)$input['user_id'] : null,
-        'balance' => isset($input['balance']) ? (float)$input['balance'] : null,
+        'observation' => isset($input['observation']) ? (float)$input['observation'] : null,
     ];
 
     // Valida os campos obrigatórios
@@ -212,7 +209,7 @@ class Cash extends REST_Controller
     public function remove_post(){
         $data = json_decode(file_get_contents("php://input"), true);
 
-        if (!isset($data['master_password']) || $data['master_password'] !== '1234') {
+        if (!isset($data['master_password'])) {
             $this->response([
                 'status' => FALSE,
                 'message' => 'Senha master incorreta.'
@@ -524,12 +521,16 @@ class Cash extends REST_Controller
         );
         
          if($this->cashs_model->update_by_number($update_data, $number)) {
+             
+             if($tatus == 0){
+                 $subtotal = 0;
+             }
             
              $data_extract = array(
                  'user_id'=>$user_id,
                  'cash_id'=>$detalhes_caixa->id,
                  'type'=>'debit',
-                 'subtotal'=>$valor,
+                 'subtotal'=>$subtotal,
                  'total'=>$valor,
                  'nota'=>'Sangria',
                  'operacao'=>'sangria'

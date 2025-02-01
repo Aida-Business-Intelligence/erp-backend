@@ -110,7 +110,7 @@ class Invoice_items_model extends App_Model
         return $this->db->get()->row();
     }
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $statusFilter = null)
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $statusFilter = null, $startDate = null, $endDate = null)
     {
         $this->db->select('items.id as itemid, items.rate,');
         $this->db->select('t1.taxrate as taxrate, t1.id as taxid, t1.name as taxname,');
@@ -123,17 +123,21 @@ class Invoice_items_model extends App_Model
         $this->db->join('taxes t2', 't2.id = items.tax2', 'left');
         $this->db->join('items_groups', 'items_groups.id = items.group_id', 'left');
 
-        if ($id) {
-             $this->db->where('items.id', $id);
-                $this->db->or_where('items.commodity_code', $id); // Adiciona a condição para commodity_code
-                $this->db->or_where('items.commodity_barcode', $id); // Adiciona a condição para commodity_barcode
-   
+        if (is_numeric($id)) {
+            $this->db->where('items.id', $id);
+            $this->db->or_where('items.commodity_barcode', $id);
             $item = $this->db->get()->row();
             return ['data' => (array) $item, 'total' => ($item) ? 1 : 0];
         } else {
-            // Add status filter
             if (!empty($statusFilter) && is_array($statusFilter)) {
                 $this->db->where_in('items.status', $statusFilter);
+            }
+
+            if (!empty($startDate)) {
+                $this->db->where('DATE(createdAt) >=', $startDate);
+            }
+            if (!empty($endDate)) {
+                $this->db->where('DATE(createdAt) <=', $endDate);
             }
 
             if (!empty($search)) {
@@ -149,12 +153,19 @@ class Invoice_items_model extends App_Model
 
             $items = $this->db->get()->result_array();
 
-            // Get total count with same filters but without limit
             $this->db->select('COUNT(*) as total');
             $this->db->from('items');
 
             if (!empty($statusFilter) && is_array($statusFilter)) {
                 $this->db->where_in('items.status', $statusFilter);
+            }
+
+
+            if (!empty($startDate)) {
+                $this->db->where('DATE(createdAt) >=', $startDate);
+            }
+            if (!empty($endDate)) {
+                $this->db->where('DATE(createdAt) <=', $endDate);
             }
 
             if (!empty($search)) {
@@ -425,5 +436,24 @@ class Invoice_items_model extends App_Model
         }
 
         return false;
+    }
+
+    public function add_subgroup($data)
+    {
+        $this->db->insert(db_prefix() . 'wh_sub_group', $data);
+        log_activity('Sub Group Created [Name: ' . $data['sub_group_name'] . ']');
+        return $this->db->insert_id();
+    }
+
+    public function edit_subgroup($data, $id)
+    {
+        $this->db->where('id', $id);
+        return $this->db->update(db_prefix() . 'wh_sub_group', $data);
+    }
+
+    public function delete_subgroup($id)
+    {
+        $this->db->where('id', $id);
+        return $this->db->delete(db_prefix() . 'wh_sub_group');
     }
 }

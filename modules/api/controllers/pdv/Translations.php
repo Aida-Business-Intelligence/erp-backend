@@ -140,7 +140,7 @@ class Translations extends REST_Controller
             "dashboard_6" => "Ative um novo plano agora!",
             "dashboard_7" => "Ver planos",
             "dashboard_8" => "Minhas Vendas",
-            "dashboard_9" => "Total de Vendas",
+            "dashboard_9" => "Despesas",
             "dashboard" => "Painel",
             "day" => "Dia",
             "days" => "Dias",

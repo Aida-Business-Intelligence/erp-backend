@@ -87,6 +87,7 @@ class Cashs_model extends App_Model {
         $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
         $this->db->from(db_prefix() . 'cashs');
         $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+        $this->db->where('cashs.active', '0');
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -100,8 +101,8 @@ class Cashs_model extends App_Model {
             $this->db->group_end();
         }
 
-        $this->db->select('COUNT(*) as total');
-        $total = $this->db->get()->row()->total;
+     
+        $total = count($clients);
 
         return ['data' => $clients, 'total' => $total]; // Retorne os dados e o total
     } else {
@@ -125,6 +126,7 @@ public function get_inactive() {
 
     // Filtra somente as caixas ativas (status=1)
     $this->db->where('cashs.status', '0');
+     $this->db->where('cashs.active', '0');
 
     // Ordena os resultados
     $this->db->order_by('cashs.number');
@@ -233,13 +235,14 @@ public function get_items_cashs($id)
 
     public function delete($id) {
         // Verifica se o ID é válido e se é numérico
+       // Verifica se o ID é válido e se é numérico
         if (is_numeric($id)) {
             // Sanitize o ID para evitar ataques de injeção
             $id = $this->security->xss_clean($id);
 
             // Deleta o caixa com o ID fornecido
             $this->db->where('id', $id);
-            $this->db->delete(db_prefix() . 'cashs');
+             $this->db->update('cashs', array('active', 1));
 
             // Verifique se a exclusão foi bem-sucedida
             if ($this->db->affected_rows() > 0) {
@@ -325,6 +328,17 @@ public function get_items_cashs($id)
 
         return false;
     }
+    
+    public function get_cash_extracts()
+{
+    $this->db->select('DATE(datesale) as sale_date, SUM(total) as total_sum');
+    $this->db->from('tblcashextracts');
+    $this->db->where('datesale >=', 'DATE_SUB(CURDATE(), INTERVAL 1 WEEK)', false);
+    $this->db->where('type', 'credit');
+    $this->db->group_by('sale_date');  // Agrupa por data sem horário
+    $query = $this->db->get();
+    return $query->result_array();
+}
     
 
 }

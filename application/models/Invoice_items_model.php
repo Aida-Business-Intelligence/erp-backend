@@ -110,55 +110,99 @@ class Invoice_items_model extends App_Model
         return $this->db->get()->row();
     }
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $statusFilter = null)
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $statusFilter = null, $startDate = null, $endDate = null, $category = null, $subcategory = null)
     {
-        $this->db->select('items.id as itemid, items.rate,');
+        $items_table = db_prefix() . 'items';
+        $groups_table = db_prefix() . 'items_groups';
+        $subgroups_table = db_prefix() . 'wh_sub_group';
+
+        $this->db->select("$items_table.id as itemid, $items_table.rate,");
         $this->db->select('t1.taxrate as taxrate, t1.id as taxid, t1.name as taxname,');
         $this->db->select('t2.taxrate as taxrate_2, t2.id as taxid_2, t2.name as taxname_2,');
-        $this->db->select('items.description, items.long_description, items.group_id, items_groups.name as group_name, items.unit');
-        $this->db->select('items.sku_code, items.image, items.barcode, items.status, items.cost, items.promoPrice, items.promoStart, items.promoEnd, items.stock, items.minStock, items.product_unit, items.createdAt, items.updatedAt');
+        $this->db->select("$items_table.description, $items_table.long_description, $items_table.group_id, $groups_table.name as group_name, $items_table.unit");
+        $this->db->select("$items_table.sku_code, $items_table.image, $items_table.barcode, $items_table.status, $items_table.cost, $items_table.promoPrice, $items_table.promoStart, $items_table.promoEnd, $items_table.stock, $items_table.minStock, $items_table.product_unit, $items_table.createdAt, $items_table.updatedAt");
+        $this->db->select("$subgroups_table.sub_group_name, $subgroups_table.id as sub_group_id");
 
-        $this->db->from('items');
-        $this->db->join('taxes t1', 't1.id = items.tax', 'left');
-        $this->db->join('taxes t2', 't2.id = items.tax2', 'left');
-        $this->db->join('items_groups', 'items_groups.id = items.group_id', 'left');
+        $this->db->from($items_table);
+        $this->db->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left');
+        $this->db->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left');
+        $this->db->join($groups_table, "$groups_table.id = $items_table.group_id", 'left');
+        $this->db->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group_id", 'left');
 
         if (is_numeric($id)) {
-            $this->db->where('items.id', $id);
+            $this->db->where("$items_table.id", $id);
             $item = $this->db->get()->row();
             return ['data' => (array) $item, 'total' => ($item) ? 1 : 0];
         } else {
-            // Add status filter
             if (!empty($statusFilter) && is_array($statusFilter)) {
-                $this->db->where_in('items.status', $statusFilter);
+                $this->db->where_in("$items_table.status", $statusFilter);
+            }
+
+            if (!empty($startDate)) {
+                $start = new DateTime($startDate);
+                $this->db->where("DATE($items_table.createdAt) >=", $start->format('Y-m-d'));
+            }
+            if (!empty($endDate)) {
+                $end = new DateTime($endDate);
+                $this->db->where("DATE($items_table.createdAt) <=", $end->format('Y-m-d'));
+            }
+
+            if (!empty($category)) {
+                $this->db->where("$items_table.group_id", $category);
+            }
+
+            if (!empty($subcategory)) {
+                $this->db->where("$items_table.sub_group_id", $subcategory);
             }
 
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like('items.description', $search);
-                $this->db->or_like('items.long_description', $search);
-                $this->db->or_like('items.rate', $search);
+                $this->db->like("$items_table.description", $search);
+                $this->db->or_like("$items_table.long_description", $search);
+                $this->db->or_like("$items_table.rate", $search);
+                $this->db->or_like("$items_table.sku_code", $search);
+                $this->db->or_like("$items_table.barcode", $search);
                 $this->db->group_end();
             }
 
-            $this->db->order_by('items.' . $sortField, $sortOrder);
+            $this->db->order_by("$items_table.$sortField", $sortOrder);
             $this->db->limit($limit, ($page - 1) * $limit);
 
             $items = $this->db->get()->result_array();
 
-            // Get total count with same filters but without limit
             $this->db->select('COUNT(*) as total');
-            $this->db->from('items');
+            $this->db->from($items_table);
+            $this->db->join($groups_table, "$groups_table.id = $items_table.group_id", 'left');
+            $this->db->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group_id", 'left');
 
             if (!empty($statusFilter) && is_array($statusFilter)) {
-                $this->db->where_in('items.status', $statusFilter);
+                $this->db->where_in("$items_table.status", $statusFilter);
+            }
+
+            if (!empty($startDate)) {
+                $start = new DateTime($startDate);
+                $this->db->where("DATE($items_table.createdAt) >=", $start->format('Y-m-d'));
+            }
+            if (!empty($endDate)) {
+                $end = new DateTime($endDate);
+                $this->db->where("DATE($items_table.createdAt) <=", $end->format('Y-m-d'));
+            }
+
+            if (!empty($category)) {
+                $this->db->where("$items_table.group_id", $category);
+            }
+
+            if (!empty($subcategory)) {
+                $this->db->where("$items_table.sub_group_id", $subcategory);
             }
 
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like('items.description', $search);
-                $this->db->or_like('items.long_description', $search);
-                $this->db->or_like('items.rate', $search);
+                $this->db->like("$items_table.description", $search);
+                $this->db->or_like("$items_table.long_description", $search);
+                $this->db->or_like("$items_table.rate", $search);
+                $this->db->or_like("$items_table.sku_code", $search);
+                $this->db->or_like("$items_table.barcode", $search);
                 $this->db->group_end();
             }
 

@@ -11,6 +11,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * @category        Libraries
  * @version         3.0.0
  */
+
+
+
 abstract class REST_Controller extends CI_Controller {
     // Note: Only the widely used HTTP status codes are documented
     // Informational
@@ -328,6 +331,11 @@ abstract class REST_Controller extends CI_Controller {
      * @var array
      * @link http://www.restapitutorial.com/httpstatuscodes.html
      */
+    
+    public $authservice;
+    protected $token_jwt;
+
+
     protected $http_status_codes = [
         self::HTTP_OK => 'OK',
         self::HTTP_CREATED => 'CREATED',
@@ -374,10 +382,14 @@ abstract class REST_Controller extends CI_Controller {
     public function __construct($config = 'rest') {
         parent::__construct();
         
-                $this->load->model('Authentication_model');
-
+        
      
         
+        $this->authservice = new AuthService();
+        $this->token_jwt  = $this->input->get_request_header('Authorization');
+      
+        
+             
         $this->preflight_checks();
 
         // Set the default value of global xss filtering. Same approach as CodeIgniter 3

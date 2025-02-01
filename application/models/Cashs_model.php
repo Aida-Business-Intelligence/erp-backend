@@ -45,6 +45,15 @@ class Cashs_model extends App_Model {
         return $this->db->get(db_prefix() . 'cashs')->result_array();
     }
     
+     public function get_by_number($id) {
+
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->where('cashs.number', $id);
+        $client = $this->db->get()->row();
+
+        return $client;
+    
+}
 
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
 
@@ -59,8 +68,9 @@ class Cashs_model extends App_Model {
             $this->db->group_start();
             $this->db->like('cashs.status', $search);
             $this->db->or_like('cashs.id', $search);
-            $this->db->or_like('cashs.open_value', $search);
+            $this->db->or_like('cashs.open_cash', $search);
             $this->db->or_like('cashs.balance', $search);
+            $this->db->or_like('cashs.number', $search);
             $this->db->or_like('cashs.user_id', $search);
             $this->db->or_like('cashs.open_cash', $search);
             $this->db->group_end();
@@ -77,20 +87,22 @@ class Cashs_model extends App_Model {
         $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
         $this->db->from(db_prefix() . 'cashs');
         $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+        $this->db->where('cashs.active', '0');
 
         if (!empty($search)) {
             $this->db->group_start();
             $this->db->like('cashs.status', $search);
             $this->db->or_like('cashs.id', $search);
-            $this->db->or_like('cashs.open_value', $search);
+            $this->db->or_like('cashs.open_cash', $search);
             $this->db->or_like('cashs.balance', $search);
+            $this->db->or_like('cashs.number', $search);
             $this->db->or_like('cashs.user_id', $search);
             $this->db->or_like('cashs.open_cash', $search);
             $this->db->group_end();
         }
 
-        $this->db->select('COUNT(*) as total');
-        $total = $this->db->get()->row()->total;
+     
+        $total = count($clients);
 
         return ['data' => $clients, 'total' => $total]; // Retorne os dados e o total
     } else {
@@ -114,6 +126,7 @@ public function get_inactive() {
 
     // Filtra somente as caixas ativas (status=1)
     $this->db->where('cashs.status', '0');
+     $this->db->where('cashs.active', '0');
 
     // Ordena os resultados
     $this->db->order_by('cashs.number');
@@ -129,8 +142,10 @@ public function get_inactive() {
     ];
 }
 
-public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
+public function get_extracts($cash_id, $id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
 
+   
+    
     if (!is_numeric($id)) {
         // JOIN com a tabela staff
         $this->db->from(db_prefix() . 'cashextracts as cashs');
@@ -149,6 +164,8 @@ public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $so
         $this->db->order_by($sortField, $sortOrder);
 
         $this->db->limit($limit, ($page - 1) * $limit);
+       $this->db->where('cashs.cash_id', $cash_id);
+
 
         // Obtenha os registros com as informações do staff
         $clients = $this->db->get()->result_array();
@@ -172,10 +189,7 @@ public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $so
             $this->db->group_end();
         }
 
-        $this->db->select('COUNT(*) as total');
-        $total = $this->db->get()->row()->total;
-
-        return ['data' => $clients, 'total' => $total]; // Retorne os dados e o total
+        return ['data' => $clients, 'total' => count($clients)]; // Retorne os dados e o total
     } else {
         $this->db->from(db_prefix() . 'cashextracts as cashs');
         $this->db->select('cashs.*, clients.company');
@@ -189,6 +203,22 @@ public function get_extracts($id = '', $page = 1, $limit = 10, $search = '', $so
         return ['data' => (array) $client, 'total' => $total];
     }
 }
+            
+            public function add_extract($data)
+    {
+        $this->db->insert(db_prefix().'cashextracts', $data);
+
+        $insert_id = $this->db->insert_id();
+
+        if ($insert_id) {
+            log_activity('Extract insert user:, ', $data['user_id']);
+
+            return $insert_id;
+        }
+
+        return false;
+    }
+
 
 public function get_items_cashs($id)
     {
@@ -199,17 +229,20 @@ public function get_items_cashs($id)
 
         return $this->db->get(db_prefix() . 'itemcash')->result_array();
     }
+    
+            
 
 
     public function delete($id) {
         // Verifica se o ID é válido e se é numérico
+       // Verifica se o ID é válido e se é numérico
         if (is_numeric($id)) {
             // Sanitize o ID para evitar ataques de injeção
             $id = $this->security->xss_clean($id);
 
             // Deleta o caixa com o ID fornecido
             $this->db->where('id', $id);
-            $this->db->delete(db_prefix() . 'cashs');
+             $this->db->update('cashs', array('active', 1));
 
             // Verifique se a exclusão foi bem-sucedida
             if ($this->db->affected_rows() > 0) {
@@ -226,9 +259,86 @@ public function get_items_cashs($id)
         return $this->db->update('cashs', $data);
     }
     
+    public function update_by_number($data, $number){
+        
+        $data['open_cash'] = $data['open_value'];
+        unset($data['open_value']);
+        
+        $this->db->where('number', $number);
+        return $this->db->update('cashs', $data);
+    }
+    
     public function update_extracts($data, $id){
         $this->db->where('id', $id);
         return $this->db->update('cashextracts', $data);
     }
+    public function add($data)
+    {
+     
+       $data['hash'] = app_generate_hash();
+
+     
+       $items = [];
+
+        if (isset($data['newitems'])) {
+            $items = $data['newitems'];
+            unset($data['newitems']);
+        }
+
+        $this->db->insert(db_prefix() . 'cashextracts', $data);
+        $insert_id = $this->db->insert_id();
+        
+        if ($insert_id) {
+            
+        
+           
+            
+            foreach(json_decode($data['form_payments']) as $payment){
+                
+                $data_payment = array(
+                    'cashid'=>$data['cash_id'],
+                    'amount'=>$payment->value,
+                    'parcelas'=>$payment->parcelas,
+                    'paymentmethod'=>$payment->type,
+                    'note'=>'pagamento',
+                    'transactionid'=>app_generate_hash()
+                );
+                $this->db->insert(db_prefix() . 'cashpaymentrecords', $data_payment);
+            
+            }
+           
+
+            foreach ($items as $key => $item) {
+                
+                 $this->db->insert(db_prefix() . 'itemcash', [
+                    'description'      => $item['description'],
+                    'long_description' => nl2br($item['description']),
+                    'qty'              => $item['qty'],
+                    'rate'             => number_format($item['rate'], get_decimal_places(), '.', ''),
+                    'item_id'           =>   $item['id'],
+                     'cash_id'           =>   $insert_id,
+                    'item_order'       => $item['item_order'],
+                    'unit'             => $item['unit'],
+                ]);
+                
+            }
+
+            return $insert_id;
+        }
+
+        return false;
+    }
+    
+    public function get_cash_extracts()
+{
+    $this->db->select('DATE(datesale) as sale_date, SUM(total) as total_sum');
+    $this->db->from('tblcashextracts');
+    $this->db->where('datesale >=', 'DATE_SUB(CURDATE(), INTERVAL 1 WEEK)', false);
+    $this->db->where('type', 'credit');
+    $this->db->group_by('sale_date');  // Agrupa por data sem horário
+    $query = $this->db->get();
+    return $query->result_array();
+}
+    
 
 }

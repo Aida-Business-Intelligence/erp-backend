@@ -64,6 +64,9 @@ class Produto extends REST_Controller
             $category,
             $subcategory
         );
+        
+        
+       
 
         if ($data['total'] == 0) {
             $this->response(
@@ -455,10 +458,6 @@ class Produto extends REST_Controller
         die();
     }
 
-
-
-
-
     public function del_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -564,6 +563,12 @@ class Produto extends REST_Controller
 
     public function subgroupcreate_post()
     {
+        
+        ini_set('display_errors',1);
+                ini_set('display_startup_erros',1);
+                error_reporting(E_ALL);
+        
+        
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -783,6 +788,7 @@ class Produto extends REST_Controller
         }
     }
 
+
     public function import_post()
     {
         if (!isset($_FILES['file']) || empty($_FILES['file'])) {
@@ -934,3 +940,4 @@ class Produto extends REST_Controller
         }
     }
 }
+

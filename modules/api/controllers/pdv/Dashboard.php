@@ -23,17 +23,31 @@ class Dashboard extends REST_Controller {
     function __construct() {
         // Construct the parent class
         parent::__construct();
-       // $this->load->model('Carriers_model');
+        $this->load->model('cashs_model');
     }
     
     
      public function get_post() {
+         
+         $minhas_vendas = 0;
+         $balances = $this->cashs_model->get_cash_extracts();
+         foreach($balances as $b){
+             $minhas_vendas += $b['total_sum'];
+         }
+         $venda_dia = $balances[7]['total_sum']== 0?1:$balances[7]['total_sum'];
+         $venda_ontem = $balances[6]['total_sum'] == 0?1:$balances[6]['total_sum'];
+         
+         $porcent = (($venda_dia/$venda_ontem)*100)-100;
+         
+       
+         
+         
 $data = [
     "balance" => [
-        "credit" => 0,
+        "credit" => $venda_dia,
         "debit" => 0,
-        "total" => 0,
-        "percent" => -100
+        "total" => $venda_dia,
+        "percent" => $porcent
     ],
     "product" => [
         "credit" => 0,
@@ -50,30 +64,24 @@ $data = [
     "lastDays" => [
         "balance" => [
             "categories" => [
-                "21/12/2024",
-                "22/12/2024",
-                "23/12/2024",
-                "24/12/2024",
-                "25/12/2024",
-                "26/12/2024",
-                "27/12/2024",
-                "28/12/2024",
-                "29/12/2024",
-                "30/12/2024"
+                $balances[0]['sale_date'],
+                $balances[1]['sale_date'],
+                $balances[2]['sale_date'],
+                $balances[3]['sale_date'],
+                $balances[4]['sale_date'],
+                $balances[5]['sale_date'],
+                $balances[6]['sale_date'],
             ],
             "series" => [
-                0,
-                0,
-                0,
-                5799.98,
-                0,
-                179.98,
-                0,
-                0,
-                0,
-                0
+                $balances[0]['total_sum'],
+                $balances[1]['total_sum'],
+                $balances[2]['total_sum'],
+                $balances[3]['total_sum'],
+                $balances[4]['total_sum'],
+                $balances[5]['total_sum'],
+                $balances[6]['total_sum'],
             ],
-            "total" => 5979.959999999999
+            "total" => $minhas_vendas
         ],
         "product" => [
             "categories" => [

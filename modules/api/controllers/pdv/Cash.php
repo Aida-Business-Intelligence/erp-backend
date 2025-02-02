@@ -318,8 +318,10 @@ class Cash extends REST_Controller
         $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
         $sortField = $this->post('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-         
-         $detalhes_caixa = $this->cashs_model->get_by_number($number);
+      
+        
+        $detalhes_caixa = $this->cashs_model->get_by_number($number);
+        
         if(!$detalhes_caixa){
             $this->response([
                 'status' => FALSE,
@@ -418,13 +420,27 @@ class Cash extends REST_Controller
             ], REST_Controller::HTTP_OK);
         }
         
-       
-        $update_data=array(
-            'status'=>$status,
-            'open_value'=>$valor,
-            'user_id'=>$user_id,
-            
-        );
+       if($status == 0){
+            $update_data=array(
+                'status'=>$status,
+                'open_value'=>$valor,
+                'open_cash'=>$valor,
+                'balance'=>$valor,
+                'balance_dinheiro'=>$valor,
+                'user_id'=>$user_id,
+
+            );
+       }elseif($status == 1){
+            $update_data=array(
+                'status'=>$status,
+                'open_value'=>0,
+                'open_cash'=>0,
+                'balance'=>0,
+                'balance_dinheiro'=>0,
+                'user_id'=>$user_id,
+
+            );
+       }
         
         $detalhes_caixa = $this->cashs_model->get_by_number($number);
         if(!$detalhes_caixa){
@@ -448,7 +464,7 @@ class Cash extends REST_Controller
                  'user_id'=>$user_id,
                  'cash_id'=>$detalhes_caixa->id,
                  'type'=>$type,
-                 'subtotal'=>$valor,
+                 'subtotal'=>$valor==null?0:$valor,
                  'total'=>$valor,
                  'nota'=>$nota_caixa,
                  'operacao'=>$status_caixa

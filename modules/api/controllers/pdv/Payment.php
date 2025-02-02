@@ -144,6 +144,7 @@ class Payment extends REST_Controller
              'total'=>$total,
              'nota'=>'',
              'doc'=>$doc,
+             'newitems'=>$newitems,
              'form_payments'=>json_encode($payments),
              'operacao'=>'paid'
              

@@ -331,22 +331,74 @@ class Cashs_model extends App_Model {
 
     public function get_cash_extracts()
     {
-        $this->db->select('DATE(datesale) as sale_date, SUM(total) as total_sum');
+        $this->db->select('DATE(datesale) as sale_date, COALESCE(SUM(total), 0) as total_sum');
         $this->db->from('tblcashextracts');
-        $this->db->where('datesale >=', 'DATE_SUB(CURDATE(), INTERVAL 1 WEEK)', false);
+        $this->db->where('datesale >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)', null, false);
         $this->db->where('type', 'credit');
-        $this->db->group_by('sale_date');  // Agrupa por data sem horário
+        $this->db->group_by('sale_date');
+        $this->db->order_by('sale_date', 'ASC');
+        
         $query = $this->db->get();
-        return $query->result_array();
+        $results = $query->result_array();
+        
+        // Garantir que temos dados para todos os 7 dias
+        $complete_data = [];
+        for($i = 6; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $found = false;
+            
+            foreach($results as $result) {
+                if($result['sale_date'] == $date) {
+                    $complete_data[] = $result;
+                    $found = true;
+                    break;
+                }
+            }
+            
+            if(!$found) {
+                $complete_data[] = [
+                    'sale_date' => $date,
+                    'total_sum' => '0'
+                ];
+            }
+        }
+        
+        return $complete_data;
     }
 
     public function get_expense_extracts() {
-        $this->db->select('DATE(date) as expense_date, SUM(amount) as total_sum');
+        $this->db->select('DATE(date) as expense_date, COALESCE(SUM(amount), 0) as total_sum');
         $this->db->from('tblexpenses');
-        $this->db->where('date >=', 'DATE_SUB(CURDATE(), INTERVAL 1 WEEK)', false);
+        $this->db->where('date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)', null, false);
         $this->db->where('type', 'despesa');
         $this->db->group_by('expense_date');
+        $this->db->order_by('expense_date', 'ASC');
+        
         $query = $this->db->get();
-        return $query->result_array();
+        $results = $query->result_array();
+        
+        // Garantir que temos dados para todos os 7 dias
+        $complete_data = [];
+        for($i = 6; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $found = false;
+            
+            foreach($results as $result) {
+                if($result['expense_date'] == $date) {
+                    $complete_data[] = $result;
+                    $found = true;
+                    break;
+                }
+            }
+            
+            if(!$found) {
+                $complete_data[] = [
+                    'expense_date' => $date,
+                    'total_sum' => '0'
+                ];
+            }
+        }
+        
+        return $complete_data;
     }
 }

@@ -23,212 +23,227 @@ class Dashboard extends REST_Controller {
     function __construct() {
         // Construct the parent class
         parent::__construct();
-       // $this->load->model('Carriers_model');
+        $this->load->model('cashs_model');
     }
-    
-    
-     public function get_post() {
-$data = [
-    "balance" => [
-        "credit" => 0,
-        "debit" => 0,
-        "total" => 0,
-        "percent" => -100
-    ],
-    "product" => [
-        "credit" => 0,
-        "debit" => 0,
-        "total" => 0,
-        "percent" => 0
-    ],
-    "seller" => [
-        "credit" => 0,
-        "debit" => 0,
-        "total" => 0,
-        "percent" => 0
-    ],
-    "lastDays" => [
-        "balance" => [
-            "categories" => [
-                "21/12/2024",
-                "22/12/2024",
-                "23/12/2024",
-                "24/12/2024",
-                "25/12/2024",
-                "26/12/2024",
-                "27/12/2024",
-                "28/12/2024",
-                "29/12/2024",
-                "30/12/2024"
+
+
+    public function get_post() {
+
+        $minhas_vendas = 0;
+        $balances = $this->cashs_model->get_cash_extracts();
+        foreach($balances as $b){
+            $minhas_vendas += $b['total_sum'];
+        }
+        $venda_dia = $balances[7]['total_sum']== 0?1:$balances[7]['total_sum'];
+        $venda_ontem = $balances[6]['total_sum'] == 0?1:$balances[6]['total_sum'];
+
+        $porcent = (($venda_dia/$venda_ontem)*100)-100;
+
+
+        // Despesa
+        $minhas_despesas = 0;
+        $productP = $this->cashs_model->get_expense_extracts();
+        foreach($productP as $s){
+            $minhas_despesas += $s['total_sum'];
+        }
+        $despesas_dia = $productP[7]['total_sum']== 0?1:$productP[7]['total_sum'];
+        $depesas_ontem = $productP[6]['total_sum'] == 0?1:$productP[6]['total_sum'];
+        $porcentB = (($despesas_dia/$depesas_ontem)*100)-100;
+
+
+
+
+        $data = [
+            "balance" => [
+                "credit" => $venda_dia,
+                "debit" => 0,
+                "total" => $venda_dia,
+                "percent" => $porcent
             ],
-            "series" => [
-                0,
-                0,
-                0,
-                5799.98,
-                0,
-                179.98,
-                0,
-                0,
-                0,
-                0
+            "product" => [
+                "credit" => $despesas_dia,
+                "debit" => 0,
+                "total" => $despesas_dia,
+                "percent" => $porcentB
             ],
-            "total" => 5979.959999999999
-        ],
-        "product" => [
-            "categories" => [
-                "21/12/2024",
-                "22/12/2024",
-                "23/12/2024",
-                "24/12/2024",
-                "25/12/2024",
-                "26/12/2024",
-                "27/12/2024",
-                "28/12/2024",
-                "29/12/2024",
-                "30/12/2024"
+            "seller" => [
+                "credit" => 0,
+                "debit" => 0,
+                "total" => 0,
+                "percent" => 0
             ],
-            "series" => [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "total" => 0
-        ],
-        "seller" => [
-            "categories" => [
-                "21/12/2024",
-                "22/12/2024",
-                "23/12/2024",
-                "24/12/2024",
-                "25/12/2024",
-                "26/12/2024",
-                "27/12/2024",
-                "28/12/2024",
-                "29/12/2024",
-                "30/12/2024"
-            ],
-            "series" => [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "total" => 0
-        ]
-    ],
-    "lastMonth" => [
-        "categories" => [
-            "1/2024",
-            "2/2024",
-            "3/2024",
-            "4/2024",
-            "5/2024",
-            "6/2024",
-            "7/2024",
-            "8/2024",
-            "9/2024",
-            "10/2024",
-            "11/2024",
-            "12/2024"
-        ],
-        "series" => [
-            [
-                "name" => "2024",
-                "data" => [
-                    [
-                        "name" => "product",
-                        "data" => [
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0
-                        ],
-                        "total" => 0
+            "lastDays" => [
+                "balance" => [
+                    "categories" => [
+                        $balances[0]['sale_date'],
+                        $balances[1]['sale_date'],
+                        $balances[2]['sale_date'],
+                        $balances[3]['sale_date'],
+                        $balances[4]['sale_date'],
+                        $balances[5]['sale_date'],
+                        $balances[6]['sale_date']
                     ],
-                    [
-                        "name" => "seller",
-                        "data" => [
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0
-                        ],
-                        "total" => 0
+                    "series" => [
+                        $balances[0]['total_sum'],
+                        $balances[1]['total_sum'],
+                        $balances[2]['total_sum'],
+                        $balances[3]['total_sum'],
+                        $balances[4]['total_sum'],
+                        $balances[5]['total_sum'],
+                        $balances[6]['total_sum']
                     ],
+                    "total" => $minhas_vendas
+                ],
+            "lastDays" => [
+                "product" => [
+                    "categories" => [
+                        $productP[0]['expense_date'],
+                        $productP[1]['expense_date'],
+                        $productP[2]['expense_date'],
+                        $productP[3]['expense_date'],
+                        $productP[4]['expense_date'],
+                        $productP[5]['expense_date'],
+                        $productP[6]['expense_date']
+                    ],
+                    "series" => [
+                        $productP[0]['total_sum'],
+                        $productP[1]['total_sum'],
+                        $productP[3]['total_sum'],
+                        $productP[2]['total_sum'],
+                        $productP[4]['total_sum'],
+                        $productP[5]['total_sum'],
+                        $productP[6]['total_sum']
+                    ],
+                    "total" => $minhas_despesas
+                ],
+                "seller" => [
+                    "categories" => [
+                        "21/12/2024",
+                        "22/12/2024",
+                        "23/12/2024",
+                        "24/12/2024",
+                        "25/12/2024",
+                        "26/12/2024",
+                        "27/12/2024",
+                        "28/12/2024",
+                        "29/12/2024",
+                        "30/12/2024"
+                    ],
+                    "series" => [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "total" => 0
+                ]
+            ],
+            "lastMonth" => [
+                "categories" => [
+                    "1/2024",
+                    "2/2024",
+                    "3/2024",
+                    "4/2024",
+                    "5/2024",
+                    "6/2024",
+                    "7/2024",
+                    "8/2024",
+                    "9/2024",
+                    "10/2024",
+                    "11/2024",
+                    "12/2024"
+                ],
+                "series" => [
                     [
-                        "name" => "balance",
+                        "name" => "2024",
                         "data" => [
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            5979.959999999999
-                        ],
-                        "total" => 5979.959999999999
+                            [
+                                "name" => "product",
+                                "data" => [
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0
+                                ],
+                                "total" => 0
+                            ],
+                            [
+                                "name" => "seller",
+                                "data" => [
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0
+                                ],
+                                "total" => 0
+                            ],
+                            [
+                                "name" => "balance",
+                                "data" => [
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    5979.959999999999
+                                ],
+                                "total" => 5979.959999999999
+                            ]
+                            ]
                     ]
                 ]
             ]
             ]
-    ]
-];
-          $this->response($data, REST_Controller::HTTP_OK);
-       
+        ];
+        $this->response($data, REST_Controller::HTTP_OK);
+
     }
-    
+
     public function config_get() {
 
         $data = [
-    "appName" => "Sobre",
-    "logoDark" => null,
-    "logoLight" => null,
-    "iconDark" => null,
-    "iconLight" => null
-];   
-        
+            "appName" => "Sobre",
+            "logoDark" => null,
+            "logoLight" => null,
+            "iconDark" => null,
+            "iconLight" => null
+        ];
 
-          $this->response($data, REST_Controller::HTTP_OK);
-       
+
+        $this->response($data, REST_Controller::HTTP_OK);
+
     }
-    
-    
- 
+
+
+
 
 
     /**
@@ -382,7 +397,7 @@ $data = [
     public function data_post() {
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-     
+
 
         $this->load->model('Carriers_model');
         $this->form_validation->set_rules('nome', 'nome', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Company'));
@@ -393,7 +408,7 @@ $data = [
         } else {
 
             $output = $this->Carriers_model->add($_POST);
-        
+
             if ($output > 0 && !empty($output)) {
                 // success
                 $message = array('status' => TRUE, 'message' => 'Carrier add successful.', 'data'=>$output);

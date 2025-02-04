@@ -40,6 +40,8 @@ class Produto extends REST_Controller
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
         $status = $this->post('status');
+        $category = $this->post('category');
+        $subcategory = $this->post('subcategory');
 
         $statusFilter = null;
         if (is_array($status) && !empty($status)) {
@@ -58,7 +60,9 @@ class Produto extends REST_Controller
             $sortOrder,
             $statusFilter,
             $start_date,
-            $end_date
+            $end_date,
+            $category,
+            $subcategory
         );
         
         
@@ -818,12 +822,13 @@ class Produto extends REST_Controller
             return !empty($value);
         });
 
-        $field_translations = [
-            'sku' => 'sku_code',
-            'name' => 'description',
-            'price' => 'rate',
-            'quantity' => 'stock'
-        ];
+        if (!isset($mapping['description']) || !isset($mapping['rate'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'description and rate fields are required in the mapping'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
 
         $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if ($file_ext !== 'csv') {
@@ -855,46 +860,46 @@ class Produto extends REST_Controller
 
         $success_count = 0;
         $errors = [];
-        $row_number = 1;
+        $rows = [];
+
+        while (($row = fgetcsv($handle)) !== FALSE) {
+            if (count(array_filter($row)) > 0) {
+                $rows[] = $row;
+            }
+        }
 
         try {
             $this->db->trans_start();
 
-            while (($row = fgetcsv($handle)) !== FALSE) {
-                $row_number++;
-                $product_data = [
-                    'createdAt' => date('Y-m-d H:i:s'),
-                    'updatedAt' => date('Y-m-d H:i:s')
-                ];
+            foreach ($rows as $index => $row) {
+                $current_row = $index + 2;  
+                $product_data = [];
 
-                foreach ($mapping as $csv_field => $csv_column) {
+                foreach ($mapping as $field => $csv_column) {
                     $column_index = array_search($csv_column, $headers);
                     if ($column_index !== FALSE && isset($row[$column_index])) {
-                        $db_field = isset($field_translations[$csv_field]) ? $field_translations[$csv_field] : $csv_field;
-                        $product_data[$db_field] = $row[$column_index];
+                        $value = trim($row[$column_index]);
+                        if (!empty($value)) {
+                            $product_data[$field] = $value;
+                        }
                     }
                 }
 
-                if (empty($product_data['description'])) {
-                    $errors[] = "Row {$row_number}: Product name/description is required";
+                if (!isset($product_data['description']) || empty($product_data['description'])) {
+                    $errors[] = "Row {$current_row}: Description is required";
                     continue;
                 }
 
-                if (isset($product_data['rate'])) {
-                    $product_data['rate'] = floatval(str_replace(['R$', ' ', ','], ['', '', '.'], $product_data['rate']));
+                if (!isset($product_data['rate']) || floatval($product_data['rate']) <= 0) {
+                    $errors[] = "Row {$current_row}: Rate must be greater than zero";
+                    continue;
                 }
-                if (isset($product_data['stock'])) {
-                    $product_data['stock'] = intval($product_data['stock']);
-                }
-
-                $product_data['status'] = $product_data['status'] ?? 'pending';
-                $product_data['group_id'] = $product_data['group_id'] ?? 0;
 
                 $product_id = $this->Invoice_items_model->add($product_data);
                 if ($product_id) {
                     $success_count++;
                 } else {
-                    $errors[] = "Row {$row_number}: Failed to insert product";
+                    $errors[] = "Row {$current_row}: Failed to insert product";
                 }
             }
 
@@ -913,7 +918,8 @@ class Produto extends REST_Controller
 
             $response = [
                 'status' => TRUE,
-                'message' => "{$success_count} products imported successfully"
+                'message' => "{$success_count} products imported successfully",
+                'total_rows' => count($rows)
             ];
 
             if (!empty($errors)) {

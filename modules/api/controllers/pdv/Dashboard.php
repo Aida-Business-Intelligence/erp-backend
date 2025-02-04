@@ -24,10 +24,235 @@ class Dashboard extends REST_Controller {
         // Construct the parent class
         parent::__construct();
         $this->load->model('cashs_model');
+        $this->load->model('reports_model');
     }
+
+    public function get_post() {
+
+        $minhas_vendas = 0;
+        $balances = $this->reports_model->get_cash_extracts();
+        foreach($balances as $b){
+            $minhas_vendas += floatval($b['total_sum']);
+        }
+
+        // Pegar os valores do dia atual e anterior com segurança
+        $venda_dia = 0;
+        $venda_ontem = 0;
+        
+        // Encontrar valores do dia atual e anterior
+        foreach($balances as $b) {
+            if($b['sale_date'] == date('Y-m-d')) {
+                $venda_dia = floatval($b['total_sum']);
+            }
+            if($b['sale_date'] == date('Y-m-d', strtotime('-1 day'))) {
+                $venda_ontem = floatval($b['total_sum']);
+            }
+        }
+
+        // Calcular porcentagem com proteção contra divisão por zero
+        $porcent = $venda_ontem > 0 ? (($venda_dia/$venda_ontem)*100)-100 : 0;
+
+        // Despesas
+        $minhas_despesas = 0;
+        $productP = $this->reports_model->get_expense_extracts();
+        foreach($productP as $s){
+            $minhas_despesas += floatval($s['total_sum']);
+        }
+
+        // Pegar valores de despesas do dia atual e anterior
+        $despesas_dia = 0;
+        $despesas_ontem = 0;
+        
+        foreach($productP as $p) {
+            if($p['expense_date'] == date('Y-m-d')) {
+                $despesas_dia = floatval($p['total_sum']);
+            }
+            if($p['expense_date'] == date('Y-m-d', strtotime('-1 day'))) {
+                $despesas_ontem = floatval($p['total_sum']);
+            }
+        }
+
+        // Calcular porcentagem com proteção contra divisão por zero
+        $porcentB = $despesas_ontem > 0 ? (($despesas_dia/$despesas_ontem)*100)-100 : 0;
+
+        $data = [
+            "balance" => [
+                "credit" => $venda_dia,
+                "debit" => 0,
+                "total" => $venda_dia,
+                "percent" => $porcent,
+                "comparison" => "vs yesterday"
+            ],
+            "product" => [
+                "credit" => $despesas_dia,
+                "debit" => 0,
+                "total" => $despesas_dia,
+                "percent" => $porcentB,
+                "comparison" => "vs yesterday"
+            ],
+            "seller" => [
+                "credit" => 0,
+                "debit" => 0,
+                "total" => 0,
+                "percent" => 0,
+                "comparison" => "vs yesterday"
+            ],
+            "lastDays" => [
+                "balance" => [
+                    "categories" => [
+                        $balances[0]['sale_date'],
+                        $balances[1]['sale_date'],
+                        $balances[2]['sale_date'],
+                        $balances[3]['sale_date'],
+                        $balances[4]['sale_date'],
+                        $balances[5]['sale_date'],
+                        $balances[6]['sale_date']
+                    ],
+                    "series" => [
+                        $balances[0]['total_sum'],
+                        $balances[1]['total_sum'],
+                        $balances[2]['total_sum'],
+                        $balances[3]['total_sum'],
+                        $balances[4]['total_sum'],
+                        $balances[5]['total_sum'],
+                        $balances[6]['total_sum']
+                    ],
+                    "total" => $minhas_vendas
+                ],
+                "product" => [
+                    "categories" => [
+                        $productP[0]['expense_date'],
+                        $productP[1]['expense_date'],
+                        $productP[2]['expense_date'],
+                        $productP[3]['expense_date'],
+                        $productP[4]['expense_date'],
+                        $productP[5]['expense_date'],
+                        $productP[6]['expense_date']
+                    ],
+                    "series" => [
+                        $productP[0]['total_sum'],
+                        $productP[1]['total_sum'],
+                        $productP[2]['total_sum'],
+                        $productP[3]['total_sum'],
+                        $productP[4]['total_sum'],
+                        $productP[5]['total_sum'],
+                        $productP[6]['total_sum']
+                    ],
+                    "total" => $minhas_despesas
+                ],
+                "seller" => [
+                    "categories" => [
+                        "21/12/2024",
+                        "22/12/2024",
+                        "23/12/2024",
+                        "24/12/2024",
+                        "25/12/2024",
+                        "26/12/2024",
+                        "27/12/2024",
+                        "28/12/2024",
+                        "29/12/2024",
+                        "30/12/2024"
+                    ],
+                    "series" => [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "total" => 0
+                ]
+            ],
+            "lastMonth" => [
+                "categories" => [
+                    "1/2024",
+                    "2/2024",
+                    "3/2024",
+                    "4/2024",
+                    "5/2024",
+                    "6/2024",
+                    "7/2024",
+                    "8/2024",
+                    "9/2024",
+                    "10/2024",
+                    "11/2024",
+                    "12/2024"
+                ],
+                "series" => [
+                    [
+                        "name" => "2024",
+                        "data" => [
+                            [
+                                "name" => "product",
+                                "data" => [
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0
+                                ],
+                                "total" => 0
+                            ],
+                            [
+                                "name" => "seller",
+                                "data" => [
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0
+                                ],
+                                "total" => 0
+                            ],
+                            [
+                                "name" => "balance",
+                                "data" => [
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    5979.959999999999
+                                ],
+                                "total" => 5979.959999999999
+                            ]
+                            ]
+                    ]
+                ]
+            ]
+        ];
+        $this->response($data, REST_Controller::HTTP_OK);
+
+    }
+
     
     
-     public function get_post() {
+     public function get_post1() {
          
          $minhas_vendas = 0;
          $balances = $this->cashs_model->get_cash_extracts();

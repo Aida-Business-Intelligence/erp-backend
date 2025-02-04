@@ -940,4 +940,3 @@ class Produto extends REST_Controller
         }
     }
 }
-

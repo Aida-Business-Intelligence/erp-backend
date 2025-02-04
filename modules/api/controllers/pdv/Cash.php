@@ -238,7 +238,6 @@ class Cash extends REST_Controller
         }
 
         foreach ($ids as $id) {
-            var_dump($id);  // Para verificar o ID antes de tentar excluir
 
             $id = $this->security->xss_clean($id);
 
@@ -248,7 +247,7 @@ class Cash extends REST_Controller
             }
 
             try {
-                $output = $this->cashs_model->delete($id);
+                $output = $this->cashs_model->update(array('status'=>2),$id);
                 if ($output === TRUE) {
                     $success_count++;
                 } else {
@@ -306,6 +305,38 @@ class Cash extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
+    public function transactions_post($id = '')
+    {
+      
+            
+
+        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
+
+        $page = $page + 1;
+
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
+        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
+                $filters= $this->post('filters') ?: ''; // Parâmetro de busca, se fornecido
+
+        $sortField = $this->post('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $data = $this->cashs_model->get_transactions($id, $page, $limit, $search, $sortField, $sortOrder, $filters, 0);
+        
+        if ($data['total'] == 0) {
+
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+
+            if ($data) {
+                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+           
+        
+    }
+    
     
     public function extracts_post($id = ''){
         
@@ -331,7 +362,7 @@ class Cash extends REST_Controller
      
 
          
-        $cash = $this->cashs_model->get_extracts($detalhes_caixa->id, $id = '', $page = 1, $limit = 20, $search = '', $sortField = 'id', $sortOrder = 'ASC');
+        $cash = $this->cashs_model->get_transactions($id = '', $page = 1, $limit = 20, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $detalhes_caixa->id=0);
 
         if ($cash) {
             $this->response([
@@ -419,30 +450,33 @@ class Cash extends REST_Controller
                 'message' => 'Senha inválida'
             ], REST_Controller::HTTP_OK);
         }
+        $detalhes_caixa = $this->cashs_model->get_by_number($number);
         
-       if($status == 0){
+       if($status == 1){
             $update_data=array(
                 'status'=>$status,
-                'open_value'=>$valor,
                 'open_cash'=>$valor,
                 'balance'=>$valor,
                 'balance_dinheiro'=>$valor,
                 'user_id'=>$user_id,
 
             );
-       }elseif($status == 1){
+       }elseif($status == 0){
+
+  
+            $valor = $detalhes_caixa->balance;
             $update_data=array(
                 'status'=>$status,
-                'open_value'=>0,
                 'open_cash'=>0,
                 'balance'=>0,
+                'close_cash'=>$detalhes_caixa->balance,
                 'balance_dinheiro'=>0,
                 'user_id'=>$user_id,
 
             );
        }
         
-        $detalhes_caixa = $this->cashs_model->get_by_number($number);
+      
         if(!$detalhes_caixa){
             $this->response([
                 'status' => FALSE,
@@ -464,7 +498,7 @@ class Cash extends REST_Controller
                  'user_id'=>$user_id,
                  'cash_id'=>$detalhes_caixa->id,
                  'type'=>$type,
-                 'subtotal'=>$valor==null?0:$valor,
+                 'subtotal'=>$valor,
                  'total'=>$valor,
                  'nota'=>$nota_caixa,
                  'operacao'=>$status_caixa
@@ -523,13 +557,12 @@ class Cash extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
         
-         $balance = $detalhes_caixa->balance-$valor;
+      //   $balance = $detalhes_caixa->balance-$valor;
          $balance_dinheiro = $detalhes_caixa->balance_dinheiro-$valor;
          $sangria = $detalhes_caixa->sangria+$valor;
          
        
         $update_data=array(
-            'balance'=>$balance,
             'balance_dinheiro'=>$balance_dinheiro,
             'sangria'=>$sangria,
             'user_id'=>$user_id

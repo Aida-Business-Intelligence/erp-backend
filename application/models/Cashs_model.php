@@ -56,9 +56,13 @@ class Cashs_model extends App_Model {
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
 
         if (!is_numeric($id)) {
+
+
+
             // JOIN com a tabela staff
             $this->db->select('cashs.*, staff.firstname, staff.lastname');
             $this->db->from(db_prefix() . 'cashs');
+            //    $this->db->where('cashs.active', '0');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left'); // LEFT JOIN para vincular as tabelas
             // Adicionar condições de busca
             if (!empty($search)) {
@@ -84,7 +88,6 @@ class Cashs_model extends App_Model {
             $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
             $this->db->from(db_prefix() . 'cashs');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
-            $this->db->where('cashs.active', '0');
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -138,9 +141,79 @@ class Cashs_model extends App_Model {
         ];
     }
 
+   public function get_transactions($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $cash_id) {
+       
+       
+        
+        
+        if(isset($filters['name'])){
+            $search = $filters['name'];
+        }
+       
+    $this->db->from(db_prefix() . 'cashextracts as c');
+    $this->db->select('c.*, clients.company, tblcashs.number');
+    $this->db->join(db_prefix() . 'clients', 'c.client_id = clients.userid', 'left');
+    $this->db->join(db_prefix() . 'cashs as tblcashs', 'c.cash_id = tblcashs.id', 'left');
+    
+    if($cash_id){
+                $this->db->where('c.cash_id', $cash_id);
+    }
+
+    
+    if (!empty($id)) {
+        $this->db->where('c.id', $id);
+        $client = $this->db->get()->row();
+        $total = $client ? 1 : 0;
+        return ['data' => (array) $client, 'total' => $total];
+    }
+
+    if (!empty($search)) {
+        $this->db->group_start();
+        $this->db->like('c.type', $search);
+        $this->db->like('clients.company', $search);
+        $this->db->like('c.doc', $search);
+        $this->db->or_like('c.total', $search);
+        $this->db->group_end();
+    }
+
+    // Order by specified field and direction
+    $this->db->order_by($sortField, $sortOrder);
+
+    // Pagination
+    $this->db->limit($limit, ($page - 1) * $limit);
+
+    // Get data
+    $clients = $this->db->get()->result_array();
+
+    foreach ($clients as $key => $client) {
+        $items = $this->get_items_cashs($client['cash_id']);
+        $clients[$key]['items'] = $items;
+    }
+
+    // Total count (consider search)
+    $this->db->reset_query();
+    $this->db->from(db_prefix() . 'cashextracts as c');
+    $this->db->join(db_prefix() . 'clients', 'c.client_id = clients.userid', 'left');
+    $this->db->join(db_prefix() . 'cashs as tblcashs', 'c.cash_id = tblcashs.id', 'left');
+
+    if (!empty($search)) {
+        $this->db->group_start();
+        $this->db->like('c.type', $search);
+        $this->db->like('clients.company', $search);
+        
+        $this->db->or_like('c.total', $search);
+        $this->db->group_end();
+    }
+
+    $total = $this->db->count_all_results();
+
+    return ['data' => $clients, 'total' => $total];
+}
+
     public function get_extracts($cash_id, $id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
 
 
+     
 
         if (!is_numeric($id)) {
             // JOIN com a tabela staff
@@ -160,7 +233,7 @@ class Cashs_model extends App_Model {
             $this->db->order_by($sortField, $sortOrder);
 
             $this->db->limit($limit, ($page - 1) * $limit);
-            
+
             $this->db->where('cashs.cash_id', $cash_id);
 
             // Obtenha os registros com as informações do staff
@@ -263,13 +336,44 @@ class Cashs_model extends App_Model {
         return $this->db->update('cashextracts', $data);
     }
 
+    public function update_itemstocks($qtde, $item_id, $warehouse_id) {
+        // Retrieve the current quantity
+        $this->db->select('qtde, id');
+        $this->db->from(db_prefix() . 'itemstocks');
+        $this->db->where('item_id', $item_id);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $query = $this->db->get();
+
+        if ($query->num_rows() > 0) {
+            $row = $query->row();
+            $currentQuantity = $row->qtde;
+            $updatedQuantity = $currentQuantity - $qtde;
+
+            // Update the quantity in the database
+            $this->db->where('item_id', $item_id);
+            $this->db->where('warehouse_id', $warehouse_id);
+            $this->db->set('qtde', $updatedQuantity);
+            $this->db->update(db_prefix() . 'itemstocks');
+
+            // Return the ID of the updated record
+            return $row->id;
+        } else {
+            // Handle case where no record is found
+            return false; // or handle as necessary
+        }
+    }
+
+    public function update_itemstocksmov($data, $id) {
+
+        $this->db->where('id', $id);
+        return $this->db->update('itemstocksmov', $data);
+    }
+
     public function add($data) {
 
         $data['hash'] = app_generate_hash();
         $detalhes_caixa = $this->get_by_number($data['cash_id']);
-        $data['cash_id']=$detalhes_caixa->id;
-        
-     
+        $data['cash_id'] = $detalhes_caixa->id;
 
         $items = [];
 
@@ -293,16 +397,14 @@ class Cashs_model extends App_Model {
                     'note' => 'pagamento',
                     'transactionid' => app_generate_hash()
                 );
-                
-                if(strtolower($payment->type) == "dinheiro"){
-                    
-                    $update_data['balance_dinheiro'] += $detalhes_caixa->balance_dinheiro+$payment->value;
-                    
-                    
+
+                if (strtolower($payment->type) == "dinheiro") {
+
+                    $update_data['balance_dinheiro'] += $detalhes_caixa->balance_dinheiro + $payment->value;
                 }
-                 $update_data['balance'] += $detalhes_caixa->balance + $payment->value;
-                 $this->update($update_data, $detalhes_caixa->id);
-                
+                $update_data['balance'] += $detalhes_caixa->balance + $payment->value;
+                $this->update($update_data, $detalhes_caixa->id);
+
                 $this->db->insert(db_prefix() . 'cashpaymentrecords', $data_payment);
             }
 
@@ -319,7 +421,23 @@ class Cashs_model extends App_Model {
                     'item_order' => $item['item_order'],
                     'unit' => $item['unit'],
                 ]);
+
+                $warehouse_id = 1;
+
+                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $warehouse_id);
+
+                $data_itemstocksmov = array(
+                    'itemstock_id' => $id_itemstocks,
+                    'qtde' => $item['qty'],
+                    'transaction_id' => $detalhes_caixa->id,
+                    'hash' => $data['hash'],
+                    'user_id' => $data['user_id'],
+                    'obs' => 'pagamento',
+                    'type_transaction' => 'cash'
+                );
+                $this->db->insert(db_prefix() . 'itemstocksmov', $data_itemstocksmov);
             }
+
 
             return $insert_id;
         }

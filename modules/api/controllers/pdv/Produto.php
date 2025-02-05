@@ -64,9 +64,6 @@ class Produto extends REST_Controller
             $category,
             $subcategory
         );
-        
-        
-       
 
         if ($data['total'] == 0) {
             $this->response(
@@ -95,7 +92,7 @@ class Produto extends REST_Controller
     public function create_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
-        
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         $product_data = [
@@ -140,7 +137,7 @@ class Produto extends REST_Controller
 
         if ($product_id) {
             $product = $this->Invoice_items_model->get_api($product_id);
-            
+
             $message = [
                 'status' => TRUE,
                 'message' => 'Product created successfully',
@@ -458,6 +455,10 @@ class Produto extends REST_Controller
         die();
     }
 
+
+
+
+
     public function del_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -563,12 +564,6 @@ class Produto extends REST_Controller
 
     public function subgroupcreate_post()
     {
-        
-        ini_set('display_errors',1);
-                ini_set('display_startup_erros',1);
-                error_reporting(E_ALL);
-        
-        
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -693,99 +688,50 @@ class Produto extends REST_Controller
     public function check_stock_post()
     {
         $this->db->select('
-            id,
-            description as name,
-            sku_code as sku,
-            stock as currentStock,
-            minStock as minimumStock,
-            unit as product_unit,
-            status,
-            updatedAt as lastOrderDate
+            pn.id,
+            pn.item_id,
+            pn.warehouse_id,
+            pn.qtde,
+            CAST(pn.status AS CHAR) as purchase_status,
+            pn.date,
+            CAST(pn.user_id AS CHAR) as user_id,
+            CAST(pn.invoice_id AS CHAR) as invoice_id,
+            i.description as product_name,
+            i.sku_code,
+            i.stock,
+            i.defaultPurchaseQuantity,
+            i.minStock
         ');
-        $this->db->from(db_prefix() . 'items');
-        $this->db->where('stock <= minStock');
+        $this->db->from(db_prefix() . 'purchase_needs pn');
+        $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id', 'left');
 
         $products = $this->db->get()->result_array();
-
         $purchase_needs = [];
 
         foreach ($products as $product) {
-            $suggested_qty = (int)($product['minimumStock'] - $product['currentStock'] + ($product['minimumStock'] * 0.2));
-
-            $status = 'pending';
-            if ($product['status'] === 'ordered') {
-                $status = 'ordered';
-            } else if ($product['status'] === 'cancelled') {
-                $status = 'cancelled';
-            }
-
             $purchase_needs[] = [
+                'id' => $product['id'],
                 'product' => [
-                    'id' => $product['id'],
-                    'name' => $product['name'],
-                    'sku' => $product['sku']
+                    'id' => $product['item_id'],
+                    'name' => $product['product_name'],
+                    'sku' => $product['sku_code']
                 ],
-                'currentStock' => (int)$product['currentStock'],
-                'minimumStock' => (int)$product['minimumStock'],
-                'suggestedOrderQuantity' => $suggested_qty,
-                'lastOrderDate' => $product['lastOrderDate'],
-                'status' => $status
+                'warehouse_id' => $product['warehouse_id'],
+                'currentStock' => (int)$product['stock'],
+                'minimumStock' => (int)$product['minStock'],
+                'quantity' => (int)$product['qtde'],
+                'defaultPurchaseQuantity' => (int)$product['defaultPurchaseQuantity'],
+                'status' => $product['purchase_status'],
+                'user_id' => $product['user_id'],
+                'date' => $product['date'],
+                'invoice_id' => $product['invoice_id']
             ];
         }
 
-        if (empty($purchase_needs)) {
-            $this->response([
-                'status' => TRUE,
-                'data' => []
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => TRUE,
-                'data' => $purchase_needs
-            ], REST_Controller::HTTP_OK);
-        }
-    }
-
-    public function create_purchase_order_post()
-    {
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-        if (!isset($_POST['items']) || empty($_POST['items'])) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No items provided for purchase order'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        try {
-            $this->db->trans_start();
-
-            foreach ($_POST['items'] as $item) {
-                $this->db->where('itemid', $item['product']['id']);
-                $this->db->update(db_prefix() . 'items', ['status' => 'ordered']);
-            }
-
-            $this->db->trans_complete();
-
-            if ($this->db->trans_status() === FALSE) {
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'Failed to create purchase order'
-                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-                return;
-            }
-
-            $this->response([
-                'status' => TRUE,
-                'message' => 'Purchase order created successfully'
-            ], REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Error creating purchase order: ' . $e->getMessage()
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        $this->response([
+            'status' => TRUE,
+            'data' => $purchase_needs
+        ], REST_Controller::HTTP_OK);
     }
 
 
@@ -818,7 +764,7 @@ class Produto extends REST_Controller
             return;
         }
 
-        $mapping = array_filter($mapping, function($value) {
+        $mapping = array_filter($mapping, function ($value) {
             return !empty($value);
         });
 
@@ -872,7 +818,7 @@ class Produto extends REST_Controller
             $this->db->trans_start();
 
             foreach ($rows as $index => $row) {
-                $current_row = $index + 2;  
+                $current_row = $index + 2;
                 $product_data = [];
 
                 foreach ($mapping as $field => $csv_column) {
@@ -927,7 +873,6 @@ class Produto extends REST_Controller
             }
 
             $this->response($response, REST_Controller::HTTP_OK);
-
         } catch (Exception $e) {
             if (is_resource($handle)) {
                 fclose($handle);

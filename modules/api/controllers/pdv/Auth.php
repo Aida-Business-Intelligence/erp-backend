@@ -71,6 +71,11 @@ class Auth extends REST_Controller {
     }
     
     public function session_post() {
+     
+        
+            $this->response(array(), REST_Controller::HTTP_OK);
+    }
+    public function log_post() {
         
             $this->response(array(), REST_Controller::HTTP_OK);
     }

@@ -44,7 +44,9 @@ application/logs/
 application/third_party/
 .htaccess
 robots.txt
+ngproject/
 public/
+
 
 # Arquivos com senhas e credenciais
 .env

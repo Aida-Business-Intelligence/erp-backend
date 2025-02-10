@@ -208,13 +208,18 @@ class Cash extends REST_Controller
     
     public function remove_post(){
         $data = json_decode(file_get_contents("php://input"), true);
+        
+        
+        $email = $this->authservice->user->email;
+        $password = $data['password'];
+        $data_pw = $this->Authentication_model->login_api($email, $password);
 
-        if (!isset($data['master_password'])) {
-            $this->response([
+         if (!$data_pw['success']) {
+
+           $this->response([
                 'status' => FALSE,
-                'message' => 'Senha master incorreta.'
-            ], REST_Controller::HTTP_UNAUTHORIZED);
-            return;
+                'message' => 'Senha inválida'
+            ], REST_Controller::HTTP_OK);
         }
 
         if (!isset($data['rows']) || empty($data['rows'])) {

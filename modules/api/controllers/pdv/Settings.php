@@ -148,14 +148,6 @@ class Settings extends REST_Controller {
                         "icon" => "lucide:trash",
                         "width" => "",
                         "path" => "/auth/clean"
-                    ],
-                    [
-                        "value" => "Sair",
-                        "label" => "admin",
-                        "color" => "",
-                        "icon" => "lucide:log-out",
-                        "width" => "",
-                        "path" => "/auth/logout"
                     ]
                 
             ]

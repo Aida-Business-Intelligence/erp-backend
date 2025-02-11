@@ -43,15 +43,15 @@ define('APP_DB_HOSTNAME', 'localhost');
 /**
  * The username used to connect to the database
  */
-define('APP_DB_USERNAME', 'mudar');
+define('APP_DB_USERNAME', 'dev');
 /**
  * The password used to connect to the database
  */
-define('APP_DB_PASSWORD', 'mudar');
+define('APP_DB_PASSWORD', 'c6m8n4d2d3');
 /**
  * The name of the database you want to connect to
  */
-define('APP_DB_NAME', 'mudar');
+define('APP_DB_NAME', 'dev');
 
 /**
  * @since  2.3.0

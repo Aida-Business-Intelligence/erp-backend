@@ -73,7 +73,7 @@ class Dashboard extends REST_Controller {
         }
 
         // Calcular porcentagem com proteção contra divisão por zero
-        $porcentB = $despesas_ontem > 0 ? (($despesas_dia/$despesas_ontem)*100)-100 : 0;
+        $porcentB = $despesas_ontem > 0 ? (($despesas_dia/$despesas_ontem)*100) : 0;
 
         $data = [
             "balance" => [
@@ -91,10 +91,10 @@ class Dashboard extends REST_Controller {
                 "comparison" => "vs yesterday"
             ],
             "seller" => [
-                "credit" => 0,
-                "debit" => 0,
-                "total" => 0,
-                "percent" => 0,
+                "credit" => 100,
+                "debit" => 50,
+                "total" => 50,
+                "percent" => 25,
                 "comparison" => "vs yesterday"
             ],
             "lastDays" => [

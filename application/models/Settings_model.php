@@ -35,6 +35,11 @@ class Settings_model extends App_Model
         
         
     }
+    
+    public function get_warehouses()
+	{
+		return $this->db->query('select warehouse_id, warehouse_name as label from ' . db_prefix() . 'warehouse where display = 1 order by ' . db_prefix() . 'warehouse.order asc')->result_array();
+	}
 
     /**
      * Update all settings

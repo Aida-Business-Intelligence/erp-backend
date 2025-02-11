@@ -27,176 +27,169 @@ class Settings extends REST_Controller {
 
     public function options_get() {
         $data = [
-    [
-        "type" => "menu",
-        "category" => "system",
-        "list" => [
-            "menu" => [
-                
-                [
-                    "value" => "dashboard",
-                    "label" => "home",
-                    "color" => "",
-                    "icon" => "lucide:chart-pie",
-                    "width" => "",
-                    "path" => "/dashboard"
-                ],
-               
-                [
-                    "value" => "Catálogo",
-                    "label" => "home",
-                    "color" => "",
-                    "icon" => "lucide:album",
-                    "width" => "",
-                    "path" => "/products"
-                ],
-                [
-                    "value" => "cash",
-                    "label" => "pdv",
-                    "color" => "",
-                    "icon" => "lucide:calculator",
-                    "width" => "",
-                    "path" => "/cash"
-                ],
-                [
-                    "value" => "POS",
-                    "label" => "pdv",
-                    "color" => "",
-                    "icon" => "lucide:monitor",
-                    "width" => "",
-                    "path" => "/pdv"
-                ],
-                [
-                    "value" => "Ordens de Compra",
-                    "label" => "pdv",
-                    "color" => "",
-                    "icon" => "lucide:shopping-bag",
-                    "width" => "",
-                    "path" => "/sales-orders"
-                ],
-                [
-                    "value" => "Vendas",
-                    "label" => "pdv",
-                    "color" => "",
-                    "icon" => "lucide:receipt",
-                    "width" => "",
-                    "path" => "/transactions"
-                ],
-                [
-                    "value" => "clients",
-                    "label" => "pdv",
-                    "color" => "",
-                    "icon" => "lucide:book-user",
-                    "width" => "",
-                    "path" => "/client"
-                ],
-               
-                [
-                    "value" => "Categorias",
-                    "label" => "pdv",
-                    "color" => "",
-                    "icon" => "lucide:list",
-                    "width" => "",
-                    "path" => "/categories"
-                ],
-        
-                [
-                    "value" => "product",
-                    "label" => "pdv",
-                    "color" => "",
-                    "icon" => "lucide:edit",
-                    "width" => "",
-                    "path" => "/produto"
-                ],
-                [
-                    "value" => "Contas a pagar",
-                    "label" => "financial",
-                    "color" => "",
-                    "icon" => "lucide:wallet",
-                    "width" => "",
-                    "path" => "/financial"
-                ],
-                [
-                    "value" => "Relatórios",
-                    "label" =>  "home",
-                    "color" => "",
-                    "icon" => "lucide:file-text",
-                    "width" => "",
-                    "path" => "/reports"
-                ],
-                [
-                    "value" => "users",
-                    "label" => "admin",
-                    "color" => "",
-                    "icon" => "lucide:users",
-                    "width" => "",
-                    "path" => "/admin/user/list"
-                ],
-               
-                [
-                    "value" => "config",
-                    "label" => "admin",
-                    "color" => "",
-                    "icon" => "lucide:settings",
-                    "width" => "",
-                    "path" => "/admin/config"
-                ],
-                    [
-                        "value" => "Limpar",
-                        "label" => "admin",
-                        "color" => "",
-                        "icon" => "lucide:trash",
-                        "width" => "",
-                        "path" => "/auth/clean"
+            [
+                "type" => "menu",
+                "category" => "system",
+                "list" => [
+                    "menu" => [
+                        [
+                            "value" => "dashboard",
+                            "label" => "home",
+                            "color" => "",
+                            "icon" => "lucide:chart-pie",
+                            "width" => "",
+                            "path" => "/dashboard"
+                        ],
+                        [
+                            "value" => "Catálogo",
+                            "label" => "home",
+                            "color" => "",
+                            "icon" => "lucide:album",
+                            "width" => "",
+                            "path" => "/products"
+                        ],
+                        [
+                            "value" => "cash",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:calculator",
+                            "width" => "",
+                            "path" => "/cash"
+                        ],
+                        [
+                            "value" => "POS",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:monitor",
+                            "width" => "",
+                            "path" => "/pdv"
+                        ],
+                        [
+                            "value" => "Ordens de Compra",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:shopping-bag",
+                            "width" => "",
+                            "path" => "/sales-orders"
+                        ],
+                        [
+                            "value" => "Vendas",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:receipt",
+                            "width" => "",
+                            "path" => "/transactions"
+                        ],
+                        [
+                            "value" => "clients",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:book-user",
+                            "width" => "",
+                            "path" => "/client"
+                        ],
+                        [
+                            "value" => "Categorias",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:list",
+                            "width" => "",
+                            "path" => "/categories"
+                        ],
+                        [
+                            "value" => "product",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:edit",
+                            "width" => "",
+                            "path" => "/produto"
+                        ],
+                        [
+                            "value" => "Contas a pagar",
+                            "label" => "financial",
+                            "color" => "",
+                            "icon" => "lucide:wallet",
+                            "width" => "",
+                            "path" => "/financial"
+                        ],
+                        [
+                            "value" => "Relatórios",
+                            "label" => "home",
+                            "color" => "",
+                            "icon" => "lucide:file-text",
+                            "width" => "",
+                            "path" => "/reports"
+                        ],
+                        [
+                            "value" => "users",
+                            "label" => "admin",
+                            "color" => "",
+                            "icon" => "lucide:users",
+                            "width" => "",
+                            "path" => "/admin/user/list"
+                        ],
+                        [
+                            "value" => "config",
+                            "label" => "admin",
+                            "color" => "",
+                            "icon" => "lucide:settings",
+                            "width" => "",
+                            "path" => "/admin/config"
+                        ],
+                        [
+                            "value" => "Limpar",
+                            "label" => "admin",
+                            "color" => "",
+                            "icon" => "lucide:trash",
+                            "width" => "",
+                            "path" => "/auth/clean"
+                        ]
                     ]
-                
-            ]
-        ]
-    ],
-    [
-        "type" => "status",
-        "category" => "system",
-        "list" => [
-            "status" => [
-                [
-                    "value" => "active",
-                    "label" => "Active",
-                    "color" => "success",
-                    "icon" => "solar:check-bold",
-                    "width" => "",
-                    "path" => ""
-                ],
-                [
-                    "value" => "inactive",
-                    "label" => "Pending",
-                    "color" => "warning",
-                    "icon" => "solar:clock-bold",
-                    "width" => "",
-                    "path" => ""
-                ],
-                [
-                    "value" => "banned",
-                    "label" => "Banned",
-                    "color" => "error",
-                    "icon" => "solar:ban-bold",
-                    "width" => "",
-                    "path" => ""
-                ],
-                [
-                    "value" => "rejected",
-                    "label" => "Rejected",
-                    "color" => "default",
-                    "icon" => "solar:close-circle-bold",
-                    "width" => "",
-                    "path" => ""
+                ]
+            ],
+            [
+                "type" => "status",
+                "category" => "system",
+                "list" => [
+                    "status" => [
+                        [
+                            "value" => "active",
+                            "label" => "Active",
+                            "color" => "success",
+                            "icon" => "solar:check-bold",
+                            "width" => "",
+                            "path" => ""
+                        ],
+                        [
+                            "value" => "inactive",
+                            "label" => "Pending",
+                            "color" => "warning",
+                            "icon" => "solar:clock-bold",
+                            "width" => "",
+                            "path" => ""
+                        ],
+                        [
+                            "value" => "banned",
+                            "label" => "Banned",
+                            "color" => "error",
+                            "icon" => "solar:ban-bold",
+                            "width" => "",
+                            "path" => ""
+                        ],
+                        [
+                            "value" => "rejected",
+                            "label" => "Rejected",
+                            "color" => "default",
+                            "icon" => "solar:close-circle-bold",
+                            "width" => "",
+                            "path" => ""
+                        ]
+                    ]
                 ]
             ]
-        ]
-    ]
-];
-        
+        ];
 
-          $this->response($data, REST_Controller::HTTP_OK);
+        $this->response($data, REST_Controller::HTTP_OK);
     }
 
     public function create_post() {
@@ -221,35 +214,40 @@ class Settings extends REST_Controller {
             }
         }
     }
-    
-    public function config_get(){
+
+    public function config_get() {
+
+
+        $output = $this->Settings_model->get_options();
         
-   
-         $output = $this->Settings_model->get_options();
-
-            $this->load->model('Settings_model');
-    $output = $this->Settings_model->get_options();
-
-    $formattedOutput = [];
-    foreach ($output as $item) {
-      
-        $formattedOutput[$item['name']] = $item['value'];
+        $warehouses =  $this->Settings_model->get_warehouses();
+     
         
-    }
+        
 
-    if (!empty($formattedOutput)) {
-        $this->response($formattedOutput, REST_Controller::HTTP_OK);
-    } else {
-        $this->response('Erro', REST_Controller::HTTP_NOT_ACCEPTABLE);
-    }
+        $this->load->model('Settings_model');
+        $output = $this->Settings_model->get_options();
+
+        $formattedOutput = [];
+        foreach ($output as $item) {
+
+            $formattedOutput[$item['name']] = $item['value'];
+        }
+        $formattedOutput['warehouses']=$warehouses;
+
+        if (!empty($formattedOutput)) {
+            $this->response($formattedOutput, REST_Controller::HTTP_OK);
+        } else {
+            $this->response('Erro', REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
         /*
          * {
-    "appName": "Sobre",
-    "logoDark": null,
-    "logoLight": null,
-    "iconDark": null,
-    "iconLight": null
-}
+          "appName": "Sobre",
+          "logoDark": null,
+          "logoLight": null,
+          "iconDark": null,
+          "iconLight": null
+          }
          */
     }
 }

@@ -704,6 +704,7 @@ class Produto extends REST_Controller
         ');
         $this->db->from(db_prefix() . 'purchase_needs pn');
         $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id', 'left');
+        $this->db->where('pn.status', 0);
 
         $products = $this->db->get()->result_array();
         $purchase_needs = [];

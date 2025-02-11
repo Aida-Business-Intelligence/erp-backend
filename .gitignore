@@ -46,6 +46,7 @@ application/third_party/
 robots.txt
 ngproject/
 public/
+application/config/app-config.php
 
 
 # Arquivos com senhas e credenciais

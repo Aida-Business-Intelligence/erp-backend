@@ -218,7 +218,7 @@ class Suppliers extends REST_Controller
           'document' => $document['number'],
           'type' => strtoupper($document['type'])
         ];
-        
+
         $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
       }
 
@@ -229,7 +229,7 @@ class Suppliers extends REST_Controller
             'supplier_id' => $supplier_id,
             'email' => $email
           ];
-          
+
           $this->db->insert(db_prefix() . 'email_supplier', $email_data);
         }
       }
@@ -243,7 +243,7 @@ class Suppliers extends REST_Controller
           'active' => 1,
           'datecreated' => date('Y-m-d H:i:s')
         ];
-        
+
         $this->clients_model->add_contact($contact_data, $supplier_id);
       }
 
@@ -258,10 +258,9 @@ class Suppliers extends REST_Controller
         'message' => 'Supplier created successfully',
         'supplier_id' => $supplier_id
       ], REST_Controller::HTTP_OK);
-
     } catch (Exception $e) {
       $this->db->trans_rollback();
-      
+
       $this->response([
         'status' => FALSE,
         'message' => 'Error: ' . $e->getMessage()
@@ -317,7 +316,7 @@ class Suppliers extends REST_Controller
           'document' => $document['number'],
           'type' => strtoupper($document['type'])
         ];
-        
+
         $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
       }
 
@@ -331,7 +330,7 @@ class Suppliers extends REST_Controller
             'supplier_id' => $id,
             'email' => $email
           ];
-          
+
           $this->db->insert(db_prefix() . 'email_supplier', $email_data);
         }
       }
@@ -348,7 +347,7 @@ class Suppliers extends REST_Controller
           'active' => 1,
           'datecreated' => date('Y-m-d H:i:s')
         ];
-        
+
         $this->clients_model->add_contact($contact_data, $id);
       }
 
@@ -362,10 +361,9 @@ class Suppliers extends REST_Controller
         'status' => TRUE,
         'message' => 'Supplier updated successfully'
       ], REST_Controller::HTTP_OK);
-
     } catch (Exception $e) {
       $this->db->trans_rollback();
-      
+
       $this->response([
         'status' => FALSE,
         'message' => 'Error: ' . $e->getMessage()
@@ -409,7 +407,7 @@ class Suppliers extends REST_Controller
         'type' => strtolower($supplier['documentType']),
         'number' => $supplier['vat']
       ]],
-      array_map(function($doc) {
+      array_map(function ($doc) {
         return [
           'type' => strtolower($doc['type']),
           'number' => $doc['document']
@@ -427,7 +425,7 @@ class Suppliers extends REST_Controller
         'name' => $supplier['company'],
         'phone' => $supplier['phonenumber']
       ]],
-      array_map(function($contact) {
+      array_map(function ($contact) {
         return [
           'name' => $contact['firstname'],
           'phone' => $contact['phonenumber']
@@ -495,18 +493,32 @@ class Suppliers extends REST_Controller
     $this->db->limit($limit, ($page - 1) * $limit);
     $suppliers = $this->db->get()->result_array();
 
+    foreach ($suppliers as &$supplier) {
+      $this->db->select('firstname as name, phonenumber as phone');
+      $this->db->where('userid', $supplier['userid']);
+      $contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
+
+      $supplier['contacts'] = array_merge(
+        [[
+          'name' => $supplier['company'],
+          'phone' => $supplier['phonenumber']
+        ]],
+        $contacts
+      );
+    }
+
     $this->response([
       'status' => TRUE,
       'total' => (int)$total,
       'page' => (int)$page,
       'limit' => (int)$limit,
-      'data' => array_map(function($supplier) {
+      'data' => array_map(function ($supplier) {
         return [
           'userid' => $supplier['userid'],
           'company' => $supplier['company'],
           'documents' => array_merge(
-            [['type' => 'cnpj', 'number' => $supplier['vat']]], 
-            array_map(function($doc) {
+            [['type' => 'cnpj', 'number' => $supplier['vat']]],
+            array_map(function ($doc) {
               return ['type' => 'cnpj', 'number' => $doc];
             }, $supplier['additional_documents'] ? explode(',', $supplier['additional_documents']) : [])
           ),
@@ -514,9 +526,10 @@ class Suppliers extends REST_Controller
           'state' => $supplier['state'],
           'payment_terms' => $supplier['payment_terms'],
           'emails' => array_filter(array_merge(
-            [$supplier['email_default']], 
+            [$supplier['email_default']],
             $supplier['additional_emails'] ? explode(',', $supplier['additional_emails']) : []
           )),
+          'contacts' => $supplier['contacts'],
           'contacts_count' => (int)$supplier['contacts_count'],
           'status' => (int)$supplier['active'],
           'created_at' => $supplier['datecreated']

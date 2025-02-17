@@ -24,7 +24,18 @@ class Payment extends REST_Controller
     {
         // Construct the parent class
         parent::__construct();
-        //$this->load->model('payment_model');
+        
+         $this->load->model('Authentication_model');
+         $this->load->model('Cashs_model');
+        
+        $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+        if (!$decodedToken['status']) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Usuario nao autenticado '
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+        
     }
 
     /**
@@ -96,11 +107,52 @@ class Payment extends REST_Controller
     }
      public function finish_post()
     {
-        
-       
+         
+         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+         $payments = $_POST['payments'];
+         $doc =  $_POST['cpf'];
+         $discount =  $_POST['discount'];
+         $itens=  $_POST['cart'];
+         $client_id=  $_POST['client_id'];
+         $cash_id=  $_POST['cashId'];
+         $user_id = $this->authservice->user->staffid;
+         $total =0;
+         $item_order = 1;
+         
+         foreach($itens as $item){
+             $total += $item['subtotal'];
+             $newitems[] = array(
+                 'id'=>$item['codigo'],
+                 'description'=>$item['descricao'],
+                 'qty'=>$item['quantidade'],
+                 'rate'=>$item['precoUnitario'],
+                 'subtotal'=>$item['subtotal'],
+                 'discount'=>$item['precoUnitario'] - $item['subtotal'],
+                 'unit'=>'UN',
+                 'item_order'=>$item_order,
+                 );
+             $item_order++;
+         }
+         
+         $data= array(
+             'client_id'=>$client_id,
+             'cash_id'=>$cash_id,
+             'user_id'=>$user_id,
+             'type'=>'credit',
+             'subtotal'=>$total-$discount,
+             'discount'=>$discount,
+             'total'=>$total,
+             'nota'=>'',
+             'doc'=>$doc,
+             'newitems'=>$newitems,
+             'form_payments'=>json_encode($payments),
+             'operacao'=>'paid'
+             
+         );
+         
+         $this->Cashs_model->add($data);
 
-         $this->response(['status' => true, 'status_payment'=>'paid', 'payment_id'=>1, 'message' => 'Aguardando pagamento'], REST_Controller::HTTP_OK);
-
+         $this->response(['status' => true, 'status_payment'=>'paid', 'payment_id'=>1, 'message' => 'Pagamento realizado'], REST_Controller::HTTP_OK);
            
         
     }

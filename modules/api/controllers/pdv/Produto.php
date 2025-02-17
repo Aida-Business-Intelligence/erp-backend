@@ -40,6 +40,8 @@ class Produto extends REST_Controller
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
         $status = $this->post('status');
+        $category = $this->post('category');
+        $subcategory = $this->post('subcategory');
 
         $statusFilter = null;
         if (is_array($status) && !empty($status)) {
@@ -58,11 +60,10 @@ class Produto extends REST_Controller
             $sortOrder,
             $statusFilter,
             $start_date,
-            $end_date
+            $end_date,
+            $category,
+            $subcategory
         );
-
-        // echo $this->db->last_query();
-        // exit;
 
         if ($data['total'] == 0) {
             $this->response(
@@ -91,43 +92,64 @@ class Produto extends REST_Controller
     public function create_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
-        // Recebendo e decodificando os dados
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $_input['vat'] = $_POST['documentNumber'] ?? null;
-        $_input['email_default'] = $_POST['email'] ?? null;
-        $_input['phonenumber'] = $_POST['primaryPhone'] ?? null;
-        $_input['zip'] = $_POST['cep'] ?? null;
-        $_input['billing_street'] = $_POST['street'] ?? null;
-        $_input['billing_city'] = $_POST['city'] ?? null;
-        $_input['billing_state'] = $_POST['state'] ?? null;
-        $_input['billing_number'] = $_POST['number'] ?? null;
-        $_input['billing_complement'] = $_POST['complement'] ?? null;
-        $_input['billing_neighborhood'] = $_POST['neighborhood'] ?? null;
-        $_input['company'] = $_POST['fullName'] ?? null;
-        $_POST['company'] = $_POST['fullName'] ?? null;
+        $product_data = [
+            'description' => $_POST['description'] ?? null,
+            'long_description' => $_POST['long_description'] ?? null,
+            'rate' => $_POST['rate'] ?? 0.00,
+            'tax' => $_POST['taxid'] ?? null,
+            'tax2' => $_POST['taxid_2'] ?? null,
+            'unit' => $_POST['unit'] ?? null,
+            'group_id' => $_POST['group_id'] ?? 0,
+            'sku_code' => $_POST['sku_code'] ?? null,
+            'barcode' => $_POST['barcode'] ?? null,
+            'status' => $_POST['status'] ?? 'pending',
+            'cost' => $_POST['cost'] ?? null,
+            'promoPrice' => $_POST['promoPrice'] ?? null,
+            'promoStart' => $_POST['promoStart'] ?? null,
+            'promoEnd' => $_POST['promoEnd'] ?? null,
+            'stock' => $_POST['stock'] ?? 0,
+            'minStock' => $_POST['minStock'] ?? 0,
+            'product_unit' => $_POST['product_unit'] ?? null,
+            'createdAt' => date('Y-m-d H:i:s'),
+            'updatedAt' => date('Y-m-d H:i:s')
+        ];
 
-        $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
-
-        // email
-        $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
+        $this->form_validation->set_data($product_data);
+        $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');
+        $this->form_validation->set_rules('rate', 'Rate', 'numeric');
+        $this->form_validation->set_rules('stock', 'Stock', 'numeric');
+        $this->form_validation->set_rules('minStock', 'Minimum Stock', 'numeric');
 
         if ($this->form_validation->run() == FALSE) {
-            $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            $message = [
+                'status' => FALSE,
+                'error' => $this->form_validation->error_array(),
+                'message' => validation_errors()
+            ];
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $product_id = $this->Invoice_items_model->add($product_data);
+
+        if ($product_id) {
+            $product = $this->Invoice_items_model->get_api($product_id);
+
+            $message = [
+                'status' => TRUE,
+                'message' => 'Product created successfully',
+                'data' => $product['data']
+            ];
+            $this->response($message, REST_Controller::HTTP_OK);
         } else {
-
-
-            $output = $this->Invoice_items_model->add($_input);
-            if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => 'success', 'message' => 'auth_signup_success', 'data' => $this->Invoice_items_model->get($output));
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Client add fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            }
+            $message = [
+                'status' => FALSE,
+                'message' => 'Failed to create product'
+            ];
+            $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -143,7 +165,7 @@ class Produto extends REST_Controller
         $upload_dir = './uploads/items/' . $item_id . '/';
 
         if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true); // Criação recursiva do diretório
+            mkdir($upload_dir, 0777, true);
         }
 
         foreach ($parts as $part) {
@@ -433,6 +455,10 @@ class Produto extends REST_Controller
         die();
     }
 
+
+
+
+
     public function del_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -484,9 +510,6 @@ class Produto extends REST_Controller
 
     public function groups_put($id = '')
     {
-
-        error_reporting(-1);
-        ini_set('display_errors', 1);
 
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -662,100 +685,271 @@ class Produto extends REST_Controller
         }
     }
 
-    public function check_stock_post()
+    public function supplier_needs_post()
     {
         $this->db->select('
-            id,
-            description as name,
-            sku_code as sku,
-            stock as currentStock,
-            minStock as minimumStock,
-            unit as product_unit,
-            status,
-            updatedAt as lastOrderDate
+            c.userid as supplier_id,
+            c.company as supplier_name,
+            c.vat as supplier_document,
+            c.phonenumber as supplier_phone,
+            COUNT(DISTINCT pn.id) as total_items,
+            SUM(pn.qtde) as total_quantity,
+            SUM(pn.qtde * i.cost) as total_cost
         ');
-        $this->db->from(db_prefix() . 'items');
-        $this->db->where('stock <= minStock');
+        
+        $this->db->from(db_prefix() . 'items i');
+        $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.item_id = i.id');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid');
+        $this->db->where('pn.status', 0);
+        $this->db->where('c.is_supplier', 1);
+        $this->db->group_by('c.userid');
+
+        $suppliers = $this->db->get()->result_array();
+
+        $this->response([
+            'status' => TRUE,
+            'data' => $suppliers
+        ], REST_Controller::HTTP_OK);
+    }
+
+    public function check_stock_post()
+    {
+        $supplier_id = $this->post('supplier_id');
+        
+        if (empty($supplier_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Supplier ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $this->db->select('
+            pn.id,
+            pn.item_id,
+            pn.warehouse_id,
+            pn.qtde,
+            CAST(pn.status AS CHAR) as purchase_status,
+            pn.date,
+            CAST(pn.user_id AS CHAR) as user_id,
+            CAST(pn.invoice_id AS CHAR) as invoice_id,
+            i.description as product_name,
+            i.sku_code,
+            i.stock,
+            i.cost,
+            i.defaultPurchaseQuantity,
+            i.minStock,
+            c.company as supplier_name,
+            c.vat as supplier_document
+        ');
+        
+        $this->db->from(db_prefix() . 'purchase_needs pn');
+        $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid', 'left');
+        $this->db->where('pn.status', 0);
+        $this->db->where('i.userid', $supplier_id);
+        $this->db->where('c.is_supplier', 1);
 
         $products = $this->db->get()->result_array();
+        
+        if (empty($products)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No purchase needs found for this supplier'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
 
+        $total_cost = 0;
         $purchase_needs = [];
 
         foreach ($products as $product) {
-            $suggested_qty = (int)($product['minimumStock'] - $product['currentStock'] + ($product['minimumStock'] * 0.2));
-
-            $status = 'pending';
-            if ($product['status'] === 'ordered') {
-                $status = 'ordered';
-            } else if ($product['status'] === 'cancelled') {
-                $status = 'cancelled';
-            }
+            $item_total = $product['qtde'] * $product['cost'];
+            $total_cost += $item_total;
 
             $purchase_needs[] = [
+                'id' => $product['id'],
                 'product' => [
-                    'id' => $product['id'],
-                    'name' => $product['name'],
-                    'sku' => $product['sku']
+                    'id' => $product['item_id'],
+                    'name' => $product['product_name'],
+                    'sku' => $product['sku_code']
                 ],
-                'currentStock' => (int)$product['currentStock'],
-                'minimumStock' => (int)$product['minimumStock'],
-                'suggestedOrderQuantity' => $suggested_qty,
-                'lastOrderDate' => $product['lastOrderDate'],
-                'status' => $status
+                'warehouse_id' => $product['warehouse_id'],
+                'currentStock' => (int)$product['stock'],
+                'minimumStock' => (int)$product['minStock'],
+                'quantity' => (int)$product['qtde'],
+                'cost' => (float)$product['cost'],
+                'total' => $item_total,
+                'defaultPurchaseQuantity' => (int)$product['defaultPurchaseQuantity'],
+                'status' => $product['purchase_status'],
+                'user_id' => $product['user_id'],
+                'date' => $product['date'],
+                'invoice_id' => $product['invoice_id']
             ];
         }
 
-        if (empty($purchase_needs)) {
-            $this->response([
-                'status' => TRUE,
-                'data' => []
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => TRUE,
-                'data' => $purchase_needs
-            ], REST_Controller::HTTP_OK);
-        }
+        $supplier_info = [
+            'supplier_id' => $supplier_id,
+            'supplier_name' => $products[0]['supplier_name'],
+            'supplier_document' => $products[0]['supplier_document'],
+            'total_items' => count($products),
+            'total_quantity' => array_sum(array_column($products, 'qtde')),
+            'total_cost' => $total_cost,
+            'items' => $purchase_needs
+        ];
+
+        $this->response([
+            'status' => TRUE,
+            'data' => $supplier_info
+        ], REST_Controller::HTTP_OK);
     }
 
-    public function create_purchase_order_post()
+    public function import_post()
     {
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-        if (!isset($_POST['items']) || empty($_POST['items'])) {
+        if (!isset($_FILES['file']) || empty($_FILES['file'])) {
             $this->response([
                 'status' => FALSE,
-                'message' => 'No items provided for purchase order'
+                'message' => 'No file was uploaded'
             ], REST_Controller::HTTP_BAD_REQUEST);
             return;
+        }
+
+        if (!isset($_POST['mapping'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No field mapping provided'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $file = $_FILES['file'];
+        $mapping = json_decode($_POST['mapping'], true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid mapping JSON format'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $mapping = array_filter($mapping, function ($value) {
+            return !empty($value);
+        });
+
+        if (!isset($mapping['description']) || !isset($mapping['rate'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'description and rate fields are required in the mapping'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if ($file_ext !== 'csv') {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Only CSV files are allowed'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $handle = fopen($file['tmp_name'], 'r');
+        if ($handle === FALSE) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Failed to read file'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        $headers = fgetcsv($handle);
+        if ($headers === FALSE) {
+            fclose($handle);
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Empty CSV file'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $success_count = 0;
+        $errors = [];
+        $rows = [];
+
+        while (($row = fgetcsv($handle)) !== FALSE) {
+            if (count(array_filter($row)) > 0) {
+                $rows[] = $row;
+            }
         }
 
         try {
             $this->db->trans_start();
 
-            foreach ($_POST['items'] as $item) {
-                $this->db->where('itemid', $item['product']['id']);
-                $this->db->update(db_prefix() . 'items', ['status' => 'ordered']);
+            foreach ($rows as $index => $row) {
+                $current_row = $index + 2;
+                $product_data = [];
+
+                foreach ($mapping as $field => $csv_column) {
+                    $column_index = array_search($csv_column, $headers);
+                    if ($column_index !== FALSE && isset($row[$column_index])) {
+                        $value = trim($row[$column_index]);
+                        if (!empty($value)) {
+                            $product_data[$field] = $value;
+                        }
+                    }
+                }
+
+                if (!isset($product_data['description']) || empty($product_data['description'])) {
+                    $errors[] = "Row {$current_row}: Description is required";
+                    continue;
+                }
+
+                if (!isset($product_data['rate']) || floatval($product_data['rate']) <= 0) {
+                    $errors[] = "Row {$current_row}: Rate must be greater than zero";
+                    continue;
+                }
+
+                $product_id = $this->Invoice_items_model->add($product_data);
+                if ($product_id) {
+                    $success_count++;
+                } else {
+                    $errors[] = "Row {$current_row}: Failed to insert product";
+                }
             }
 
             $this->db->trans_complete();
 
+            fclose($handle);
+
             if ($this->db->trans_status() === FALSE) {
                 $this->response([
                     'status' => FALSE,
-                    'message' => 'Failed to create purchase order'
+                    'message' => 'Transaction failed',
+                    'errors' => $errors
                 ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
                 return;
             }
 
-            $this->response([
+            $response = [
                 'status' => TRUE,
-                'message' => 'Purchase order created successfully'
-            ], REST_Controller::HTTP_OK);
+                'message' => "{$success_count} products imported successfully",
+                'total_rows' => count($rows)
+            ];
+
+            if (!empty($errors)) {
+                $response['warnings'] = $errors;
+            }
+
+            $this->response($response, REST_Controller::HTTP_OK);
         } catch (Exception $e) {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
             $this->response([
                 'status' => FALSE,
-                'message' => 'Error creating purchase order: ' . $e->getMessage()
+                'message' => 'Import failed: ' . $e->getMessage(),
+                'errors' => $errors
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

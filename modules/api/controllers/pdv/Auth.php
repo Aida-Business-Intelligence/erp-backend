@@ -32,8 +32,6 @@ class Auth extends REST_Controller {
     
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         
-        
-
         $email = $_POST['email'];
         $password = $_POST['password'];
         $data = $this->Authentication_model->login_api($email, $password);
@@ -73,6 +71,11 @@ class Auth extends REST_Controller {
     }
     
     public function session_post() {
+     
+        
+            $this->response(array(), REST_Controller::HTTP_OK);
+    }
+    public function log_post() {
         
             $this->response(array(), REST_Controller::HTTP_OK);
     }

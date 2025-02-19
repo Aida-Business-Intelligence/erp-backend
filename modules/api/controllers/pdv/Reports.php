@@ -510,4 +510,214 @@ class Reports extends REST_Controller
       'data' => $cashiers
     ], REST_Controller::HTTP_OK);
   }
+
+  public function stock_report_post()
+  {
+    $period = $this->post('period') ?: '6months';
+    $franchise = $this->post('franchise');
+    $category = $this->post('category');
+    $stockStatus = $this->post('stockStatus');
+    $performanceFilter = $this->post('performanceFilter');
+    $customStartDate = $this->post('startDate');
+    $customEndDate = $this->post('endDate');
+    $orderBy = $this->post('orderBy') ?: 'depletion';
+    
+    $page = max(0, $this->post('page') ? (int)$this->post('page') - 1 : 0);
+    $pageSize = max(1, $this->post('pageSize') ? (int)$this->post('pageSize') : 10);
+
+    $startDate = null;
+    $endDate = date('Y-m-d 23:59:59');
+
+    switch ($period) {
+        case '1month':
+            $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
+            break;
+        case '3months':
+            $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
+            break;
+        case '6months':
+            $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+            break;
+        case '12months':
+            $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
+            break;
+        case 'thisMonth':
+            $startDate = date('Y-m-01 00:00:00');
+            $endDate = date('Y-m-t 23:59:59');
+            break;
+        case 'custom':
+            if ($customStartDate && $customEndDate) {
+                $startDate = date('Y-m-d 00:00:00', strtotime($customStartDate));
+                $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
+            }
+            break;
+    }
+
+    if (!$startDate) {
+        $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+    }
+
+    $this->db->select(db_prefix() . 'items.id,
+        ' . db_prefix() . 'items.description as name,
+        ' . db_prefix() . 'items.stock as currentStock,
+        ' . db_prefix() . 'items.minStock,
+        ' . db_prefix() . 'items.rate as price,
+        ' . db_prefix() . 'items.purchase_price as cost,
+        ' . db_prefix() . 'items_groups.name as category,
+        COUNT(' . db_prefix() . 'itemcash.id) as totalSales,
+        COALESCE(SUM(' . db_prefix() . 'itemcash.qty), 0) as total_qty_sold,
+        MIN(' . db_prefix() . 'itemcash.data) as first_sale,
+        MAX(' . db_prefix() . 'itemcash.data) as last_sale,
+        DATEDIFF(NOW(), MIN(' . db_prefix() . 'itemcash.data)) as daysInStock'
+    );
+    
+    $this->db->from(db_prefix() . 'items');
+    $this->db->join(db_prefix() . 'items_groups', db_prefix() . 'items_groups.id = ' . db_prefix() . 'items.group_id', 'left');
+    $this->db->join(db_prefix() . 'itemcash', db_prefix() . 'itemcash.item_id = ' . db_prefix() . 'items.id', 'left');
+    
+    $this->db->where(db_prefix() . 'itemcash.data >=', $startDate);
+    $this->db->where(db_prefix() . 'itemcash.data <=', $endDate);
+    
+    if ($franchise) {
+        $this->db->join(db_prefix() . 'cashs', db_prefix() . 'cashs.id = ' . db_prefix() . 'itemcash.cash_id');
+        $this->db->where(db_prefix() . 'cashs.franchise_id', $franchise);
+    }
+    
+    if ($category) {
+        $this->db->where(db_prefix() . 'items.group_id', $category);
+    }
+    
+    if ($stockStatus) {
+        switch ($stockStatus) {
+            case 'critical':
+                $this->db->where(db_prefix() . 'items.stock <= ' . db_prefix() . 'items.minStock');
+                break;
+            case 'warning':
+                $this->db->where(db_prefix() . 'items.stock > ' . db_prefix() . 'items.minStock');
+                $this->db->where(db_prefix() . 'items.stock <= (' . db_prefix() . 'items.minStock * 1.5)');
+                break;
+            case 'ok':
+                $this->db->where(db_prefix() . 'items.stock > (' . db_prefix() . 'items.minStock * 1.5)');
+                break;
+        }
+    }
+
+    $this->db->group_by(db_prefix() . 'items.id');
+    
+    $total_count = $this->db->count_all_results('', false);
+
+    switch ($orderBy) {
+        case 'depletion':
+            $this->db->order_by(db_prefix() . 'items.stock', 'ASC');
+            break;
+        case 'turnover':
+            $this->db->order_by('total_qty_sold', 'DESC');
+            break;
+        case 'stock':
+            $this->db->order_by(db_prefix() . 'items.stock', 'ASC');
+            break;
+        default:
+            $this->db->order_by(db_prefix() . 'items.stock', 'ASC');
+    }
+
+    $this->db->limit($pageSize, $page * $pageSize);
+    $items = $this->db->get()->result_array();
+
+    $metrics = [
+        'critical_count' => 0,
+        'warning_count' => 0,
+        'high_turnover_count' => 0,
+        'excess_stock_count' => 0
+    ];
+
+    $processed_items = [];
+    foreach ($items as $item) {
+        $days_analyzed = max(1, (strtotime($endDate) - strtotime($startDate)) / (60 * 60 * 24));
+        
+        $total_qty_sold = floatval($item['total_qty_sold']) ?: 0;
+        $daily_sales_rate = $days_analyzed > 0 ? $total_qty_sold / $days_analyzed : 0;
+        
+        $current_stock = max(0, (int)$item['currentStock']);
+        $days_to_depletion = $daily_sales_rate > 0 ? $current_stock / $daily_sales_rate : ($current_stock > 0 ? 999999 : 0);
+        
+        $turnover_rate = $current_stock > 0 ? ($total_qty_sold / $current_stock) * 100 : 0;
+        
+        $price = floatval($item['price']) ?: 0;
+        $cost = floatval($item['cost']) ?: 0;
+        $profit_margin = $cost > 0 ? ($price - $cost) / $cost : 0;
+
+        $status = 'ok';
+        $min_stock = max(0, (int)$item['minStock']);
+        
+        if ($current_stock <= $min_stock) {
+            $status = 'critical';
+            $metrics['critical_count']++;
+        } elseif ($current_stock <= ($min_stock * 1.5)) {
+            $status = 'warning';
+            $metrics['warning_count']++;
+        }
+
+        if ($turnover_rate > 50) {
+            $metrics['high_turnover_count']++;
+        }
+        
+        if ($days_to_depletion > 180 && $current_stock > ($min_stock * 2)) {
+            $metrics['excess_stock_count']++;
+        }
+
+        $suggestion = [];
+        if ($days_to_depletion < 30 && $turnover_rate > 30 && $profit_margin > 0.3) {
+            $suggestion = [
+                'action' => 'increase',
+                'suggestion' => 'Aumentar estoque em 50%. Produto com alta rotatividade e boa margem de lucro.',
+                'priority' => 'high'
+            ];
+        } elseif ($days_to_depletion > 90 && $turnover_rate < 10) {
+            $suggestion = [
+                'action' => 'decrease',
+                'suggestion' => 'Reduzir estoque em 30%. Baixa rotatividade e capital parado.',
+                'priority' => 'medium'
+            ];
+        } else {
+            $suggestion = [
+                'action' => 'maintain',
+                'suggestion' => 'Manter níveis atuais de estoque.',
+                'priority' => 'low'
+            ];
+        }
+
+        $processed_items[] = [
+            'id' => $item['id'],
+            'name' => $item['name'],
+            'category' => $item['category'],
+            'currentStock' => $current_stock,
+            'minStock' => $min_stock,
+            'depletionInfo' => [
+                'days' => round($days_to_depletion),
+                'rate' => round($daily_sales_rate, 2),
+                'isQuickDepleting' => $days_to_depletion < 30,
+                'isSlowDepleting' => $days_to_depletion > 90
+            ],
+            'turnoverRate' => round($turnover_rate, 2),
+            'totalSales' => (int)$total_qty_sold,
+            'daysInStock' => (int)($item['daysInStock'] ?: $days_analyzed),
+            'status' => $status,
+            'suggestion' => $suggestion
+        ];
+    }
+
+    $response = [
+        'status' => true,
+        'metrics' => $metrics,
+        'items' => $processed_items,
+        'pagination' => [
+            'total' => (int)$total_count,
+            'page' => $page + 1,
+            'pageSize' => $pageSize,
+            'totalPages' => ceil($total_count / $pageSize)
+        ]
+    ];
+
+    $this->response($response, REST_Controller::HTTP_OK);
+  }
 }

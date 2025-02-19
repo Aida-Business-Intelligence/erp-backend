@@ -38,7 +38,7 @@ class Roles_model extends App_Model
     public function update($data, $id)
     {
         $affectedRows = 0;
-        $permissions  = [];
+        $permissions = [];
         if (isset($data['permissions'])) {
             $permissions = $data['permissions'];
         }
@@ -98,7 +98,7 @@ class Roles_model extends App_Model
 
             $this->db->where('roleid', $id);
 
-            $role              = $this->db->get(db_prefix() . 'roles')->row();
+            $role = $this->db->get(db_prefix() . 'roles')->row();
             $role->permissions = !empty($role->permissions) ? unserialize($role->permissions) : [];
 
             $this->app_object_cache->add('role-' . $id, $role);
@@ -107,6 +107,37 @@ class Roles_model extends App_Model
         }
 
         return $this->db->get(db_prefix() . 'roles')->result_array();
+    }
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC')
+    {
+        if (!is_numeric($id)) {
+
+            // Adicionar condições de busca
+            if (!empty($search)) {
+                $this->db->group_start(); // Começa um agrupamento de condição
+                $this->db->like('name', $search); // Busca pelo campo 'name'
+                $this->db->group_end(); // Fecha o agrupamento de condição
+            }
+
+            $this->db->order_by($sortField, $sortOrder);
+            $this->db->limit($limit, ($page - 1) * $limit);
+            $data = $this->db->get(db_prefix() . 'roles')->result_array();
+
+            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+            if (!empty($search)) {
+                // Condições de busca para contar os resultados
+                $this->db->group_start(); // Começa um agrupamento de condição
+                $this->db->like('name', $search); // Busca pelo campo 'name'
+                $this->db->group_end(); // Fecha o agrupamento de condição
+            }
+
+            $total = count($data);
+
+            return ['data' => $data, 'total' => $total]; // Retorne os clientes e o total
+        } else {
+            return ['data' => (array) $this->get($id), 'total' => 1];
+        }
     }
 
     /**

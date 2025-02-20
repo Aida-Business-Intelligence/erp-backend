@@ -73,9 +73,6 @@ class Carriers extends REST_Controller {
      *     }
      */
     public function data_get($id = '') {
-
-
-
         $page = $this->get('page') ? (int) $this->get('page') : 1; // Página atual, padrão 1
         $limit = $this->get('limit') ? (int) $this->get('limit') : 10; // Itens por página, padrão 10
         $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido

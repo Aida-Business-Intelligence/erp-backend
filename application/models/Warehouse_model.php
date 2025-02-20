@@ -136,11 +136,14 @@ public function update($data, $id) {
         'warehouse_code', 
         'warehouse_name', 
         'warehouse_address', 
-        'display', 
+        'display',
+        'order',
+        'note',
         'city', 
         'state', 
         'zip_code', 
-        'country', 
+        'country',
+        'franqueado_id',
     ];
 
     // Filtrar os dados permitidos

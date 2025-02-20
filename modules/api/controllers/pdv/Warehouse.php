@@ -201,10 +201,13 @@ class Warehouse extends REST_Controller
             'warehouse_name', 
             'warehouse_address',  
             'display',
+            'order',
+            'note',
             'city', 
             'state', 
             'zip_code', 
             'country', 
+            'franqueado_id',
         ]));
 
         // Verificar se há dados para atualizar

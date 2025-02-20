@@ -24,8 +24,349 @@ class Settings extends REST_Controller {
         parent::__construct();
         $this->load->model('Settings_model');
     }
+    
+    
+     public function options_get() {
+$data = [
+    [
+        "type" => "menu",
+        "category" => "system",
+        "list" => [
+            "menu" => [
+                [
+                    "value" => "indice",
+                    "label" =>  "my_account",
+                    "color" => "",
+                    "icon" => "lucide:home",
+                    "width" => "",
+                    "path" => "/home"
+                ],
+                [
+                    "value" => "GPTW",
+                    "label" =>  "my_account",
+                    "color" => "",
+                    "icon" => "lucide:heart",
+                    "width" => "",
+                    "path" => "/gptw"
+                ],
+                [
+                    "value" => "Gestão GPTW ",
+                    "label" =>  "my_account",
+                    "color" => "",
+                    "icon" => "lucide:wrench",
+                    "width" => "",
+                    "path" => "/gptw-management"
+                ],
+                [
+                    "value" => "dashboard",
+                    "label" => "home",
+                    "color" => "",
+                    "icon" => "lucide:chart-pie",
+                    "width" => "",
+                    "path" => "/dashboard"
+                ],
+               
+                [
+                    "value" => "Catálogo",
+                    "label" => "home",
+                    "color" => "",
+                    "icon" => "lucide:album",
+                    "width" => "",
+                    "path" => "/products"
+                ],
+                [
+                    "value" => "cash",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:calculator",
+                    "width" => "",
+                    "path" => "/cash"
+                ],
+                [
+                    "value" => "POS",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:monitor",
+                    "width" => "",
+                    "path" => "/pdv"
+                ],
+                [
+                    "value" => "Ordens de Venda",
+                    "label" => "Transações",
+                    "color" => "",
+                    "icon" => "lucide:shopping-cart",
+                    "width" => "",
+                    "path" => "/sales-orders"
+                ],
+                [
+                    "value" => "Ordens de Compra",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:shopping-bag",
+                    "width" => "",
+                    "path" => "/buy-orders"
+                ],
+                [
+                    "value" => "Vendas",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:receipt",
+                    "width" => "",
+                    "path" => "/transactions"
+                ],
+                [
+                    "value" => "clients",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:book-user",
+                    "width" => "",
+                    "path" => "/client-pdv"
+                ],
+                [
+                    "value" => "Representadas",
+                    "label" => "cadastros",
+                    "color" => "",
+                    "icon" => "lucide:folder",
+                    "width" => "",
+                    "path" => "/representatives"
+                ],
+                [
+                    "value" => "Representantes",
+                    "label" => "cadastros",
+                    "color" => "",
+                    "icon" => "lucide:user",
+                    "width" => "",
+                    "path" => "/sales-reps"
+                ],
+                [
+                    "value" => "Fornecedores",
+                    "label" => "cadastros",
+                    "color" => "",
+                    "icon" => "lucide:building",
+                    "width" => "",
+                    "path" => "/suppliers"
+                ],
+                [
+                    "value" => "Transportadoras",
+                    "label" => "cadastros",
+                    "color" => "",
+                    "icon" => "lucide:truck",
+                    "width" => "",
+                    "path" => "/carriers"
+                ],
+        
+                [
+                    "value" => "product",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:edit",
+                    "width" => "",
+                    "path" => "/produto-pdv"
+                ],
+                [
+                    "value" => "Produto",
+                    "label" => "cadastros",
+                    "color" => "",
+                    "icon" => "lucide:edit",
+                    "width" => "",
+                    "path" => "/produto-erp"
+                ],
+                [
+                    "value" => "Contas e pagar ",
+                    "label" => "pdv",
+                    "color" => "",
+                    "icon" => "lucide:credit-card",
+                    "width" => "",
+                    "path" => "/financial-pdv"
+                ],
+                [
+                    "value" => "Contas e pagar ",
+                    "label" => "financial",
+                    "color" => "",
+                    "icon" => "lucide:credit-card",
+                    "width" => "",
+                    "path" => "/financial-erp"
+                ],
+                [
+                    "value" => "Carteira de Títulos ",
+                    "label" => "financial",
+                    "color" => "",
+                    "icon" => "lucide:wallet",
+                    "width" => "",
+                    "path" => "/financial-erp/titles"
+                ],
+                [
+                    "value" => "Simulador de Encargos ",
+                    "label" => "financial",
+                    "color" => "",
+                    "icon" => "lucide:book",
+                    "width" => "",
+                    "path" => "/financial-erp/contability"
+                ],
+                [
+                    "value" => "reports",
+                    "label" =>  "home",
+                    "color" => "",
+                    "icon" => "lucide:file-text",
+                    "width" => "",
+                    "path" => "/reports"
+                ],
+                [
+                    "value" => "Painel do Franqueado",
+                    "label" =>  "Franquias",
+                    "color" => "",
+                    "icon" => "lucide:bar-chart-2",
+                    "width" => "",
+                    "path" => "/franchisees/dashboard"
+                ],
+                [
+                    "value" => "Gestão de Franquias",
+                    "label" =>  "Franquias",
+                    "color" => "",
+                    "icon" => "lucide:store",
+                    "width" => "",
+                    "path" => "/franchisees/management"
+                ],
+                [
+                    "value" => "Contratos",
+                    "label" =>  "Franquias",
+                    "color" => "",
+                    "icon" => "lucide:handshake",
+                    "width" => "",
+                    "path" => "/franchisees/contracts"
+                ],
+                [
+                    "value" => "Treinamentos",
+                    "label" =>  "Franquias",
+                    "color" => "",
+                    "icon" => "lucide:graduation-cap",
+                    "width" => "",
+                    "path" => "/franchisees/training"
+                ],
+                [
+                    "value" => "Gestão de Treinamentos",
+                    "label" =>  "Franquias",
+                    "color" => "",
+                    "icon" => "lucide:book-open",
+                    "width" => "",
+                    "path" => "/franchisees/training/management"
+                ],
+                [
+                    "value" => "Pedidos",
+                    "label" =>  "Franquias",
+                    "color" => "",
+                    "icon" => "lucide:file-text",
+                    "width" => "",
+                    "path" => "/franchisees/orders"
+                ],
+                [
+                    "value" => "Suporte",
+                    "label" =>  "Franquias",
+                    "color" => "",
+                    "icon" => "lucide:message-circle",
+                    "width" => "",
+                    "path" => "/franchisees/suport"
+                ],
+                [
+                    "value" => "users",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:users",
+                    "width" => "",
+                    "path" => "/admin/user/list"
+                ],
+                [
+                    "value" => "languages",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:globe-2",
+                    "width" => "",
+                    "path" => "/admin/languages"
+                ],
+                [
+                    "value" => "options",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:sliders-horizontal",
+                    "width" => "",
+                    "path" => "/admin/options"
+                ],
+                [
+                    "value" => "config",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:settings",
+                    "width" => "",
+                    "path" => "/admin/config"
+                ],
+                [
+                    "value" => "emails",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:mail",
+                    "width" => "",
+                    "path" => "/admin/emails"
+                ],
+                [
+                    "value" => "apis",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:unlock-keyhole",
+                    "width" => "",
+                    "path" => "/admin/apis"
+                ]
+            ]
+        ]
+    ],
+    [
+        "type" => "status",
+        "category" => "system",
+        "list" => [
+            "status" => [
+                [
+                    "value" => "active",
+                    "label" => "Active",
+                    "color" => "success",
+                    "icon" => "solar:check-bold",
+                    "width" => "",
+                    "path" => ""
+                ],
+                [
+                    "value" => "inactive",
+                    "label" => "Pending",
+                    "color" => "warning",
+                    "icon" => "solar:clock-bold",
+                    "width" => "",
+                    "path" => ""
+                ],
+                [
+                    "value" => "banned",
+                    "label" => "Banned",
+                    "color" => "error",
+                    "icon" => "solar:ban-bold",
+                    "width" => "",
+                    "path" => ""
+                ],
+                [
+                    "value" => "rejected",
+                    "label" => "Rejected",
+                    "color" => "default",
+                    "icon" => "solar:close-circle-bold",
+                    "width" => "",
+                    "path" => ""
+                ]
+            ]
+        ]
+    ]
+];
+        
 
-    public function options_get() {
+          $this->response($data, REST_Controller::HTTP_OK);
+       
+    }
+
+
+    public function options_get1() {
         $data = [
             [
                 "type" => "menu",

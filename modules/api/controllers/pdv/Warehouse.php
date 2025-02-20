@@ -97,90 +97,6 @@ class Warehouse extends REST_Controller
         }
     }
 
-
-
-    /**
-     * @api {post} api/customers Add New Customer
-     * @apiName PostCustomer
-     * @apiGroup Customer
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {String} company               Mandatory Customer company.
-     * @apiParam {String} [vat]                 Optional Vat.
-     * @apiParam {String} [phonenumber]         Optional Customer Phone.
-     * @apiParam {String} [website]             Optional Customer Website.
-     * @apiParam {Number[]} [groups_in]         Optional Customer groups.
-     * @apiParam {String} [default_language]    Optional Customer Default Language.
-     * @apiParam {String} [default_currency]    Optional default currency.
-     * @apiParam {String} [address]             Optional Customer address.
-     * @apiParam {String} [city]                Optional Customer City.
-     * @apiParam {String} [state]               Optional Customer state.
-     * @apiParam {String} [zip]                 Optional Zip Code.
-     * @apiParam {String} [partnership_type]    Optional Customer partnership type.
-     * @apiParam {String} [country]             Optional country.
-     * @apiParam {String} [billing_street]      Optional Billing Address: Street.
-     * @apiParam {String} [billing_city]        Optional Billing Address: City.
-     * @apiParam {Number} [billing_state]       Optional Billing Address: State.
-     * @apiParam {String} [billing_zip]         Optional Billing Address: Zip.
-     * @apiParam {String} [billing_country]     Optional Billing Address: Country.
-     * @apiParam {String} [shipping_street]     Optional Shipping Address: Street.
-     * @apiParam {String} [shipping_city]       Optional Shipping Address: City.
-     * @apiParam {String} [shipping_state]      Optional Shipping Address: State.
-     * @apiParam {String} [shipping_zip]        Optional Shipping Address: Zip.
-     * @apiParam {String} [shipping_country]    Optional Shipping Address: Country.
-     *
-     * @apiParamExample {Multipart Form} Request-Example:
-     *   array (size=22)
-     *     'company' => string 'Themesic Interactive' (length=38)
-     *     'vat' => string '123456789' (length=9)
-     *     'phonenumber' => string '123456789' (length=9)
-     *     'website' => string 'AAA.com' (length=7)
-     *     'groups_in' =>
-     *       array (size=2)
-     *         0 => string '1' (length=1)
-     *         1 => string '4' (length=1)
-     *     'default_currency' => string '3' (length=1)
-     *     'default_language' => string 'english' (length=7)
-     *     'address' => string '1a The Alexander Suite Silk Point' (length=27)
-     *     'city' => string 'London' (length=14)
-     *     'state' => string 'London' (length=14)
-     *     'zip' => string '700000' (length=6)
-     *     'country' => string '243' (length=3)
-     *     'billing_street' => string '1a The Alexander Suite Silk Point' (length=27)
-     *     'billing_city' => string 'London' (length=14)
-     *     'billing_state' => string 'London' (length=14)
-     *     'billing_zip' => string '700000' (length=6)
-     *     'billing_country' => string '243' (length=3)
-     *     'shipping_street' => string '1a The Alexander Suite Silk Point' (length=27)
-     *     'shipping_city' => string 'London' (length=14)
-     *     'shipping_state' => string 'London' (length=14)
-     *     'shipping_zip' => string '700000' (length=6)
-     *     'shipping_country' => string '243' (length=3)
-     *
-     *
-     * @apiSuccess {Boolean} status Request status.
-     * @apiSuccess {String} message Customer add successful.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "status": true,
-     *       "message": "Customer add successful."
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message Customer add fail.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "Customer add fail."
-     *     }
-     *
-     */
-
     public function create_post() {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
@@ -212,6 +128,9 @@ class Warehouse extends REST_Controller
         $this->form_validation->set_rules('order', 'Order', 'trim|required|numeric');
         $this->form_validation->set_rules('display', 'Display', 'trim|required|in_list[0,1]');
         $this->form_validation->set_rules('city', 'City', 'trim|required|max_length[100]');
+//        $this->form_validation->set_rules('note', 'Note', 'trim|required|max_length[100]');
+//        $this->form_validation->set_rules('franqueado_id', 'FranqueadoID', 'trim|required|max_length[100]');
+//        $this->form_validation->set_rules('order', 'Order', 'trim|required|max_length[100]');
         $this->form_validation->set_rules('state', 'State', 'trim|required|max_length[100]');
         $this->form_validation->set_rules('zip_code', 'Zip Code', 'trim|required|max_length[10]');
         $this->form_validation->set_rules('country', 'Country', 'trim|required|numeric');
@@ -229,17 +148,42 @@ class Warehouse extends REST_Controller
         }
     }
 
-    public function get_get($id = '') {
-        if (!is_numeric($id)) {
-            $this->response(['status' => FALSE, 'message' => 'Invalid Warehouse ID'], REST_Controller::HTTP_BAD_REQUEST);
+//    public function get_get($id = '') {
+//        if (!is_numeric($id)) {
+//            $this->response(['status' => FALSE, 'message' => 'Invalid Warehouse ID'], REST_Controller::HTTP_BAD_REQUEST);
+//            return;
+//        }
+//
+//        $warehouse = $this->Warehouse_model->get($id);
+//        if ($warehouse) {
+//            $this->response(['status' => TRUE, 'data' => $warehouse], REST_Controller::HTTP_OK);
+//        } else {
+//            $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
+//        }
+//    }
+    
+    public function get_get($id = '')
+    {
+        if (empty($id) || !is_numeric($id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid Client ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
 
-        $warehouse = $this->Warehouse_model->get($id);
-        if ($warehouse) {
-            $this->response(['status' => TRUE, 'data' => $warehouse], REST_Controller::HTTP_OK);
+        $client = $this->Warehouse_model->get($id);
+
+        if ($client) {
+            $this->response([
+                'status' => TRUE,
+                'data' => $client
+            ], REST_Controller::HTTP_OK);
         } else {
-            $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No data were found'
+            ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
 
@@ -255,15 +199,12 @@ class Warehouse extends REST_Controller
         $update_data = array_intersect_key($_POST, array_flip([
             'warehouse_code', 
             'warehouse_name', 
-            'warehouse_address', 
-            'order', 
-            'display', 
-            'note', 
+            'warehouse_address',  
+            'display',
             'city', 
             'state', 
             'zip_code', 
             'country', 
-            'franqueado_id'
         ]));
 
         // Verificar se há dados para atualizar
@@ -281,22 +222,31 @@ class Warehouse extends REST_Controller
         }
     }
     
-    public function remove_post($id = '') {
-    // Verificar se o ID foi passado corretamente na URL
-    if (empty($id) || !is_numeric($id)) {
-        $this->response(['status' => FALSE, 'message' => 'Invalid Warehouse ID'], REST_Controller::HTTP_BAD_REQUEST);
-        return;
+    public function remove_post() {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST['rows']) || !is_array($_POST['rows'])) {
+            $this->response(['status' => FALSE, 'message' => 'Invalid request: rows array is required'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $ids = array_filter($_POST['rows'], 'is_numeric');
+        $success_count = 0;
+        $failed_ids = [];
+
+        foreach ($ids as $id) {
+            if ($this->Warehouse_model->delete($id)) {
+                $success_count++;
+            } else {
+                $failed_ids[] = $id;
+            }
+        }
+
+        $this->response([
+            'status' => $success_count > 0,
+            'message' => $success_count . ' warehouse(s) deleted successfully',
+            'failed_ids' => $failed_ids
+        ], $success_count > 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_NOT_FOUND);
     }
-
-    // Tentar deletar o armazém pelo ID
-    $success = $this->Warehouse_model->delete($id);
-
-    if ($success) {
-        $this->response(['status' => TRUE, 'message' => 'Warehouse deleted successfully'], REST_Controller::HTTP_OK);
-    } else {
-        $this->response(['status' => FALSE, 'message' => 'Failed to delete warehouse'], REST_Controller::HTTP_NOT_FOUND);
-    }
-}
-
 
 }

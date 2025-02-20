@@ -109,14 +109,14 @@ public function add($data) {
         'warehouse_code', 
         'warehouse_name', 
         'warehouse_address', 
-        'order', 
-        'display', 
-        'note', 
+        'display',
+        'order',
+        'note',
         'city', 
         'state', 
         'zip_code', 
         'country', 
-        'franqueado_id'
+        'franqueado_id',
     ];
 
     // Filtrar apenas os campos válidos
@@ -136,14 +136,11 @@ public function update($data, $id) {
         'warehouse_code', 
         'warehouse_name', 
         'warehouse_address', 
-        'order', 
         'display', 
-        'note', 
         'city', 
         'state', 
         'zip_code', 
         'country', 
-        'franqueado_id'
     ];
 
     // Filtrar os dados permitidos
@@ -162,6 +159,8 @@ public function update($data, $id) {
     return ($this->db->affected_rows() > 0);
 }
 
+
+
 public function delete($id) {
     // Verificar se o ID existe antes de deletar
     $this->db->where('warehouse_id', $id);
@@ -170,6 +169,7 @@ public function delete($id) {
     // Retornar true se a exclusão foi bem-sucedida
     return ($this->db->affected_rows() > 0);
 }
+
 
 
 }

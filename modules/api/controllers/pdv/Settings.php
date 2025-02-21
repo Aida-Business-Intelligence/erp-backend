@@ -120,7 +120,7 @@ $data = [
                     "color" => "",
                     "icon" => "lucide:book-user",
                     "width" => "",
-                    "path" => "/client-pdv"
+                    "path" => "/client"
                 ],
                 [
                     "value" => "Representadas",
@@ -161,7 +161,7 @@ $data = [
                     "color" => "",
                     "icon" => "lucide:edit",
                     "width" => "",
-                    "path" => "/produto-pdv"
+                    "path" => "/produto"
                 ],
                 [
                     "value" => "Produto",
@@ -169,7 +169,15 @@ $data = [
                     "color" => "",
                     "icon" => "lucide:edit",
                     "width" => "",
-                    "path" => "/produto-erp"
+                    "path" => "/produto"
+                ],
+                [
+                    "value" => "Lojas",
+                    "label" => "cadastros",
+                    "color" => "",
+                    "icon" => "lucide:edit",
+                    "width" => "",
+                    "path" => "/warehouse"
                 ],
                 [
                     "value" => "Contas e pagar ",
@@ -177,7 +185,7 @@ $data = [
                     "color" => "",
                     "icon" => "lucide:credit-card",
                     "width" => "",
-                    "path" => "/financial-pdv"
+                    "path" => "/financial"
                 ],
                 [
                     "value" => "Contas e pagar ",
@@ -185,7 +193,7 @@ $data = [
                     "color" => "",
                     "icon" => "lucide:credit-card",
                     "width" => "",
-                    "path" => "/financial-erp"
+                    "path" => "/financial"
                 ],
                 [
                     "value" => "Carteira de Títulos ",
@@ -204,7 +212,7 @@ $data = [
                     "path" => "/financial-erp/contability"
                 ],
                 [
-                    "value" => "reports",
+                    "value" => "Relatórios",
                     "label" =>  "home",
                     "color" => "",
                     "icon" => "lucide:file-text",
@@ -314,7 +322,15 @@ $data = [
                     "icon" => "lucide:unlock-keyhole",
                     "width" => "",
                     "path" => "/admin/apis"
-                ]
+                ],
+                        [
+                            "value" => "Limpar",
+                            "label" => "admin",
+                            "color" => "",
+                            "icon" => "lucide:trash",
+                            "width" => "",
+                            "path" => "/auth/clean"
+                        ]
             ]
         ]
     ],

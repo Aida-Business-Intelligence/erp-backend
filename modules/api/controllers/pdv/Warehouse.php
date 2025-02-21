@@ -96,6 +96,20 @@ class Warehouse extends REST_Controller
             ], REST_Controller::HTTP_OK);
         }
     }
+     public function list_get($id = '')
+    {
+     
+        // Chamada ao modelo
+        $data = $this->Warehouse_model->get($id);
+        
+        // Verifica se encontrou dados
+        if (empty($data)) {
+            $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $this->response($data, REST_Controller::HTTP_OK);
+        }
+    }
+    
 
     public function create_post() {
         \modules\api\core\Apiinit::the_da_vinci_code('api');

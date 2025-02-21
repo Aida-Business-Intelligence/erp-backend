@@ -762,7 +762,6 @@ class Reports extends REST_Controller
       $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
     }
 
-    // Get monthly data
     $this->db->select('
       DATE_FORMAT(c.data, "%Y-%m") as month_year,
       DATE_FORMAT(c.data, "%b") as month,
@@ -885,6 +884,113 @@ class Reports extends REST_Controller
         'page' => $page + 1,
         'pageSize' => $pageSize,
         'totalPages' => ceil($total_count / $pageSize)
+      ]
+    ];
+
+    $this->response($response, REST_Controller::HTTP_OK);
+  }
+
+  public function financial_report_post()
+  {
+    $today = date('Y-m-d');
+    $yesterday = date('Y-m-d', strtotime('-1 day'));
+    $current_month = date('Y-m');
+    $previous_month = date('Y-m', strtotime('-1 month'));
+
+    $this->db->select('
+      COALESCE(SUM(c.balance), 0) as total_sales,
+      COALESCE(SUM(CASE WHEN e.operacao = "dinheiro" THEN e.total ELSE 0 END), 0) as cash_sales,
+      COALESCE(SUM(CASE WHEN e.operacao = "cartao" THEN e.total ELSE 0 END), 0) as card_sales,
+      COUNT(DISTINCT c.id) as transaction_count
+    ');
+    $this->db->from(db_prefix() . 'cashs c');
+    $this->db->join(db_prefix() . 'cashextracts e', 'e.cash_id = c.id', 'left');
+    $this->db->where('DATE(c.data)', $today);
+    $today_data = $this->db->get()->row_array();
+
+    $this->db->select('
+      COALESCE(SUM(c.balance), 0) as total_sales,
+      COALESCE(SUM(CASE WHEN e.operacao = "dinheiro" THEN e.total ELSE 0 END), 0) as cash_sales,
+      COALESCE(SUM(CASE WHEN e.operacao = "cartao" THEN e.total ELSE 0 END), 0) as card_sales,
+      COUNT(DISTINCT c.id) as transaction_count
+    ');
+    $this->db->from(db_prefix() . 'cashs c');
+    $this->db->join(db_prefix() . 'cashextracts e', 'e.cash_id = c.id', 'left');
+    $this->db->where('DATE(c.data)', $yesterday);
+    $yesterday_data = $this->db->get()->row_array();
+
+    $this->db->select('
+      COALESCE(SUM(c.balance), 0) as total_sales,
+      COUNT(DISTINCT c.id) as transaction_count
+    ');
+    $this->db->from(db_prefix() . 'cashs c');
+    $this->db->where('DATE_FORMAT(c.data, "%Y-%m") =', $current_month);
+    $current_month_data = $this->db->get()->row_array();
+
+    $this->db->select('
+      COALESCE(SUM(c.balance), 0) as total_sales,
+      COUNT(DISTINCT c.id) as transaction_count
+    ');
+    $this->db->from(db_prefix() . 'cashs c');
+    $this->db->where('DATE_FORMAT(c.data, "%Y-%m") =', $previous_month);
+    $previous_month_data = $this->db->get()->row_array();
+
+    $total_change_percent = $yesterday_data['total_sales'] > 0
+      ? (($today_data['total_sales'] - $yesterday_data['total_sales']) / $yesterday_data['total_sales']) * 100
+      : 0;
+
+    $cash_change_percent = $yesterday_data['cash_sales'] > 0
+      ? (($today_data['cash_sales'] - $yesterday_data['cash_sales']) / $yesterday_data['cash_sales']) * 100
+      : 0;
+
+    $card_change_percent = $yesterday_data['card_sales'] > 0
+      ? (($today_data['card_sales'] - $yesterday_data['card_sales']) / $yesterday_data['card_sales']) * 100
+      : 0;
+
+    /**
+      PRECISA ALTERAR ESSE VALOR E PUXAR PELO
+      ID DA WAREHOUSE OU PELO ID DA FRANQUIA
+      POR ENQUANTO, O VALOR DE MONTLY GOAL ESTÁ
+      DEFINIDO DE FORMA ESTÁTICA
+     */
+    $monthly_goal = 100000;
+    $goal_progress = $current_month_data['total_sales'] > 0
+      ? ($current_month_data['total_sales'] / $monthly_goal) * 100
+      : 0;
+
+    $response = [
+      'status' => true,
+      'daily_performance' => [
+        'total_sales' => [
+          'current' => floatval($today_data['total_sales']),
+          'previous' => floatval($yesterday_data['total_sales']),
+          'change_percent' => round($total_change_percent, 1)
+        ],
+        'cash_sales' => [
+          'current' => floatval($today_data['cash_sales']),
+          'previous' => floatval($yesterday_data['cash_sales']),
+          'change_percent' => round($cash_change_percent, 1)
+        ],
+        'card_sales' => [
+          'current' => floatval($today_data['card_sales']),
+          'previous' => floatval($yesterday_data['card_sales']),
+          'change_percent' => round($card_change_percent, 1)
+        ]
+      ],
+      'monthly_performance' => [
+        'current_month' => [
+          'total_sales' => floatval($current_month_data['total_sales']),
+          'transaction_count' => (int)$current_month_data['transaction_count']
+        ],
+        'previous_month' => [
+          'total_sales' => floatval($previous_month_data['total_sales']),
+          'transaction_count' => (int)$previous_month_data['transaction_count']
+        ],
+        'goal' => [
+          'target' => $monthly_goal,
+          'progress' => round($goal_progress, 1),
+          'remaining' => max(0, $monthly_goal - $current_month_data['total_sales'])
+        ]
       ]
     ];
 

@@ -159,67 +159,44 @@ class Clients_model extends App_Model
         return $this->db->get(db_prefix() . 'clients')->result_array();
     }
     
-    public function get_api_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
-    {
+   public function get_api_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+{
+    $table = db_prefix() . 'clients';
 
-        if (!is_numeric($id)) {
-            // Adicionar condições de busca
-            if (!empty($search)) {
-                $this->db->group_start(); // Começa um agrupamento de condição
-                $this->db->like('company', $search); // Busca pelo campo 'company'
-                $this->db->or_like('billing_city', $search);
-                $this->db->or_like('billing_state', $search);
-                $this->db->or_like('vat', $search); // Busca pelo campo 'vat'
-                // Pesquisa o CNPJ sem formatação
-                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
-                $this->db->group_end(); // Fecha o agrupamento de condição
-            }
-            
-          
-
-
-            // Implementar lógica para ordenação
-            $this->db->order_by($sortField, $sortOrder);
-
-            // Implementar a limitação e o deslocamento
-            $this->db->limit($limit, ($page - 1) * $limit);
-            
-            $this->db->where('is_supplier', 1);
-
-            // Obtenha todos os clientes
-            $clients = $this->db->get(db_prefix() . 'clients')->result_array();
-            
-
-            // Contar o total de clientes (considerando a busca)
-            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
-
-            if (!empty($search)) {
-                // Condições de busca para contar os resultados
-                $this->db->group_start(); // Começa um agrupamento de condição
-                $this->db->like('company', $search);
-                $this->db->or_like('billing_city', $search);
-                $this->db->or_like('billing_state', $search);
-                $this->db->or_like('vat', $search);
-                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
-                $this->db->group_end(); // Fecha o agrupamento de condição
-            }
-
-            $total = count($clients);
-
-            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
-        } else {
-
-            $client = $this->get($id);
-            $total = 0;
-            if ($client) {
-                $total = 1;
-            }
-
-            return ['data' => (array) $client, 'total' => $total];
-        }
-
-        // (O resto do código existente para quando $id é válido)
+    // Busca por ID
+    if (is_numeric($id)) {
+        $client = $this->get($id);
+        return ['data' => $client ? (array) $client : [], 'total' => $client ? 1 : 0];
     }
+
+    // Consulta principal
+    $this->db->from($table);
+    $this->db->where('is_supplier', 1);
+
+    // Filtros de busca
+    if (!empty($search)) {
+        $search = $this->db->escape_like_str($search);
+        $this->db->group_start()
+            ->like('company', $search)
+            ->or_like('billing_city', $search)
+            ->or_like('billing_state', $search)
+            ->or_like('vat', $search)
+            ->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%$search%'")
+            ->group_end();
+    }
+
+    // Contagem total antes da paginação
+    $total = $this->db->count_all_results('', false); // false mantém a consulta atual
+
+    // Ordenação e Paginação
+    $this->db->order_by($sortField, $sortOrder);
+    $this->db->limit($limit, ($page - 1) * $limit);
+
+    // Busca dos registros
+    $clients = $this->db->get()->result_array();
+
+    return ['data' => $clients, 'total' => $total];
+}
 
 
 //    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
@@ -280,46 +257,34 @@ class Clients_model extends App_Model
 //        // (O resto do código existente para quando $id é válido)
 //
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
-    {
-        if (!is_numeric($id)) {
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('company', $search);
-                $this->db->group_end();
-            }
+   public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+{
+    if (!is_numeric($id)) {
+        $allowedSortFields = ['userid', 'company', 'email'];
+        $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'userid';
 
-            $this->db->order_by($sortField, $sortOrder);
-
-            $this->db->limit($limit, ($page - 1) * $limit);
-
-            $clients = $this->db->get(db_prefix() . 'clients')->result_array();
-         
-
-            $this->db->reset_query();
-
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('company', $search);
-                $this->db->group_end();
-            }
-
-
-            // Seleciona o total de clientes
-            $total = count($clients);
-
-
-            return ['data' => $clients, 'total' => $total];
-        } else {
-            $client = $this->get($id);
-            $total = 0;
-            if ($client) {
-                $total = 1;
-            }
-
-            return ['data' => (array) $client, 'total' => $total];
+        // Conta o total
+        $this->db->select('COUNT(*) as total');
+        if (!empty($search)) {
+            $this->db->like('company', $search);
         }
+        $total = $this->db->get(db_prefix() . 'clients')->row()->total;
+
+        // Busca os dados com paginação
+        if (!empty($search)) {
+            $this->db->like('company', $search);
+        }
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $clients = $this->db->get(db_prefix() . 'clients')->result();
+
+        return ['data' => $clients, 'total' => $total];
+    } else {
+        $client = $this->get($id);
+        return ['data' => (array) $client, 'total' => $client ? 1 : 0];
     }
+}
 
     // Busca por cidade
     public function get_api_by_city($page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')

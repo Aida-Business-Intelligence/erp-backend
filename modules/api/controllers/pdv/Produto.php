@@ -685,8 +685,45 @@ class Produto extends REST_Controller
         }
     }
 
+    public function supplier_needs_post()
+    {
+        $this->db->select('
+            c.userid as supplier_id,
+            c.company as supplier_name,
+            c.vat as supplier_document,
+            c.phonenumber as supplier_phone,
+            COUNT(DISTINCT pn.id) as total_items,
+            SUM(pn.qtde) as total_quantity,
+            SUM(pn.qtde * i.cost) as total_cost
+        ');
+        
+        $this->db->from(db_prefix() . 'items i');
+        $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.item_id = i.id');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid');
+        $this->db->where('pn.status', 0);
+        $this->db->where('c.is_supplier', 1);
+        $this->db->group_by('c.userid');
+
+        $suppliers = $this->db->get()->result_array();
+
+        $this->response([
+            'status' => TRUE,
+            'data' => $suppliers
+        ], REST_Controller::HTTP_OK);
+    }
+
     public function check_stock_post()
     {
+        $supplier_id = $this->post('supplier_id');
+        
+        if (empty($supplier_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Supplier ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
         $this->db->select('
             pn.id,
             pn.item_id,
@@ -699,17 +736,37 @@ class Produto extends REST_Controller
             i.description as product_name,
             i.sku_code,
             i.stock,
+            i.cost,
             i.defaultPurchaseQuantity,
-            i.minStock
+            i.minStock,
+            c.company as supplier_name,
+            c.vat as supplier_document
         ');
+        
         $this->db->from(db_prefix() . 'purchase_needs pn');
         $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid', 'left');
         $this->db->where('pn.status', 0);
+        $this->db->where('i.userid', $supplier_id);
+        $this->db->where('c.is_supplier', 1);
 
         $products = $this->db->get()->result_array();
+        
+        if (empty($products)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No purchase needs found for this supplier'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        $total_cost = 0;
         $purchase_needs = [];
 
         foreach ($products as $product) {
+            $item_total = $product['qtde'] * $product['cost'];
+            $total_cost += $item_total;
+
             $purchase_needs[] = [
                 'id' => $product['id'],
                 'product' => [
@@ -721,6 +778,8 @@ class Produto extends REST_Controller
                 'currentStock' => (int)$product['stock'],
                 'minimumStock' => (int)$product['minStock'],
                 'quantity' => (int)$product['qtde'],
+                'cost' => (float)$product['cost'],
+                'total' => $item_total,
                 'defaultPurchaseQuantity' => (int)$product['defaultPurchaseQuantity'],
                 'status' => $product['purchase_status'],
                 'user_id' => $product['user_id'],
@@ -729,12 +788,21 @@ class Produto extends REST_Controller
             ];
         }
 
+        $supplier_info = [
+            'supplier_id' => $supplier_id,
+            'supplier_name' => $products[0]['supplier_name'],
+            'supplier_document' => $products[0]['supplier_document'],
+            'total_items' => count($products),
+            'total_quantity' => array_sum(array_column($products, 'qtde')),
+            'total_cost' => $total_cost,
+            'items' => $purchase_needs
+        ];
+
         $this->response([
             'status' => TRUE,
-            'data' => $purchase_needs
+            'data' => $supplier_info
         ], REST_Controller::HTTP_OK);
     }
-
 
     public function import_post()
     {

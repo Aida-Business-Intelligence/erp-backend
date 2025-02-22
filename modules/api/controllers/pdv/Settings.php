@@ -41,6 +41,7 @@ $data = [
                     "width" => "",
                     "path" => "/home"
                 ],
+                /*
                 [
                     "value" => "GPTW",
                     "label" =>  "my_account",
@@ -49,6 +50,8 @@ $data = [
                     "width" => "",
                     "path" => "/gptw"
                 ],
+                 * 
+                 */
                 [
                     "value" => "Gestão GPTW ",
                     "label" =>  "my_account",
@@ -267,6 +270,7 @@ $data = [
                     "width" => "",
                     "path" => "/franchisees/orders"
                 ],
+                /*
                 [
                     "value" => "Suporte",
                     "label" =>  "Franquias",
@@ -275,6 +279,8 @@ $data = [
                     "width" => "",
                     "path" => "/franchisees/suport"
                 ],
+                 * 
+                 */
                 [
                     "value" => "users",
                     "label" => "admin",
@@ -283,6 +289,7 @@ $data = [
                     "width" => "",
                     "path" => "/admin/user/list"
                 ],
+                /*
                 [
                     "value" => "languages",
                     "label" => "admin",
@@ -291,6 +298,8 @@ $data = [
                     "width" => "",
                     "path" => "/admin/languages"
                 ],
+                 * 
+                 */
                 [
                     "value" => "options",
                     "label" => "admin",
@@ -315,6 +324,7 @@ $data = [
                     "width" => "",
                     "path" => "/admin/emails"
                 ],
+                /*
                 [
                     "value" => "apis",
                     "label" => "admin",
@@ -323,6 +333,8 @@ $data = [
                     "width" => "",
                     "path" => "/admin/apis"
                 ],
+                 * 
+                 */
                         [
                             "value" => "Limpar",
                             "label" => "admin",

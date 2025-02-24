@@ -47,7 +47,7 @@ define('APP_DB_USERNAME', 'root');
 /**
  * The password used to connect to the database
  */
-define('APP_DB_PASSWORD', 'c6m8n4d2d3');
+define('APP_DB_PASSWORD', '');
 /**
  * The name of the database you want to connect to
  */

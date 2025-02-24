@@ -57,7 +57,7 @@ class Cash extends REST_Controller
     public function list_post($id = '')
     {
       
-            
+        
 
         $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
 
@@ -71,7 +71,7 @@ class Cash extends REST_Controller
         
         if ($data['total'] == 0) {
 
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_OK);
         } else {
 
             if ($data) {
@@ -209,9 +209,45 @@ class Cash extends REST_Controller
     public function remove_post(){
         $data = json_decode(file_get_contents("php://input"), true);
         
+        $id_cash = $data['rows'][0];
+        $extract = $this->cashs_model->count_extracts($id_cash);
+        
+    
+        
+        if($extract == 0){
+            
+    
+            
+            if($this->cashs_model->delete_finaly($id_cash)){
+                
+                
+                
+                 $this->response([
+                'status' => FALSE,
+                'message' => 'Excluido com sucesse'
+            ], REST_Controller::HTTP_OK);
+                
+            }else{
+                
+                $this->response([
+                'status' => FALSE,
+                'message' => 'Erro ao tentar excluir'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+                
+                
+            }
+            
+        }
+        
+        
+       
+        
         
         $email = $this->authservice->user->email;
         $password = $data['password'];
+        
+      
         $data_pw = $this->Authentication_model->login_api($email, $password);
 
          if (!$data_pw['success']) {
@@ -353,7 +389,7 @@ class Cash extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
         $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
         $sortField = $this->post('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $sortOrder = $this->post('sortOrder') === 'asc' ? 'ASC' : 'DESC'; // Ordem, padrão crescente
       
         
         $detalhes_caixa = $this->cashs_model->get_by_number($number);
@@ -367,7 +403,7 @@ class Cash extends REST_Controller
      
 
          
-        $cash = $this->cashs_model->get_transactions($id = '', $page = 1, $limit = 20, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $detalhes_caixa->id=0);
+        $cash = $this->cashs_model->get_transactions($id = '', $page = 1, $limit = 20, $search = '', $sortField = 'id', $sortOrder = 'DESC', $filters = null, $detalhes_caixa->id=0);
 
         if ($cash) {
             $this->response([
@@ -444,6 +480,8 @@ class Cash extends REST_Controller
         $type = $status==0?"debito":"credito";
         $user_id = $this->authservice->user->staffid;
         
+ 
+        
         $email = $this->authservice->user->email;
         $password = $_POST['password'];
         $data = $this->Authentication_model->login_api($email, $password);
@@ -458,14 +496,18 @@ class Cash extends REST_Controller
         $detalhes_caixa = $this->cashs_model->get_by_number($number);
         
        if($status == 1){
+           
+       
             $update_data=array(
                 'status'=>$status,
-                'open_cash'=>$valor,
+                'open_cash'=>(double)$valor,
                 'balance'=>$valor,
                 'balance_dinheiro'=>$valor,
                 'user_id'=>$user_id,
 
             );
+            
+            
        }elseif($status == 0){
 
   

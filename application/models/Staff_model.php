@@ -873,43 +873,69 @@ class Staff_model extends App_Model
     
     /*** API *///
     
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type='employee') {
-
-        if (!is_numeric($id)) {
-            
-            // Adicionar condições de busca
-            if (!empty($search)) {
-                $this->db->group_start(); // Começa um agrupamento de condição
-                $this->db->like('firstname', $search); // Busca pelo campo 'company'
-                $this->db->or_like('lastname', $search);
-                $this->db->or_like('email', $search);
-                $this->db->group_end(); // Fecha o agrupamento de condição
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'employee') {
+    $this->load->model("roles_model");
+    
+    if (!is_numeric($id)) {
+        // Aplicar filtro pelo tipo
+           if (!empty($type)) {
+                $this->db->where('type', $type);
             }
-
-            $this->db->order_by($sortField, $sortOrder);
-            $this->db->limit($limit, ($page - 1) * $limit);
-            ///$this->db->where('type','employee');
-            $data = $this->db->get(db_prefix() . 'staff')->result_array();
-            
         
-            
-            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
-            if (!empty($search)) {
-                // Condições de busca para contar os resultados
-                $this->db->group_start(); // Começa um agrupamento de condição
-                $this->db->like('firstname', $search);
-                $this->db->or_like('lastname', $search);
-                $this->db->or_like('email', $search);
-                $this->db->group_end(); // Fecha o agrupamento de condição
+        // Adicionar condições de busca
+        if (!empty($search)) {
+            $this->db->group_start(); // Começa um agrupamento de condição
+            $this->db->like('firstname', $search); // Busca pelo campo 'firstname'
+            $this->db->or_like('lastname', $search);
+            $this->db->or_like('email', $search);
+            $this->db->or_like('phonenumber', $search);
+            $this->db->group_end(); // Fecha o agrupamento de condição
+        }
+
+        // Contagem total de registros sem paginação
+        $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+        if (!empty($search)) {
+            $this->db->group_start(); // Começa um agrupamento de condição
+            $this->db->like('firstname', $search);
+            $this->db->or_like('lastname', $search);
+            $this->db->or_like('email', $search);
+            $this->db->or_like('phonenumber', $search);
+            $this->db->group_end(); // Fecha o agrupamento de condição
+        }
+
+        // Contar o total de registros sem limitação
+        $total = $this->db->count_all_results(db_prefix() . 'staff');
+
+        // Obter os dados com paginação
+        $this->db->reset_query(); // Resetar consulta novamente antes de buscar os dados
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('firstname', $search);
+            $this->db->or_like('lastname', $search);
+            $this->db->or_like('email', $search);
+            $this->db->or_like('phonenumber', $search);
+            $this->db->group_end();
+        }
+
+        $this->db->order_by($sortField, $sortOrder);
+        $offset = ($page - 1) * $limit;  // Calcula o offset corretamente
+        $this->db->limit($limit, $offset); // Agora passa o offset corretamente
+        $data = $this->db->get(db_prefix() . 'staff')->result_array();
+
+        // Adicionar o nome do cargo (role) de cada staff
+        $staff['role'] = '';
+        foreach ($data as $key => $staff) {
+            if($staff['role'] > 0){
+                $role = $this->roles_model->get($staff['role']); // Busca o nome do role
+             
+                $data[$key]['role_name'] = $role->name;
             }
+        }
 
-        
-            $total = count($data);
-
-            return ['data' => $data, 'total' => $total]; // Retorne os clientes e o total
-            } else {
-                return ['data' => (array) $this->get($id), 'total' => 1];
-            }
-
+        // Retornar os dados com o total correto
+        return ['data' => $data, 'total' => $total];
+    } else {
+        return ['data' => (array) $this->get($id), 'total' => 1];
     }
+}
 }

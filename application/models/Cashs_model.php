@@ -53,71 +53,60 @@ class Cashs_model extends App_Model {
         return $client;
     }
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
+   public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
+    if (!is_numeric($id)) {
+        $this->db->select('cashs.*, staff.firstname, staff.lastname');
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
 
-        if (!is_numeric($id)) {
-
-
-
-            // JOIN com a tabela staff
-            $this->db->select('cashs.*, staff.firstname, staff.lastname');
-            $this->db->from(db_prefix() . 'cashs');
-            //    $this->db->where('cashs.active', '0');
-            $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left'); // LEFT JOIN para vincular as tabelas
-            // Adicionar condições de busca
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('cashs.status', $search);
-                $this->db->or_like('cashs.id', $search);
-                $this->db->or_like('cashs.open_cash', $search);
-                $this->db->or_like('cashs.balance', $search);
-                $this->db->or_like('cashs.number', $search);
-                $this->db->or_like('cashs.user_id', $search);
-                $this->db->or_like('cashs.open_cash', $search);
-                $this->db->group_end();
-            }
-
-            $this->db->order_by($sortField, $sortOrder);
-
-            $this->db->limit($limit, ($page - 1) * $limit);
-
-            // Obtenha os registros com as informações do staff
-            $clients = $this->db->get()->result_array();
-
-            // Contar o total de registros (considerando a busca)
-            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
-            $this->db->from(db_prefix() . 'cashs');
-            $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
-
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('cashs.status', $search);
-                $this->db->or_like('cashs.id', $search);
-                $this->db->or_like('cashs.open_cash', $search);
-                $this->db->or_like('cashs.balance', $search);
-                $this->db->or_like('cashs.number', $search);
-                $this->db->or_like('cashs.user_id', $search);
-                $this->db->or_like('cashs.open_cash', $search);
-                $this->db->group_end();
-            }
-
-
-            $total = count($clients);
-
-            return ['data' => $clients, 'total' => $total]; // Retorne os dados e o total
-        } else {
-            $this->db->select('cashs.*, staff.firstname, staff.lastname');
-            $this->db->from(db_prefix() . 'cashs');
-            $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
-            $this->db->where('cashs.id', $id);
-
-            $client = $this->db->get()->row();
-            $total = $client ? 1 : 0;
-
-            return ['data' => (array) $client, 'total' => $total];
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.status', $search);
+            $this->db->or_like('cashs.id', $search);
+            $this->db->or_like('cashs.open_cash', $search);
+            $this->db->or_like('cashs.balance', $search);
+            $this->db->or_like('cashs.number', $search);
+            $this->db->or_like('cashs.user_id', $search);
+            $this->db->group_end();
         }
-    }
 
+        // Ordenar por 'id' em ordem decrescente
+        $this->db->order_by('id', 'DESC');
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $clients = $this->db->get()->result_array();
+
+        $this->db->reset_query();
+
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.status', $search);
+            $this->db->or_like('cashs.id', $search);
+            $this->db->or_like('cashs.open_cash', $search);
+            $this->db->or_like('cashs.balance', $search);
+            $this->db->or_like('cashs.number', $search);
+            $this->db->or_like('cashs.user_id', $search);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results();
+
+        return ['data' => $clients, 'total' => $total];
+    } else {
+        $this->db->select('cashs.*, staff.firstname, staff.lastname');
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+        $this->db->where('cashs.id', $id);
+
+        $client = $this->db->get()->row();
+        $total = $client ? 1 : 0;
+
+        return ['data' => (array) $client, 'total' => $total];
+    }
+}
     public function get_inactive() {
         // JOIN com a tabela staff
         //  $this->db->select('cashs.*, staff.firstname, staff.lastname');
@@ -209,69 +198,83 @@ class Cashs_model extends App_Model {
 
     return ['data' => $clients, 'total' => $total];
 }
-
-    public function get_extracts($cash_id, $id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
-
-
-     
-
-        if (!is_numeric($id)) {
-            // JOIN com a tabela staff
-            $this->db->from(db_prefix() . 'cashextracts as cashs');
-            $this->db->select('cashs.*, clients.company');
-//        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = clients.userid', 'left');
-            $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
-
-            // Adicionar condições de busca
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('cashs.type', $search);
-                $this->db->or_like('cashs.total', $search);
-                $this->db->group_end();
-            }
-
-            $this->db->order_by($sortField, $sortOrder);
-
-            $this->db->limit($limit, ($page - 1) * $limit);
-
-            $this->db->where('cashs.cash_id', $cash_id);
-
-            // Obtenha os registros com as informações do staff
-            $clients = $this->db->get()->result_array();
-
-            foreach ($clients as $key => $client) {
-                $items = $this->get_items_cashs($client['cash_id']);
-                $clients[$key]['items'] = $items;
-            }
-
-            // Contar o total de registros (considerando a busca)
-            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
-            $this->db->from(db_prefix() . 'cashextracts as cashs');
-            $this->db->select('cashs.*, clients.company');
-//        $this->db->join(db_prefix() . 'staff', 'cashs.user_id = clients.userid', 'left');
-            $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
-
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('cashs.type', $search);
-                $this->db->or_like('cashs.total', $search);
-                $this->db->group_end();
-            }
-
-            return ['data' => $clients, 'total' => count($clients)]; // Retorne os dados e o total
-        } else {
-            $this->db->from(db_prefix() . 'cashextracts as cashs');
-            $this->db->select('cashs.*, clients.company');
-//      $this->db->join(db_prefix() . 'staff', 'cashs.user_id = clients.userid', 'left');
-            $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
-            $this->db->where('cashs.id', $id);
-
-            $client = $this->db->get()->row();
-            $total = $client ? 1 : 0;
-
-            return ['data' => (array) $client, 'total' => $total];
+public function get_extracts($cash_id, $id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC') {
+    if (!is_numeric($id)) {
+        // Construir consulta base para obtenção de registros
+        $this->db->from(db_prefix() . 'cashextracts as cashs');
+        $this->db->select('cashs.*, clients.company');
+        $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
+        
+        // Adicionar condições de busca
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.type', $search);
+            $this->db->or_like('cashs.total', $search);
+            $this->db->group_end();
         }
+
+        // Aplicar ordenação e paginação
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+        $this->db->where('cashs.cash_id', $cash_id);
+
+        // Obter registros paginados
+        $clients = $this->db->get()->result_array();
+
+        // Obter itens relacionados para cada registro
+        foreach ($clients as $key => $client) {
+            $items = $this->get_items_cashs($client['cash_id']);
+            $clients[$key]['items'] = $items;
+        }
+
+        // Resetar a consulta para contar total de registros
+        $this->db->reset_query();
+
+        // Construir consulta para contagem total de registros
+        $this->db->from(db_prefix() . 'cashextracts as cashs');
+        $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('cashs.type', $search);
+            $this->db->or_like('cashs.total', $search);
+            $this->db->group_end();
+        }
+        $this->db->where('cashs.cash_id', $cash_id);
+        
+        $total = $this->db->count_all_results();
+
+        return ['data' => $clients, 'total' => $total];
+    } else {
+        // Obter registro específico por ID
+        $this->db->from(db_prefix() . 'cashextracts as cashs');
+        $this->db->select('cashs.*, clients.company');
+        $this->db->join(db_prefix() . 'clients', 'cashs.client_id = clients.userid', 'left');
+        $this->db->where('cashs.id', $id);
+
+        $client = $this->db->get()->row();
+        $total = $client ? 1 : 0;
+
+        return ['data' => (array) $client, 'total' => $total];
     }
+}
+
+public function count_extracts($cash_id, $search = '') {
+    $this->db->from(db_prefix() . 'cashextracts');
+    
+    // Adicionar condições de busca, se necessário
+    if (!empty($search)) {
+        $this->db->group_start();
+        $this->db->like('type', $search);
+        $this->db->or_like('total', $search);
+        $this->db->group_end();
+    }
+
+    // Filtrar pelo 'cash_id'
+    $this->db->where('cash_id', $cash_id);
+
+    // Retornar a contagem total de registros
+    return $this->db->count_all_results();
+}
 
     public function add_extract($data) {
         $this->db->insert(db_prefix() . 'cashextracts', $data);
@@ -316,6 +319,15 @@ class Cashs_model extends App_Model {
         // Se falhou, retorne false
         return false;
     }
+    
+    
+    public function delete_finaly($id) {
+        
+ 
+        
+        $this->db->where('id', $id);
+        return $this->db->delete('cashs');
+    }
 
     public function update($data, $id) {
         $this->db->where('id', $id);
@@ -323,10 +335,7 @@ class Cashs_model extends App_Model {
     }
 
     public function update_by_number($data, $number) {
-
-        $data['open_cash'] = $data['open_value'];
-        unset($data['open_value']);
-
+    
         $this->db->where('number', $number);
         return $this->db->update('cashs', $data);
     }

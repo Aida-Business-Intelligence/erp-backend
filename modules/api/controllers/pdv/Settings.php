@@ -41,7 +41,7 @@ $data = [
                     "width" => "",
                     "path" => "/home"
                 ],
-                /*
+               
                 [
                     "value" => "GPTW",
                     "label" =>  "my_account",
@@ -50,8 +50,7 @@ $data = [
                     "width" => "",
                     "path" => "/gptw"
                 ],
-                 * 
-                 */
+                
                 [
                     "value" => "Gestão GPTW ",
                     "label" =>  "my_account",

@@ -192,16 +192,20 @@ class Produto extends REST_Controller
                         return;
                     }
 
-                    $upload_path = $upload_dir . basename($filename_match[1]);
+                    $unique_filename = uniqid() . '.' . $extension;
+                    $upload_path = $upload_dir . $unique_filename;
 
-                    file_put_contents($upload_path, $file_content);
+                    if (file_put_contents($upload_path, $file_content)) {
+                        $server_url = base_url();
+                        $relative_path = str_replace('./', '', $upload_path);
+                        $full_url = rtrim($server_url, '/') . '/' . $relative_path;
 
-                    $server_url = base_url();
-                    $relative_path = str_replace('./', '', $upload_path);
-                    $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+                        $this->db->where('id', $item_id);
+                        $this->db->update(db_prefix() . 'items', ['image' => $full_url]);
 
-                    echo json_encode(['status' => TRUE, 'file' => $full_url]);
-                    return;
+                        echo json_encode(['status' => TRUE, 'file' => $full_url]);
+                        return;
+                    }
                 }
             }
         }
@@ -696,7 +700,7 @@ class Produto extends REST_Controller
             SUM(pn.qtde) as total_quantity,
             SUM(pn.qtde * i.cost) as total_cost
         ');
-        
+
         $this->db->from(db_prefix() . 'items i');
         $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.item_id = i.id');
         $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid');
@@ -715,7 +719,7 @@ class Produto extends REST_Controller
     public function check_stock_post()
     {
         $supplier_id = $this->post('supplier_id');
-        
+
         if (empty($supplier_id)) {
             $this->response([
                 'status' => FALSE,
@@ -742,7 +746,7 @@ class Produto extends REST_Controller
             c.company as supplier_name,
             c.vat as supplier_document
         ');
-        
+
         $this->db->from(db_prefix() . 'purchase_needs pn');
         $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id', 'left');
         $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid', 'left');
@@ -751,7 +755,7 @@ class Produto extends REST_Controller
         $this->db->where('c.is_supplier', 1);
 
         $products = $this->db->get()->result_array();
-        
+
         if (empty($products)) {
             $this->response([
                 'status' => FALSE,

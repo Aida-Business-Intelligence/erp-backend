@@ -569,7 +569,7 @@ class Suppliers extends REST_Controller
 
     $this->db->select('c.userid, c.company, c.vat, c.phonenumber, c.city, c.state, 
       c.country, c.active, c.datecreated, c.email_default, c.payment_terms,
-      c.company_type, c.business_type, c.segment, c.company_size,
+      c.person_type, c.business_type, c.segment, c.company_size,
       c.inscricao_estadual, c.inscricao_municipal, c.observations,
       c.commission, c.commercial_conditions, c.commission_type,
       c.commission_base_percentage, c.commission_payment_type,

@@ -257,7 +257,7 @@ class Clients_model extends App_Model
 //        // (O resto do código existente para quando $id é válido)
 //
 
-   public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+public function get_api($id = '', $page = 0, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
 {
     if (!is_numeric($id)) {
         $allowedSortFields = ['userid', 'company', 'email'];
@@ -275,10 +275,15 @@ class Clients_model extends App_Model
             $this->db->like('company', $search);
         }
         $this->db->order_by($sortField, $sortOrder);
-        $this->db->limit($limit, ($page - 1) * $limit);
+       
+        // Certifique-se de que o valor de `$page` seja sempre maior ou igual a 1.
+        $offset = ($page > 1) ? ($page - 1) * $limit : 0;
+       
+        $this->db->limit($limit, $offset);
 
         $clients = $this->db->get(db_prefix() . 'clients')->result();
 
+     
         return ['data' => $clients, 'total' => $total];
     } else {
         $client = $this->get($id);

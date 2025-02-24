@@ -140,7 +140,7 @@ public function update($data, $id) {
         'order',
         'note',
         'city', 
-        'state', 
+        'state',
         'zip_code', 
         'country',
         'franqueado_id',

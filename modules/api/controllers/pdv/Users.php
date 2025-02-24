@@ -74,32 +74,85 @@ class Users extends REST_Controller
      *       "message": "No data were found"
      *     }
      */
-    public function list_post($id = '')
-    {
+    
+//    public function list_post($id = '')
+//    {
+//
+//
+//        /*
+//          $this->load->model('clients_model');
+//
+//          $this->clients_model->add_import_items();
+//          exit;
+//         * 
+//         */
+//
+//        $page = $this->post('page') ? (int) $this->post('page') : 1; // Página atual, padrão 1
+//
+//        $page = $page + 1;
+//
+//        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
+//        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
+//        $sortField = $this->post('sortField') ?: 'staffid'; // Campo para ordenação, padrão 'id'
+//        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+//        $type = $this->post('type') ?: 'pdv';
+//        $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $type);
+//        
+////       var_dump($data);
+//
+//        if ($data['total'] == 0) {
+//            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+//        } else {
+//
+//            if ($data) {
+//                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+//            } else {
+//                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+//            }
+//        }
+//    }
+           public function list_post($id = '')
+            {
+                $page = $this->post('page') ? (int) $this->post('page') : 1; // Página atual, padrão 1
+                $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 25; // Itens por página, padrão 10
+                $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
+                $sortField = $this->post('sortField') ?: 'staffid'; // Campo para ordenação, padrão 'staffid'
+                $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
 
+                // Garantir que a pesquisa seja aplicada corretamente na consulta
+                $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
 
-        $page = $this->post('page') ? (int) $this->post('page') : 1; // Página atual, padrão 1
+                // Filtrando os dados para pegar apenas os itens com type 'pdv'
+                $filteredData = array_filter($data['data'], function ($item) {
+                    return $item['type'] === 'pdv';
+                });
 
-        $page = $page + 1;
+                // Atualizando o total para refletir o número de itens filtrados
+                $filteredTotal = count($filteredData);
 
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
-        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'staffid'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-        $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, 'pdv');
-
-        if ($data['total'] == 0) {
-
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-        } else {
-
-            if ($data) {
-                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
-            } else {
-                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+                // Verificando se há dados após o filtro
+                if ($filteredTotal == 0) {
+                    $this->response(
+                        [
+                            'status' => FALSE,
+                            'message' => 'No data were found'
+                        ],
+                        REST_Controller::HTTP_NOT_FOUND
+                    );
+                } else {
+                    $this->response(
+                        [
+                            'status' => true,
+                            'total' => (int) $filteredTotal, // Total de registros filtrados
+                            'data' => array_values($filteredData) // Dados filtrados
+                        ],
+                        REST_Controller::HTTP_OK
+                    );
+                }
             }
-        }
-    }
+
+
+
 
 
     /**
@@ -191,46 +244,43 @@ class Users extends REST_Controller
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $_input['vat'] = $_POST['documentNumber'] ?? null;
-        $_input['email_default'] = $_POST['email'] ?? null;
-        $_input['phonenumber'] = $_POST['primaryPhone'] ?? null;
-        $_input['zip'] = $_POST['cep'] ?? null;
-        $_input['billing_street'] = $_POST['street'] ?? null;
-        $_input['billing_city'] = $_POST['city'] ?? null;
-        $_input['billing_state'] = $_POST['state'] ?? null;
-        $_input['billing_number'] = $_POST['number'] ?? null;
-        $_input['billing_complement'] = $_POST['complement'] ?? null;
-        $_input['billing_neighborhood'] = $_POST['neighborhood'] ?? null;
-        $_input['company'] = $_POST['fullName'] ?? null;
-        $_POST['company'] = $_POST['fullName'] ?? null;
+        // Mapeando os dados de entrada diretamente para o array $input
+        $input = [
+            'role' => $_POST['role'] ?? null,
+            'password' => $_POST['password'] ?? null,
+            'profile_image' => $_POST['profile_image'] ?? null,
+            'email' => $_POST['email'] ?? null,
+            'phonenumber' => $_POST['phonenumber'] ?? null,
+            'firstname' => $_POST['firstname'] ?? null,
+            'lastname' => $_POST['lastname'] ?? null,
+            'facebook' => $_POST['facebook'] ?? null,
+            'type' => $_POST['type'] ?? null,
+            'linkedin' => $_POST['linkedin'] ?? null
+        ];
 
-
-
-        $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
-
-        // email
+        // Validação do email, para garantir que o email seja único
         $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
 
-
         if ($this->form_validation->run() == FALSE) {
-            // form validation error
+            // Se a validação falhar
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
+            // Chama o método do modelo para adicionar o novo usuário
+            $output = $this->Staff_model->add($input);
 
-
-            $output = $this->clients_model->add($_input);
             if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => 'success', 'message' => 'auth_signup_success', 'data' => $this->clients_model->get($output));
+                // Sucesso: usuário foi adicionado com sucesso
+                $message = array('status' => 'success', 'message' => 'success', 'data' => $this->Staff_model->get($output));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Client add fail.');
+                // Erro: falha ao adicionar o usuário
+                $message = array('status' => FALSE, 'message' => 'Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
         }
     }
+
 
     /**
      * @api {delete} api/delete/customers/:id Delete a Customer
@@ -283,7 +333,7 @@ class Users extends REST_Controller
                 continue;
             }
 
-            $output = $this->clients_model->delete($id);
+            $output = $this->Staff_model->delete($id);
             if ($output === TRUE) {
                 $success_count++;
             } else {
@@ -355,7 +405,7 @@ class Users extends REST_Controller
             return;
         }
 
-        $client = $this->Clients_model->get($id);
+        $client = $this->Staff_model->get($id);
 
         if ($client) {
             $this->response([
@@ -445,7 +495,7 @@ class Users extends REST_Controller
      *       "message": "Customer Update Fail."
      *     }
      */
-    public function update_put($id = '')
+    public function update_post($id = '')
     {
 
 
@@ -457,16 +507,16 @@ class Users extends REST_Controller
         }
         $this->form_validation->set_data($_POST);
         if (empty($id) && !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
+            $message = array('status' => FALSE, 'message' => 'Invalid users ID');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
             $update_data = $this->input->post();
             // update data
             $this->load->model('clients_model');
-            $output = $this->clients_model->update($update_data, $id);
+            $output = $this->Staff_model->update($update_data, $update_data['staffid']);
             if ($output > 0 && !empty($output)) {
                 // success
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->clients_model->get($id));
+                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->Staff_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 // error

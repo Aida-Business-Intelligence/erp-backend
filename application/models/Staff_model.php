@@ -883,6 +883,9 @@ class Staff_model extends App_Model
                 $this->db->where('type', $type);
             }
 
+            // Filtro para pegar apenas os registros com active = 1
+            $this->db->where('active', 1);
+
             // Adicionar condições de busca
             if (!empty($search)) {
                 $this->db->group_start(); // Começa um agrupamento de condição
@@ -895,6 +898,7 @@ class Staff_model extends App_Model
 
             // Contagem total de registros sem paginação
             $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+            $this->db->where('active', 1); // Garante que o filtro também seja aplicado na contagem
             if (!empty($search)) {
                 $this->db->group_start(); // Começa um agrupamento de condição
                 $this->db->like('firstname', $search);
@@ -909,6 +913,7 @@ class Staff_model extends App_Model
 
             // Obter os dados com paginação
             $this->db->reset_query(); // Resetar consulta novamente antes de buscar os dados
+            $this->db->where('active', 1); // Aplica o filtro 'active = 1' na busca de dados
             if (!empty($search)) {
                 $this->db->group_start();
                 $this->db->like('firstname', $search);
@@ -939,4 +944,5 @@ class Staff_model extends App_Model
             return ['data' => (array) $this->get($id), 'total' => 1];
         }
     }
+
 }

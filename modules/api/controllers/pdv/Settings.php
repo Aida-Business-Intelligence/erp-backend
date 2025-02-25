@@ -298,7 +298,7 @@ $data = [
                     "path" => "/admin/languages"
                 ],
                  * 
-                 */
+                
                 [
                     "value" => "options",
                     "label" => "admin",
@@ -307,6 +307,8 @@ $data = [
                     "width" => "",
                     "path" => "/admin/options"
                 ],
+                 * 
+                 */
                 [
                     "value" => "config",
                     "label" => "admin",

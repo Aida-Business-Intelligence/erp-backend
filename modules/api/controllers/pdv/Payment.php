@@ -108,6 +108,8 @@ class Payment extends REST_Controller
      public function finish_post()
     {
          
+          
+         
          $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
          $payments = $_POST['payments'];
          $doc =  $_POST['cpf'];
@@ -150,9 +152,14 @@ class Payment extends REST_Controller
              
          );
          
-         $this->Cashs_model->add($data);
+         if($this->Cashs_model->add($data)){
 
          $this->response(['status' => true, 'status_payment'=>'paid', 'payment_id'=>1, 'message' => 'Pagamento realizado'], REST_Controller::HTTP_OK);
+         
+         }else{
+             
+               $this->response(['status' => FALSE, 'message' => 'Erro ao efetuar compra'], REST_Controller::HTTP_NOT_FOUND);
+         }
            
         
     }

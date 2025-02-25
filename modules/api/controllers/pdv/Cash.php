@@ -32,8 +32,8 @@ class Cash extends REST_Controller
         if (!$decodedToken['status']) {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Usuario nao autenticado '
-            ], REST_Controller::HTTP_NOT_FOUND);
+                'message' => 'Usuario nao autenticado'
+            ], REST_Controller::HTTP_UNAUTHORIZED);
         }
         
         
@@ -348,34 +348,29 @@ class Cash extends REST_Controller
     }
     public function transactions_post($id = '')
     {
-      
-            
-
-        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
-
-        $page = $page + 1;
-
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
-        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-                $filters= $this->post('filters') ?: ''; // Parâmetro de busca, se fornecido
-
-        $sortField = $this->post('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-        $data = $this->cashs_model->get_transactions($id, $page, $limit, $search, $sortField, $sortOrder, $filters, 0);
+        $page = $this->post('page') !== null ? (int) $this->post('page') : 0;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') !== null ? $this->post('search') : '';
+        $sortField = $this->post('sortField') ?: 'id';
+        $sortOrder = strtoupper($this->post('sortOrder')) === 'DESC' ? 'DESC' : 'ASC';
         
-        if ($data['total'] == 0) {
-
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-        } else {
-
-            if ($data) {
-                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
-            } else {
-                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-            }
-        }
-           
+        // Get additional filters
+        $filters = [
+            'start_date' => $this->post('start_date'),
+            'end_date' => $this->post('end_date'),
+            'status' => $this->post('status'),
+        ];
         
+        $cash_id = $this->post('cash_id');
+        
+        $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $cash_id);
+        
+        // Always return HTTP_OK with the data and total, even if total is 0
+        $this->response([
+            'status' => true,
+            'total' => $data['total'],
+            'data' => $data['data'] ?? []
+        ], REST_Controller::HTTP_OK);
     }
     
     

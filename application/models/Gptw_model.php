@@ -199,8 +199,7 @@ class Gptw_model extends App_Model
 
     public function get_api_search($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC')
     {
-        error_reporting(-1);
-        ini_set('display_errors', 1);
+    
         if (!is_numeric($id)) {
 
             // Adicionar condições de busca
@@ -237,8 +236,7 @@ class Gptw_model extends App_Model
 
     public function get_api_recognition($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC')
     {
-        error_reporting(-1);
-        ini_set('display_errors', 1);
+      
         if (!is_numeric($id)) {
 
             // Adicionar condições de busca
@@ -275,8 +273,7 @@ class Gptw_model extends App_Model
 
     public function get_api_good($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC')
     {
-        error_reporting(-1);
-        ini_set('display_errors', 1);
+       
         if (!is_numeric($id)) {
 
             // Adicionar condições de busca
@@ -313,8 +310,7 @@ class Gptw_model extends App_Model
 
     public function get_api_training($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC')
     {
-        error_reporting(-1);
-        ini_set('display_errors', 1);
+     
         if (!is_numeric($id)) {
 
             // Adicionar condições de busca
@@ -350,8 +346,7 @@ class Gptw_model extends App_Model
     }
     public function get_api_feedbacks($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC')
     {
-        error_reporting(-1);
-        ini_set('display_errors', 1);
+       
         if (!is_numeric($id)) {
 
             // Adicionar condições de busca

@@ -1,4 +1,5 @@
 # PHP & CodeIgniter .gitignore
+nbproject/private/private.xml
 
 # Arquivos temporários e de cache
 *.log

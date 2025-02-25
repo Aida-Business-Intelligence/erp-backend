@@ -328,9 +328,6 @@ class Produto extends REST_Controller
     public function data_put($id = '')
     {
 
-        error_reporting(-1);
-        ini_set('display_errors', 1);
-
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 

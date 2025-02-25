@@ -32,8 +32,8 @@ class Cash extends REST_Controller
         if (!$decodedToken['status']) {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Usuario nao autenticado '
-            ], REST_Controller::HTTP_NOT_FOUND);
+                'message' => 'Usuario nao autenticado'
+            ], REST_Controller::HTTP_UNAUTHORIZED);
         }
         
         

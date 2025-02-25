@@ -15,11 +15,11 @@ class Staff_model extends App_Model
         }
 
         hooks()->do_action('before_delete_staff_member', [
-            'id'               => $id,
+            'id' => $id,
             'transfer_data_to' => $transfer_data_to,
         ]);
 
-        $name           = get_staff_full_name($id);
+        $name = get_staff_full_name($id);
         $transferred_to = get_staff_full_name($transfer_data_to);
 
         $this->db->where('addedfrom', $id);
@@ -319,7 +319,7 @@ class Staff_model extends App_Model
         log_activity('Staff Member Deleted [Name: ' . $name . ', Data Transferred To: ' . $transferred_to . ']');
 
         hooks()->do_action('staff_member_deleted', [
-            'id'               => $id,
+            'id' => $id,
             'transfer_data_to' => $transfer_data_to,
         ]);
 
@@ -358,9 +358,9 @@ class Staff_model extends App_Model
 
         return $this->db->get(db_prefix() . 'staff')->result_array();
     }
-    
-    
-    
+
+
+
 
     /**
      * Get staff permissions
@@ -419,14 +419,14 @@ class Staff_model extends App_Model
         }
 
         $send_welcome_email = true;
-        $original_password  = $data['password'];
+        $original_password = $data['password'];
         if (!isset($data['send_welcome_email'])) {
             $send_welcome_email = false;
         } else {
             unset($data['send_welcome_email']);
         }
 
-        $data['password']    = app_hash_password($data['password']);
+        $data['password'] = app_hash_password($data['password']);
         $data['datecreated'] = date('Y-m-d H:i:s');
         if (isset($data['departments'])) {
             $departments = $data['departments'];
@@ -472,7 +472,7 @@ class Staff_model extends App_Model
             if (isset($departments)) {
                 foreach ($departments as $department) {
                     $this->db->insert(db_prefix() . 'staff_departments', [
-                        'staffid'      => $staffid,
+                        'staffid' => $staffid,
                         'departmentid' => $department,
                     ]);
                 }
@@ -491,8 +491,8 @@ class Staff_model extends App_Model
             foreach ($announcements as $announcement) {
                 $this->db->insert(db_prefix() . 'dismissed_announcements', [
                     'announcementid' => $announcement['announcementid'],
-                    'staff'          => 1,
-                    'userid'         => $staffid,
+                    'staff' => 1,
+                    'userid' => $staffid,
                 ]);
             }
             hooks()->do_action('staff_member_created', $staffid);
@@ -511,12 +511,12 @@ class Staff_model extends App_Model
      */
     public function update($data, $id)
     {
-        
+
         unset($data['department']);
-         unset($data['designation']);
-        
-        
-    
+        unset($data['designation']);
+
+
+
         if (isset($data['fakeusernameremembered'])) {
             unset($data['fakeusernameremembered']);
         }
@@ -525,8 +525,8 @@ class Staff_model extends App_Model
         }
 
         $data = hooks()->apply_filters('before_update_staff_member', $data, $id);
-        
-   
+
+
 
         if (is_admin()) {
             if (isset($data['administrator'])) {
@@ -570,7 +570,7 @@ class Staff_model extends App_Model
         if (empty($data['password'])) {
             unset($data['password']);
         } else {
-            $data['password']             = app_hash_password($data['password']);
+            $data['password'] = app_hash_password($data['password']);
             $data['last_password_change'] = date('Y-m-d H:i:s');
         }
 
@@ -618,7 +618,7 @@ class Staff_model extends App_Model
                     $_exists = $this->db->get(db_prefix() . 'staff_departments')->row();
                     if (!$_exists) {
                         $this->db->insert(db_prefix() . 'staff_departments', [
-                            'staffid'      => $id,
+                            'staffid' => $id,
                             'departmentid' => $department,
                         ]);
                         if ($this->db->affected_rows() > 0) {
@@ -631,7 +631,7 @@ class Staff_model extends App_Model
             if (isset($departments)) {
                 foreach ($departments as $department) {
                     $this->db->insert(db_prefix() . 'staff_departments', [
-                        'staffid'      => $id,
+                        'staffid' => $id,
                         'departmentid' => $department,
                     ]);
                     if ($this->db->affected_rows() > 0) {
@@ -692,7 +692,7 @@ class Staff_model extends App_Model
         if (empty($data['password'])) {
             unset($data['password']);
         } else {
-            $data['password']             = app_hash_password($data['password']);
+            $data['password'] = app_hash_password($data['password']);
             $data['last_password_change'] = date('Y-m-d H:i:s');
         }
 
@@ -745,7 +745,7 @@ class Staff_model extends App_Model
 
         $this->db->where('staffid', $userid);
         $this->db->update(db_prefix() . 'staff', [
-            'password'             => $data['newpasswordr'],
+            'password' => $data['newpasswordr'],
             'last_password_change' => date('Y-m-d H:i:s'),
         ]);
         if ($this->db->affected_rows() > 0) {
@@ -780,55 +780,55 @@ class Staff_model extends App_Model
             $id = get_staff_user_id();
         }
         $result['timesheets'] = [];
-        $result['total']      = [];
+        $result['total'] = [];
         $result['this_month'] = [];
 
         $first_day_this_month = date('Y-m-01'); // hard-coded '01' for first day
-        $last_day_this_month  = date('Y-m-t 23:59:59');
+        $last_day_this_month = date('Y-m-t 23:59:59');
 
         $result['last_month'] = [];
         $first_day_last_month = date('Y-m-01', strtotime('-1 MONTH')); // hard-coded '01' for first day
-        $last_day_last_month  = date('Y-m-t 23:59:59', strtotime('-1 MONTH'));
+        $last_day_last_month = date('Y-m-t 23:59:59', strtotime('-1 MONTH'));
 
         $result['this_week'] = [];
         $first_day_this_week = date('Y-m-d', strtotime('monday this week'));
-        $last_day_this_week  = date('Y-m-d 23:59:59', strtotime('sunday this week'));
+        $last_day_this_week = date('Y-m-d 23:59:59', strtotime('sunday this week'));
 
         $result['last_week'] = [];
 
         $first_day_last_week = date('Y-m-d', strtotime('monday last week'));
-        $last_day_last_week  = date('Y-m-d 23:59:59', strtotime('sunday last week'));
+        $last_day_last_week = date('Y-m-d 23:59:59', strtotime('sunday last week'));
 
         $this->db->select('task_id,start_time,end_time,staff_id,' . db_prefix() . 'taskstimers.hourly_rate,name,' . db_prefix() . 'taskstimers.id,rel_id,rel_type, billed');
         $this->db->where('staff_id', $id);
         $this->db->join(db_prefix() . 'tasks', db_prefix() . 'tasks.id = ' . db_prefix() . 'taskstimers.task_id', 'left');
-        $timers           = $this->db->get(db_prefix() . 'taskstimers')->result_array();
+        $timers = $this->db->get(db_prefix() . 'taskstimers')->result_array();
         $_end_time_static = time();
 
         $filter_period = false;
         if (isset($filter_data['period-from']) && $filter_data['period-from'] != '' && isset($filter_data['period-to']) && $filter_data['period-to'] != '') {
             $filter_period = true;
-            $from          = to_sql_date($filter_data['period-from']);
-            $from          = date('Y-m-d', strtotime($from));
-            $to            = to_sql_date($filter_data['period-to']);
-            $to            = date('Y-m-d', strtotime($to));
+            $from = to_sql_date($filter_data['period-from']);
+            $from = date('Y-m-d', strtotime($from));
+            $to = to_sql_date($filter_data['period-to']);
+            $to = date('Y-m-d', strtotime($to));
         }
 
         foreach ($timers as $timer) {
             $start_date = date('Y-m-d', $timer['start_time']);
 
-            $end_time    = $timer['end_time'];
+            $end_time = $timer['end_time'];
             $notFinished = false;
             if ($timer['end_time'] == null) {
-                $end_time    = $_end_time_static;
+                $end_time = $_end_time_static;
                 $notFinished = true;
             }
 
             $total = $end_time - $timer['start_time'];
 
-            $result['total'][]     = $total;
-            $timer['total']        = $total;
-            $timer['end_time']     = $end_time;
+            $result['total'][] = $total;
+            $timer['total'] = $total;
+            $timer['end_time'] = $end_time;
             $timer['not_finished'] = $notFinished;
 
             if ($start_date >= $first_day_this_month && $start_date <= $last_day_this_month) {
@@ -862,80 +862,81 @@ class Staff_model extends App_Model
                 }
             }
         }
-        $result['total']      = array_sum($result['total']);
+        $result['total'] = array_sum($result['total']);
         $result['this_month'] = array_sum($result['this_month']);
         $result['last_month'] = array_sum($result['last_month']);
-        $result['this_week']  = array_sum($result['this_week']);
-        $result['last_week']  = array_sum($result['last_week']);
+        $result['this_week'] = array_sum($result['this_week']);
+        $result['last_week'] = array_sum($result['last_week']);
 
         return $result;
     }
-    
+
     /*** API *///
-    
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'employee') {
-    $this->load->model("roles_model");
-    
-    if (!is_numeric($id)) {
-        // Aplicar filtro pelo tipo
-           if (!empty($type)) {
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'employee')
+    {
+        $this->load->model("roles_model");
+
+        if (!is_numeric($id)) {
+            // Aplicar filtro pelo tipo
+            if (!empty($type)) {
                 $this->db->where('type', $type);
             }
-        
-        // Adicionar condições de busca
-        if (!empty($search)) {
-            $this->db->group_start(); // Começa um agrupamento de condição
-            $this->db->like('firstname', $search); // Busca pelo campo 'firstname'
-            $this->db->or_like('lastname', $search);
-            $this->db->or_like('email', $search);
-            $this->db->or_like('phonenumber', $search);
-            $this->db->group_end(); // Fecha o agrupamento de condição
-        }
 
-        // Contagem total de registros sem paginação
-        $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
-        if (!empty($search)) {
-            $this->db->group_start(); // Começa um agrupamento de condição
-            $this->db->like('firstname', $search);
-            $this->db->or_like('lastname', $search);
-            $this->db->or_like('email', $search);
-            $this->db->or_like('phonenumber', $search);
-            $this->db->group_end(); // Fecha o agrupamento de condição
-        }
-
-        // Contar o total de registros sem limitação
-        $total = $this->db->count_all_results(db_prefix() . 'staff');
-
-        // Obter os dados com paginação
-        $this->db->reset_query(); // Resetar consulta novamente antes de buscar os dados
-        if (!empty($search)) {
-            $this->db->group_start();
-            $this->db->like('firstname', $search);
-            $this->db->or_like('lastname', $search);
-            $this->db->or_like('email', $search);
-            $this->db->or_like('phonenumber', $search);
-            $this->db->group_end();
-        }
-
-        $this->db->order_by($sortField, $sortOrder);
-        $offset = ($page - 1) * $limit;  // Calcula o offset corretamente
-        $this->db->limit($limit, $offset); // Agora passa o offset corretamente
-        $data = $this->db->get(db_prefix() . 'staff')->result_array();
-
-        // Adicionar o nome do cargo (role) de cada staff
-        $staff['role'] = '';
-        foreach ($data as $key => $staff) {
-            if($staff['role'] > 0){
-                $role = $this->roles_model->get($staff['role']); // Busca o nome do role
-             
-                $data[$key]['role_name'] = $role->name;
+            // Adicionar condições de busca
+            if (!empty($search)) {
+                $this->db->group_start(); // Começa um agrupamento de condição
+                $this->db->like('firstname', $search); // Busca pelo campo 'firstname'
+                $this->db->or_like('lastname', $search);
+                $this->db->or_like('email', $search);
+                $this->db->or_like('phonenumber', $search);
+                $this->db->group_end(); // Fecha o agrupamento de condição
             }
-        }
 
-        // Retornar os dados com o total correto
-        return ['data' => $data, 'total' => $total];
-    } else {
-        return ['data' => (array) $this->get($id), 'total' => 1];
+            // Contagem total de registros sem paginação
+            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+            if (!empty($search)) {
+                $this->db->group_start(); // Começa um agrupamento de condição
+                $this->db->like('firstname', $search);
+                $this->db->or_like('lastname', $search);
+                $this->db->or_like('email', $search);
+                $this->db->or_like('phonenumber', $search);
+                $this->db->group_end(); // Fecha o agrupamento de condição
+            }
+
+            // Contar o total de registros sem limitação
+            $total = $this->db->count_all_results(db_prefix() . 'staff');
+
+            // Obter os dados com paginação
+            $this->db->reset_query(); // Resetar consulta novamente antes de buscar os dados
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('firstname', $search);
+                $this->db->or_like('lastname', $search);
+                $this->db->or_like('email', $search);
+                $this->db->or_like('phonenumber', $search);
+                $this->db->group_end();
+            }
+
+            $this->db->order_by($sortField, $sortOrder);
+            $offset = ($page - 1) * $limit;  // Calcula o offset corretamente
+            $this->db->limit($limit, $offset); // Agora passa o offset corretamente
+            $data = $this->db->get(db_prefix() . 'staff')->result_array();
+
+            // Adicionar o nome do cargo (role) de cada staff
+            $staff['role'] = '';
+            foreach ($data as $key => $staff) {
+                if ($staff['role'] > 0) {
+                    $role = $this->roles_model->get($staff['role']); // Busca o nome do role
+
+                    $data[$key]['role_name'] = $role->name;
+                }
+            }
+
+            // Retornar os dados com o total correto
+            return ['data' => $data, 'total' => $total];
+        } else {
+            return ['data' => (array) $this->get($id), 'total' => 1];
+        }
     }
-}
 }

@@ -8,21 +8,43 @@ class Roles_model extends App_Model
      * Add new employee role
      * @param mixed $data
      */
+    // public function add($data)
+    // {
+    //     $permissions = [];
+    //     if (isset($data['permissions'])) {
+    //         $permissions = $data['permissions'];
+    //     }
+
+    //     $data['permissions'] = serialize($permissions);
+
+    //     $this->db->insert(db_prefix() . 'roles', $data);
+    //     $insert_id = $this->db->insert_id();
+
+    //     if ($insert_id) {
+    //         log_activity('New Role Added [ID: ' . $insert_id . '.' . $data['name'] . ']');
+
+    //         return $insert_id;
+    //     }
+
+    //     return false;
+    // }
+
     public function add($data)
     {
-        $permissions = [];
-        if (isset($data['permissions'])) {
-            $permissions = $data['permissions'];
-        }
+        // Separa as permissões do restante dos dados
+// Verifica se já existe um nível extra de "permissions" e remove
+        $permissions = isset($data['permissions']['permissions']) ? $data['permissions']['permissions'] : $data['permissions'];
 
+        // Serializa corretamente antes de salvar
         $data['permissions'] = serialize($permissions);
 
+
+        // Insere os dados na tabela de roles
         $this->db->insert(db_prefix() . 'roles', $data);
         $insert_id = $this->db->insert_id();
 
         if ($insert_id) {
-            log_activity('New Role Added [ID: ' . $insert_id . '.' . $data['name'] . ']');
-
+            log_activity('New Role Added [ID: ' . $insert_id . ', Name: ' . $data['name'] . ']');
             return $insert_id;
         }
 
@@ -100,12 +122,12 @@ class Roles_model extends App_Model
 
             $role = $this->db->get(db_prefix() . 'roles')->row();
             $permissions = [];
-            if (@$role->permissions){
+            if (@$role->permissions) {
                 $permissions = !empty($role->permissions) ? unserialize($role->permissions) : [];
                 @$role->permissions = $permissions;
             }
-            
-            
+
+
             $this->app_object_cache->add('role-' . $id, $role);
 
             return $role;
@@ -191,4 +213,34 @@ class Roles_model extends App_Model
 
         return $this->db->get(db_prefix() . 'staff')->result_array();
     }
+
+    public function update_role($data, $id)
+    {
+        // Definir os campos permitidos para atualização
+        $allowed_fields = ['name', 'permissions'];
+
+        // Filtrar os dados permitidos
+        $update_data = array_intersect_key($data, array_flip($allowed_fields));
+
+        // Verificar se há algo para atualizar
+        if (empty($update_data)) {
+            return false;
+        }
+
+        // Se permissions for um array, converter para o formato correto e serializar
+        if (isset($update_data['permissions']) && is_array($update_data['permissions'])) {
+            // Serializa as permissões antes de salvar
+            $update_data['permissions'] = serialize($update_data['permissions']);
+        }
+
+        // Atualizar os dados na tabela
+        $this->db->where('roleid', $id);
+        $this->db->update(db_prefix() . 'roles', $update_data);
+
+        // Retornar true se a atualização foi bem-sucedida
+        return ($this->db->affected_rows() > 0);
+    }
+
+
+
 }

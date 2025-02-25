@@ -74,8 +74,8 @@ class Users extends REST_Controller
      *       "message": "No data were found"
      *     }
      */
-    
-//    public function list_post($id = '')
+
+    //    public function list_post($id = '')
 //    {
 //
 //
@@ -111,45 +111,45 @@ class Users extends REST_Controller
 //            }
 //        }
 //    }
-           public function list_post($id = '')
-            {
-                $page = $this->post('page') ? (int) $this->post('page') : 1; // Página atual, padrão 1
-                $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 25; // Itens por página, padrão 10
-                $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-                $sortField = $this->post('sortField') ?: 'staffid'; // Campo para ordenação, padrão 'staffid'
-                $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+    public function list_post($id = '')
+    {
+        $page = $this->post('page') ? (int) $this->post('page') : 1; // Página atual, padrão 1
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 25; // Itens por página, padrão 10
+        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
+        $sortField = $this->post('sortField') ?: 'staffid'; // Campo para ordenação, padrão 'staffid'
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
 
-                // Garantir que a pesquisa seja aplicada corretamente na consulta
-                $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        // Garantir que a pesquisa seja aplicada corretamente na consulta
+        $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
 
-                // Filtrando os dados para pegar apenas os itens com type 'pdv'
-                $filteredData = array_filter($data['data'], function ($item) {
-                    return $item['type'] === 'pdv';
-                });
+        // Filtrando os dados para pegar apenas os itens com type 'pdv'
+        $filteredData = array_filter($data['data'], function ($item) {
+            return $item['type'] === 'pdv';
+        });
 
-                // Atualizando o total para refletir o número de itens filtrados
-                $filteredTotal = count($filteredData);
+        // Atualizando o total para refletir o número de itens filtrados
+        $filteredTotal = count($filteredData);
 
-                // Verificando se há dados após o filtro
-                if ($filteredTotal == 0) {
-                    $this->response(
-                        [
-                            'status' => FALSE,
-                            'message' => 'No data were found'
-                        ],
-                        REST_Controller::HTTP_NOT_FOUND
-                    );
-                } else {
-                    $this->response(
-                        [
-                            'status' => true,
-                            'total' => (int) $filteredTotal, // Total de registros filtrados
-                            'data' => array_values($filteredData) // Dados filtrados
-                        ],
-                        REST_Controller::HTTP_OK
-                    );
-                }
-            }
+        // Verificando se há dados após o filtro
+        if ($filteredTotal == 0) {
+            $this->response(
+                [
+                    'status' => FALSE,
+                    'message' => 'No data were found'
+                ],
+                REST_Controller::HTTP_NOT_FOUND
+            );
+        } else {
+            $this->response(
+                [
+                    'status' => true,
+                    'total' => (int) $filteredTotal, // Total de registros filtrados
+                    'data' => array_values($filteredData) // Dados filtrados
+                ],
+                REST_Controller::HTTP_OK
+            );
+        }
+    }
 
 
 
@@ -512,15 +512,15 @@ class Users extends REST_Controller
         } else {
             $update_data = $this->input->post();
             // update data
-            $this->load->model('clients_model');
+            $this->load->model('Staff_model');
             $output = $this->Staff_model->update($update_data, $update_data['staffid']);
             if ($output > 0 && !empty($output)) {
                 // success
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->Staff_model->get($id));
+                $message = array('status' => TRUE, 'message' => 'Users Update Successful.', 'data' => $this->Staff_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 // error
-                $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
+                $message = array('status' => FALSE, 'message' => 'Users Update Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
         }

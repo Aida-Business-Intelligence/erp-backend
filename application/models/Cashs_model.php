@@ -57,12 +57,13 @@ class Cashs_model extends App_Model
         return $client;
     }
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
     {
         if (!is_numeric($id)) {
             $this->db->select('cashs.*, staff.firstname, staff.lastname');
             $this->db->from(db_prefix() . 'cashs');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+            $this->db->where('cashs.warehouse_id', $warehouse_id);
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -105,6 +106,7 @@ class Cashs_model extends App_Model
             $this->db->from(db_prefix() . 'cashs');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
             $this->db->where('cashs.id', $id);
+            $this->db->where('cashs.warehouse_id', $warehouse_id);
 
             $client = $this->db->get()->row();
             $total = $client ? 1 : 0;

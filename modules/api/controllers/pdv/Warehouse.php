@@ -81,9 +81,10 @@ class Warehouse extends REST_Controller
         $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
         $sortField = $this->post('sortField') ?: 'warehouse_id'; // Campo para ordenação, padrão 'warehouse_id'
         $sortOrder = strtolower($this->post('sortOrder')) === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $franqueado_id = $this->post('franqueado_id') ?: 0;
 
         // Chamada ao modelo
-        $data = $this->Warehouse_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        $data = $this->Warehouse_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $franqueado_id);
 
         // Verifica se encontrou dados
         if (empty($data['data'])) {
@@ -96,12 +97,12 @@ class Warehouse extends REST_Controller
             ], REST_Controller::HTTP_OK);
         }
     }
-     public function list_get($id = '')
+    public function list_get($id = '')
     {
-     
+
         // Chamada ao modelo
         $data = $this->Warehouse_model->get($id);
-        
+
         // Verifica se encontrou dados
         if (empty($data)) {
             $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
@@ -109,9 +110,10 @@ class Warehouse extends REST_Controller
             $this->response($data, REST_Controller::HTTP_OK);
         }
     }
-    
 
-    public function create_post() {
+
+    public function create_post()
+    {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -142,7 +144,7 @@ class Warehouse extends REST_Controller
         $this->form_validation->set_rules('order', 'Order', 'trim|required|numeric');
         $this->form_validation->set_rules('display', 'Display', 'trim|required|in_list[0,1]');
         $this->form_validation->set_rules('city', 'City', 'trim|required|max_length[100]');
-//        $this->form_validation->set_rules('note', 'Note', 'trim|required|max_length[100]');
+        //        $this->form_validation->set_rules('note', 'Note', 'trim|required|max_length[100]');
 //        $this->form_validation->set_rules('franqueado_id', 'FranqueadoID', 'trim|required|max_length[100]');
 //        $this->form_validation->set_rules('order', 'Order', 'trim|required|max_length[100]');
         $this->form_validation->set_rules('state', 'State', 'trim|required|max_length[100]');
@@ -162,7 +164,7 @@ class Warehouse extends REST_Controller
         }
     }
 
-//    public function get_get($id = '') {
+    //    public function get_get($id = '') {
 //        if (!is_numeric($id)) {
 //            $this->response(['status' => FALSE, 'message' => 'Invalid Warehouse ID'], REST_Controller::HTTP_BAD_REQUEST);
 //            return;
@@ -175,7 +177,7 @@ class Warehouse extends REST_Controller
 //            $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
 //        }
 //    }
-    
+
     public function get_get($id = '')
     {
         if (empty($id) || !is_numeric($id)) {
@@ -201,7 +203,8 @@ class Warehouse extends REST_Controller
         }
     }
 
-    public function update_post($id = '') {
+    public function update_post($id = '')
+    {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST) || !is_numeric($id)) {
@@ -211,16 +214,16 @@ class Warehouse extends REST_Controller
 
         // Ajustar os campos permitidos para atualização
         $update_data = array_intersect_key($_POST, array_flip([
-            'warehouse_code', 
-            'warehouse_name', 
-            'warehouse_address',  
+            'warehouse_code',
+            'warehouse_name',
+            'warehouse_address',
             'display',
             'order',
             'note',
-            'city', 
-            'state', 
-            'zip_code', 
-            'country', 
+            'city',
+            'state',
+            'zip_code',
+            'country',
             'franqueado_id',
         ]));
 
@@ -238,8 +241,9 @@ class Warehouse extends REST_Controller
             $this->response(['status' => FALSE, 'message' => 'Failed to update warehouse'], REST_Controller::HTTP_NOT_FOUND);
         }
     }
-    
-    public function remove_post() {
+
+    public function remove_post()
+    {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST['rows']) || !is_array($_POST['rows'])) {

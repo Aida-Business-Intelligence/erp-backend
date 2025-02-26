@@ -158,48 +158,48 @@ class Clients_model extends App_Model
 
         return $this->db->get(db_prefix() . 'clients')->result_array();
     }
-    
-   public function get_api_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
-{
-    $table = db_prefix() . 'clients';
 
-    // Busca por ID
-    if (is_numeric($id)) {
-        $client = $this->get($id);
-        return ['data' => $client ? (array) $client : [], 'total' => $client ? 1 : 0];
+    public function get_api_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    {
+        $table = db_prefix() . 'clients';
+
+        // Busca por ID
+        if (is_numeric($id)) {
+            $client = $this->get($id);
+            return ['data' => $client ? (array) $client : [], 'total' => $client ? 1 : 0];
+        }
+
+        // Consulta principal
+        $this->db->from($table);
+        $this->db->where('is_supplier', 1);
+
+        // Filtros de busca
+        if (!empty($search)) {
+            $search = $this->db->escape_like_str($search);
+            $this->db->group_start()
+                ->like('company', $search)
+                ->or_like('billing_city', $search)
+                ->or_like('billing_state', $search)
+                ->or_like('vat', $search)
+                ->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%$search%'")
+                ->group_end();
+        }
+
+        // Contagem total antes da paginação
+        $total = $this->db->count_all_results('', false); // false mantém a consulta atual
+
+        // Ordenação e Paginação
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        // Busca dos registros
+        $clients = $this->db->get()->result_array();
+
+        return ['data' => $clients, 'total' => $total];
     }
 
-    // Consulta principal
-    $this->db->from($table);
-    $this->db->where('is_supplier', 1);
 
-    // Filtros de busca
-    if (!empty($search)) {
-        $search = $this->db->escape_like_str($search);
-        $this->db->group_start()
-            ->like('company', $search)
-            ->or_like('billing_city', $search)
-            ->or_like('billing_state', $search)
-            ->or_like('vat', $search)
-            ->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%$search%'")
-            ->group_end();
-    }
-
-    // Contagem total antes da paginação
-    $total = $this->db->count_all_results('', false); // false mantém a consulta atual
-
-    // Ordenação e Paginação
-    $this->db->order_by($sortField, $sortOrder);
-    $this->db->limit($limit, ($page - 1) * $limit);
-
-    // Busca dos registros
-    $clients = $this->db->get()->result_array();
-
-    return ['data' => $clients, 'total' => $total];
-}
-
-
-//    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
+    //    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
 //    {
 //
 //        if (!is_numeric($id)) {
@@ -257,39 +257,44 @@ class Clients_model extends App_Model
 //        // (O resto do código existente para quando $id é válido)
 //
 
-public function get_api($id = '', $page = 0, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
-{
-    if (!is_numeric($id)) {
-        $allowedSortFields = ['userid', 'company', 'email'];
-        $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'userid';
+    public function get_api($id = '', $page = 0, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $warehouse_id = 0)
+    {
+        if (!is_numeric($id)) {
+            $allowedSortFields = ['userid', 'company', 'email'];
+            $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'userid';
 
-        // Conta o total
-        $this->db->select('COUNT(*) as total');
-        if (!empty($search)) {
-            $this->db->like('company', $search);
+
+            // Conta o total
+            $this->db->select('COUNT(*) as total');
+            if (!empty($search)) {
+                $this->db->like('company', $search);
+            }
+            $total = $this->db->get(db_prefix() . 'clients')->row()->total;
+            $this->db->where('clients.warehouse_id', $warehouse_id);
+
+
+            // Busca os dados com paginação
+            if (!empty($search)) {
+                $this->db->like('company', $search);
+            }
+            $this->db->order_by($sortField, $sortOrder);
+
+            // Certifique-se de que o valor de `$page` seja sempre maior ou igual a 1.
+            $offset = ($page > 1) ? ($page - 1) * $limit : 0;
+
+            $this->db->limit($limit, $offset);
+
+            $clients = $this->db->get(db_prefix() . 'clients')->result();
+
+
+            return ['data' => $clients, 'total' => $total];
+        } else {
+            $this->db->where('clients.warehouse_id', $warehouse_id);
+            $client = $this->get($id);
+            return ['data' => (array) $client, 'total' => $client ? 1 : 0];
+
         }
-        $total = $this->db->get(db_prefix() . 'clients')->row()->total;
-
-        // Busca os dados com paginação
-        if (!empty($search)) {
-            $this->db->like('company', $search);
-        }
-        $this->db->order_by($sortField, $sortOrder);
-       
-        // Certifique-se de que o valor de `$page` seja sempre maior ou igual a 1.
-        $offset = ($page > 1) ? ($page - 1) * $limit : 0;
-       
-        $this->db->limit($limit, $offset);
-
-        $clients = $this->db->get(db_prefix() . 'clients')->result();
-
-     
-        return ['data' => $clients, 'total' => $total];
-    } else {
-        $client = $this->get($id);
-        return ['data' => (array) $client, 'total' => $client ? 1 : 0];
     }
-}
 
     // Busca por cidade
     public function get_api_by_city($page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
@@ -314,7 +319,7 @@ public function get_api($id = '', $page = 0, $limit = 10, $search = '', $sortFie
         return ['data' => $clients, 'total' => $total];
     }
 
-// Busca por estado
+    // Busca por estado
     public function get_api_by_state($page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
     {
         if (!empty($search)) {
@@ -1270,10 +1275,12 @@ public function get_api($id = '', $page = 0, $limit = 10, $search = '', $sortFie
                 }
             }
             foreach ($data['customer_admins'] as $n_admin_id) {
-                if (total_rows(db_prefix() . 'customer_admins', [
-                    'customer_id' => $id,
-                    'staff_id' => $n_admin_id,
-                ]) == 0) {
+                if (
+                    total_rows(db_prefix() . 'customer_admins', [
+                        'customer_id' => $id,
+                        'staff_id' => $n_admin_id,
+                    ]) == 0
+                ) {
                     $this->db->insert(db_prefix() . 'customer_admins', [
                         'customer_id' => $id,
                         'staff_id' => $n_admin_id,
@@ -2089,11 +2096,13 @@ public function get_api($id = '', $page = 0, $limit = 10, $search = '', $sortFie
                 ->set_merge_fields($merge_fields)
                 ->send();
 
-            if (add_notification([
-                'touserid' => $member['staffid'],
-                'description' => 'not_customer_uploaded_file',
-                'link' => 'clients/client/' . $customer_id . '?group=attachments',
-            ])) {
+            if (
+                add_notification([
+                    'touserid' => $member['staffid'],
+                    'description' => 'not_customer_uploaded_file',
+                    'link' => 'clients/client/' . $customer_id . '?group=attachments',
+                ])
+            ) {
                 array_push($notifiedUsers, $member['staffid']);
             }
         }

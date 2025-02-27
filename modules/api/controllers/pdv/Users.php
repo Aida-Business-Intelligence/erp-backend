@@ -113,11 +113,13 @@ class Users extends REST_Controller
 //    }
     public function list_post($id = '')
     {
-        $page = $this->post('page') ? (int) $this->post('page') : 1; // Página atual, padrão 1
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 25; // Itens por página, padrão 10
-        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'staffid'; // Campo para ordenação, padrão 'staffid'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $page = $this->post('page') ? (int) $this->post('page') : 0;
+        $page = $page + 1;
+
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: ''; // Alterado para this->post
+        $sortField = $this->post('sortField') ?: 'staffid'; // Alterado para this->post
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
 
         // Garantir que a pesquisa seja aplicada corretamente na consulta
         $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);

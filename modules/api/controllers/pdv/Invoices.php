@@ -31,6 +31,14 @@ class Invoices extends REST_Controller
             return;
         }
 
+        if (!isset($_POST['warehouse_id']) || empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
         try {
             $this->db->trans_start();
 
@@ -40,6 +48,7 @@ class Invoices extends REST_Controller
             }
 
             $user_id = $decodedToken['data']->user->staffid;
+            $warehouse_id = $_POST['warehouse_id'];
 
             if (empty($user_id)) {
                 throw new Exception('User ID not found in token');
@@ -50,6 +59,7 @@ class Invoices extends REST_Controller
 
             foreach ($_POST['items'] as $item) {
                 $this->db->where('id', $item['id']);
+                $this->db->where('warehouse_id', $warehouse_id);
                 $purchase_need = $this->db->get(db_prefix() . 'purchase_needs')->row();
 
                 if (!$purchase_need) {
@@ -68,6 +78,7 @@ class Invoices extends REST_Controller
                 }
 
                 $this->db->where('id', $purchase_need->item_id);
+                $this->db->where('warehouse_id', $warehouse_id);
                 $product = $this->db->get(db_prefix() . 'items')->row();
 
                 if (!$product) {
@@ -118,7 +129,8 @@ class Invoices extends REST_Controller
                 'prefix' => get_option('invoice_prefix'),
                 'number_format' => get_option('invoice_number_format'),
                 'datecreated' => date('Y-m-d H:i:s'),
-                'addedfrom' => $user_id
+                'addedfrom' => $user_id,
+                'warehouse_id' => $warehouse_id
             ];
 
             $invoice_id = $this->Invoices_model->add($invoice_data);
@@ -155,6 +167,15 @@ class Invoices extends REST_Controller
 
     public function list_post()
     {
+        $warehouse_id = $this->post('warehouse_id');
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
         $page = $this->post('page') ? (int)$this->post('page') : 1;
         $limit = $this->post('limit') ? (int)$this->post('limit') : 10;
         $search = $this->post('search') ?: '';
@@ -170,6 +191,7 @@ class Invoices extends REST_Controller
             i.total,
             i.status as invoice_status,
             i.datecreated,
+            i.warehouse_id,
             c.company as supplier_name,
             c.vat as supplier_document,
             c.phonenumber as supplier_phone,
@@ -185,6 +207,7 @@ class Invoices extends REST_Controller
         $this->db->join(db_prefix() . 'clients c', 'c.userid = i.clientid', 'left');
 
         $this->db->where('pn.id IS NOT NULL');
+        $this->db->where('i.warehouse_id', $warehouse_id);
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -242,6 +265,7 @@ class Invoices extends REST_Controller
             $this->db->from(db_prefix() . 'purchase_needs pn');
             $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
             $this->db->where('pn.invoice_id', $invoice['id']);
+            $this->db->where('pn.warehouse_id', $warehouse_id);
 
             $invoice['items'] = $this->db->get()->result_array();
         }

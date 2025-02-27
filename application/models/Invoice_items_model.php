@@ -143,7 +143,7 @@ class Invoice_items_model extends App_Model
             "$items_table.unit",
             "$items_table.sku_code",
             "$items_table.image",
-            "$items_table.barcode",
+            "$items_table.commodity_barcode",
             "$items_table.status",
             "$items_table.cost",
             "$items_table.promoPrice",

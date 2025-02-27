@@ -32,7 +32,7 @@ class Produto extends REST_Controller
     public function list_post($id = '')
     {
         $warehouse_id = $this->post('warehouse_id');
-        
+
         if (empty($warehouse_id)) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -164,8 +164,28 @@ class Produto extends REST_Controller
     {
         $raw_body = $this->input->raw_input_stream;
 
-        preg_match('/boundary=(.*)$/', $this->input->request_headers()['Content-Type'], $matches);
-        $boundary = '--' . trim($matches[1]);
+        $content_type = isset($this->input->request_headers()['Content-Type'])
+            ? $this->input->request_headers()['Content-Type']
+            : (isset($this->input->request_headers()['content-type'])
+                ? $this->input->request_headers()['content-type']
+                : null);
+
+        if (!$content_type) {
+            echo json_encode(['status' => FALSE, 'message' => 'Content-Type header is missing']);
+            return;
+        }
+
+        if (preg_match('/boundary=(.*)$/', $content_type, $matches)) {
+            if (isset($matches[1])) {
+                $boundary = '--' . trim($matches[1]);
+            } else {
+                echo json_encode(['status' => FALSE, 'message' => 'Invalid boundary in Content-Type']);
+                return;
+            }
+        } else {
+            echo json_encode(['status' => FALSE, 'message' => 'Boundary not found in Content-Type']);
+            return;
+        }
 
         $parts = explode($boundary, $raw_body);
 
@@ -363,7 +383,7 @@ class Produto extends REST_Controller
     public function groups_post()
     {
         $warehouse_id = $this->post('warehouse_id');
-        
+
         if (empty($warehouse_id)) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -408,7 +428,7 @@ class Produto extends REST_Controller
     public function subgroups_post($group_id)
     {
         $warehouse_id = $this->post('warehouse_id');
-        
+
         if (empty($warehouse_id)) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -598,8 +618,8 @@ class Produto extends REST_Controller
 
         if ($this->form_validation->run() == FALSE) {
             $message = array(
-                'status' => FALSE, 
-                'error' => $this->form_validation->error_array(), 
+                'status' => FALSE,
+                'error' => $this->form_validation->error_array(),
                 'message' => validation_errors()
             );
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
@@ -766,7 +786,7 @@ class Produto extends REST_Controller
     public function supplier_needs_post()
     {
         $warehouse_id = $this->post('warehouse_id');
-        
+
         if (empty($warehouse_id)) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Warehouse ID is required'],

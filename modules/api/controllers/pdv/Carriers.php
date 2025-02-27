@@ -1,6 +1,6 @@
 <?php
 
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
 
 /** @noinspection PhpIncludeInspection */
@@ -17,9 +17,11 @@ require __DIR__ . '/../REST_Controller.php';
  * @license         MIT
  * @link            https://github.com/chriskacerguis/codeigniter-restserver
  */
-class Carriers extends REST_Controller {
+class Carriers extends REST_Controller
+{
 
-    function __construct() {
+    function __construct()
+    {
         // Construct the parent class
         parent::__construct();
         $this->load->model('Carriers_model');
@@ -72,7 +74,8 @@ class Carriers extends REST_Controller {
      *       "message": "No data were found"
      *     }
      */
-    public function list_post($id = '') {
+    public function list_post($id = '')
+    {
         $page = $this->get('page') ? (int) $this->get('page') : 1; // Página atual, padrão 1
         $limit = $this->get('limit') ? (int) $this->get('limit') : 10; // Itens por página, padrão 10
         $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
@@ -88,7 +91,7 @@ class Carriers extends REST_Controller {
             $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
         }
     }
-    
+
     public function get_get($id = '')
     {
         if (empty($id) || !is_numeric($id)) {
@@ -195,10 +198,11 @@ class Carriers extends REST_Controller {
      *     }
      *
      */
-    public function create_post() {
+    public function create_post()
+    {
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-     
+
 
         $this->load->model('Carriers_model');
         $this->form_validation->set_rules('nome', 'nome', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Company'));
@@ -209,10 +213,10 @@ class Carriers extends REST_Controller {
         } else {
 
             $output = $this->Carriers_model->add($_POST);
-        
+
             if ($output > 0 && !empty($output)) {
                 // success
-                $message = array('status' => TRUE, 'message' => 'Carrier add successful.', 'data'=>$output);
+                $message = array('status' => TRUE, 'message' => 'Carrier add successful.', 'data' => $output);
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 $this->response('Error', REST_Controller::HTTP_NOT_ACCEPTABLE);
@@ -249,26 +253,55 @@ class Carriers extends REST_Controller {
      *       "message": "Customer Delete Fail."
      *     }
      */
-    public function remove_post($id = '') {
+    // public function remove_post($id = '')
+    // {
 
-        $id = $this->security->xss_clean($id);
-        if (empty($id) && !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Address ID');
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        } else {
-            // delete data
-            $this->load->model('Carriers_model');
-            $output = $this->Carriers_model->delete($id);
-            if ($output === TRUE) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Carrier Delete Successful.');
-                $this->response($message, REST_Controller::HTTP_OK);
+    //     $id = $this->security->xss_clean($id);
+    //     if (empty($id) && !is_numeric($id)) {
+    //         $message = array('status' => FALSE, 'message' => 'Invalid Address ID');
+    //         $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+    //     } else {
+    //         // delete data
+    //         $this->load->model('Carriers_model');
+    //         $output = $this->Carriers_model->delete($id);
+    //         if ($output === TRUE) {
+    //             // success
+    //             $message = array('status' => TRUE, 'message' => 'Carrier Delete Successful.');
+    //             $this->response($message, REST_Controller::HTTP_OK);
+    //         } else {
+    //             // error
+    //             $message = array('status' => FALSE, 'message' => 'Carrier Delete Fail.');
+    //             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+    //         }
+    //     }
+    // }
+
+    public function remove_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST['rows']) || !is_array($_POST['rows'])) {
+            $this->response(['status' => FALSE, 'message' => 'Invalid request: rows array is required'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $ids = array_filter($_POST['rows'], 'is_numeric');
+        $success_count = 0;
+        $failed_ids = [];
+
+        foreach ($ids as $id) {
+            if ($this->Carriers_model->delete($id)) {
+                $success_count++;
             } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Carrier Delete Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+                $failed_ids[] = $id;
             }
         }
+
+        $this->response([
+            'status' => $success_count > 0,
+            'message' => $success_count . 'Carrier(s) deleted successfully',
+            'failed_ids' => $failed_ids
+        ], $success_count > 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_NOT_FOUND);
     }
 
     /**
@@ -346,32 +379,96 @@ class Carriers extends REST_Controller {
      *       "message": "Customer Update Fail."
      *     }
      */
-    public function update_post($id = '') {
+    // public function update_post($id = '')
+    // {
+    //     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+    //     if (empty($_POST) || !isset($_POST)) {
+    //         $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+    //         $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+    //     }
+    //     $this->form_validation->set_data($_POST);
+
+    //     if (empty($id) && !is_numeric($id)) {
+    //         $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
+    //         $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+    //     } else {
+    //         $update_data = $this->input->post();
+    //         // update data
+    //         $this->load->model('Carriers_model');
+    //         $output = $this->Carriers_model->update($update_data, $id);
+    //         if ($output > 0 && !empty($output)) {
+    //             // success
+    //             $message = array('status' => TRUE, 'message' => 'Carriers Update Successful.', 'data' => $this->Carriers_model->get($id));
+    //             $this->response($message, REST_Controller::HTTP_OK);
+    //         } else {
+    //             // error
+    //             $message = array('status' => FALSE, 'message' => 'Carriers Update Fail.');
+    //             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+    //         }
+    //     }
+    // }
+
+    public function update_post($id = '')
+    {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        if (empty($_POST) || !isset($_POST)) {
-            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
-            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        if (empty($_POST) || !is_numeric($id)) {
+            $this->response(['status' => FALSE, 'message' => 'Invalid Carrier ID or Data'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
         }
-        $this->form_validation->set_data($_POST);
 
-        if (empty($id) && !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        // Ajustar os campos permitidos para atualização
+        $update_data = array_intersect_key($_POST, array_flip([
+            'nome',
+            'tipo',
+            'vat',
+            'cidade',
+            'estado',
+            'status',
+            'franqueado_id',
+            'documentType',
+            'placa',
+            'renavam',
+            'marca',
+            'modelo',
+            'ano',
+            'tipo_veiculo',
+            'capacidade',
+            'ultima_manutencao',
+            'proxima_manutencao',
+            'observacoes',
+            'nome_motorista',
+            'cpf_motorista',
+            'rg_motorista',
+            'data_nascimento',
+            'cnh_motorista',
+            'categoria_cnh',
+            'validade_cnh',
+            'mopp',
+            'endereco_motorista',
+            'cidade_motorista',
+            'estado_motorista',
+            'cep_motorista',
+            'telefone_motorista',
+            'celular_motorista',
+            'email_motorista'
+        ]));
+
+        var_dump($update_data);
+
+        // Verificar se há dados para atualizar
+        if (empty($update_data)) {
+            $this->response(['status' => FALSE, 'message' => 'No valid data to update'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        // Atualizar o armazém
+        $output = $this->Carriers_model->update($update_data, $id);
+        if ($output) {
+            $this->response(['status' => TRUE, 'message' => 'Carriers updated successfully', 'data' => $this->Carriers_model->get($id)], REST_Controller::HTTP_OK);
         } else {
-            $update_data = $this->input->post();
-            // update data
-            $this->load->model('Carriers_model');
-            $output = $this->Carriers_model->update($update_data, $id);
-            if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data'=>$this->Carriers_model->get($id));
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            }
+            $this->response(['status' => FALSE, 'message' => 'Failed to update Carriers'], REST_Controller::HTTP_NOT_FOUND);
         }
     }
 }

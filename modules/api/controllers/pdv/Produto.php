@@ -31,6 +31,16 @@ class Produto extends REST_Controller
 
     public function list_post($id = '')
     {
+        $warehouse_id = $this->post('warehouse_id');
+        
+        if (empty($warehouse_id)) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -62,31 +72,18 @@ class Produto extends REST_Controller
             $start_date,
             $end_date,
             $category,
-            $subcategory
+            $subcategory,
+            $warehouse_id
         );
 
-        if ($data['total'] == 0) {
-            $this->response(
-                ['status' => FALSE, 'message' => 'No data were found'],
-                REST_Controller::HTTP_NOT_FOUND
-            );
-        } else {
-            if ($data) {
-                $this->response(
-                    [
-                        'status' => true,
-                        'total' => $data['total'],
-                        'data' => $data['data']
-                    ],
-                    REST_Controller::HTTP_OK
-                );
-            } else {
-                $this->response(
-                    ['status' => FALSE, 'message' => 'No data were found'],
-                    REST_Controller::HTTP_NOT_FOUND
-                );
-            }
-        }
+        $this->response(
+            [
+                'status' => true,
+                'total' => $data['total'] ?? 0,
+                'data' => $data['data'] ?? []
+            ],
+            REST_Controller::HTTP_OK
+        );
     }
 
     public function create_post()
@@ -94,6 +91,14 @@ class Produto extends REST_Controller
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST['warehouse_id'])) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
 
         $product_data = [
             'description' => $_POST['description'] ?? null,
@@ -113,6 +118,7 @@ class Produto extends REST_Controller
             'stock' => $_POST['stock'] ?? 0,
             'minStock' => $_POST['minStock'] ?? 0,
             'product_unit' => $_POST['product_unit'] ?? null,
+            'warehouse_id' => $_POST['warehouse_id'],
             'createdAt' => date('Y-m-d H:i:s'),
             'updatedAt' => date('Y-m-d H:i:s')
         ];
@@ -122,6 +128,7 @@ class Produto extends REST_Controller
         $this->form_validation->set_rules('rate', 'Rate', 'numeric');
         $this->form_validation->set_rules('stock', 'Stock', 'numeric');
         $this->form_validation->set_rules('minStock', 'Minimum Stock', 'numeric');
+        $this->form_validation->set_rules('warehouse_id', 'Warehouse', 'required|numeric');
 
         if ($this->form_validation->run() == FALSE) {
             $message = [
@@ -355,16 +362,27 @@ class Produto extends REST_Controller
 
     public function groups_post()
     {
+        $warehouse_id = $this->post('warehouse_id');
+        
+        if (empty($warehouse_id)) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
         $page = $this->post('page') ? (int) $this->post('page') : 1;
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: '';
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
         $this->db->select('g.*, 
-            (SELECT COUNT(*) FROM ' . db_prefix() . 'wh_sub_group WHERE group_id = g.id) as subcategories_count,
-            (SELECT COUNT(*) FROM ' . db_prefix() . 'items WHERE group_id = g.id) as total_products
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'wh_sub_group WHERE group_id = g.id AND warehouse_id = ' . $this->db->escape($warehouse_id) . ') as subcategories_count,
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'items WHERE group_id = g.id AND warehouse_id = ' . $this->db->escape($warehouse_id) . ') as total_products
         ');
         $this->db->from(db_prefix() . 'items_groups g');
+        $this->db->where('g.warehouse_id', $warehouse_id);
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -380,31 +398,59 @@ class Produto extends REST_Controller
 
         $groups = $this->db->get()->result_array();
 
-        if ($total > 0) {
-            $this->response([
-                'status' => TRUE,
-                'total' => $total,
-                'data' => $groups
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No groups were found'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
+        $this->response([
+            'status' => TRUE,
+            'total' => $total,
+            'data' => $groups
+        ], REST_Controller::HTTP_OK);
     }
 
     public function subgroups_post($group_id)
     {
+        $warehouse_id = $this->post('warehouse_id');
+        
+        if (empty($warehouse_id)) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
+        if (empty($group_id)) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Group ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
+        // First verify if the group belongs to this warehouse
+        $this->db->where('id', $group_id);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $group = $this->db->get(db_prefix() . 'items_groups')->row();
+
+        if (!$group) {
+            $this->response([
+                'status' => TRUE,
+                'total' => 0,
+                'data' => []
+            ], REST_Controller::HTTP_OK);
+            return;
+        }
+
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: '';
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
-        $this->db->select('*');
-        $this->db->from(db_prefix() . 'wh_sub_group');
-        $this->db->where('group_id', $group_id);
+        $this->db->select('sg.*, 
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'items WHERE group_id = ' . $this->db->escape($group_id) . ' 
+            AND warehouse_id = ' . $this->db->escape($warehouse_id) . ') as total_products');
+        $this->db->from(db_prefix() . 'wh_sub_group sg');
+        $this->db->where('sg.group_id', $group_id);
+        $this->db->where('sg.warehouse_id', $warehouse_id);
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -420,18 +466,11 @@ class Produto extends REST_Controller
 
         $subgroups = $this->db->get()->result_array();
 
-        if ($total > 0) {
-            $this->response([
-                'status' => TRUE,
-                'total' => $total,
-                'data' => $subgroups
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No subgroups were found'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
+        $this->response([
+            'status' => TRUE,
+            'total' => $total,
+            'data' => $subgroups
+        ], REST_Controller::HTTP_OK);
     }
 
 
@@ -546,18 +585,32 @@ class Produto extends REST_Controller
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
+        if (empty($_POST['warehouse_id'])) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
         $this->form_validation->set_rules('name', 'Name', 'trim|required|max_length[100]');
+        $this->form_validation->set_rules('warehouse_id', 'Warehouse', 'required|numeric');
 
         if ($this->form_validation->run() == FALSE) {
-            $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
+            $message = array(
+                'status' => FALSE, 
+                'error' => $this->form_validation->error_array(), 
+                'message' => validation_errors()
+            );
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
+            $_POST['warehouse_id'] = (int)$_POST['warehouse_id'];
             $output = $this->Invoice_items_model->add_group($_POST);
             if ($output > 0 && !empty($output)) {
-                $message = array('status' => 'success', 'message' => 'Group add sucess');
+                $message = array('status' => 'success', 'message' => 'Group added successfully');
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                $message = array('status' => FALSE, 'message' => 'Group add fail.');
+                $message = array('status' => FALSE, 'message' => 'Failed to add group.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
         }
@@ -569,8 +622,17 @@ class Produto extends REST_Controller
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
+        if (empty($_POST['warehouse_id'])) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
         $this->form_validation->set_rules('group_id', 'Group ID', 'trim|required|numeric');
         $this->form_validation->set_rules('sub_group_name', 'Subgroup Name', 'trim|required|max_length[100]');
+        $this->form_validation->set_rules('warehouse_id', 'Warehouse', 'required|numeric');
 
         if ($this->form_validation->run() == FALSE) {
             $message = array(
@@ -578,30 +640,45 @@ class Produto extends REST_Controller
                 'error' => $this->form_validation->error_array(),
                 'message' => validation_errors()
             );
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        } else {
-            $data = array(
-                'group_id' => $_POST['group_id'],
-                'sub_group_name' => $_POST['sub_group_name'],
-                'display' => 1,
-                'order' => 0
-            );
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
 
-            $output = $this->Invoice_items_model->add_subgroup($data);
-            if ($output > 0 && !empty($output)) {
-                $message = array(
-                    'status' => 'success',
-                    'message' => 'Subgroup added successfully',
-                    'id' => $output
-                );
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                $message = array(
-                    'status' => FALSE,
-                    'message' => 'Failed to add subgroup'
-                );
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            }
+        // Verify if the group belongs to this warehouse
+        $this->db->where('id', $_POST['group_id']);
+        $this->db->where('warehouse_id', $_POST['warehouse_id']);
+        $group = $this->db->get(db_prefix() . 'items_groups')->row();
+
+        if (!$group) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Group not found in this warehouse'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $data = array(
+            'group_id' => $_POST['group_id'],
+            'sub_group_name' => $_POST['sub_group_name'],
+            'warehouse_id' => $_POST['warehouse_id'],
+            'display' => 1,
+            'order' => 0
+        );
+
+        $output = $this->Invoice_items_model->add_subgroup($data);
+        if ($output > 0 && !empty($output)) {
+            $message = array(
+                'status' => 'success',
+                'message' => 'Subgroup added successfully',
+                'id' => $output
+            );
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array(
+                'status' => FALSE,
+                'message' => 'Failed to add subgroup'
+            );
+            $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -688,6 +765,16 @@ class Produto extends REST_Controller
 
     public function supplier_needs_post()
     {
+        $warehouse_id = $this->post('warehouse_id');
+        
+        if (empty($warehouse_id)) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
         $this->db->select('
             c.userid as supplier_id,
             c.company as supplier_name,
@@ -703,7 +790,9 @@ class Produto extends REST_Controller
         $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid');
         $this->db->where('pn.status', 0);
         $this->db->where('c.is_supplier', 1);
+        $this->db->where('i.warehouse_id', $warehouse_id);
         $this->db->group_by('c.userid');
+        $this->db->having('COUNT(DISTINCT pn.id) > 0');
 
         $suppliers = $this->db->get()->result_array();
 
@@ -716,11 +805,20 @@ class Produto extends REST_Controller
     public function check_stock_post()
     {
         $supplier_id = $this->post('supplier_id');
+        $warehouse_id = $this->post('warehouse_id');
 
         if (empty($supplier_id)) {
             $this->response([
                 'status' => FALSE,
                 'message' => 'Supplier ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
             ], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
@@ -749,17 +847,10 @@ class Produto extends REST_Controller
         $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid', 'left');
         $this->db->where('pn.status', 0);
         $this->db->where('i.userid', $supplier_id);
+        $this->db->where('i.warehouse_id', $warehouse_id);
         $this->db->where('c.is_supplier', 1);
 
         $products = $this->db->get()->result_array();
-
-        if (empty($products)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No purchase needs found for this supplier'
-            ], REST_Controller::HTTP_NOT_FOUND);
-            return;
-        }
 
         $total_cost = 0;
         $purchase_needs = [];
@@ -791,8 +882,8 @@ class Produto extends REST_Controller
 
         $supplier_info = [
             'supplier_id' => $supplier_id,
-            'supplier_name' => $products[0]['supplier_name'],
-            'supplier_document' => $products[0]['supplier_document'],
+            'supplier_name' => empty($products) ? '' : $products[0]['supplier_name'],
+            'supplier_document' => empty($products) ? '' : $products[0]['supplier_document'],
             'total_items' => count($products),
             'total_quantity' => array_sum(array_column($products, 'qtde')),
             'total_cost' => $total_cost,
@@ -807,6 +898,14 @@ class Produto extends REST_Controller
 
     public function import_post()
     {
+        if (empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
         if (!isset($_FILES['file']) || empty($_FILES['file'])) {
             $this->response([
                 'status' => FALSE,
@@ -889,7 +988,7 @@ class Produto extends REST_Controller
 
             foreach ($rows as $index => $row) {
                 $current_row = $index + 2;
-                $product_data = [];
+                $product_data = ['warehouse_id' => $_POST['warehouse_id']];
 
                 foreach ($mapping as $field => $csv_column) {
                     $column_index = array_search($csv_column, $headers);

@@ -83,7 +83,8 @@ class Invoices extends REST_Controller
                     'qty' => $purchase_need->qtde,
                     'rate' => $product->cost,
                     'unit' => $product->unit,
-                    'item_id' => $product->id
+                    'item_id' => $product->id,
+                    'order' => count($newitems) + 1
                 ];
             }
 

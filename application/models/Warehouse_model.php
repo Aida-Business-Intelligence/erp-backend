@@ -76,6 +76,7 @@ class Warehouse_model extends App_Model
 
             $this->db->reset_query();
             $this->db->from(db_prefix() . 'warehouse');
+            $this->db->where('warehouse.franqueado_id', $franqueado_id); // Filtro por franqueado_id na contagem
 
             if (!empty($search)) {
                 $this->db->group_start();

@@ -56,18 +56,15 @@ class Cash extends REST_Controller
     }
     public function list_post($id = '')
     {
-
-
-
-        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
-
+        $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: ''; // Alterado para this->post
+        $sortField = $this->post('sortField') ?: 'id'; // Alterado para this->post
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
         $warehouse_id = $this->post('warehouse_id') ?: 0; // Se não vier, define como 0
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
-        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'number'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+
         $data = $this->cashs_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
 
         if ($data['total'] == 0) {

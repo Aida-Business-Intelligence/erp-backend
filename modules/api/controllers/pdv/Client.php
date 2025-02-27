@@ -77,27 +77,16 @@ class Client extends REST_Controller
     public function list_post($id = '')
     {
 
-
-        /*
-          $this->load->model('clients_model');
-
-          $this->clients_model->add_import_items();
-          exit;
-         * 
-         */
-
-        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
-
+        $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: ''; // Alterado para this->post
+        $sortField = $this->post('sortField') ?: 'userid'; // Alterado para this->post
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
         $warehouse_id = $this->post('warehouse_id') ?: 0;
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
-        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+
         $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
-
-
 
         if ($data['total'] == 0) {
 

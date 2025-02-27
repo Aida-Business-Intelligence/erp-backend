@@ -85,6 +85,7 @@ class Cashs_model extends App_Model
             $this->db->reset_query();
 
             $this->db->from(db_prefix() . 'cashs');
+            $this->db->where('cashs.warehouse_id', $warehouse_id); // Filtro por franqueado_id na contagem
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
 
             if (!empty($search)) {

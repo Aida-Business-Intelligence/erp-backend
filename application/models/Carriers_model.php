@@ -61,10 +61,9 @@ class Carriers_model extends App_Model
                 $this->db->like(db_prefix() . 'carriers.nome', $search);
                 $this->db->or_like(db_prefix() . 'carriers.id', $search);
                 $this->db->or_like(db_prefix() . 'carriers.tipo', $search);
-                $this->db->or_like(db_prefix() . 'carriers.cnpj_placa', $search);
+                $this->db->or_like(db_prefix() . 'carriers.vat', $search);
                 $this->db->or_like(db_prefix() . 'carriers.cidade', $search);
                 $this->db->or_like(db_prefix() . 'carriers.estado', $search);
-                $this->db->or_like(db_prefix() . 'carriers.motorista', $search);
                 $this->db->group_end();
             }
 
@@ -76,16 +75,16 @@ class Carriers_model extends App_Model
             // Contagem de total de registros
             $this->db->reset_query();
             $this->db->from(db_prefix() . 'carriers');
+            $this->db->where('carriers.franqueado_id', $franqueado_id); // Filtro por franqueado_id na contagem
 
             if (!empty($search)) {
                 $this->db->group_start();
                 $this->db->like(db_prefix() . 'carriers.nome', $search);
                 $this->db->or_like(db_prefix() . 'carriers.id', $search);
                 $this->db->or_like(db_prefix() . 'carriers.tipo', $search);
-                $this->db->or_like(db_prefix() . 'carriers.cnpj_placa', $search);
+                $this->db->or_like(db_prefix() . 'carriers.vat', $search);
                 $this->db->or_like(db_prefix() . 'carriers.cidade', $search);
                 $this->db->or_like(db_prefix() . 'carriers.estado', $search);
-                $this->db->or_like(db_prefix() . 'carriers.motorista', $search);
                 $this->db->group_end();
             }
 

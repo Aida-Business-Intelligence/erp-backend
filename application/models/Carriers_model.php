@@ -49,11 +49,12 @@ class Carriers_model extends App_Model
     }
 
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $franqueado_id = 0)
     {
         if (!is_numeric($id)) {
             $this->db->select('*'); // Seleciona todos os campos
             $this->db->from(db_prefix() . 'carriers'); // Define a tabela
+            $this->db->where('carriers.franqueado_id', value: $franqueado_id);
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -95,6 +96,7 @@ class Carriers_model extends App_Model
             $this->db->select('*');
             $this->db->from(db_prefix() . 'carriers');
             $this->db->where(db_prefix() . 'carriers.id', $id);
+            $this->db->where('carriers.franqueado_id', value: $franqueado_id);
 
             $client = $this->db->get()->row();
             $total = $client ? 1 : 0;

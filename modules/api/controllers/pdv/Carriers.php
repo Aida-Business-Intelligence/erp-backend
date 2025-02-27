@@ -81,9 +81,10 @@ class Carriers extends REST_Controller
         $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
         $sortField = $this->get('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
         $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $franqueado_id = $this->post('franqueado_id') ?: 0;
 
 
-        $data = $this->Carriers_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        $data = $this->Carriers_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $franqueado_id);
 
         if ($data) {
             $this->response(['total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);

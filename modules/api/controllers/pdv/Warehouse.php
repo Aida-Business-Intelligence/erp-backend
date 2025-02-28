@@ -103,7 +103,7 @@ class Warehouse extends REST_Controller
     {
 
         // Chamada ao modelo
-        $data = $this->Warehouse_model->get($id);
+        $data = $this->Warehouse_model->get('', array('franqueado_id'=>$id));
 
         // Verifica se encontrou dados
         if (empty($data)) {

@@ -82,10 +82,10 @@ class Cash extends REST_Controller
 
     }
 
-    public function list_inactive_get()
+    public function list_inactive_get($warehouse_id)
     {
 
-        $data = $this->cashs_model->get_inactive();
+        $data = $this->cashs_model->get_inactive($warehouse_id);
 
         if ($data['total'] == 0) {
 
@@ -474,14 +474,18 @@ class Cash extends REST_Controller
 
     public function active_patch()
     {
+        
+        
 
 
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
+        $caixaId= $_POST['caixaId'];
         $valor = $_POST['valor'];
+        $warehouse_id = $_POST['warehouse_id'];
         $status = $_POST['status'];
-        $client_id = $_POST['client_id'];
+        $client_id = @$_POST['client_id'];
         $status_txt_caixa = $status == 0 ? "Fechado" : "Aberto";
         $status_caixa = $status == 0 ? "close_cash" : "open_cash";
         $nota_caixa = $status == 0 ? "Fechado de Caixa" : "Abertura de Caixa";
@@ -501,7 +505,8 @@ class Cash extends REST_Controller
                 'message' => 'Senha inválida'
             ], REST_Controller::HTTP_OK);
         }
-        $detalhes_caixa = $this->cashs_model->get_by_number($number);
+    
+        $detalhes_caixa = $this->cashs_model->get_by_id($caixaId);
 
         if ($status == 1) {
 

@@ -56,6 +56,16 @@ class Cashs_model extends App_Model
 
         return $client;
     }
+    
+     public function get_by_id($id)
+    {
+
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->where('cashs.id', $id);
+        $client = $this->db->get()->row();
+
+        return $client;
+    }
 
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
     {
@@ -115,7 +125,7 @@ class Cashs_model extends App_Model
             return ['data' => (array) $client, 'total' => $total];
         }
     }
-    public function get_inactive()
+    public function get_inactive($warehouse_id)
     {
         // JOIN com a tabela staff
         //  $this->db->select('cashs.*, staff.firstname, staff.lastname');
@@ -124,6 +134,7 @@ class Cashs_model extends App_Model
         // Filtra somente as caixas ativas (status=1)
         $this->db->where('cashs.status', '0');
         $this->db->where('cashs.active', '0');
+        $this->db->where('cashs.warehouse_id', $warehouse_id);
 
         // Ordena os resultados
         $this->db->order_by('cashs.number');

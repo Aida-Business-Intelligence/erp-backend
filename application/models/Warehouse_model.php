@@ -21,6 +21,7 @@ class Warehouse_model extends App_Model
 
     public function get($id = '', $where = [])
     {
+        
         $this->db->select(implode(',', prefixed_table_fields_array(db_prefix() . 'warehouse')));
 
         if ((is_array($where) && count($where) > 0) || (is_string($where) && $where != '')) {

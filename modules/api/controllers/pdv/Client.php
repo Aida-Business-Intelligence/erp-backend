@@ -77,26 +77,16 @@ class Client extends REST_Controller
     public function list_post($id = '')
     {
 
-
-        /*
-          $this->load->model('clients_model');
-
-          $this->clients_model->add_import_items();
-          exit;
-         * 
-         */
-
-        $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
-
+        $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
-        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-        $sortField = $this->post('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-        $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
-        
-       
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: ''; // Alterado para this->post
+        $sortField = $this->post('sortField') ?: 'userid'; // Alterado para this->post
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
+        $warehouse_id = $this->post('warehouse_id') ?: 0;
+
+        $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
 
         if ($data['total'] == 0) {
 
@@ -201,46 +191,52 @@ class Client extends REST_Controller
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $_input['vat'] = $_POST['documentNumber'] ?? null;
-        $_input['email_default'] = $_POST['email'] ?? null;
-        $_input['phonenumber'] = $_POST['primaryPhone'] ?? null;
-        $_input['zip'] = $_POST['cep'] ?? null;
-        $_input['billing_street'] = $_POST['street'] ?? null;
-        $_input['billing_city'] = $_POST['city'] ?? null;
-        $_input['billing_state'] = $_POST['state'] ?? null;
-        $_input['billing_number'] = $_POST['number'] ?? null;
-        $_input['billing_complement'] = $_POST['complement'] ?? null;
-        $_input['billing_neighborhood'] = $_POST['neighborhood'] ?? null;
+        // Adiciona o warehouse_id ao array de entrada, se presente
+        $_input['warehouse_id'] = $_POST['warehouse_id'] ?? null;
+
+        // Outros campos do cliente
+        $_input['vat'] = $_POST['vat'] ?? null;
+        $_input['email_default'] = $_POST['email_default'] ?? null;
+        $_input['phonenumber'] = $_POST['phonenumber'] ?? null;
+        $_input['documentType'] = $_POST['documentType'] ?? null;
+        $_input['zip'] = $_POST['zip'] ?? null;
+        $_input['birthDate'] = $_POST['birthDate'] ?? null;
+        $_input['billing_street'] = $_POST['billing_street'] ?? null;
+        $_input['gender'] = $_POST['gender'] ?? null;
+        $_input['billing_city'] = $_POST['billing_city'] ?? null;
+        $_input['billing_state'] = $_POST['billing_state'] ?? null;
+        $_input['billing_number'] = $_POST['billing_number'] ?? null;
+        $_input['billing_complement'] = $_POST['billing_complement'] ?? null;
+        $_input['billing_neighborhood'] = $_POST['billing_neighborhood'] ?? null;
         $_input['company'] = $_POST['fullName'] ?? null;
         $_POST['company'] = $_POST['fullName'] ?? null;
 
-
-
+        // Validação de campos
         $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
-
-        // email
-        $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
-
+        $this->form_validation->set_rules('email_default', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
 
         if ($this->form_validation->run() == FALSE) {
-            // form validation error
+            // Validação falha
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
-
+            // Chama o modelo para inserir os dados no banco
 
             $output = $this->clients_model->add($_input);
+            var_dump($output);
+            exit;
             if ($output > 0 && !empty($output)) {
-                // success
+                // Sucesso
                 $message = array('status' => 'success', 'message' => 'auth_signup_success', 'data' => $this->clients_model->get($output));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                // error
+                // Erro
                 $message = array('status' => FALSE, 'message' => 'Client add fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
         }
     }
+
 
     /**
      * @api {delete} api/delete/customers/:id Delete a Customer
@@ -455,7 +451,7 @@ class Client extends REST_Controller
      *       "message": "Customer Update Fail."
      *     }
      */
-    public function update_put($id = '')
+    public function update_post($id = '')
     {
 
 

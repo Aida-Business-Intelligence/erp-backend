@@ -449,12 +449,11 @@ class Expenses extends REST_Controller
   public function categories_get()
   {
 
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
-
     $this->load->model('expenses_model');
 
-    try {
+  
       $categories = $this->expenses_model->get_category();
+  
 
       if (empty($categories)) {
         $this->response([
@@ -468,14 +467,7 @@ class Expenses extends REST_Controller
         'status' => TRUE,
         'data' => $categories
       ], REST_Controller::HTTP_OK);
-    } catch (Exception $e) {
-      $this->response([
-        'status' => FALSE,
-        'message' => 'Erro ao buscar categorias',
-        'error' => $e->getMessage()
-      ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-      return;
-    }
+     
   }
 
 

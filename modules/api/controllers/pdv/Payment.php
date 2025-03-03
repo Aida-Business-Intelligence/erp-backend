@@ -129,7 +129,7 @@ class Payment extends REST_Controller
                  'qty'=>$item['quantidade'],
                  'rate'=>$item['precoUnitario'],
                  'subtotal'=>$item['subtotal'],
-                 'discount'=>$item['precoUnitario'] - $item['subtotal'],
+                 'discount'=>$item['desconto'],
                  'unit'=>'UN',
                  'item_order'=>$item_order,
                  );

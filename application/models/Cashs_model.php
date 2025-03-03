@@ -56,13 +56,24 @@ class Cashs_model extends App_Model
 
         return $client;
     }
+    
+     public function get_by_id($id)
+    {
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->where('cashs.id', $id);
+        $client = $this->db->get()->row();
+
+        return $client;
+    }
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
     {
         if (!is_numeric($id)) {
             $this->db->select('cashs.*, staff.firstname, staff.lastname');
             $this->db->from(db_prefix() . 'cashs');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+            $this->db->where('cashs.warehouse_id', $warehouse_id);
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -84,6 +95,7 @@ class Cashs_model extends App_Model
             $this->db->reset_query();
 
             $this->db->from(db_prefix() . 'cashs');
+            $this->db->where('cashs.warehouse_id', $warehouse_id); // Filtro por franqueado_id na contagem
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
 
             if (!empty($search)) {
@@ -105,6 +117,7 @@ class Cashs_model extends App_Model
             $this->db->from(db_prefix() . 'cashs');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
             $this->db->where('cashs.id', $id);
+            $this->db->where('cashs.warehouse_id', $warehouse_id);
 
             $client = $this->db->get()->row();
             $total = $client ? 1 : 0;
@@ -112,7 +125,7 @@ class Cashs_model extends App_Model
             return ['data' => (array) $client, 'total' => $total];
         }
     }
-    public function get_inactive()
+    public function get_inactive($warehouse_id)
     {
         // JOIN com a tabela staff
         //  $this->db->select('cashs.*, staff.firstname, staff.lastname');
@@ -121,6 +134,7 @@ class Cashs_model extends App_Model
         // Filtra somente as caixas ativas (status=1)
         $this->db->where('cashs.status', '0');
         $this->db->where('cashs.active', '0');
+        $this->db->where('cashs.warehouse_id', $warehouse_id);
 
         // Ordena os resultados
         $this->db->order_by('cashs.number');
@@ -373,6 +387,13 @@ class Cashs_model extends App_Model
         $this->db->where('number', $number);
         return $this->db->update('cashs', $data);
     }
+    
+     public function update_by_id($data, $id)
+    {
+
+        $this->db->where('id', $id);
+        return $this->db->update('cashs', $data);
+    }
 
     public function update_extracts($data, $id)
     {
@@ -495,94 +516,126 @@ class Cashs_model extends App_Model
     }
 
 
-    public function add($data)
-    {
+    public function add($data) {
+    // Iniciar transação
+    $this->db->trans_start();
 
+    // Gera hash e obtém detalhes da caixa
+    $data['hash'] = app_generate_hash();
+    $detalhes_caixa = $this->get_by_id($data['cash_id']);
+    
+    $items = isset($data['newitems']) ? $data['newitems'] : [];
+    $data['items'] = json_encode($items); // Use the correct variable for consistency
+    unset($data['newitems']);
+ // Start subtotal calculation with total
 
-        // Iniciar transação
-        $this->db->trans_start();
+    if (isset($data['discount']) && $data['discount'] > 0) {
+        // Apply discount to the total to get subtotal
+      
+        // Calculate discount percentage correctly
+        $aumentoDecimal = $data['discount'] / 100;
+        $data['discount_percentage'] =  $data['discount'];
+        $data['discount'] =  $data['total']-($data['total']*$aumentoDecimal);
+        $data['subtotal'] =  $data['total']- $data['discount'];
+        
+        
+    }
 
-        // Gera hash e obtém detalhes da caixa
-        $data['hash'] = app_generate_hash();
-        $detalhes_caixa = $this->get_by_number($data['cash_id']);
-        $data['cash_id'] = $detalhes_caixa->id;
+    // Insere a nova entrada de caixa
+    $this->db->insert(db_prefix() . 'cashextracts', $data);
+    $insert_id = $this->db->insert_id();
 
-        $items = isset($data['newitems']) ? $data['newitems'] : [];
-        unset($data['newitems']);
+    if ($insert_id) {
+        $update_data = [
+            'balance' => $detalhes_caixa->balance,
+            'balance_dinheiro' => $detalhes_caixa->balance_dinheiro
+        ];
 
-        // Insere a nova entrada de caixa
-        $this->db->insert(db_prefix() . 'cashextracts', $data);
-        $insert_id = $this->db->insert_id();
-
-        if ($insert_id) {
-            $update_data = [
-                'balance' => $detalhes_caixa->balance,
-                'balance_dinheiro' => $detalhes_caixa->balance_dinheiro
+        foreach (json_decode($data['form_payments']) as $payment) {
+            $data_payment = [
+                'cashid' => $detalhes_caixa->id,
+                'amount' => $payment->value,
+                'parcelas' => $payment->parcelas,
+                'paymentmethod' => $payment->type,
+                'note' => 'pagamento',
+                'transactionid' => app_generate_hash()
             ];
 
-            foreach (json_decode($data['form_payments']) as $payment) {
-                $data_payment = [
-                    'cashid' => $detalhes_caixa->id,
-                    'amount' => $payment->value,
-                    'parcelas' => $payment->parcelas,
-                    'paymentmethod' => $payment->type,
-                    'note' => 'pagamento',
-                    'transactionid' => app_generate_hash()
-                ];
-
-                // Atualiza os saldos com base no método de pagamento
-                if (strtolower($payment->type) == "dinheiro") {
-                    $update_data['balance_dinheiro'] += $payment->value;
-                }
-                $update_data['balance'] += $payment->value;
-
-                // Atualiza os dados da caixa
-                $this->update($update_data, $detalhes_caixa->id);
-                // Insere registro de pagamento
-                $this->db->insert(db_prefix() . 'cashpaymentrecords', $data_payment);
+            // Atualiza os saldos com base no método de pagamento
+            if (strtolower($payment->type) == "dinheiro") {
+                $update_data['balance_dinheiro'] += $payment->value;
             }
+            $update_data['balance'] += $payment->value;
 
-            foreach ($items as $item) {
-                $this->db->insert(db_prefix() . 'itemcash', [
-                    'description' => $item['description'],
-                    'long_description' => nl2br($item['description']),
-                    'qty' => $item['qty'],
-                    'rate' => number_format($item['rate'], get_decimal_places(), '.', ''),
-                    'item_id' => $item['id'],
-                    'cash_id' => $detalhes_caixa->id,
-                    'item_order' => $item['item_order'],
-                    'unit' => $item['unit']
-                ]);
-
-                $warehouse_id = 1;
-                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $warehouse_id);
-
-                $data_itemstocksmov = [
-                    'itemstock_id' => $id_itemstocks,
-                    'qtde' => $item['qty'],
-                    'transaction_id' => $detalhes_caixa->id,
-                    'hash' => $data['hash'],
-                    'user_id' => $data['user_id'],
-                    'obs' => 'pagamento',
-                    'type_transaction' => 'cash'
-                ];
-                $this->db->insert(db_prefix() . 'itemstocksmov', $data_itemstocksmov);
-            }
-
-            // Finaliza a transação
-            $this->db->trans_complete();
-
-            // Verifica se a transação foi bem-sucedida
-            if ($this->db->trans_status() === TRUE) {
-                return $insert_id;
-            } else {
-                // Transação falhou, rollback é automático
-                return false;
-            }
+            // Atualiza os dados da caixa
+            $this->update($update_data, $detalhes_caixa->id);
+            // Insere registro de pagamento
+            $this->db->insert(db_prefix() . 'cashpaymentrecords', $data_payment);
         }
 
-        return false;
+        
+       
+        $discount_value=0;
+        $discount =0;
+        foreach ($items as $item) {
+            
+   
+            $total_item = ($item['rate']*$item['qty']);
+            
+              if (isset($item['discount']) && $item['discount'] > 0) {
+            $aumentoDecimal = $item['discount'] / 100;
+            $discount = $item['discount'];
+             
+            $discount_value =  ($total_item*$aumentoDecimal);
+             
+            
+            
+            
+             }
+             $subtotal =   ($total_item - $discount_value);
+             
+
+            $this->db->insert(db_prefix() . 'itemcash', [
+                'description' => $item['description'],
+                'long_description' => nl2br($item['description']),
+                'qty' => $item['qty'],
+                'rate' => number_format($item['rate'], get_decimal_places(), '.', ''),
+                'item_id' => $item['id'],
+                'discount' => $discount,
+                'cash_id' => $detalhes_caixa->id,
+                'item_order' => $item['item_order'],
+                'unit' => $item['unit'],
+                'total'=>$total_item,
+                'subtotal'=>$subtotal,
+                'discount_value'=>$discount_value
+            ]);
+
+            $warehouse_id = 1;
+            $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $warehouse_id);
+
+            $data_itemstocksmov = [
+                'itemstock_id' => $id_itemstocks,
+                'qtde' => $item['qty'],
+                'transaction_id' => $detalhes_caixa->id,
+                'hash' => $data['hash'],
+                'user_id' => $data['user_id'],
+                'obs' => 'pagamento',
+                'type_transaction' => 'cash'
+            ];
+            $this->db->insert(db_prefix() . 'itemstocksmov', $data_itemstocksmov);
+        }
+      
+
+        // Finaliza a transação
+        $this->db->trans_complete();
+
+        // Verifica se a transação foi bem-sucedida
+        if ($this->db->trans_status() === TRUE) {
+            return $insert_id;
+        }
     }
+    return false;
+}
 
     public function get_cash_extracts()
     {

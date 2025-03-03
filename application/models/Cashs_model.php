@@ -56,8 +56,8 @@ class Cashs_model extends App_Model
 
         return $client;
     }
-    
-     public function get_by_id($id)
+
+    public function get_by_id($id)
     {
 
         $this->db->from(db_prefix() . 'cashs');
@@ -189,6 +189,10 @@ class Cashs_model extends App_Model
 
         if (isset($filters['status']) && is_array($filters['status']) && !empty($filters['status'])) {
             $this->db->where_in('c.status', $filters['status']);
+        }
+
+        if (isset($filters['payment_type']) && !empty($filters['payment_type'])) {
+            $this->db->like('c.form_payments', $filters['payment_type']);
         }
 
         if (!empty($id)) {

@@ -102,10 +102,22 @@ class Expenses extends REST_Controller
         e.addedfrom,
         e.type,
         e.status,
-        e.warehouse_id
+        e.warehouse_id,
+        ' . db_prefix() . 'expenses_categories.name as category_name,
+        ' . db_prefix() . 'clients.company as company,
+        ' . db_prefix() . 'payment_modes.name as payment_mode_name,
+        ' . db_prefix() . 'taxes.name as tax_name,
+        ' . db_prefix() . 'taxes.taxrate as taxrate,
+        ' . db_prefix() . 'taxes_2.name as tax_name2,
+        ' . db_prefix() . 'taxes_2.taxrate as taxrate2
     ');
 
     $this->db->from(db_prefix() . 'expenses e');
+    $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
+    $this->db->join(db_prefix() . 'payment_modes', db_prefix() . 'payment_modes.id = e.paymentmode', 'left');
+    $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
+    $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
+    $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
 
     $this->db->where('e.warehouse_id', $warehouse_id);
 
@@ -182,16 +194,26 @@ class Expenses extends REST_Controller
   {
     \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    $page = $this->get('page') ? (int) $this->get('page') : 1;
-    $limit = $this->get('pageSize') ? (int) $this->get('pageSize') : 10;
+    $warehouse_id = $this->post('warehouse_id');
+
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $page = $this->post('page') ? (int) $this->post('page') : 1;
+    $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
     $offset = ($page - 1) * $limit;
 
-    $search = $this->get('search') ?: '';
-    $sortField = $this->get('sortField') ?: db_prefix() . 'expenses.id';
-    $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+    $search = $this->post('search') ?: '';
+    $sortField = $this->post('sortField') ?: db_prefix() . 'expenses.id';
+    $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
-    $start_date = $this->get('start_date');
-    $end_date = $this->get('end_date');
+    $start_date = $this->post('start_date');
+    $end_date = $this->post('end_date');
 
     $this->db->select('*,' . db_prefix() . 'expenses.id as id,' .
       db_prefix() . 'expenses_categories.name as category_name,' .
@@ -209,6 +231,8 @@ class Expenses extends REST_Controller
     $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
     $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
     $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category');
+
+    $this->db->where(db_prefix() . 'expenses.warehouse_id', $warehouse_id);
 
     if (!empty($start_date)) {
       $this->db->where('date >=', $start_date);
@@ -332,10 +356,26 @@ class Expenses extends REST_Controller
 
     log_activity('Expense Create Input: ' . json_encode($input));
 
-    if (empty($input['category']) || empty($input['amount']) || empty($input['date']) || empty($input['warehouse_id'])) {
+    // Check each required field individually for clearer error messages
+    $required_fields = [];
+
+    if (empty($input['category'])) {
+      $required_fields[] = 'category';
+    }
+    if (empty($input['amount'])) {
+      $required_fields[] = 'amount';
+    }
+    if (empty($input['date'])) {
+      $required_fields[] = 'date';
+    }
+    if (empty($input['warehouse_id'])) {
+      $required_fields[] = 'warehouse_id';
+    }
+
+    if (!empty($required_fields)) {
       $message = array(
         'status' => FALSE,
-        'message' => 'Missing required fields: category, amount, date, and warehouse_id are required'
+        'message' => 'Missing required fields: ' . implode(', ', $required_fields)
       );
       $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
       return;
@@ -436,7 +476,7 @@ class Expenses extends REST_Controller
   }
 
 
-  public function data_put()
+  public function update_put()
   {
     \modules\api\core\Apiinit::the_da_vinci_code('api');
 
@@ -523,13 +563,23 @@ class Expenses extends REST_Controller
 
   public function categories_get()
   {
-
     \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    $this->load->model('expenses_model');
+    $warehouse_id = $this->get('warehouse_id');
+
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
 
     try {
-      $categories = $this->expenses_model->get_category();
+      $this->db->select('id, name, description, warehouse_id');
+      $this->db->from(db_prefix() . 'expenses_categories');
+      $this->db->where('warehouse_id', $warehouse_id);
+      $categories = $this->db->get()->result_array();
 
       $this->response([
         'status' => TRUE,
@@ -544,6 +594,144 @@ class Expenses extends REST_Controller
     }
   }
 
+  public function category_post()
+  {
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+    $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+    if (empty($input['name']) || empty($input['warehouse_id'])) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Name and warehouse_id are required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $data = [
+      'name' => $input['name'],
+      'description' => $input['description'] ?? '',
+      'warehouse_id' => $input['warehouse_id'],
+      'perfex_saas_tenant_id' => 'master'
+    ];
+
+    try {
+      $this->db->insert(db_prefix() . 'expenses_categories', $data);
+      $category_id = $this->db->insert_id();
+
+      if ($category_id) {
+        $inserted_category = $this->db->get_where(db_prefix() . 'expenses_categories', ['id' => $category_id])->row_array();
+        $this->response([
+          'status' => TRUE,
+          'message' => 'Categoria criada com sucesso',
+          'data' => $inserted_category
+        ], REST_Controller::HTTP_CREATED);
+      } else {
+        throw new Exception('Failed to create category');
+      }
+    } catch (Exception $e) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Erro ao criar categoria',
+        'error' => $e->getMessage()
+      ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  public function category_put($id = null)
+  {
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+    if (empty($id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Category ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+    if (empty($input['name'])) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Name is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $data = [
+      'name' => $input['name'],
+      'description' => $input['description'] ?? '',
+      'warehouse_id' => $input['warehouse_id'] ?? 0
+    ];
+
+    try {
+      $this->db->where('id', $id);
+      $update_result = $this->db->update(db_prefix() . 'expenses_categories', $data);
+
+      if ($update_result) {
+        $updated_category = $this->db->get_where(db_prefix() . 'expenses_categories', ['id' => $id])->row_array();
+        $this->response([
+          'status' => TRUE,
+          'message' => 'Categoria atualizada com sucesso',
+          'data' => $updated_category
+        ], REST_Controller::HTTP_OK);
+      } else {
+        throw new Exception('Failed to update category');
+      }
+    } catch (Exception $e) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Erro ao atualizar categoria',
+        'error' => $e->getMessage()
+      ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  public function category_delete($id = null)
+  {
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+    if (empty($id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Category ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    try {
+      $this->db->where('category', $id);
+      $expense_count = $this->db->count_all_results(db_prefix() . 'expenses');
+
+      if ($expense_count > 0) {
+        $this->response([
+          'status' => FALSE,
+          'message' => 'Não é possível excluir a categoria pois existem despesas vinculadas a ela'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
+      }
+
+      $this->db->where('id', $id);
+      $delete_result = $this->db->delete(db_prefix() . 'expenses_categories');
+
+      if ($delete_result) {
+        $this->response([
+          'status' => TRUE,
+          'message' => 'Categoria excluída com sucesso'
+        ], REST_Controller::HTTP_OK);
+      } else {
+        throw new Exception('Failed to delete category');
+      }
+    } catch (Exception $e) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Erro ao excluir categoria',
+        'error' => $e->getMessage()
+      ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+  }
 
   public function remove_delete()
   {

@@ -75,6 +75,8 @@ class Produto extends REST_Controller
             $subcategory,
             $warehouse_id
         );
+        
+        if($data['total']>0){
 
         $this->response(
             [
@@ -84,6 +86,19 @@ class Produto extends REST_Controller
             ],
             REST_Controller::HTTP_OK
         );
+        }else{
+            $this->response(
+            [
+                'status' => false,
+                'message' => 'Produto não encontrado',
+                'total' => $data['total'] ?? 0,
+                'data' => $data['data'] ?? []
+            ],
+            REST_Controller::HTTP_NOT_FOUND
+        );
+            
+            
+        }
     }
 
     public function create_post()

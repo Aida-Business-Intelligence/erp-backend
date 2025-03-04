@@ -44,7 +44,7 @@ class Cash extends REST_Controller
 
 
 
-        $data = $this->cashs_model->get_by_number($id);
+        $data = $this->cashs_model->get_by_id($id);
         if ($data) {
             $this->response(['status' => true, 'total' => 1, 'data' => $data], REST_Controller::HTTP_OK);
         } else {
@@ -553,7 +553,7 @@ class Cash extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
 
-        if ($this->cashs_model->update_by_number($update_data, $number)) {
+        if ($this->cashs_model->update_by_id($update_data, $caixaId)) {
 
             $data_extract = array(
                 'client_id' => $client_id,

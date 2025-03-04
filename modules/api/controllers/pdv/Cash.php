@@ -362,6 +362,7 @@ class Cash extends REST_Controller
         $search = $this->post('search') !== null ? $this->post('search') : '';
         $sortField = $this->post('sortField') ?: 'id';
         $sortOrder = strtoupper($this->post('sortOrder')) === 'DESC' ? 'DESC' : 'ASC';
+        $warehouse_id = $this->post('warehouse_id') ?: 0;
 
         // Get additional filters
         $filters = [
@@ -373,7 +374,7 @@ class Cash extends REST_Controller
 
         $cash_id = $this->post('cash_id');
 
-        $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $cash_id);
+        $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $cash_id, $warehouse_id);
 
         // Always return HTTP_OK with the data and total, even if total is 0
         $this->response([

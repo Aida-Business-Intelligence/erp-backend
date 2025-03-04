@@ -150,13 +150,18 @@ class Cashs_model extends App_Model
         ];
     }
 
-    public function get_transactions($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $cash_id)
+    public function get_transactions($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $cash_id, $warehouse_id = '')
     {
         $this->db->from(db_prefix() . 'cashextracts as c');
         $this->db->select('c.*, clients.company, clients.vat, tblcashs.number');
         $this->db->join(db_prefix() . 'clients', 'c.client_id = clients.userid', 'left');
         $this->db->join(db_prefix() . 'cashs as tblcashs', 'c.cash_id = tblcashs.id', 'left');
         $this->db->join(db_prefix() . 'itemcash as items', 'c.cash_id = items.cash_id', 'left');
+
+        // Filtro pelo warehouse_id
+        if ($warehouse_id) {
+            $this->db->where('c.warehouse_id', $warehouse_id);
+        }
 
         if ($cash_id) {
             $this->db->reset_query();

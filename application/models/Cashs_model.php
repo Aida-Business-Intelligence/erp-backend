@@ -413,25 +413,28 @@ class Cashs_model extends App_Model
     public function update_itemstocks($qtde, $item_id, $warehouse_id)
     {
         // Retrieve the current quantity
-        $this->db->select('qtde, id');
-        $this->db->from(db_prefix() . 'itemstocks');
-        $this->db->where('item_id', $item_id);
+        $this->db->select('stock, id');
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where('id', $item_id);
         $this->db->where('warehouse_id', $warehouse_id);
         $query = $this->db->get();
+        
+     
+    
 
         if ($query->num_rows() > 0) {
             $row = $query->row();
-            $currentQuantity = $row->qtde;
+            $currentQuantity = $row->stock;
             $updatedQuantity = $currentQuantity - $qtde;
 
             // Update the quantity in the database
-            $this->db->where('item_id', $item_id);
+            $this->db->where('id', $item_id);
             $this->db->where('warehouse_id', $warehouse_id);
-            $this->db->set('qtde', $updatedQuantity);
-            $this->db->update(db_prefix() . 'itemstocks');
+            $this->db->set('stock', $updatedQuantity);
+            $this->db->update(db_prefix() . 'items');
 
             // Return the ID of the updated record
-            return $row->id;
+            return true;
         } else {
             // Handle case where no record is found
             return false; // or handle as necessary
@@ -501,9 +504,8 @@ class Cashs_model extends App_Model
                     'unit' => $item['unit'],
                 ]);
 
-                $warehouse_id = 1;
-
-                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $warehouse_id);
+            
+                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $data['warehouse_id']);
 
                 $data_itemstocksmov = array(
                     'itemstock_id' => $id_itemstocks,
@@ -531,7 +533,7 @@ class Cashs_model extends App_Model
 
     // Gera hash e obtém detalhes da caixa
     $data['hash'] = app_generate_hash();
-    $detalhes_caixa = $this->get_by_id($data['cash_id']);
+      $detalhes_caixa = $this->get_by_id($data['cash_id']);
     
     $items = isset($data['newitems']) ? $data['newitems'] : [];
     $data['items'] = json_encode($items); // Use the correct variable for consistency
@@ -548,7 +550,15 @@ class Cashs_model extends App_Model
         $data['subtotal'] =  $data['total']- $data['discount'];
         
         
+     
+      
+        $data['total'] =  $data['discount'];
+          $data['discount'] =  $data['subtotal'];
+        $data['subtotal'] = $data['total'] + $data['discount'];
+        
     }
+    
+    
 
     // Insere a nova entrada de caixa
     $this->db->insert(db_prefix() . 'cashextracts', $data);
@@ -619,11 +629,12 @@ class Cashs_model extends App_Model
                 'discount_value'=>$discount_value
             ]);
 
-            $warehouse_id = 1;
-            $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $warehouse_id);
+           
+             $this->update_itemstocks($item['qty'], $item['id'], $data['warehouse_id']);
 
             $data_itemstocksmov = [
-                'itemstock_id' => $id_itemstocks,
+                'warehouse_id' => $data['warehouse_id'],
+                'cash_id' => $data['cash_id'],
                 'qtde' => $item['qty'],
                 'transaction_id' => $detalhes_caixa->id,
                 'hash' => $data['hash'],

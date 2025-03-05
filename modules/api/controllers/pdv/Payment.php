@@ -117,6 +117,7 @@ class Payment extends REST_Controller
          $itens=  $_POST['cart'];
          $client_id=  $_POST['client_id'];
          $cash_id=  $_POST['cashId'];
+         $warehouse_id = $_POST['warehouseId'];
          $user_id = $this->authservice->user->staffid;
          $total =0;
          $item_order = 1;
@@ -146,6 +147,7 @@ class Payment extends REST_Controller
              'total'=>$total,
              'nota'=>'',
              'doc'=>$doc,
+             'warehouse_id'=>$warehouse_id,
              'newitems'=>$newitems,
              'form_payments'=>json_encode($payments),
              'operacao'=>'paid'

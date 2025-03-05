@@ -1,6 +1,6 @@
 <?php
 
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
 
 /** @noinspection PhpIncludeInspection */
@@ -18,63 +18,91 @@ require __DIR__ . '/../REST_Controller.php';
  * @license         MIT
  * @link            https://github.com/chriskacerguis/codeigniter-restserver
  */
-class Dashboard extends REST_Controller {
+class Dashboard extends REST_Controller
+{
 
-    function __construct() {
+    function __construct()
+    {
         // Construct the parent class
         parent::__construct();
         $this->load->model('cashs_model');
         $this->load->model('reports_model');
     }
 
-    public function get_post() {
+    public function get_post()
+    {
+        $warehouse_id = $this->post('warehouse_id') ?: 0;
 
+        // Vendas
         $minhas_vendas = 0;
-        $balances = $this->reports_model->get_cash_extracts();
-        foreach($balances as $b){
+        $balances = $this->reports_model->get_cash_extracts($warehouse_id);
+        foreach ($balances as $b) {
             $minhas_vendas += floatval($b['total_sum']);
         }
 
         // Pegar os valores do dia atual e anterior com segurança
         $venda_dia = 0;
         $venda_ontem = 0;
-        
-        // Encontrar valores do dia atual e anterior
-        foreach($balances as $b) {
-            if($b['sale_date'] == date('Y-m-d')) {
+
+        foreach ($balances as $b) {
+            if ($b['sale_date'] == date('Y-m-d')) {
                 $venda_dia = floatval($b['total_sum']);
             }
-            if($b['sale_date'] == date('Y-m-d', strtotime('-1 day'))) {
+            if ($b['sale_date'] == date('Y-m-d', strtotime('-1 day'))) {
                 $venda_ontem = floatval($b['total_sum']);
             }
         }
 
         // Calcular porcentagem com proteção contra divisão por zero
-        $porcent = $venda_ontem > 0 ? (($venda_dia/$venda_ontem)*100)-100 : 0;
+        $porcent = $venda_ontem > 0 ? (($venda_dia / $venda_ontem) * 100) - 100 : 0;
 
         // Despesas
         $minhas_despesas = 0;
-        $productP = $this->reports_model->get_expense_extracts();
-        foreach($productP as $s){
+        $productP = $this->reports_model->get_expense_extracts($warehouse_id);
+        foreach ($productP as $s) {
             $minhas_despesas += floatval($s['total_sum']);
         }
 
         // Pegar valores de despesas do dia atual e anterior
         $despesas_dia = 0;
         $despesas_ontem = 0;
-        
-        foreach($productP as $p) {
-            if($p['expense_date'] == date('Y-m-d')) {
+
+        foreach ($productP as $p) {
+            if ($p['expense_date'] == date('Y-m-d')) {
                 $despesas_dia = floatval($p['total_sum']);
             }
-            if($p['expense_date'] == date('Y-m-d', strtotime('-1 day'))) {
+            if ($p['expense_date'] == date('Y-m-d', strtotime('-1 day'))) {
                 $despesas_ontem = floatval($p['total_sum']);
             }
         }
 
         // Calcular porcentagem com proteção contra divisão por zero
-        $porcentB = $despesas_ontem > 0 ? (($despesas_dia/$despesas_ontem)*100) : 0;
+        $porcentB = $despesas_ontem > 0 ? (($despesas_dia / $despesas_ontem) * 100) : 0;
 
+        // Estoque
+        $minhas_prod_estoque = 0;
+        $productStock = $this->reports_model->get_prod_stock($warehouse_id);
+        foreach ($productStock as $s) {
+            $minhas_prod_estoque += floatval($s['total_sum']);
+        }
+
+        // Pegar valores de estoque do dia atual e anterior
+        $stock_dia = 0;
+        $stock_ontem = 0;
+
+        foreach ($productStock as $p) {
+            if ($p['sale_date'] == date('Y-m-d')) {
+                $stock_dia = floatval($p['total_sum']);
+            }
+            if ($p['sale_date'] == date('Y-m-d', strtotime('-1 day'))) {
+                $stock_ontem = floatval($p['total_sum']);
+            }
+        }
+
+        // Calcular porcentagem com proteção contra divisão por zero
+        $porcentC = $stock_ontem > 0 ? (($stock_dia / $stock_ontem) * 100) : 0;
+
+        // Montar a resposta
         $data = [
             "balance" => [
                 "credit" => $venda_dia,
@@ -91,11 +119,108 @@ class Dashboard extends REST_Controller {
                 "comparison" => "vs yesterday"
             ],
             "seller" => [
-                "credit" => 100,
-                "debit" => 50,
-                "total" => 50,
-                "percent" => 25,
+                "credit" => $stock_dia,
+                "debit" => 0,
+                "total" => $stock_dia,
+                "percent" => $porcentC,
                 "comparison" => "vs yesterday"
+            ],
+            "lastDays" => [
+                "balance" => [
+                    "categories" => array_column($balances, 'sale_date'),
+                    "series" => array_column($balances, 'total_sum'),
+                    "total" => $minhas_vendas
+                ],
+                "product" => [
+                    "categories" => array_column($productP, 'expense_date'),
+                    "series" => array_column($productP, 'total_sum'),
+                    "total" => $minhas_despesas
+                ],
+                "seller" => [
+                    "categories" => array_column($productStock, 'sale_date'),
+                    "series" => array_column($productStock, 'total_sum'),
+                    "total" => $minhas_prod_estoque
+                ]
+            ],
+            "lastMonth" => [
+                "categories" => [
+                    "1/2024",
+                    "2/2024",
+                    "3/2024",
+                    "4/2024",
+                    "5/2024",
+                    "6/2024",
+                    "7/2024",
+                    "8/2024",
+                    "9/2024",
+                    "10/2024",
+                    "11/2024",
+                    "12/2024"
+                ],
+                "series" => [
+                    [
+                        "name" => "2024",
+                        "data" => [
+                            [
+                                "name" => "product",
+                                "data" => array_fill(0, 12, 0),
+                                "total" => 0
+                            ],
+                            [
+                                "name" => "seller",
+                                "data" => array_fill(0, 12, 0),
+                                "total" => 0
+                            ],
+                            [
+                                "name" => "balance",
+                                "data" => array_fill(0, 12, 0),
+                                "total" => $minhas_vendas
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $this->response($data, REST_Controller::HTTP_OK);
+    }
+
+
+
+    public function get_post1()
+    {
+
+        $minhas_vendas = 0;
+        $balances = $this->cashs_model->get_cash_extracts();
+        foreach ($balances as $b) {
+            $minhas_vendas += $b['total_sum'];
+        }
+        $venda_dia = $balances[7]['total_sum'] == 0 ? 1 : $balances[7]['total_sum'];
+        $venda_ontem = $balances[6]['total_sum'] == 0 ? 1 : $balances[6]['total_sum'];
+
+        $porcent = (($venda_dia / $venda_ontem) * 100) - 100;
+
+
+
+
+        $data = [
+            "balance" => [
+                "credit" => $venda_dia,
+                "debit" => 0,
+                "total" => $venda_dia,
+                "percent" => $porcent
+            ],
+            "product" => [
+                "credit" => 0,
+                "debit" => 0,
+                "total" => 0,
+                "percent" => 0
+            ],
+            "seller" => [
+                "credit" => 0,
+                "debit" => 0,
+                "total" => 0,
+                "percent" => 0
             ],
             "lastDays" => [
                 "balance" => [
@@ -106,7 +231,7 @@ class Dashboard extends REST_Controller {
                         $balances[3]['sale_date'],
                         $balances[4]['sale_date'],
                         $balances[5]['sale_date'],
-                        $balances[6]['sale_date']
+                        $balances[6]['sale_date'],
                     ],
                     "series" => [
                         $balances[0]['total_sum'],
@@ -115,30 +240,36 @@ class Dashboard extends REST_Controller {
                         $balances[3]['total_sum'],
                         $balances[4]['total_sum'],
                         $balances[5]['total_sum'],
-                        $balances[6]['total_sum']
+                        $balances[6]['total_sum'],
                     ],
                     "total" => $minhas_vendas
                 ],
                 "product" => [
                     "categories" => [
-                        $productP[0]['expense_date'],
-                        $productP[1]['expense_date'],
-                        $productP[2]['expense_date'],
-                        $productP[3]['expense_date'],
-                        $productP[4]['expense_date'],
-                        $productP[5]['expense_date'],
-                        $productP[6]['expense_date']
+                        "21/12/2024",
+                        "22/12/2024",
+                        "23/12/2024",
+                        "24/12/2024",
+                        "25/12/2024",
+                        "26/12/2024",
+                        "27/12/2024",
+                        "28/12/2024",
+                        "29/12/2024",
+                        "30/12/2024"
                     ],
                     "series" => [
-                        $productP[0]['total_sum'],
-                        $productP[1]['total_sum'],
-                        $productP[2]['total_sum'],
-                        $productP[3]['total_sum'],
-                        $productP[4]['total_sum'],
-                        $productP[5]['total_sum'],
-                        $productP[6]['total_sum']
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
                     ],
-                    "total" => $minhas_despesas
+                    "total" => 0
                 ],
                 "seller" => [
                     "categories" => [
@@ -241,7 +372,7 @@ class Dashboard extends REST_Controller {
                                 ],
                                 "total" => 5979.959999999999
                             ]
-                            ]
+                        ]
                     ]
                 ]
             ]
@@ -250,218 +381,24 @@ class Dashboard extends REST_Controller {
 
     }
 
-    
-    
-     public function get_post1() {
-         
-         $minhas_vendas = 0;
-         $balances = $this->cashs_model->get_cash_extracts();
-         foreach($balances as $b){
-             $minhas_vendas += $b['total_sum'];
-         }
-         $venda_dia = $balances[7]['total_sum']== 0?1:$balances[7]['total_sum'];
-         $venda_ontem = $balances[6]['total_sum'] == 0?1:$balances[6]['total_sum'];
-         
-         $porcent = (($venda_dia/$venda_ontem)*100)-100;
-         
-       
-         
-         
-$data = [
-    "balance" => [
-        "credit" => $venda_dia,
-        "debit" => 0,
-        "total" => $venda_dia,
-        "percent" => $porcent
-    ],
-    "product" => [
-        "credit" => 0,
-        "debit" => 0,
-        "total" => 0,
-        "percent" => 0
-    ],
-    "seller" => [
-        "credit" => 0,
-        "debit" => 0,
-        "total" => 0,
-        "percent" => 0
-    ],
-    "lastDays" => [
-        "balance" => [
-            "categories" => [
-                $balances[0]['sale_date'],
-                $balances[1]['sale_date'],
-                $balances[2]['sale_date'],
-                $balances[3]['sale_date'],
-                $balances[4]['sale_date'],
-                $balances[5]['sale_date'],
-                $balances[6]['sale_date'],
-            ],
-            "series" => [
-                $balances[0]['total_sum'],
-                $balances[1]['total_sum'],
-                $balances[2]['total_sum'],
-                $balances[3]['total_sum'],
-                $balances[4]['total_sum'],
-                $balances[5]['total_sum'],
-                $balances[6]['total_sum'],
-            ],
-            "total" => $minhas_vendas
-        ],
-        "product" => [
-            "categories" => [
-                "21/12/2024",
-                "22/12/2024",
-                "23/12/2024",
-                "24/12/2024",
-                "25/12/2024",
-                "26/12/2024",
-                "27/12/2024",
-                "28/12/2024",
-                "29/12/2024",
-                "30/12/2024"
-            ],
-            "series" => [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "total" => 0
-        ],
-        "seller" => [
-            "categories" => [
-                "21/12/2024",
-                "22/12/2024",
-                "23/12/2024",
-                "24/12/2024",
-                "25/12/2024",
-                "26/12/2024",
-                "27/12/2024",
-                "28/12/2024",
-                "29/12/2024",
-                "30/12/2024"
-            ],
-            "series" => [
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0
-            ],
-            "total" => 0
-        ]
-    ],
-    "lastMonth" => [
-        "categories" => [
-            "1/2024",
-            "2/2024",
-            "3/2024",
-            "4/2024",
-            "5/2024",
-            "6/2024",
-            "7/2024",
-            "8/2024",
-            "9/2024",
-            "10/2024",
-            "11/2024",
-            "12/2024"
-        ],
-        "series" => [
-            [
-                "name" => "2024",
-                "data" => [
-                    [
-                        "name" => "product",
-                        "data" => [
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0
-                        ],
-                        "total" => 0
-                    ],
-                    [
-                        "name" => "seller",
-                        "data" => [
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0
-                        ],
-                        "total" => 0
-                    ],
-                    [
-                        "name" => "balance",
-                        "data" => [
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            5979.959999999999
-                        ],
-                        "total" => 5979.959999999999
-                    ]
-                ]
-            ]
-            ]
-    ]
-];
-          $this->response($data, REST_Controller::HTTP_OK);
-       
-    }
-    
-    public function config_get() {
+    public function config_get()
+    {
 
         $data = [
-    "appName" => "Sobre",
-    "logoDark" => null,
-    "logoLight" => null,
-    "iconDark" => null,
-    "iconLight" => null
-];   
-        
+            "appName" => "Sobre",
+            "logoDark" => null,
+            "logoLight" => null,
+            "iconDark" => null,
+            "iconLight" => null
+        ];
 
-          $this->response($data, REST_Controller::HTTP_OK);
-       
+
+        $this->response($data, REST_Controller::HTTP_OK);
+
     }
-    
-    
- 
+
+
+
 
 
     /**
@@ -511,7 +448,8 @@ $data = [
      *       "message": "No data were found"
      *     }
      */
-    public function data_get($id = '') {
+    public function data_get($id = '')
+    {
 
 
 
@@ -612,10 +550,11 @@ $data = [
      *     }
      *
      */
-    public function data_post() {
+    public function data_post()
+    {
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-     
+
 
         $this->load->model('Carriers_model');
         $this->form_validation->set_rules('nome', 'nome', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Company'));
@@ -626,10 +565,10 @@ $data = [
         } else {
 
             $output = $this->Carriers_model->add($_POST);
-        
+
             if ($output > 0 && !empty($output)) {
                 // success
-                $message = array('status' => TRUE, 'message' => 'Carrier add successful.', 'data'=>$output);
+                $message = array('status' => TRUE, 'message' => 'Carrier add successful.', 'data' => $output);
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 $this->response('Error', REST_Controller::HTTP_NOT_ACCEPTABLE);
@@ -666,7 +605,8 @@ $data = [
      *       "message": "Customer Delete Fail."
      *     }
      */
-    public function data_delete($id = '') {
+    public function data_delete($id = '')
+    {
 
         $id = $this->security->xss_clean($id);
         if (empty($id) && !is_numeric($id)) {
@@ -763,7 +703,8 @@ $data = [
      *       "message": "Customer Update Fail."
      *     }
      */
-    public function data_put($id = '') {
+    public function data_put($id = '')
+    {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST) || !isset($_POST)) {
@@ -782,7 +723,7 @@ $data = [
             $output = $this->Carriers_model->update($update_data, $id);
             if ($output > 0 && !empty($output)) {
                 // success
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data'=>$this->Carriers_model->get($id));
+                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->Carriers_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 // error

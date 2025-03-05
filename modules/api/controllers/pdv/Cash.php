@@ -362,17 +362,19 @@ class Cash extends REST_Controller
         $search = $this->post('search') !== null ? $this->post('search') : '';
         $sortField = $this->post('sortField') ?: 'id';
         $sortOrder = strtoupper($this->post('sortOrder')) === 'DESC' ? 'DESC' : 'ASC';
+        $warehouse_id = $this->post('warehouse_id') ?: 0;
 
         // Get additional filters
         $filters = [
             'start_date' => $this->post('start_date'),
             'end_date' => $this->post('end_date'),
             'status' => $this->post('status'),
+            'payment_type' => $this->post('payment_type'), // Adicionando o filtro de formas de pagamento
         ];
 
         $cash_id = $this->post('cash_id');
 
-        $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $cash_id);
+        $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $cash_id, $warehouse_id);
 
         // Always return HTTP_OK with the data and total, even if total is 0
         $this->response([
@@ -474,14 +476,14 @@ class Cash extends REST_Controller
 
     public function active_patch()
     {
-        
-        
+
+
 
 
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
-        $caixaId= $_POST['caixaId'];
+        $caixaId = $_POST['caixaId'];
         $valor = $_POST['valor'];
         $warehouse_id = $_POST['warehouse_id'];
         $status = $_POST['status'];
@@ -505,7 +507,7 @@ class Cash extends REST_Controller
                 'message' => 'Senha inválida'
             ], REST_Controller::HTTP_OK);
         }
-      
+
         $detalhes_caixa = $this->cashs_model->get_by_id($caixaId);
 
         if ($status == 1) {

@@ -563,7 +563,7 @@ class Expenses extends REST_Controller
 
   public function categories_get()
   {
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
+
 
     $warehouse_id = $this->get('warehouse_id');
 
@@ -573,7 +573,14 @@ class Expenses extends REST_Controller
         'message' => 'Warehouse ID is required'
       ], REST_Controller::HTTP_BAD_REQUEST);
       return;
-    }
+
+
+    $this->load->model('expenses_model');
+
+  
+      $categories = $this->expenses_model->get_category();
+  
+
 
     try {
       $this->db->select('id, name, description, warehouse_id');
@@ -585,6 +592,7 @@ class Expenses extends REST_Controller
         'status' => TRUE,
         'data' => $categories ?: []
       ], REST_Controller::HTTP_OK);
+
     } catch (Exception $e) {
       $this->response([
         'status' => FALSE,
@@ -687,6 +695,7 @@ class Expenses extends REST_Controller
         'error' => $e->getMessage()
       ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
+
   }
 
   public function category_delete($id = null)

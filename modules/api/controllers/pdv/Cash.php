@@ -384,11 +384,65 @@ class Cash extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
+    public function extractsss_post($id = '')
+    {
+        // Recebe o ID do caixa da URL
+        $caixaId = $this->input->get('id');
+
+        // Verifica se o ID do caixa foi fornecido
+        if (empty($caixaId)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'ID do caixa não fornecido'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        // Converte o ID para inteiro
+        $caixaId = (int) $caixaId;
+
+        // Verifica se o caixa existe
+        $detalhes_caixa = $this->cashs_model->get_by_id2($caixaId);
+
+        if (!$detalhes_caixa) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Caixa não encontrado'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+
+        // Parâmetros de paginação e ordenação
+        $page = $this->input->get('page') ? (int) $this->input->get('page') : 0;
+        $page = $page + 1; // Ajuste para a paginação
+        $limit = $this->input->get('pageSize') ? (int) $this->input->get('pageSize') : 10;
+        $search = $this->input->get('search') ?: '';
+        $sortField = $this->input->get('sortField') ?: 'id';
+        $sortOrder = $this->input->get('sortOrder') === 'asc' ? 'ASC' : 'DESC';
+
+        // Busca as transações pelo cash_id
+        $cash = $this->cashs_model->get_transactions2($id = '', $page, $limit, $search, $sortField, $sortOrder, $filters = null, $caixaId);
+
+        if ($cash) {
+            $this->response([
+                'status' => TRUE,
+                'total' => $cash['total'],
+                'data' => $cash
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Nenhum dado encontrado'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
 
     public function extracts_post($id = '')
     {
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        $number = (int) $_POST['caixaId'];
+        // var_dump($number);
 
         $number = $_POST['caixaId'];
         $page = $_POST['page'] ? (int) $_POST['page'] : 0; // Página atual, padrão 1
@@ -415,6 +469,7 @@ class Cash extends REST_Controller
         if ($cash) {
             $this->response([
                 'status' => TRUE,
+                'total' => $cash['total'],
                 'data' => $cash
             ], REST_Controller::HTTP_OK);
         } else {
@@ -476,11 +531,6 @@ class Cash extends REST_Controller
 
     public function active_patch()
     {
-
-
-
-
-
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
         $caixaId = $_POST['caixaId'];

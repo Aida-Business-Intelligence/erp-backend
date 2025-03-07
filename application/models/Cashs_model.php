@@ -497,9 +497,9 @@ class Cashs_model extends App_Model
     public function update_itemstocks($qtde, $item_id, $warehouse_id)
     {
         // Retrieve the current quantity
-        $this->db->select('qtde, id');
-        $this->db->from(db_prefix() . 'itemstocks');
-        $this->db->where('item_id', $item_id);
+        $this->db->select('stock, id');
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where('id', $item_id);
         $this->db->where('warehouse_id', $warehouse_id);
         $query = $this->db->get();
 
@@ -509,10 +509,10 @@ class Cashs_model extends App_Model
             $updatedQuantity = $currentQuantity - $qtde;
 
             // Update the quantity in the database
-            $this->db->where('item_id', $item_id);
+            $this->db->where('id', $item_id);
             $this->db->where('warehouse_id', $warehouse_id);
-            $this->db->set('qtde', $updatedQuantity);
-            $this->db->update(db_prefix() . 'itemstocks');
+            $this->db->set('stock', $updatedQuantity);
+            $this->db->update(db_prefix() . 'items');
 
             // Return the ID of the updated record
             return $row->id;
@@ -587,10 +587,12 @@ class Cashs_model extends App_Model
 
                 $warehouse_id = 1;
 
-                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $warehouse_id);
+                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $data['warehouse_id']);
 
                 $data_itemstocksmov = array(
-                    'itemstock_id' => $id_itemstocks,
+                    'warehouse_id' => $data['warehouse_id'],
+                       'transaction_id' => $id_itemstocks,
+                       'cash_id' => $data['cash_id'],
                     'qtde' => $item['qty'],
                     'transaction_id' => $detalhes_caixa->id,
                     'hash' => $data['hash'],
@@ -618,7 +620,7 @@ class Cashs_model extends App_Model
 
         // Gera hash e obtém detalhes da caixa
         $data['hash'] = app_generate_hash();
-        $detalhes_caixa = $this->get_by_number($data['cash_id']);
+        $detalhes_caixa = $this->get_by_id($data['cash_id']);
         $data['cash_id'] = $detalhes_caixa->id;
 
         $items = isset($data['newitems']) ? $data['newitems'] : [];
@@ -668,11 +670,14 @@ class Cashs_model extends App_Model
                     'unit' => $item['unit']
                 ]);
 
-                $warehouse_id = 1;
-                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $warehouse_id);
+            
+                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'],  $data['warehouse_id']);
 
                 $data_itemstocksmov = [
-                    'itemstock_id' => $id_itemstocks,
+               
+                    'warehouse_id' => $data['warehouse_id'],
+                       'transaction_id' => $id_itemstocks,
+                       'cash_id' => $data['cash_id'],
                     'qtde' => $item['qty'],
                     'transaction_id' => $detalhes_caixa->id,
                     'hash' => $data['hash'],

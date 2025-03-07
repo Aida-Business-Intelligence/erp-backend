@@ -1,5 +1,6 @@
 <?php
 
+
 defined('BASEPATH') or exit('No direct script access allowed');
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
 
@@ -56,6 +57,8 @@ class Cash extends REST_Controller
     }
     public function list_post($id = '')
     {
+        
+  
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -401,7 +404,7 @@ class Cash extends REST_Controller
         $caixaId = (int) $caixaId;
 
         // Verifica se o caixa existe
-        $detalhes_caixa = $this->cashs_model->get_by_id2($caixaId);
+        $detalhes_caixa = $this->cashs_model->get_by_id($caixaId);
 
         if (!$detalhes_caixa) {
             $this->response([
@@ -444,7 +447,6 @@ class Cash extends REST_Controller
         $number = (int) $_POST['caixaId'];
         // var_dump($number);
 
-        $number = $_POST['caixaId'];
         $page = $_POST['page'] ? (int) $_POST['page'] : 0; // Página atual, padrão 1
         $page = $page + 1;
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
@@ -453,7 +455,7 @@ class Cash extends REST_Controller
         $sortOrder = $this->post('sortOrder') === 'asc' ? 'ASC' : 'DESC'; // Ordem, padrão crescente
 
 
-        $detalhes_caixa = $this->cashs_model->get_by_number($number);
+        $detalhes_caixa = $this->cashs_model->get_by_id($number);
 
         if (!$detalhes_caixa) {
             $this->response([
@@ -531,10 +533,17 @@ class Cash extends REST_Controller
 
     public function active_patch()
     {
+
+        
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
         $caixaId = $_POST['caixaId'];
-        $valor = $_POST['valor'];
+        $valor = 0;
+        
+        if(isset($_POST['valor'])){
+             $valor = $_POST['valor'];
+        }
+        
         $warehouse_id = $_POST['warehouse_id'];
         $status = $_POST['status'];
         $client_id = @$_POST['client_id'];
@@ -636,6 +645,8 @@ class Cash extends REST_Controller
     public function sangria_patch()
     {
 
+       
+        
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
         $valor = $_POST['valor'];
@@ -655,7 +666,7 @@ class Cash extends REST_Controller
 
 
 
-        $detalhes_caixa = $this->cashs_model->get_by_number($number);
+        $detalhes_caixa = $this->cashs_model->get_by_id($number);
         if (!$detalhes_caixa) {
             $this->response([
                 'status' => FALSE,

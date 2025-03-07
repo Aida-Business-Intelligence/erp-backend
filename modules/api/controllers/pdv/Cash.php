@@ -57,8 +57,8 @@ class Cash extends REST_Controller
     }
     public function list_post($id = '')
     {
-        
-  
+
+
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -445,7 +445,6 @@ class Cash extends REST_Controller
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         $number = (int) $_POST['caixaId'];
-        // var_dump($number);
 
         $page = $_POST['page'] ? (int) $_POST['page'] : 0; // Página atual, padrão 1
         $page = $page + 1;
@@ -534,16 +533,16 @@ class Cash extends REST_Controller
     public function active_patch()
     {
 
-        
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
         $caixaId = $_POST['caixaId'];
         $valor = 0;
-        
-        if(isset($_POST['valor'])){
-             $valor = $_POST['valor'];
+
+        if (isset($_POST['valor'])) {
+            $valor = $_POST['valor'];
         }
-        
+
         $warehouse_id = $_POST['warehouse_id'];
         $status = $_POST['status'];
         $client_id = @$_POST['client_id'];
@@ -645,8 +644,8 @@ class Cash extends REST_Controller
     public function sangria_patch()
     {
 
-       
-        
+
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
         $valor = $_POST['valor'];

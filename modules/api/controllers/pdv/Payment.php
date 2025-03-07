@@ -155,6 +155,8 @@ class Payment extends REST_Controller
              
          );
          
+      
+         
          if($this->Cashs_model->add($data)){
 
          $this->response(['status' => true, 'status_payment'=>'paid', 'payment_id'=>1, 'message' => 'Pagamento realizado'], REST_Controller::HTTP_OK);

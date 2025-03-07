@@ -62,6 +62,16 @@ class Expenses extends REST_Controller
     $page = $page + 1;
     $offset = ($page - 1) * $limit;
 
+    $payment_methods = [
+      1 => 'PIX',
+      2 => 'Cartão',
+      3 => 'Dinheiro',
+      4 => 'Boleto',
+      5 => 'Transferência',
+      6 => 'Cheque',
+      7 => 'Outros'
+    ];
+
     $this->db->select('
         e.id,
         e.category,
@@ -93,9 +103,9 @@ class Expenses extends REST_Controller
         e.type,
         e.status,
         e.warehouse_id,
-        e.file,
         ' . db_prefix() . 'expenses_categories.name as category_name,
         ' . db_prefix() . 'clients.company as company,
+        ' . db_prefix() . 'payment_modes.name as payment_mode_name,
         ' . db_prefix() . 'taxes.name as tax_name,
         ' . db_prefix() . 'taxes.taxrate as taxrate,
         ' . db_prefix() . 'taxes_2.name as tax_name2,
@@ -104,6 +114,7 @@ class Expenses extends REST_Controller
 
     $this->db->from(db_prefix() . 'expenses e');
     $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
+    $this->db->join(db_prefix() . 'payment_modes', db_prefix() . 'payment_modes.id = e.paymentmode', 'left');
     $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
     $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
     $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
@@ -157,7 +168,7 @@ class Expenses extends REST_Controller
 
     if (!empty($data)) {
       foreach ($data as &$expense) {
-        $expense['payment_mode_name'] = $this->get_payment_mode_name($expense['paymentmode']);
+        $expense['payment_mode_name'] = $payment_methods[$expense['paymentmode']] ?? 'Desconhecido';
 
         if ($expense['recurring'] == 1) {
           $expense['recurring_info'] = array(
@@ -341,23 +352,11 @@ class Expenses extends REST_Controller
   {
     \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    $content_type = isset($this->input->request_headers()['Content-Type'])
-      ? $this->input->request_headers()['Content-Type']
-      : (isset($this->input->request_headers()['content-type'])
-        ? $this->input->request_headers()['content-type']
-        : null);
+    $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-    $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
+    log_activity('Expense Create Input: ' . json_encode($input));
 
-    if ($is_multipart) {
-      $input = $this->input->post();
-
-      log_activity('Expense Create Input (multipart): ' . json_encode($input));
-    } else {
-      $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-      log_activity('Expense Create Input (json): ' . json_encode($input));
-    }
-
+    // Check each required field individually for clearer error messages
     $required_fields = [];
 
     if (empty($input['category'])) {
@@ -429,7 +428,18 @@ class Expenses extends REST_Controller
 
     $expense_id = $this->Expenses_model->add($data);
 
-    if (!$expense_id) {
+    if ($expense_id) {
+      $expense = $this->Expenses_model->get($expense_id);
+
+      log_activity('Created expense: ' . json_encode($expense));
+
+      $message = array(
+        'status' => TRUE,
+        'message' => 'Despesa criada com sucesso',
+        'data' => $expense
+      );
+      $this->response($message, REST_Controller::HTTP_CREATED);
+    } else {
       log_activity('Failed to create expense. DB Error: ' . $this->db->error()['message']);
 
       $message = array(
@@ -437,66 +447,7 @@ class Expenses extends REST_Controller
         'message' => 'Falha ao criar despesa'
       );
       $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-      return;
     }
-
-    if ($is_multipart && isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-      $file = $_FILES['file'];
-
-      $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      if (!in_array($file['type'], $allowed_types)) {
-        $this->Expenses_model->delete($expense_id);
-        $this->response([
-          'status' => FALSE,
-          'message' => 'Tipo de arquivo não permitido. Tipos permitidos: JPG, PNG, PDF, DOC, DOCX'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-        return;
-      }
-
-      // Validate file size (max 5MB)
-      $max_size = 5 * 1024 * 1024;
-      if ($file['size'] > $max_size) {
-        $this->Expenses_model->delete($expense_id);
-        $this->response([
-          'status' => FALSE,
-          'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-        return;
-      }
-
-      $upload_dir = './uploads/expenses/' . $expense_id . '/';
-      if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
-      }
-
-      // cria nome unico para o arquivo
-      $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-      $filename = uniqid() . '.' . $extension;
-      $upload_path = $upload_dir . $filename;
-
-      // manda pora pasta
-      if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-        $server_url = base_url();
-        $relative_path = str_replace('./', '', $upload_path);
-        $file_url = rtrim($server_url, '/') . '/' . $relative_path;
-
-        // gerasw url do arquivo
-        $this->db->where('id', $expense_id);
-        $this->db->update(db_prefix() . 'expenses', ['file' => $file_url]);
-      } else {
-        log_activity('Failed to move uploaded file for expense ' . $expense_id);
-      }
-    }
-
-    $expense = $this->Expenses_model->get($expense_id);
-    log_activity('Created expense: ' . json_encode($expense));
-
-    $message = array(
-      'status' => TRUE,
-      'message' => 'Despesa criada com sucesso',
-      'data' => $expense
-    );
-    $this->response($message, REST_Controller::HTTP_CREATED);
   }
 
   public function data_delete($id = '')
@@ -525,25 +476,11 @@ class Expenses extends REST_Controller
   }
 
 
-  public function update_post()
+  public function update_put()
   {
     \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    $content_type = isset($this->input->request_headers()['Content-Type'])
-      ? $this->input->request_headers()['Content-Type']
-      : (isset($this->input->request_headers()['content-type'])
-        ? $this->input->request_headers()['content-type']
-        : null);
-
-    $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
-
-    if ($is_multipart) {
-      $_POST = $this->input->post();
-      log_activity('Expense Update Input (multipart): ' . json_encode($_POST));
-    } else {
-      $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-      log_activity('Expense Update Input (json): ' . json_encode($_POST));
-    }
+    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
     if (empty($_POST) || !isset($_POST)) {
       $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
@@ -561,47 +498,6 @@ class Expenses extends REST_Controller
 
     $update_data = $this->input->post();
     $expense_id = $_POST['id'];
-
-    if ($is_multipart && isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-      $file = $_FILES['file'];
-
-      $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      if (!in_array($file['type'], $allowed_types)) {
-        $this->response([
-          'status' => FALSE,
-          'message' => 'Tipo de arquivo não permitido. Tipos permitidos: JPG, PNG, PDF, DOC, DOCX'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-        return;
-      }
-
-      $max_size = 5 * 1024 * 1024;
-      if ($file['size'] > $max_size) {
-        $this->response([
-          'status' => FALSE,
-          'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-        return;
-      }
-
-      $upload_dir = './uploads/expenses/' . $expense_id . '/';
-      if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
-      }
-
-      $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-      $filename = uniqid() . '.' . $extension;
-      $upload_path = $upload_dir . $filename;
-
-      if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-        $server_url = base_url();
-        $relative_path = str_replace('./', '', $upload_path);
-        $file_url = rtrim($server_url, '/') . '/' . $relative_path;
-
-        $update_data['file'] = $file_url;
-      } else {
-        log_activity('Failed to move uploaded file for expense ' . $expense_id);
-      }
-    }
 
     $this->load->model('Expenses_model');
     $output = $this->Expenses_model->update($update_data, $expense_id);
@@ -667,7 +563,7 @@ class Expenses extends REST_Controller
 
   public function categories_get()
   {
-
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
 
     $warehouse_id = $this->get('warehouse_id');
 
@@ -677,14 +573,7 @@ class Expenses extends REST_Controller
         'message' => 'Warehouse ID is required'
       ], REST_Controller::HTTP_BAD_REQUEST);
       return;
-
-
-    $this->load->model('expenses_model');
-
-  
-      $categories = $this->expenses_model->get_category();
-  
-
+    }
 
     try {
       $this->db->select('id, name, description, warehouse_id');
@@ -696,7 +585,6 @@ class Expenses extends REST_Controller
         'status' => TRUE,
         'data' => $categories ?: []
       ], REST_Controller::HTTP_OK);
-
     } catch (Exception $e) {
       $this->response([
         'status' => FALSE,
@@ -799,7 +687,6 @@ class Expenses extends REST_Controller
         'error' => $e->getMessage()
       ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
-
   }
 
   public function category_delete($id = null)
@@ -975,21 +862,6 @@ class Expenses extends REST_Controller
     }
   }
 
-  private function get_payment_mode_name($payment_mode_id)
-  {
-    $payment_methods = [
-      1 => 'PIX',
-      2 => 'Cartão',
-      3 => 'Dinheiro',
-      4 => 'Boleto',
-      5 => 'Transferência',
-      6 => 'Cheque',
-      7 => 'Outros'
-    ];
-
-    return $payment_methods[$payment_mode_id] ?? 'Desconhecido';
-  }
-
   public function get_get($id = '')
   {
     \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -1004,15 +876,15 @@ class Expenses extends REST_Controller
 
     $this->db->select('*,' . db_prefix() . 'expenses.id as id,' .
       db_prefix() . 'expenses_categories.name as category_name,' .
-      db_prefix() . 'expenses.paymentmode as payment_mode,' .
+      db_prefix() . 'payment_modes.name as payment_mode_name,' .
       db_prefix() . 'taxes.name as tax_name, ' .
       db_prefix() . 'taxes.taxrate as taxrate,' .
       db_prefix() . 'taxes_2.name as tax_name2, ' .
-      db_prefix() . 'taxes_2.taxrate as taxrate2, ' .
-      db_prefix() . 'expenses.file as file');
+      db_prefix() . 'taxes_2.taxrate as taxrate2');
 
     $this->db->from(db_prefix() . 'expenses');
     $this->db->join(db_prefix() . 'clients', '' . db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses.clientid', 'left');
+    $this->db->join(db_prefix() . 'payment_modes', '' . db_prefix() . 'payment_modes.id = ' . db_prefix() . 'expenses.paymentmode', 'left');
     $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
     $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
     $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category');
@@ -1028,8 +900,6 @@ class Expenses extends REST_Controller
       ], REST_Controller::HTTP_NOT_FOUND);
       return;
     }
-
-    $expense->payment_mode_name = $this->get_payment_mode_name($expense->payment_mode);
 
     if ($expense->recurring == 1) {
       $expense->recurring_info = array(
@@ -1143,52 +1013,5 @@ class Expenses extends REST_Controller
     ];
 
     $this->response($response, REST_Controller::HTTP_OK);
-  }
-
-  public function category_get($id = null)
-  {
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-    if (empty($id)) {
-      $this->response([
-        'status' => FALSE,
-        'message' => 'Category ID is required'
-      ], REST_Controller::HTTP_BAD_REQUEST);
-      return;
-    }
-
-    try {
-      $this->db->select('id, name, description, warehouse_id');
-      $this->db->from(db_prefix() . 'expenses_categories');
-      $this->db->where('id', $id);
-      $category = $this->db->get()->row();
-
-      if (!$category) {
-        $this->response([
-          'status' => FALSE,
-          'message' => 'Category not found'
-        ], REST_Controller::HTTP_NOT_FOUND);
-        return;
-      }
-
-      $this->db->where('category', $id);
-      $expense_count = $this->db->count_all_results(db_prefix() . 'expenses');
-
-      $response = [
-        'status' => TRUE,
-        'data' => [
-          'category' => $category,
-          'expense_count' => $expense_count
-        ]
-      ];
-
-      $this->response($response, REST_Controller::HTTP_OK);
-    } catch (Exception $e) {
-      $this->response([
-        'status' => FALSE,
-        'message' => 'Erro ao buscar categoria',
-        'error' => $e->getMessage()
-      ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-    }
   }
 }

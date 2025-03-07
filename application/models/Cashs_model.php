@@ -229,15 +229,7 @@ class Cashs_model extends App_Model
         // Obtém as transações
         $clients = $this->db->get()->result_array();
 
-        // Adiciona os itens de cada transação
-        if (!empty($clients)) {
-            foreach ($clients as $key => $client) {
-                // Filtra os itens pelo item_order (id da venda)
-                $items = $this->get_items_cashs_by_order($client['extract_id']); // Usa o alias extract_id
-                $clients[$key]['items'] = $items;
-            }
-        }
-
+       
         return [
             'data' => $clients,
             'total' => $total
@@ -312,15 +304,6 @@ class Cashs_model extends App_Model
 
         // Executa a consulta
         $clients = $this->db->get()->result_array();
-
-        // Adiciona os itens de cada transação
-        if (!empty($clients)) {
-            foreach ($clients as $key => $client) {
-                // Filtra os itens pelo item_order correspondente ao ID da venda (client['id'])
-                $items = $this->get_items_cashs_by_order($client['id']); // Usa a função para filtrar pelo item_order
-                $clients[$key]['items'] = $items;
-            }
-        }
 
         return [
             'data' => $clients,
@@ -498,6 +481,13 @@ class Cashs_model extends App_Model
         return $this->db->update('cashs', $data);
     }
 
+      public function update_by_id($data, $id)
+    {
+
+        $this->db->where('id', $id);
+        return $this->db->update('cashs', $data);
+    }
+    
     public function update_extracts($data, $id)
     {
         $this->db->where('id', $id);
@@ -719,3 +709,4 @@ class Cashs_model extends App_Model
         return $query->result_array();
     }
 }
+

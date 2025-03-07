@@ -25,16 +25,20 @@ class Auth extends REST_Controller {
         parent::__construct();
         $this->load->model('Api_model');
         $this->load->model('Authentication_model');
+                $this->load->model('Warehouse_model');
+
     }
 
     public function data_post() {
         
     
+    
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         
         $email = $_POST['email'];
         $password = $_POST['password'];
-        $data = $this->Authentication_model->login_api($email, $password);
+        $warehouse = $this->Warehouse_model->get($_POST['warehouse_id']);
+        $data = $this->Authentication_model->login_api($email, $password, $warehouse);
         if (is_array($data) && isset($data['token'])) {
 
             $this->response($data, REST_Controller::HTTP_OK);

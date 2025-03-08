@@ -103,7 +103,7 @@ class Warehouse extends REST_Controller
     {
 
         // Chamada ao modelo
-        $data = $this->Warehouse_model->get('', array('franqueado_id'=>$id));
+        $data = $this->Warehouse_model->get('', array('franqueado_id' => $id));
 
         // Verifica se encontrou dados
         if (empty($data)) {
@@ -128,30 +128,37 @@ class Warehouse extends REST_Controller
         $_input = [
             'warehouse_code' => $_POST['warehouse_code'] ?? null,
             'warehouse_name' => $_POST['warehouse_name'] ?? null,
-            'warehouse_address' => $_POST['warehouse_address'] ?? null,
+            'cnpj' => $_POST['cnpj'] ?? null,
             'order' => $_POST['order'] ?? null,
             'display' => $_POST['display'] ?? null,
             'note' => $_POST['note'] ?? null,
-            'city' => $_POST['city'] ?? null,
-            'state' => $_POST['state'] ?? null,
-            'zip_code' => $_POST['zip_code'] ?? null,
-            'country' => $_POST['country'] ?? null,
+            'cidade' => $_POST['cidade'] ?? null,
+            'estado' => $_POST['estado'] ?? null,
+            'ie' => $_POST['ie'] ?? null,
+            'im' => $_POST['im'] ?? null,
+            'cep' => $_POST['cep'] ?? null,
+            'complemento' => $_POST['complemento'] ?? null,
+            'bairro' => $_POST['bairro'] ?? null,
+            'numero' => $_POST['numero'] ?? null,
+            'endereco' => $_POST['endereco'] ?? null,
             'franqueado_id' => $_POST['franqueado_id'] ?? null
         ];
 
         // Validação dos campos
         $this->form_validation->set_data($_input);
         $this->form_validation->set_rules('warehouse_name', 'Warehouse Name', 'trim|required|max_length[255]');
-        $this->form_validation->set_rules('warehouse_address', 'Warehouse Address', 'trim|required|max_length[255]');
+        $this->form_validation->set_rules('endereco', 'Endereco', 'trim|required|max_length[255]');
         $this->form_validation->set_rules('order', 'Order', 'trim|required|numeric');
         $this->form_validation->set_rules('display', 'Display', 'trim|required|in_list[0,1]');
-        $this->form_validation->set_rules('city', 'City', 'trim|required|max_length[100]');
+        $this->form_validation->set_rules('cidade', 'Cidade', 'trim|required|max_length[100]');
         //        $this->form_validation->set_rules('note', 'Note', 'trim|required|max_length[100]');
 //        $this->form_validation->set_rules('franqueado_id', 'FranqueadoID', 'trim|required|max_length[100]');
 //        $this->form_validation->set_rules('order', 'Order', 'trim|required|max_length[100]');
-        $this->form_validation->set_rules('state', 'State', 'trim|required|max_length[100]');
-        $this->form_validation->set_rules('zip_code', 'Zip Code', 'trim|required|max_length[10]');
-        $this->form_validation->set_rules('country', 'Country', 'trim|required|numeric');
+        $this->form_validation->set_rules('estado', 'Estado', 'trim|required|max_length[100]');
+        $this->form_validation->set_rules('bairro', 'bairro', 'trim|required|max_length[100]');
+        $this->form_validation->set_rules('cnpj', 'Cnpj', 'trim|required|max_length[20]');
+        $this->form_validation->set_rules('cep', 'Cep', 'trim|required|max_length[9]|regex_match[/^\d{5}-\d{3}$/]');
+        // $this->form_validation->set_rules('country', 'Country', 'trim|required|numeric');
 
         if ($this->form_validation->run() === FALSE) {
             $this->response(['status' => FALSE, 'error' => $this->form_validation->error_array()], REST_Controller::HTTP_BAD_REQUEST);
@@ -214,18 +221,25 @@ class Warehouse extends REST_Controller
             return;
         }
 
+        var_dump($_POST['cep']);
+
         // Ajustar os campos permitidos para atualização
         $update_data = array_intersect_key($_POST, array_flip([
             'warehouse_code',
             'warehouse_name',
-            'warehouse_address',
-            'display',
+            'cnpj',
             'order',
+            'display',
             'note',
-            'city',
-            'state',
-            'zip_code',
-            'country',
+            'cidade',
+            'estado',
+            'ie',
+            'im',
+            'cep',
+            'complemento',
+            'bairro',
+            'numero',
+            'endereco',
             'franqueado_id',
         ]));
 

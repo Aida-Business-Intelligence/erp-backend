@@ -168,6 +168,15 @@ class Cash extends REST_Controller
             return;
         }
 
+        // Verifica se warehouse_id foi enviado e é válido
+        if ($this->cashs_model->count_by_number_warehouse_id($input['number'], $input['warehouse_id'])>0) {
+            $this->response([
+                'status' => false,
+                'message' => 'Número de caixa existente.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
         // Prepara os dados para inserção
         $_input = [
             'number' => isset($input['number']) ? (int) $input['number'] : null,
@@ -221,6 +230,7 @@ class Cash extends REST_Controller
         $data = json_decode(file_get_contents("php://input"), true);
 
         $id_cash = $data['rows'][0];
+        $warehouse_id = $data['warehouse_id'];
         $extract = $this->cashs_model->count_extracts($id_cash);
 
 

@@ -718,5 +718,16 @@ class Cashs_model extends App_Model
         $query = $this->db->get();
         return $query->result_array();
     }
+    
+    public function count_by_number_warehouse_id($number, $warehouse_id)
+{
+    $this->db->select('COUNT(id) as count');
+    $this->db->from(db_prefix() . 'cashs');
+    $this->db->where('number', $number);
+    $this->db->where('warehouse_id', $warehouse_id);
+    $query = $this->db->get();
+        // Exibe a última query gerada
+    return $query->row()->count; // Retorna apenas o número de registros encontrados
+}
 }
 

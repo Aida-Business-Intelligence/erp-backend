@@ -229,7 +229,7 @@ class Cashs_model extends App_Model
         // Obtém as transações
         $clients = $this->db->get()->result_array();
 
-       
+
         return [
             'data' => $clients,
             'total' => $total
@@ -481,13 +481,13 @@ class Cashs_model extends App_Model
         return $this->db->update('cashs', $data);
     }
 
-      public function update_by_id($data, $id)
+    public function update_by_id($data, $id)
     {
 
         $this->db->where('id', $id);
         return $this->db->update('cashs', $data);
     }
-    
+
     public function update_extracts($data, $id)
     {
         $this->db->where('id', $id);
@@ -591,8 +591,8 @@ class Cashs_model extends App_Model
 
                 $data_itemstocksmov = array(
                     'warehouse_id' => $data['warehouse_id'],
-                       'transaction_id' => $id_itemstocks,
-                       'cash_id' => $data['cash_id'],
+                    'transaction_id' => $id_itemstocks,
+                    'cash_id' => $data['cash_id'],
                     'qtde' => $item['qty'],
                     'transaction_id' => $detalhes_caixa->id,
                     'hash' => $data['hash'],
@@ -631,9 +631,9 @@ class Cashs_model extends App_Model
         // Insere a nova entrada de caixa
         $this->db->insert(db_prefix() . 'cashextracts', $data);
         $insert_id = $this->db->insert_id();
-        
-        
-        
+
+
+
 
         if ($insert_id) {
             $update_data = [
@@ -675,14 +675,14 @@ class Cashs_model extends App_Model
                     'unit' => $item['unit']
                 ]);
 
-            
-                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'],  $data['warehouse_id']);
+
+                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $data['warehouse_id']);
 
                 $data_itemstocksmov = [
-               
+
                     'warehouse_id' => $data['warehouse_id'],
-                       'transaction_id' => $id_itemstocks,
-                       'cash_id' => $data['cash_id'],
+                    'transaction_id' => $id_itemstocks,
+                    'cash_id' => $data['cash_id'],
                     'qtde' => $item['qty'],
                     'transaction_id' => $detalhes_caixa->id,
                     'hash' => $data['hash'],

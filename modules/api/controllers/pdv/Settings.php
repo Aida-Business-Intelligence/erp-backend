@@ -169,6 +169,14 @@ class Settings extends REST_Controller
                             "path" => "/produto"
                         ],
                         [
+                            "value" => "Categorias",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:edit",
+                            "width" => "",
+                            "path" => "/categories"
+                        ],
+                        [
                             "value" => "Produto",
                             "label" => "cadastros",
                             "color" => "",

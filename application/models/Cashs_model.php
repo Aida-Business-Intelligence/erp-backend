@@ -124,7 +124,7 @@ class Cashs_model extends App_Model
             $this->db->from(db_prefix() . 'cashs');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
             $this->db->where('cashs.id', $id);
-            $this->db->where('cashs.warehouse_id', $warehouse_id);
+           // $this->db->where('cashs.warehouse_id', $warehouse_id);
 
             $client = $this->db->get()->row();
             $total = $client ? 1 : 0;
@@ -613,7 +613,8 @@ class Cashs_model extends App_Model
 
     public function add($data)
     {
-
+        
+   
 
         // Iniciar transação
         $this->db->trans_start();

@@ -128,7 +128,7 @@ class Invoice_items_model extends App_Model
         }
 
         $this->db->select([
-            "$items_table.id as itemid",
+            "$items_table.id as id",
             "$items_table.rate",
             't1.taxrate as taxrate',
             't1.id as taxid',
@@ -156,7 +156,7 @@ class Invoice_items_model extends App_Model
             "$items_table.updatedAt",
             "$subgroups_table.sub_group_name",
             "$subgroups_table.id as sub_group_id",
-            "$items_table.warehouse_id"
+            "$items_table.warehouse_id as warehouse_id"
         ]);
 
         $this->db->from($items_table)

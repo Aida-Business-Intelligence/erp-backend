@@ -513,19 +513,20 @@ class Cash extends REST_Controller
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         $update_data = array(
-            'status' => $_POST['status']
+            'status' => $_POST['status'],
+            'operacao' => $_POST['operacao']
         );
 
         if ($this->cashs_model->update_extracts($update_data, $id)) {
             $this->response([
                 'status' => TRUE,
-                'message' => 'Status atualizado com sucesso',
+                'message' => 'Status e operacao atualizado com sucesso',
                 'data' => $subgroups
             ], REST_Controller::HTTP_OK);
         } else {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Erro ao atualizar status'
+                'message' => 'Erro ao atualizar status e operacao'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }

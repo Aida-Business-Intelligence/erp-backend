@@ -57,8 +57,8 @@ class Cash extends REST_Controller
     }
     public function list_post($id = '')
     {
-        
-  
+
+
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -445,7 +445,6 @@ class Cash extends REST_Controller
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         $number = (int) $_POST['caixaId'];
-        // var_dump($number);
 
         $page = $_POST['page'] ? (int) $_POST['page'] : 0; // Página atual, padrão 1
         $page = $page + 1;
@@ -514,19 +513,20 @@ class Cash extends REST_Controller
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         $update_data = array(
-            'status' => $_POST['status']
+            'status' => $_POST['status'],
+            'operacao' => $_POST['operacao']
         );
 
         if ($this->cashs_model->update_extracts($update_data, $id)) {
             $this->response([
                 'status' => TRUE,
-                'message' => 'Status atualizado com sucesso',
+                'message' => 'Status e operacao atualizado com sucesso',
                 'data' => $subgroups
             ], REST_Controller::HTTP_OK);
         } else {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Erro ao atualizar status'
+                'message' => 'Erro ao atualizar status e operacao'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
@@ -534,16 +534,16 @@ class Cash extends REST_Controller
     public function active_patch()
     {
 
-        
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
         $caixaId = $_POST['caixaId'];
         $valor = 0;
-        
-        if(isset($_POST['valor'])){
-             $valor = $_POST['valor'];
+
+        if (isset($_POST['valor'])) {
+            $valor = $_POST['valor'];
         }
-        
+
         $warehouse_id = $_POST['warehouse_id'];
         $status = $_POST['status'];
         $client_id = @$_POST['client_id'];
@@ -645,8 +645,8 @@ class Cash extends REST_Controller
     public function sangria_patch()
     {
 
-       
-        
+
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
         $valor = $_POST['valor'];

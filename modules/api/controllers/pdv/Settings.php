@@ -795,6 +795,15 @@ class Settings extends REST_Controller
             'pdv_nfe_cartao' => [
                 'type' => 'boolean',
                 'required' => false
+            ],
+            'pdv_senha_gerente_open_cash' => [
+                'type' => 'boolean',
+                'required' => false
+            ]
+            ,
+            'pdv_senha_gerente_close_cash' => [
+                'type' => 'boolean',
+                'required' => false
             ]
         ];
 
@@ -856,6 +865,9 @@ class Settings extends REST_Controller
 
         $updated = 0;
         $created = 0;
+        
+        var_dump($updates);
+        exit;
 
         foreach ($updates as $update) {
             $this->db->where('name', $update['name']);

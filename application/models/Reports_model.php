@@ -16,26 +16,26 @@ class Reports_model extends App_Model
      */
     public function leads_monthly_report($month)
     {
-        $result      = $this->db->query('select last_status_change from ' . db_prefix() . 'leads where MONTH(last_status_change) = ' . $month . ' AND status = 1 and lost = 0')->result_array();
+        $result = $this->db->query('select last_status_change from ' . db_prefix() . 'leads where MONTH(last_status_change) = ' . $month . ' AND status = 1 and lost = 0')->result_array();
         $month_dates = [];
-        $data        = [];
+        $data = [];
         for ($d = 1; $d <= 31; $d++) {
             $time = mktime(12, 0, 0, $month, $d, date('Y'));
             if (date('m', $time) == $month) {
                 $month_dates[] = _d(date('Y-m-d', $time));
-                $data[]        = 0;
+                $data[] = 0;
             }
         }
         $chart = [
-            'labels'   => $month_dates,
+            'labels' => $month_dates,
             'datasets' => [
                 [
-                    'label'           => _l('leads'),
+                    'label' => _l('leads'),
                     'backgroundColor' => 'rgba(197, 61, 169, 0.5)',
-                    'borderColor'     => '#c53da9',
-                    'borderWidth'     => 1,
-                    'tension'         => false,
-                    'data'            => $data,
+                    'borderColor' => '#c53da9',
+                    'borderWidth' => 1,
+                    'tension' => false,
+                    'data' => $data,
                 ],
             ],
         ];
@@ -55,13 +55,13 @@ class Reports_model extends App_Model
     public function get_stats_chart_data($label, $where, $dataset_options, $year)
     {
         $chart = [
-            'labels'   => [],
+            'labels' => [],
             'datasets' => [
                 [
-                    'label'       => $label,
+                    'label' => $label,
                     'borderWidth' => 1,
-                    'tension'     => false,
-                    'data'        => [],
+                    'tension' => false,
+                    'data' => [],
                 ],
             ],
         ];
@@ -72,7 +72,7 @@ class Reports_model extends App_Model
         $this->load->model('expenses_model');
         $categories = $this->expenses_model->get_category();
         foreach ($categories as $category) {
-            $_where['category']   = $category['id'];
+            $_where['category'] = $category['id'];
             $_where['YEAR(date)'] = $year;
             if (count($where) > 0) {
                 foreach ($where as $key => $val) {
@@ -90,10 +90,10 @@ class Reports_model extends App_Model
     {
         $this->load->model('expenses_model');
 
-        $months_labels  = [];
+        $months_labels = [];
         $total_expenses = [];
-        $total_income   = [];
-        $i              = 0;
+        $total_income = [];
+        $i = 0;
         if (!is_numeric($year)) {
             $year = date('Y');
         }
@@ -107,7 +107,7 @@ class Reports_model extends App_Model
             if (count($expenses) > 0) {
                 foreach ($expenses as $expense) {
                     $expense = $this->expenses_model->get($expense['id']);
-                    $total   = $expense->amount;
+                    $total = $expense->amount;
                     // Check if tax is applied
                     if ($expense->tax != 0) {
                         $total += ($total / 100 * $expense->taxrate);
@@ -142,23 +142,23 @@ class Reports_model extends App_Model
             $i++;
         }
         $chart = [
-            'labels'   => $months_labels,
+            'labels' => $months_labels,
             'datasets' => [
                 [
-                    'label'           => _l('report_sales_type_income'),
+                    'label' => _l('report_sales_type_income'),
                     'backgroundColor' => 'rgba(37,155,35,0.2)',
-                    'borderColor'     => '#84c529',
-                    'borderWidth'     => 1,
-                    'tension'         => false,
-                    'data'            => $total_income,
+                    'borderColor' => '#84c529',
+                    'borderWidth' => 1,
+                    'tension' => false,
+                    'data' => $total_income,
                 ],
                 [
-                    'label'           => _l('expenses'),
+                    'label' => _l('expenses'),
                     'backgroundColor' => 'rgba(252,45,66,0.4)',
-                    'borderColor'     => '#fc2d42',
-                    'borderWidth'     => 1,
-                    'tension'         => false,
-                    'data'            => $total_expenses,
+                    'borderColor' => '#fc2d42',
+                    'borderWidth' => 1,
+                    'tension' => false,
+                    'data' => $total_expenses,
                 ],
             ],
         ];
@@ -175,7 +175,7 @@ class Reports_model extends App_Model
         $this->db->where('CAST(last_status_change as DATE) >= "' . date('Y-m-d', strtotime('monday this week')) . '" AND CAST(last_status_change as DATE) <= "' . date('Y-m-d', strtotime('sunday this week')) . '" AND status = 1 and lost = 0');
         $weekly = $this->db->get(db_prefix() . 'leads')->result_array();
         $colors = get_system_favourite_colors();
-        $chart  = [
+        $chart = [
             'labels' => [
                 _l('wd_monday'),
                 _l('wd_tuesday'),
@@ -219,7 +219,7 @@ class Reports_model extends App_Model
         ];
         foreach ($weekly as $weekly) {
             $lead_status_day = _l(mb_strtolower('wd_' . date('l', strtotime($weekly['last_status_change']))));
-            $i               = 0;
+            $i = 0;
             foreach ($chart['labels'] as $dat) {
                 if ($lead_status_day == $dat) {
                     $chart['datasets'][0]['data'][$i]++;
@@ -237,34 +237,34 @@ class Reports_model extends App_Model
         $staff = $this->staff_model->get();
         if ($this->input->post()) {
             $from_date = to_sql_date($this->input->post('staff_report_from_date'));
-            $to_date   = to_sql_date($this->input->post('staff_report_to_date'));
+            $to_date = to_sql_date($this->input->post('staff_report_to_date'));
         }
         $chart = [
-            'labels'   => [],
+            'labels' => [],
             'datasets' => [
                 [
-                    'label'           => _l('leads_staff_report_created'),
+                    'label' => _l('leads_staff_report_created'),
                     'backgroundColor' => 'rgba(3,169,244,0.2)',
-                    'borderColor'     => '#03a9f4',
-                    'borderWidth'     => 1,
-                    'tension'         => false,
-                    'data'            => [],
+                    'borderColor' => '#03a9f4',
+                    'borderWidth' => 1,
+                    'tension' => false,
+                    'data' => [],
                 ],
                 [
-                    'label'           => _l('leads_staff_report_lost'),
+                    'label' => _l('leads_staff_report_lost'),
                     'backgroundColor' => 'rgba(252,45,66,0.4)',
-                    'borderColor'     => '#fc2d42',
-                    'borderWidth'     => 1,
-                    'tension'         => false,
-                    'data'            => [],
+                    'borderColor' => '#fc2d42',
+                    'borderWidth' => 1,
+                    'tension' => false,
+                    'data' => [],
                 ],
                 [
-                    'label'           => _l('leads_staff_report_converted'),
+                    'label' => _l('leads_staff_report_converted'),
                     'backgroundColor' => 'rgba(37,155,35,0.2)',
-                    'borderColor'     => '#84c529',
-                    'borderWidth'     => 1,
-                    'tension'         => false,
-                    'data'            => [],
+                    'borderColor' => '#84c529',
+                    'borderWidth' => 1,
+                    'tension' => false,
+                    'data' => [],
                 ],
             ],
         ];
@@ -285,10 +285,10 @@ class Reports_model extends App_Model
                     AND lost=1', '', false);
                 $total_rows_lost = $this->db->count_all_results(db_prefix() . 'leads');
             } else {
-                $sql                  = 'SELECT COUNT(' . db_prefix() . 'leads.id) as total FROM ' . db_prefix() . "leads WHERE DATE(last_status_change) BETWEEN '" . $this->db->escape_str($from_date) . "' AND '" . $this->db->escape_str($to_date) . "' AND status = 1 AND CASE WHEN assigned=0 THEN addedfrom=" . $member['staffid'] . ' ELSE assigned=' . $member['staffid'] . ' END';
+                $sql = 'SELECT COUNT(' . db_prefix() . 'leads.id) as total FROM ' . db_prefix() . "leads WHERE DATE(last_status_change) BETWEEN '" . $this->db->escape_str($from_date) . "' AND '" . $this->db->escape_str($to_date) . "' AND status = 1 AND CASE WHEN assigned=0 THEN addedfrom=" . $member['staffid'] . ' ELSE assigned=' . $member['staffid'] . ' END';
                 $total_rows_converted = $this->db->query($sql)->row()->total;
 
-                $sql                = 'SELECT COUNT(' . db_prefix() . 'leads.id) as total FROM ' . db_prefix() . "leads WHERE DATE(dateadded) BETWEEN '" . $this->db->escape_str($from_date) . "' AND '" . $this->db->escape_str($to_date) . "' AND addedfrom=" . $member['staffid'] . '';
+                $sql = 'SELECT COUNT(' . db_prefix() . 'leads.id) as total FROM ' . db_prefix() . "leads WHERE DATE(dateadded) BETWEEN '" . $this->db->escape_str($from_date) . "' AND '" . $this->db->escape_str($to_date) . "' AND addedfrom=" . $member['staffid'] . '';
                 $total_rows_created = $this->db->query($sql)->row()->total;
 
                 $sql = 'SELECT COUNT(' . db_prefix() . 'leads.id) as total FROM ' . db_prefix() . "leads WHERE DATE(last_status_change) BETWEEN '" . $this->db->escape_str($from_date) . "' AND '" . $this->db->escape_str($to_date) . "' AND lost = 1 AND CASE WHEN assigned=0 THEN addedfrom=" . $member['staffid'] . ' ELSE assigned=' . $member['staffid'] . ' END';
@@ -312,14 +312,14 @@ class Reports_model extends App_Model
     {
         $this->load->model('leads_model');
         $sources = $this->leads_model->get_source();
-        $chart   = [
-            'labels'   => [],
+        $chart = [
+            'labels' => [],
             'datasets' => [
                 [
-                    'label'           => _l('report_leads_sources_conversions'),
+                    'label' => _l('report_leads_sources_conversions'),
                     'backgroundColor' => 'rgba(124, 179, 66, 0.5)',
-                    'borderColor'     => '#7cb342',
-                    'data'            => [],
+                    'borderColor' => '#7cb342',
+                    'data' => [],
                 ],
             ],
         ];
@@ -328,7 +328,7 @@ class Reports_model extends App_Model
             array_push($chart['datasets'][0]['data'], total_rows(db_prefix() . 'leads', [
                 'source' => $source['id'],
                 'status' => 1,
-                'lost'   => 0,
+                'lost' => 0,
             ]));
         }
 
@@ -338,19 +338,19 @@ class Reports_model extends App_Model
     public function report_by_customer_groups()
     {
         $months_report = $this->input->post('months_report');
-        $groups        = $this->clients_model->get_groups();
+        $groups = $this->clients_model->get_groups();
         if ($months_report != '') {
             $custom_date_select = '';
             if (is_numeric($months_report)) {
                 // Last month
                 if ($months_report == '1') {
                     $beginMonth = date('Y-m-01', strtotime('first day of last month'));
-                    $endMonth   = date('Y-m-t', strtotime('last day of last month'));
+                    $endMonth = date('Y-m-t', strtotime('last day of last month'));
                 } else {
                     $months_report = (int) $months_report;
                     $months_report--;
                     $beginMonth = date('Y-m-01', strtotime("-$months_report MONTH"));
-                    $endMonth   = date('Y-m-t');
+                    $endMonth = date('Y-m-t');
                 }
 
                 $custom_date_select = '(' . db_prefix() . 'invoicepaymentrecords.date BETWEEN "' . $beginMonth . '" AND "' . $endMonth . '")';
@@ -358,17 +358,17 @@ class Reports_model extends App_Model
                 $custom_date_select = '(' . db_prefix() . 'invoicepaymentrecords.date BETWEEN "' . date('Y-m-01') . '" AND "' . date('Y-m-t') . '")';
             } elseif ($months_report == 'this_year') {
                 $custom_date_select = '(' . db_prefix() . 'invoicepaymentrecords.date BETWEEN "' .
-                date('Y-m-d', strtotime(date('Y-01-01'))) .
-                '" AND "' .
-                date('Y-m-d', strtotime(date('Y-12-31'))) . '")';
+                    date('Y-m-d', strtotime(date('Y-01-01'))) .
+                    '" AND "' .
+                    date('Y-m-d', strtotime(date('Y-12-31'))) . '")';
             } elseif ($months_report == 'last_year') {
                 $custom_date_select = '(' . db_prefix() . 'invoicepaymentrecords.date BETWEEN "' .
-                date('Y-m-d', strtotime(date(date('Y', strtotime('last year')) . '-01-01'))) .
-                '" AND "' .
-                date('Y-m-d', strtotime(date(date('Y', strtotime('last year')) . '-12-31'))) . '")';
+                    date('Y-m-d', strtotime(date(date('Y', strtotime('last year')) . '-01-01'))) .
+                    '" AND "' .
+                    date('Y-m-d', strtotime(date(date('Y', strtotime('last year')) . '-12-31'))) . '")';
             } elseif ($months_report == 'custom') {
                 $from_date = to_sql_date($this->input->post('report_from'));
-                $to_date   = to_sql_date($this->input->post('report_to'));
+                $to_date = to_sql_date($this->input->post('report_to'));
                 if ($from_date == $to_date) {
                     $custom_date_select = db_prefix() . 'invoicepaymentrecords.date ="' . $from_date . '"';
                 } else {
@@ -386,10 +386,10 @@ class Reports_model extends App_Model
         if ($by_currency) {
             $this->db->where('currency', $by_currency);
         }
-        $payments       = $this->db->get()->result_array();
-        $data           = [];
-        $data['temp']   = [];
-        $data['total']  = [];
+        $payments = $this->db->get()->result_array();
+        $data = [];
+        $data['temp'] = [];
+        $data['total'] = [];
         $data['labels'] = [];
         foreach ($groups as $group) {
             if (!isset($data['groups'][$group['name']])) {
@@ -418,15 +418,15 @@ class Reports_model extends App_Model
         }
 
         $chart = [
-            'labels'   => $data['labels'],
+            'labels' => $data['labels'],
             'datasets' => [
                 [
-                    'label'           => _l('total_amount'),
+                    'label' => _l('total_amount'),
                     'backgroundColor' => 'rgba(197, 61, 169, 0.2)',
-                    'borderColor'     => '#c53da9',
-                    'borderWidth'     => 1,
-                    'tension'         => false,
-                    'data'            => $data['total'],
+                    'borderColor' => '#c53da9',
+                    'borderWidth' => 1,
+                    'tension' => false,
+                    'data' => $data['total'],
                 ],
             ],
         ];
@@ -437,8 +437,8 @@ class Reports_model extends App_Model
     public function report_by_payment_modes()
     {
         $this->load->model('payment_modes_model');
-        $modes  = $this->payment_modes_model->get('', [], true, true);
-        $year   = $this->input->post('year');
+        $modes = $this->payment_modes_model->get('', [], true, true);
+        $year = $this->input->post('year');
         $colors = get_system_favourite_colors();
         $this->db->select('amount,' . db_prefix() . 'invoicepaymentrecords.date');
         $this->db->from(db_prefix() . 'invoicepaymentrecords');
@@ -449,16 +449,16 @@ class Reports_model extends App_Model
             $this->db->where('currency', $by_currency);
         }
         $all_payments = $this->db->get()->result_array();
-        $chart        = [
-            'labels'   => [],
+        $chart = [
+            'labels' => [],
             'datasets' => [],
         ];
-        $data           = [];
+        $data = [];
         $data['months'] = [];
         foreach ($all_payments as $payment) {
-            $month   = date('m', strtotime($payment['date']));
+            $month = date('m', strtotime($payment['date']));
             $dateObj = DateTime::createFromFormat('!m', $month);
-            $month   = $dateObj->format('F');
+            $month = $dateObj->format('F');
             if (!isset($data['months'][$month])) {
                 $data['months'][$month] = $month;
             }
@@ -475,9 +475,11 @@ class Reports_model extends App_Model
         }
         $i = 0;
         foreach ($modes as $mode) {
-            if (total_rows(db_prefix() . 'invoicepaymentrecords', [
-                'paymentmode' => $mode['id'],
-            ]) == 0) {
+            if (
+                total_rows(db_prefix() . 'invoicepaymentrecords', [
+                    'paymentmode' => $mode['id'],
+                ]) == 0
+            ) {
                 continue;
             }
             $color = '#4B5158';
@@ -495,7 +497,7 @@ class Reports_model extends App_Model
             }
             $payments = $this->db->get()->result_array();
 
-            $datasets_data          = [];
+            $datasets_data = [];
             $datasets_data['total'] = [];
             foreach ($data['months'] as $month) {
                 $total_payments = [];
@@ -503,9 +505,9 @@ class Reports_model extends App_Model
                     $datasets_data['temp'][$month] = [];
                 }
                 foreach ($payments as $payment) {
-                    $_month  = date('m', strtotime($payment['date']));
+                    $_month = date('m', strtotime($payment['date']));
                     $dateObj = DateTime::createFromFormat('!m', $_month);
-                    $_month  = $dateObj->format('F');
+                    $_month = $dateObj->format('F');
                     if ($month == $_month) {
                         $total_payments[] = $payment['amount'];
                     }
@@ -513,12 +515,12 @@ class Reports_model extends App_Model
                 $datasets_data['total'][] = array_sum($total_payments);
             }
             $chart['datasets'][] = [
-                'label'           => $mode['name'],
+                'label' => $mode['name'],
                 'backgroundColor' => $color,
-                'borderColor'     => adjust_color_brightness($color, -20),
-                'tension'         => false,
-                'borderWidth'     => 1,
-                'data'            => $datasets_data['total'],
+                'borderColor' => adjust_color_brightness($color, -20),
+                'tension' => false,
+                'borderWidth' => 1,
+                'data' => $datasets_data['total'],
             ];
             $i++;
         }
@@ -543,17 +545,17 @@ class Reports_model extends App_Model
             $this->db->where('currency', $by_currency);
         }
 
-        $payments       = $this->db->get()->result_array();
-        $data           = [];
+        $payments = $this->db->get()->result_array();
+        $data = [];
         $data['months'] = [];
-        $data['temp']   = [];
-        $data['total']  = [];
+        $data['temp'] = [];
+        $data['total'] = [];
         $data['labels'] = [];
 
         foreach ($payments as $payment) {
-            $month   = date('m', strtotime($payment['date']));
+            $month = date('m', strtotime($payment['date']));
             $dateObj = DateTime::createFromFormat('!m', $month);
-            $month   = $dateObj->format('F');
+            $month = $dateObj->format('F');
             if (!isset($data['months'][$month])) {
                 $data['months'][$month] = $month;
             }
@@ -569,8 +571,8 @@ class Reports_model extends App_Model
         foreach ($data['months'] as $month) {
             foreach ($payments as $payment) {
                 $monthNumber = date('m', strtotime($payment['date']));
-                $dateObj     = DateTime::createFromFormat('!m', $monthNumber);
-                $_month      = $dateObj->format('F');
+                $dateObj = DateTime::createFromFormat('!m', $monthNumber);
+                $_month = $dateObj->format('F');
                 if ($month == $_month) {
                     $data['temp'][$month][] = $payment['amount'];
                 }
@@ -582,15 +584,15 @@ class Reports_model extends App_Model
         }
 
         $chart = [
-            'labels'   => $data['labels'],
+            'labels' => $data['labels'],
             'datasets' => [
                 [
-                    'label'           => _l('report_sales_type_income'),
+                    'label' => _l('report_sales_type_income'),
                     'backgroundColor' => 'rgba(37,155,35,0.2)',
-                    'borderColor'     => '#84c529',
-                    'tension'         => false,
-                    'borderWidth'     => 1,
-                    'data'            => $data['total'],
+                    'borderColor' => '#84c529',
+                    'tension' => false,
+                    'borderWidth' => 1,
+                    'data' => $data['total'],
                 ],
             ],
         ];
@@ -629,76 +631,128 @@ class Reports_model extends App_Model
     }
 
 
-    public function get_expense_extracts() {
+    public function get_expense_extracts($warehouse_id = '')
+    {
         $this->db->select('DATE(date) as expense_date, COALESCE(SUM(amount), 0) as total_sum');
         $this->db->from('tblexpenses');
         $this->db->where('date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)', null, false);
         $this->db->where('type', 'despesa');
         $this->db->group_by('expense_date');
         $this->db->order_by('expense_date', 'ASC');
-        
+
+        // Filtro pelo warehouse_id
+        if ($warehouse_id) {
+            $this->db->where('tblexpenses.warehouse_id', $warehouse_id);
+        }
+
         $query = $this->db->get();
         $results = $query->result_array();
-        
+
         // Garantir que temos dados para todos os 7 dias
         $complete_data = [];
-        for($i = 6; $i >= 0; $i--) {
+        for ($i = 6; $i >= 0; $i--) {
             $date = date('Y-m-d', strtotime("-$i days"));
             $found = false;
-            
-            foreach($results as $result) {
-                if($result['expense_date'] == $date) {
+
+            foreach ($results as $result) {
+                if ($result['expense_date'] == $date) {
                     $complete_data[] = $result;
                     $found = true;
                     break;
                 }
             }
-            
-            if(!$found) {
+
+            if (!$found) {
                 $complete_data[] = [
                     'expense_date' => $date,
                     'total_sum' => '0'
                 ];
             }
         }
-        
+
         return $complete_data;
     }
 
-    public function get_cash_extracts()
+    public function get_cash_extracts($warehouse_id = '')
     {
+
         $this->db->select('DATE(datesale) as sale_date, COALESCE(SUM(total), 0) as total_sum');
         $this->db->from('tblcashextracts');
         $this->db->where('datesale >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)', null, false);
         $this->db->where('type', 'credit');
         $this->db->group_by('sale_date');
         $this->db->order_by('sale_date', 'ASC');
-        
+
+        // Filtro pelo warehouse_id
+        if ($warehouse_id) {
+            $this->db->where('tblcashextracts.warehouse_id', $warehouse_id);
+        }
+
         $query = $this->db->get();
         $results = $query->result_array();
-        
+
         // Garantir que temos dados para todos os 7 dias
         $complete_data = [];
-        for($i = 6; $i >= 0; $i--) {
+        for ($i = 6; $i >= 0; $i--) {
             $date = date('Y-m-d', strtotime("-$i days"));
             $found = false;
-            
-            foreach($results as $result) {
-                if($result['sale_date'] == $date) {
+
+            foreach ($results as $result) {
+                if ($result['sale_date'] == $date) {
                     $complete_data[] = $result;
                     $found = true;
                     break;
                 }
             }
-            
-            if(!$found) {
+
+            if (!$found) {
                 $complete_data[] = [
                     'sale_date' => $date,
                     'total_sum' => '0'
                 ];
             }
         }
-        
+
+        return $complete_data;
+    }
+    public function get_prod_stock($warehouse_id = '')
+    {
+        $this->db->select('DATE(data) as sale_date, COALESCE(SUM(qtde * valor), 0) as total_sum');
+        $this->db->from('tblstock');
+        $this->db->where('data >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)', null, false);
+        $this->db->group_by('sale_date');
+        $this->db->order_by('sale_date', 'ASC');
+
+        // Filtro pelo warehouse_id
+        if ($warehouse_id) {
+            $this->db->where('tblstock.warehouse_id', $warehouse_id);
+        }
+
+        $query = $this->db->get();
+        $results = $query->result_array();
+
+        // Garantir que temos dados para todos os 7 dias
+        $complete_data = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime("-$i days"));
+            $found = false;
+
+            foreach ($results as $result) {
+                if ($result['sale_date'] == $date) {
+                    $complete_data[] = $result;
+                    $found = true;
+                    break;
+                }
+            }
+
+            if (!$found) {
+                $complete_data[] = [
+                    'sale_date' => $date,
+                    'total_sum' => '0'
+                ];
+            }
+        }
+
         return $complete_data;
     }
 }

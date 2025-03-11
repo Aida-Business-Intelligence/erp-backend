@@ -23,8 +23,8 @@ class Reports extends REST_Controller
     $customStartDate = $this->post('customStartDate');
     $customEndDate = $this->post('customEndDate');
 
-    $page = max(0, $this->post('page') ? (int)$this->post('page') - 1 : 0);
-    $pageSize = max(1, $this->post('pageSize') ? (int)$this->post('pageSize') : 10);
+    $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
+    $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
 
     $startDate = null;
     $endDate = date('Y-m-d 23:59:59');
@@ -233,7 +233,7 @@ class Reports extends REST_Controller
       'monthly_data' => array_values($monthlyData),
       'product_totals' => $productData,
       'pagination' => [
-        'total' => (int)$total_items,
+        'total' => (int) $total_items,
         'page' => $page + 1,
         'pageSize' => $pageSize,
         'totalPages' => ceil($total_items / $pageSize)
@@ -253,8 +253,8 @@ class Reports extends REST_Controller
     $customStartDate = $this->post('startDate');
     $customEndDate = $this->post('endDate');
 
-    $page = max(0, $this->post('page') ? (int)$this->post('page') - 1 : 0);
-    $pageSize = max(1, $this->post('pageSize') ? (int)$this->post('pageSize') : 10);
+    $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
+    $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
 
     $startDate = null;
     $endDate = date('Y-m-d 23:59:59');
@@ -418,14 +418,14 @@ class Reports extends REST_Controller
       'status' => true,
       'metrics' => [
         'total_value' => floatval($metrics['total_value']),
-        'total_transactions' => (int)$metrics['total_transactions'],
+        'total_transactions' => (int) $metrics['total_transactions'],
         'avg_ticket' => floatval($metrics['avg_ticket']),
         'peak_hour' => $this->get_peak_hour($hourly_analysis)
       ],
       'hourly_analysis' => array_values(array_map(function ($hour) {
         return [
-          'hour' => (int)$hour['hour'],
-          'transactions' => (int)$hour['transactions'],
+          'hour' => (int) $hour['hour'],
+          'transactions' => (int) $hour['transactions'],
           'total_value' => floatval($hour['total_value']),
           'avg_ticket' => floatval($hour['avg_ticket'])
         ];
@@ -433,7 +433,7 @@ class Reports extends REST_Controller
       'cashier_analysis' => array_map(function ($cashier) {
         return [
           'cash_id' => $cashier['cash_id'],
-          'transactions' => (int)$cashier['transactions'],
+          'transactions' => (int) $cashier['transactions'],
           'total_value' => floatval($cashier['total_value']),
           'avg_value' => floatval($cashier['avg_value'])
         ];
@@ -521,9 +521,10 @@ class Reports extends REST_Controller
     $customStartDate = $this->post('startDate');
     $customEndDate = $this->post('endDate');
     $orderBy = $this->post('orderBy') ?: 'depletion';
+    // $warehouse_id = $this->post('warehouse_id') ?: 0;
 
-    $page = max(0, $this->post('page') ? (int)$this->post('page') - 1 : 0);
-    $pageSize = max(1, $this->post('pageSize') ? (int)$this->post('pageSize') : 10);
+    $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
+    $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
 
     $startDate = null;
     $endDate = date('Y-m-d 23:59:59');
@@ -579,6 +580,12 @@ class Reports extends REST_Controller
     $this->db->where(db_prefix() . 'itemcash.data >=', $startDate);
     $this->db->where(db_prefix() . 'itemcash.data <=', $endDate);
 
+    // // Adicionando a condição do warehouse_id
+    // if ($warehouse_id) {
+    //   $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
+    // }
+
+
     if ($franchise) {
       $this->db->join(db_prefix() . 'cashs', db_prefix() . 'cashs.id = ' . db_prefix() . 'itemcash.cash_id');
       $this->db->where(db_prefix() . 'cashs.franchise_id', $franchise);
@@ -632,13 +639,15 @@ class Reports extends REST_Controller
     ];
 
     $processed_items = [];
+
+
     foreach ($items as $item) {
       $days_analyzed = max(1, (strtotime($endDate) - strtotime($startDate)) / (60 * 60 * 24));
 
       $total_qty_sold = floatval($item['total_qty_sold']) ?: 0;
       $daily_sales_rate = $days_analyzed > 0 ? $total_qty_sold / $days_analyzed : 0;
 
-      $current_stock = max(0, (int)$item['currentStock']);
+      $current_stock = max(0, (int) $item['currentStock']);
       $days_to_depletion = $daily_sales_rate > 0 ? $current_stock / $daily_sales_rate : ($current_stock > 0 ? 999999 : 0);
 
       $turnover_rate = $current_stock > 0 ? ($total_qty_sold / $current_stock) * 100 : 0;
@@ -648,7 +657,7 @@ class Reports extends REST_Controller
       $profit_margin = $cost > 0 ? ($price - $cost) / $cost : 0;
 
       $status = 'ok';
-      $min_stock = max(0, (int)$item['minStock']);
+      $min_stock = max(0, (int) $item['minStock']);
 
       if ($current_stock <= $min_stock) {
         $status = 'critical';
@@ -700,8 +709,8 @@ class Reports extends REST_Controller
           'isSlowDepleting' => $days_to_depletion > 90
         ],
         'turnoverRate' => round($turnover_rate, 2),
-        'totalSales' => (int)$total_qty_sold,
-        'daysInStock' => (int)($item['daysInStock'] ?: $days_analyzed),
+        'totalSales' => (int) $total_qty_sold,
+        'daysInStock' => (int) ($item['daysInStock'] ?: $days_analyzed),
         'status' => $status,
         'suggestion' => $suggestion
       ];
@@ -712,7 +721,7 @@ class Reports extends REST_Controller
       'metrics' => $metrics,
       'items' => $processed_items,
       'pagination' => [
-        'total' => (int)$total_count,
+        'total' => (int) $total_count,
         'page' => $page + 1,
         'pageSize' => $pageSize,
         'totalPages' => ceil($total_count / $pageSize)
@@ -730,8 +739,9 @@ class Reports extends REST_Controller
     $customStartDate = $this->post('customStartDate');
     $customEndDate = $this->post('customEndDate');
 
-    $page = max(0, $this->post('page') ? (int)$this->post('page') - 1 : 0);
-    $pageSize = max(1, $this->post('pageSize') ? (int)$this->post('pageSize') : 10);
+    $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
+    $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
+    $warehouse_id = $this->post('warehouse_id') ?: 0;
 
     $startDate = null;
     $endDate = date('Y-m-d 23:59:59');
@@ -773,6 +783,7 @@ class Reports extends REST_Controller
     $this->db->join(db_prefix() . 'itemcash ic', 'ic.cash_id = c.id', 'left');
     $this->db->where('c.data >=', $startDate);
     $this->db->where('c.data <=', $endDate);
+    $this->db->where('c.warehouse_id', $warehouse_id);
 
     if ($pdvBox) {
       $this->db->where('c.number', $pdvBox);
@@ -796,6 +807,7 @@ class Reports extends REST_Controller
     $this->db->from(db_prefix() . 'cashs c');
     $this->db->where('c.data >=', $startDate);
     $this->db->where('c.data <=', $endDate);
+    $this->db->where('c.warehouse_id', $warehouse_id);
 
     if ($pdvBox) {
       $this->db->where('c.number', $pdvBox);
@@ -819,6 +831,7 @@ class Reports extends REST_Controller
     $this->db->from(db_prefix() . 'cashs c');
     $this->db->where('c.data >=', $startDate);
     $this->db->where('c.data <=', $endDate);
+    $this->db->where('c.warehouse_id', $warehouse_id);
 
     if ($pdvBox) {
       $this->db->where('c.number', $pdvBox);
@@ -835,7 +848,7 @@ class Reports extends REST_Controller
     for ($i = 0; $i < 24; $i++) {
       $hour_exists = false;
       foreach ($hourly_data as $hour) {
-        if ((int)$hour['hour'] === $i) {
+        if ((int) $hour['hour'] === $i) {
           $filled_hourly_data[] = $hour;
           $hour_exists = true;
           break;
@@ -857,14 +870,14 @@ class Reports extends REST_Controller
         return [
           'month' => $month['month'],
           'total_value' => floatval($month['total_value']),
-          'transactions' => (int)$month['transactions'],
-          'total_items' => (int)$month['total_items']
+          'transactions' => (int) $month['transactions'],
+          'total_items' => (int) $month['total_items']
         ];
       }, $monthly_data),
       'hourly_data' => array_map(function ($hour) {
         return [
           'hour' => sprintf('%02d:00', $hour['hour']),
-          'transactions' => (int)$hour['transactions'],
+          'transactions' => (int) $hour['transactions'],
           'total_value' => floatval($hour['total_value']),
           'avg_ticket' => floatval($hour['avg_ticket'] ?? 0)
         ];
@@ -880,7 +893,7 @@ class Reports extends REST_Controller
         ];
       }, $sales),
       'pagination' => [
-        'total' => (int)$total_count,
+        'total' => (int) $total_count,
         'page' => $page + 1,
         'pageSize' => $pageSize,
         'totalPages' => ceil($total_count / $pageSize)
@@ -980,11 +993,11 @@ class Reports extends REST_Controller
       'monthly_performance' => [
         'current_month' => [
           'total_sales' => floatval($current_month_data['total_sales']),
-          'transaction_count' => (int)$current_month_data['transaction_count']
+          'transaction_count' => (int) $current_month_data['transaction_count']
         ],
         'previous_month' => [
           'total_sales' => floatval($previous_month_data['total_sales']),
-          'transaction_count' => (int)$previous_month_data['transaction_count']
+          'transaction_count' => (int) $previous_month_data['transaction_count']
         ],
         'goal' => [
           'target' => $monthly_goal,

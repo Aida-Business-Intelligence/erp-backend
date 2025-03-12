@@ -141,6 +141,14 @@ class Produto extends REST_Controller
             'createdAt' => date('Y-m-d H:i:s'),
             'cest' => $_POST['cest'] ?? null,
             'ncm' => $_POST['ncm'] ?? null,
+            'maxDiscount' => $_POST['maxDiscount'] ?? null,
+            'location' => $_POST['location'] ?? null,
+            'rpaEnabled' => $_POST['rpaEnabled'] ?? null,
+            'length' => $_POST['length'] ?? null,
+            'width' => $_POST['width'] ?? null,
+            'height' => $_POST['height'] ?? null,
+            'cubage' => $_POST['cubage'] ?? null,
+            'defaultPurchaseQuantity' => $_POST['defaultPurchaseQuantity'] ?? null,
             'updatedAt' => date('Y-m-d H:i:s')
         ];
 

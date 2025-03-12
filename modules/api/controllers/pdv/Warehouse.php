@@ -118,7 +118,22 @@ class Warehouse extends REST_Controller
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        $content_type = isset($this->input->request_headers()['Content-Type'])
+            ? $this->input->request_headers()['Content-Type']
+            : (isset($this->input->request_headers()['content-type'])
+                ? $this->input->request_headers()['content-type']
+                : null);
+
+        $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
+
+        if ($is_multipart) {
+            $_POST = $this->input->post();
+            log_activity('Warehouse Create Input (multipart): ' . json_encode($_POST));
+        } else {
+            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+            log_activity('Warehouse Create Input (json): ' . json_encode($_POST));
+        }
+
         if (empty($_POST)) {
             $this->response(['status' => FALSE, 'message' => 'Invalid input data'], REST_Controller::HTTP_BAD_REQUEST);
             return;
@@ -151,14 +166,10 @@ class Warehouse extends REST_Controller
         $this->form_validation->set_rules('order', 'Order', 'trim|required|numeric');
         $this->form_validation->set_rules('display', 'Display', 'trim|required|in_list[0,1]');
         $this->form_validation->set_rules('cidade', 'Cidade', 'trim|required|max_length[100]');
-        //        $this->form_validation->set_rules('note', 'Note', 'trim|required|max_length[100]');
-//        $this->form_validation->set_rules('franqueado_id', 'FranqueadoID', 'trim|required|max_length[100]');
-//        $this->form_validation->set_rules('order', 'Order', 'trim|required|max_length[100]');
         $this->form_validation->set_rules('estado', 'Estado', 'trim|required|max_length[100]');
         $this->form_validation->set_rules('bairro', 'bairro', 'trim|required|max_length[100]');
         $this->form_validation->set_rules('cnpj', 'Cnpj', 'trim|required|max_length[20]');
         $this->form_validation->set_rules('cep', 'Cep', 'trim|required|max_length[9]|regex_match[/^\d{5}-\d{3}$/]');
-        // $this->form_validation->set_rules('country', 'Country', 'trim|required|numeric');
 
         if ($this->form_validation->run() === FALSE) {
             $this->response(['status' => FALSE, 'error' => $this->form_validation->error_array()], REST_Controller::HTTP_BAD_REQUEST);
@@ -166,26 +177,64 @@ class Warehouse extends REST_Controller
         }
 
         $output = $this->Warehouse_model->add($_input);
-        if ($output) {
-            $this->response(['status' => TRUE, 'message' => 'Warehouse created successfully', 'data' => $this->Warehouse_model->get($output)], REST_Controller::HTTP_OK);
-        } else {
+        if (!$output) {
             $this->response(['status' => FALSE, 'message' => 'Failed to create warehouse'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
         }
+
+        if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['arquivo_nfe'];
+
+            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if ($extension !== 'pfx') {
+                log_activity('Invalid file type uploaded for warehouse ' . $output . '. Only PFX files are allowed.');
+            } else {
+                $max_size = 5 * 1024 * 1024; // 5MB
+                if ($file['size'] <= $max_size) {
+                    $upload_dir = './uploads/warehouse/' . $output . '/';
+                    if (!file_exists($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
+
+                    $filename = uniqid() . '.pfx';
+                    $upload_path = $upload_dir . $filename;
+
+                    if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                        $server_url = base_url();
+                        $relative_path = str_replace('./', '', $upload_path);
+                        $file_url = rtrim($server_url, '/') . '/' . $relative_path;
+
+                        $this->db->where('warehouse_id', $output);
+                        $this->db->update(db_prefix() . 'warehouse', ['arquivo_nfe' => $file_url]);
+                    } else {
+                        log_activity('Failed to move uploaded file for warehouse ' . $output);
+                    }
+                } else {
+                    log_activity('File too large for warehouse ' . $output . '. Maximum size is 5MB.');
+                }
+            }
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'message' => 'Warehouse created successfully',
+            'data' => $this->Warehouse_model->get($output)
+        ], REST_Controller::HTTP_OK);
     }
 
     //    public function get_get($id = '') {
-//        if (!is_numeric($id)) {
-//            $this->response(['status' => FALSE, 'message' => 'Invalid Warehouse ID'], REST_Controller::HTTP_BAD_REQUEST);
-//            return;
-//        }
-//
-//        $warehouse = $this->Warehouse_model->get($id);
-//        if ($warehouse) {
-//            $this->response(['status' => TRUE, 'data' => $warehouse], REST_Controller::HTTP_OK);
-//        } else {
-//            $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
-//        }
-//    }
+    //        if (!is_numeric($id)) {
+    //            $this->response(['status' => FALSE, 'message' => 'Invalid Warehouse ID'], REST_Controller::HTTP_BAD_REQUEST);
+    //            return;
+    //        }
+    //
+    //        $warehouse = $this->Warehouse_model->get($id);
+    //        if ($warehouse) {
+    //            $this->response(['status' => TRUE, 'data' => $warehouse], REST_Controller::HTTP_OK);
+    //        } else {
+    //            $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
+    //        }
+    //    }
 
     public function get_get($id = '')
     {
@@ -214,14 +263,33 @@ class Warehouse extends REST_Controller
 
     public function update_post($id = '')
     {
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        $content_type = isset($this->input->request_headers()['Content-Type'])
+            ? $this->input->request_headers()['Content-Type']
+            : (isset($this->input->request_headers()['content-type'])
+                ? $this->input->request_headers()['content-type']
+                : null);
+
+        $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
+
+        if ($is_multipart) {
+            $_POST = $this->input->post();
+            log_activity('Warehouse Update Input (multipart): ' . json_encode($_POST));
+        } else {
+            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+            log_activity('Warehouse Update Input (json): ' . json_encode($_POST));
+        }
 
         if (empty($_POST) || !is_numeric($id)) {
             $this->response(['status' => FALSE, 'message' => 'Invalid Warehouse ID or Data'], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
 
-        var_dump($_POST['cep']);
+        // Get current warehouse data
+        $current_warehouse = $this->Warehouse_model->get($id);
+        if (!$current_warehouse) {
+            $this->response(['status' => FALSE, 'message' => 'Warehouse not found'], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
 
         // Ajustar os campos permitidos para atualização
         $update_data = array_intersect_key($_POST, array_flip([
@@ -243,19 +311,57 @@ class Warehouse extends REST_Controller
             'franqueado_id',
         ]));
 
-        // Verificar se há dados para atualizar
-        if (empty($update_data)) {
-            $this->response(['status' => FALSE, 'message' => 'No valid data to update'], REST_Controller::HTTP_BAD_REQUEST);
-            return;
+        // First update the warehouse data through the model
+        $output = $this->Warehouse_model->update($update_data, $id);
+
+        if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['arquivo_nfe'];
+
+            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if ($extension !== 'pfx') {
+                log_activity('Invalid file type uploaded for warehouse ' . $id . '. Only PFX files are allowed.');
+            } else {
+                $max_size = 5 * 1024 * 1024; // 5MB
+                if ($file['size'] <= $max_size) {
+                    $upload_dir = './uploads/warehouse/' . $id . '/';
+                    if (!file_exists($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
+
+                    $old_file = $current_warehouse->arquivo_nfe;
+                    if ($old_file) {
+                        $old_file_path = str_replace(base_url(), './', $old_file);
+                        if (file_exists($old_file_path)) {
+                            unlink($old_file_path);
+                        }
+                    }
+
+                    $filename = uniqid() . '.pfx';
+                    $upload_path = $upload_dir . $filename;
+
+                    if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                        $server_url = base_url();
+                        $relative_path = str_replace('./', '', $upload_path);
+                        $file_url = rtrim($server_url, '/') . '/' . $relative_path;
+
+                        $this->db->where('warehouse_id', $id);
+                        $this->db->update(db_prefix() . 'warehouse', ['arquivo_nfe' => $file_url]);
+                    } else {
+                        log_activity('Failed to move uploaded file for warehouse ' . $id);
+                    }
+                } else {
+                    log_activity('File too large for warehouse ' . $id . '. Maximum size is 5MB.');
+                }
+            }
         }
 
-        // Atualizar o armazém
-        $output = $this->Warehouse_model->update($update_data, $id);
-        if ($output) {
-            $this->response(['status' => TRUE, 'message' => 'Warehouse updated successfully', 'data' => $this->Warehouse_model->get($id)], REST_Controller::HTTP_OK);
-        } else {
-            $this->response(['status' => FALSE, 'message' => 'Failed to update warehouse'], REST_Controller::HTTP_NOT_FOUND);
-        }
+        $updated_warehouse = $this->Warehouse_model->get($id);
+
+        $this->response([
+            'status' => TRUE,
+            'message' => 'Warehouse updated successfully',
+            'data' => $updated_warehouse
+        ], REST_Controller::HTTP_OK);
     }
 
     public function remove_post()
@@ -285,5 +391,4 @@ class Warehouse extends REST_Controller
             'failed_ids' => $failed_ids
         ], $success_count > 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_NOT_FOUND);
     }
-
 }

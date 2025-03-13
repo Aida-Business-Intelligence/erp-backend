@@ -1097,5 +1097,6 @@ class Produto extends REST_Controller
                 'errors' => $errors
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
+        
     }
 }

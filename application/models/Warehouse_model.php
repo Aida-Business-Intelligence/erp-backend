@@ -21,7 +21,7 @@ class Warehouse_model extends App_Model
 
     public function get($id = '', $where = [])
     {
-        
+
         $this->db->select(implode(',', prefixed_table_fields_array(db_prefix() . 'warehouse')));
 
         if ((is_array($where) && count($where) > 0) || (is_string($where) && $where != '')) {
@@ -44,7 +44,24 @@ class Warehouse_model extends App_Model
 
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'warehouse_id', $sortOrder = 'ASC', $franqueado_id = 0)
     {
-        $allowedSortFields = ['warehouse_id', 'warehouse_code', 'warehouse_name', 'warehouse_address', 'order', 'display', 'note', 'city', 'state', 'zip_code', 'country'];
+        $allowedSortFields = [
+            'warehouse_code',
+            'warehouse_name',
+            'cnpj',
+            'order',
+            'display',
+            'note',
+            'cidade',
+            'estado',
+            'ie',
+            'im',
+            'cep',
+            'complemento',
+            'bairro',
+            'numero',
+            'endereco',
+            'franqueado_id',
+        ];
         if (!in_array($sortField, $allowedSortFields)) {
             $sortField = 'warehouse_id'; // Valor padrão seguro
         }
@@ -56,18 +73,24 @@ class Warehouse_model extends App_Model
 
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like(db_prefix() . 'warehouse.warehouse_name', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.warehouse_id', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.warehouse_code', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.warehouse_address', $search);
+                $this->db->like(db_prefix() . 'warehouse.warehouse_code', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.warehouse_name', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.cnpj', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.order', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.display', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.note', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.city', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.state', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.zip_code', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.country', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.cidade', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.estado', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.ie', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.im', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.cep', $search);
+                // $this->db->or_like(db_prefix() . 'warehouse.complemento', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.bairro', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.numero', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.endereco', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.franqueado_id', $search);
                 $this->db->group_end();
+
             }
 
             $this->db->order_by($sortField, $sortOrder);
@@ -81,18 +104,24 @@ class Warehouse_model extends App_Model
 
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like(db_prefix() . 'warehouse.warehouse_name', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.warehouse_id', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.warehouse_code', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.warehouse_address', $search);
+                $this->db->like(db_prefix() . 'warehouse.warehouse_code', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.warehouse_name', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.cnpj', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.order', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.display', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.note', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.city', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.state', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.zip_code', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.country', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.cidade', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.estado', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.ie', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.im', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.cep', $search);
+                // $this->db->or_like(db_prefix() . 'warehouse.complemento', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.bairro', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.numero', $search);
+                $this->db->or_like(db_prefix() . 'warehouse.endereco', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.franqueado_id', $search);
                 $this->db->group_end();
+
             }
 
             $total = $this->db->count_all_results();
@@ -118,14 +147,19 @@ class Warehouse_model extends App_Model
         $allowed_fields = [
             'warehouse_code',
             'warehouse_name',
-            'warehouse_address',
-            'display',
+            'cnpj',
             'order',
+            'display',
             'note',
-            'city',
-            'state',
-            'zip_code',
-            'country',
+            'cidade',
+            'estado',
+            'ie',
+            'im',
+            'cep',
+            'complemento',
+            'bairro',
+            'numero',
+            'endereco',
             'franqueado_id',
         ];
 
@@ -146,14 +180,19 @@ class Warehouse_model extends App_Model
         $allowed_fields = [
             'warehouse_code',
             'warehouse_name',
-            'warehouse_address',
-            'display',
+            'cnpj',
             'order',
+            'display',
             'note',
-            'city',
-            'state',
-            'zip_code',
-            'country',
+            'cidade',
+            'estado',
+            'ie',
+            'im',
+            'cep',
+            'complemento',
+            'bairro',
+            'numero',
+            'endereco',
             'franqueado_id',
         ];
 

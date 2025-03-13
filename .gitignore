@@ -54,3 +54,6 @@ public/
 config/database.php
 .codegpt
 /nbproject/private/
+
+application/config/app-config.php
+uploads/

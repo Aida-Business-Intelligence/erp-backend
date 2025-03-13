@@ -125,7 +125,7 @@ class Authentication_model extends App_Model
         return false;
     }
     
-     public function login_api($email, $password) {
+     public function login_api($email, $password, $warehouse = null) {
          
             header('Content-Type: application/json');
             $table = db_prefix() . 'staff';
@@ -134,6 +134,10 @@ class Authentication_model extends App_Model
             
          
             if ($user) {
+                
+             
+                $user->warehouse = $warehouse;
+             
                 // Email está correto, agora vamos checar a senha
                 if (app_hasher()->CheckPassword($password, $user->password)) {
                     

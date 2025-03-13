@@ -1,5 +1,6 @@
 <?php
 
+
 defined('BASEPATH') or exit('No direct script access allowed');
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
 
@@ -56,6 +57,8 @@ class Cash extends REST_Controller
     }
     public function list_post($id = '')
     {
+
+
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -165,6 +168,15 @@ class Cash extends REST_Controller
             return;
         }
 
+        // Verifica se warehouse_id foi enviado e é válido
+        if ($this->cashs_model->count_by_number_warehouse_id($input['number'], $input['warehouse_id']) > 0) {
+            $this->response([
+                'status' => false,
+                'message' => 'Número de caixa existente.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
         // Prepara os dados para inserção
         $_input = [
             'number' => isset($input['number']) ? (int) $input['number'] : null,
@@ -218,6 +230,7 @@ class Cash extends REST_Controller
         $data = json_decode(file_get_contents("php://input"), true);
 
         $id_cash = $data['rows'][0];
+        $warehouse_id = $data['warehouse_id'];
         $extract = $this->cashs_model->count_extracts($id_cash);
 
 
@@ -362,17 +375,19 @@ class Cash extends REST_Controller
         $search = $this->post('search') !== null ? $this->post('search') : '';
         $sortField = $this->post('sortField') ?: 'id';
         $sortOrder = strtoupper($this->post('sortOrder')) === 'DESC' ? 'DESC' : 'ASC';
+        $warehouse_id = $this->post('warehouse_id') ?: 0;
 
         // Get additional filters
         $filters = [
             'start_date' => $this->post('start_date'),
             'end_date' => $this->post('end_date'),
             'status' => $this->post('status'),
+            'payment_type' => $this->post('payment_type'), // Adicionando o filtro de formas de pagamento
         ];
 
         $cash_id = $this->post('cash_id');
 
-        $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $cash_id);
+        $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $cash_id, $warehouse_id);
 
         // Always return HTTP_OK with the data and total, even if total is 0
         $this->response([
@@ -382,13 +397,65 @@ class Cash extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
+    public function extractsss_post($id = '')
+    {
+        // Recebe o ID do caixa da URL
+        $caixaId = $this->input->get('id');
+
+        // Verifica se o ID do caixa foi fornecido
+        if (empty($caixaId)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'ID do caixa não fornecido'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        // Converte o ID para inteiro
+        $caixaId = (int) $caixaId;
+
+        // Verifica se o caixa existe
+        $detalhes_caixa = $this->cashs_model->get_by_id($caixaId);
+
+        if (!$detalhes_caixa) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Caixa não encontrado'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+
+        // Parâmetros de paginação e ordenação
+        $page = $this->input->get('page') ? (int) $this->input->get('page') : 0;
+        $page = $page + 1; // Ajuste para a paginação
+        $limit = $this->input->get('pageSize') ? (int) $this->input->get('pageSize') : 10;
+        $search = $this->input->get('search') ?: '';
+        $sortField = $this->input->get('sortField') ?: 'id';
+        $sortOrder = $this->input->get('sortOrder') === 'asc' ? 'ASC' : 'DESC';
+
+        // Busca as transações pelo cash_id
+        $cash = $this->cashs_model->get_transactions2($id = '', $page, $limit, $search, $sortField, $sortOrder, $filters = null, $caixaId);
+
+        if ($cash) {
+            $this->response([
+                'status' => TRUE,
+                'total' => $cash['total'],
+                'data' => $cash
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Nenhum dado encontrado'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
 
     public function extracts_post($id = '')
     {
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $number = $_POST['caixaId'];
+        $number = (int) $_POST['caixaId'];
+
         $page = $_POST['page'] ? (int) $_POST['page'] : 0; // Página atual, padrão 1
         $page = $page + 1;
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
@@ -397,7 +464,7 @@ class Cash extends REST_Controller
         $sortOrder = $this->post('sortOrder') === 'asc' ? 'ASC' : 'DESC'; // Ordem, padrão crescente
 
 
-        $detalhes_caixa = $this->cashs_model->get_by_number($number);
+        $detalhes_caixa = $this->cashs_model->get_by_id($number);
 
         if (!$detalhes_caixa) {
             $this->response([
@@ -413,6 +480,7 @@ class Cash extends REST_Controller
         if ($cash) {
             $this->response([
                 'status' => TRUE,
+                'total' => $cash['total'],
                 'data' => $cash
             ], REST_Controller::HTTP_OK);
         } else {
@@ -455,34 +523,67 @@ class Cash extends REST_Controller
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         $update_data = array(
-            'status' => $_POST['status']
+            'status' => $_POST['status'],
+            'operacao' => $_POST['operacao']
         );
 
         if ($this->cashs_model->update_extracts($update_data, $id)) {
             $this->response([
                 'status' => TRUE,
-                'message' => 'Status atualizado com sucesso',
+                'message' => 'Status e operacao atualizado com sucesso',
                 'data' => $subgroups
             ], REST_Controller::HTTP_OK);
         } else {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Erro ao atualizar status'
+                'message' => 'Erro ao atualizar status e operacao'
             ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+    public function cancelar_item_patch()
+    {
+        // Recebe o payload JSON
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        // Valida os dados recebidos
+        if (empty($_POST['item_id']) || empty($_POST['extract_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Dados incompletos!'
+            ], REST_Controller::HTTP_BAD_REQUEST); // Retorna 400 se os dados estiverem incompletos
+            return;
+        }
+
+        $item_id = $_POST['item_id'];
+        $extract_id = $_POST['extract_id'];
+
+        // Verifica se os dados não são nulos
+        if ($item_id !== null && $extract_id !== null) {
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Item cancelado com sucesso!'
+            ], REST_Controller::HTTP_OK); // Retorna 200 em caso de sucesso
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Erro ao processar o cancelamento'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR); // Retorna 500 em caso de erro
         }
     }
 
     public function active_patch()
     {
-        
-        
-
 
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
-        $caixaId= $_POST['caixaId'];
-        $valor = $_POST['valor'];
+        $caixaId = $_POST['caixaId'];
+        $valor = 0;
+
+        if (isset($_POST['valor'])) {
+            $valor = $_POST['valor'];
+        }
+
         $warehouse_id = $_POST['warehouse_id'];
         $status = $_POST['status'];
         $client_id = @$_POST['client_id'];
@@ -505,7 +606,7 @@ class Cash extends REST_Controller
                 'message' => 'Senha inválida'
             ], REST_Controller::HTTP_OK);
         }
-      
+
         $detalhes_caixa = $this->cashs_model->get_by_id($caixaId);
 
         if ($status == 1) {
@@ -584,6 +685,8 @@ class Cash extends REST_Controller
     public function sangria_patch()
     {
 
+
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
         $valor = $_POST['valor'];
@@ -603,7 +706,7 @@ class Cash extends REST_Controller
 
 
 
-        $detalhes_caixa = $this->cashs_model->get_by_number($number);
+        $detalhes_caixa = $this->cashs_model->get_by_id($number);
         if (!$detalhes_caixa) {
             $this->response([
                 'status' => FALSE,

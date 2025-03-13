@@ -822,14 +822,18 @@ class Produto extends REST_Controller
 
         $this->db->from(db_prefix() . 'items i');
         $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.item_id = i.id');
-        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = pn.user_id');
         $this->db->where('pn.status', 0);
-        $this->db->where('c.is_supplier', 1);
+      //  $this->db->where('c.is_supplier', 1);
         $this->db->where('i.warehouse_id', $warehouse_id);
         $this->db->group_by('c.userid');
         $this->db->having('COUNT(DISTINCT pn.id) > 0');
 
         $suppliers = $this->db->get()->result_array();
+        
+    //  $last_query = $this->db->last_query();
+        
+    //    echo $last_query;
 
         $this->response([
             'status' => TRUE,
@@ -879,13 +883,19 @@ class Produto extends REST_Controller
 
         $this->db->from(db_prefix() . 'purchase_needs pn');
         $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id', 'left');
-        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.userid', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = pn.user_id', 'left');
         $this->db->where('pn.status', 0);
-        $this->db->where('i.userid', $supplier_id);
+        $this->db->where('pn.user_id', $supplier_id);
         $this->db->where('i.warehouse_id', $warehouse_id);
-        $this->db->where('c.is_supplier', 1);
+      //  $this->db->where('c.is_supplier', 1);
+        
+        
 
         $products = $this->db->get()->result_array();
+        
+   // $last_query = $this->db->last_query();
+        
+    //  echo $last_query;
 
         $total_cost = 0;
         $purchase_needs = [];
@@ -1087,5 +1097,6 @@ class Produto extends REST_Controller
                 'errors' => $errors
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
+        
     }
 }

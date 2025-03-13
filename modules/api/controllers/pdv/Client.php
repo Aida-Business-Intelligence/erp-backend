@@ -211,6 +211,9 @@ class Client extends REST_Controller
         $_input['company'] = $_POST['fullName'] ?? null;
         $_POST['company'] = $_POST['fullName'] ?? null;
 
+        $_input['marketingConsent'] = $_POST['marketingConsent'] ?? false;
+        $_input['communicationPreference'] = $_POST['communicationPreference'] ?? null;
+
         // Validação de campos
         $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
         $this->form_validation->set_rules('email_default', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
@@ -223,11 +226,14 @@ class Client extends REST_Controller
             // Chama o modelo para inserir os dados no banco
 
             $output = $this->clients_model->add($_input);
-            var_dump($output);
-            exit;
             if ($output > 0 && !empty($output)) {
                 // Sucesso
-                $message = array('status' => 'success', 'message' => 'auth_signup_success', 'data' => $this->clients_model->get($output));
+                $message = array(
+                    'status' => 'success',
+                    'message' => 'Client created successfully',
+                    'client_id' => $output,
+                    'data' => $this->clients_model->get($output)
+                );
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
                 // Erro

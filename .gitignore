@@ -57,3 +57,6 @@ config/database.php
 
 application/config/app-config.php
 uploads/
+deploy.sh
+deploy_gringa.sh
+deploy_imperio.sh

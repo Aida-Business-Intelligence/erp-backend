@@ -104,13 +104,17 @@ class Invoice_items_model extends App_Model
 
     public function get_item($id = '')
     {
+        $this->db->select(db_prefix() . 'items.*, ' . db_prefix() . 'clients.company');
         $this->db->from(db_prefix() . 'items');
         $this->db->where(db_prefix() . 'items.id', $id);
+        $this->db->join(db_prefix() . 'clients', 'clients.userid = ' . db_prefix() . 'items.userid', 'left');
 
         return $this->db->get()->row();
     }
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $statusFilter = null, $startDate = null, $endDate = null, $category = null, $subcategory = null, $warehouse_id = null)
+
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'DESC', $statusFilter = null, $startDate = null, $endDate = null, $category = null, $subcategory = null, $warehouse_id = null)
     {
         $items_table = db_prefix() . 'items';
         $groups_table = db_prefix() . 'items_groups';

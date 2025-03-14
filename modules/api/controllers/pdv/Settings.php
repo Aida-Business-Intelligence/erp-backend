@@ -109,7 +109,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:shopping-bag",
                             "width" => "",
-                            "path" => "/buy-orders"
+                            "path" => "https://order-generator-roan.vercel.app/"
                         ],
                         [
                             "value" => "Vendas",

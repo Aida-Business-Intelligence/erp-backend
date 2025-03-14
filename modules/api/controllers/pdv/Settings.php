@@ -254,7 +254,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:handshake",
                             "width" => "",
-                            "path" => "/franchisees/contracts"
+                            "path" => "/franchisees/contracts/list"
                         ],
                         [
                             "value" => "Treinamentos",
@@ -547,7 +547,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:handshake",
                             "width" => "",
-                            "path" => "/franchisees/contracts"
+                            "path" => "/franchisees/contracts/list"
                         ],
                         [
                             "value" => "Treinamentos",

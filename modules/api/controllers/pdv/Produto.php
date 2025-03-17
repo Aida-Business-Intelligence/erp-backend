@@ -47,7 +47,7 @@ class Produto extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: '';
         $sortField = $this->post('sortField') ?: 'id';
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+        $sortOrder = $this->post('sortOrder') ?: 'DESC';
 
         $status = $this->post('status');
         $category = $this->post('category');
@@ -306,6 +306,26 @@ class Produto extends REST_Controller
         $product = $this->Invoice_items_model->get_item($id);
 
         if ($product) {
+
+            if (!empty($product->group_id)) {
+                $this->db->select('name as category_name');
+                $this->db->where('id', $product->group_id);
+                $category = $this->db->get(db_prefix() . 'items_groups')->row();
+                $product->category_name = $category ? $category->category_name : null;
+            } else {
+                $product->category_name = null;
+            }
+
+            // Get subcategory name
+            if (!empty($product->sub_group)) {
+                $this->db->select('sub_group_name');
+                $this->db->where('id', $product->sub_group);
+                $subcategory = $this->db->get(db_prefix() . 'wh_sub_group')->row();
+                $product->subcategory_name = $subcategory ? $subcategory->sub_group_name : null;
+            } else {
+                $product->subcategory_name = null;
+            }
+
             $this->response([
                 'status' => TRUE,
                 'data' => $product

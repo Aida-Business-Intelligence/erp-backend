@@ -250,6 +250,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Contratos",
+
                             "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:handshake",
@@ -264,6 +265,15 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/franchisees/orders"
                         ],
+                        [
+                            "value" => "Suporte",
+                            "label" => "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:message-circle",
+                            "width" => "",
+                            "path" => "/franchisees/support"
+                        ],
+
                         // [
                         //     "value" => "Treinamentos",
                         //     "label" => "Franquias",
@@ -281,16 +291,10 @@ class Settings extends REST_Controller
                         //     "path" => "/Franquias/training/management"
                         // ],
                         /*
-                [
-                    "value" => "Suporte",
-                    "label" =>  "Franquias",
-                    "color" => "",
-                    "icon" => "lucide:message-circle",
-                    "width" => "",
-                    "path" => "/franchisees/suport"
-                ],
-                 * 
-                 */
+                         * 
+                         */
+
+
                         [
                             "value" => "users",
                             "label" => "admin",
@@ -557,6 +561,16 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/franchisees/orders"
                         ],
+                        [
+                            "value" => "Suporte",
+                            "label" => "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:message-circle",
+                            "width" => "",
+                            "path" => "/franchisees/support"
+                        ],
+
+
                         // [
                         //     "value" => "Treinamentos",
                         //     "label" => "franchisees",

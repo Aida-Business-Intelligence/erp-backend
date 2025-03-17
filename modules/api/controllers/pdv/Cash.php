@@ -169,7 +169,7 @@ class Cash extends REST_Controller
         }
 
         // Verifica se warehouse_id foi enviado e é válido
-        if ($this->cashs_model->count_by_number_warehouse_id($input['number'], $input['warehouse_id'])>0) {
+        if ($this->cashs_model->count_by_number_warehouse_id($input['number'], $input['warehouse_id']) > 0) {
             $this->response([
                 'status' => false,
                 'message' => 'Número de caixa existente.'
@@ -538,6 +538,36 @@ class Cash extends REST_Controller
                 'status' => FALSE,
                 'message' => 'Erro ao atualizar status e operacao'
             ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+    public function cancelar_item_patch()
+    {
+        // Recebe o payload JSON
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        // Valida os dados recebidos
+        if (empty($_POST['item_id']) || empty($_POST['extract_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Dados incompletos!'
+            ], REST_Controller::HTTP_BAD_REQUEST); // Retorna 400 se os dados estiverem incompletos
+            return;
+        }
+
+        $item_id = $_POST['item_id'];
+        $extract_id = $_POST['extract_id'];
+
+        // Verifica se os dados não são nulos
+        if ($item_id !== null && $extract_id !== null) {
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Item cancelado com sucesso!'
+            ], REST_Controller::HTTP_OK); // Retorna 200 em caso de sucesso
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Erro ao processar o cancelamento'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR); // Retorna 500 em caso de erro
         }
     }
 

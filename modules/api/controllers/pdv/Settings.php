@@ -101,15 +101,15 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:shopping-cart",
                             "width" => "",
-                            "path" => "/buy-orders"
+                            "path" => "/sales-orders"
                         ],
                         [
-                            "value" => "Ordens de Vendas",
+                            "value" => "Orçamentos",
                             "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:shopping-bag",
                             "width" => "",
-                            "path" => "/sales-orders"
+                            "path" => "https:/buy-orders"
                         ],
                         [
                             "value" => "Vendas",

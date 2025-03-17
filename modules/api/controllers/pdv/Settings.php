@@ -193,7 +193,7 @@ class Settings extends REST_Controller
                             "path" => "/warehouse"
                         ],
                         [
-                            "value" => "Contas e pagar ",
+                            "value" => "Contas a pagar",
                             "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:credit-card",
@@ -201,7 +201,7 @@ class Settings extends REST_Controller
                             "path" => "/financial"
                         ],
                         [
-                            "value" => "Contas e pagar ",
+                            "value" => "Contas a pagar",
                             "label" => "financial",
                             "color" => "",
                             "icon" => "lucide:credit-card",
@@ -234,7 +234,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Painel do Franqueado",
-                            "label" => "franchisees",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:bar-chart-2",
                             "width" => "",
@@ -242,7 +242,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Gestão de Franquias",
-                            "label" => "franchisees",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:store",
                             "width" => "",
@@ -250,36 +250,36 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Contratos",
-                            "label" => "franchisees",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:handshake",
                             "width" => "",
                             "path" => "/franchisees/contracts/list"
                         ],
                         [
-                            "value" => "Treinamentos",
-                            "label" => "franchisees",
-                            "color" => "",
-                            "icon" => "lucide:graduation-cap",
-                            "width" => "",
-                            "path" => "/franchisees/training"
-                        ],
-                        [
-                            "value" => "Gestão de Treinamentos",
-                            "label" => "franchisees",
-                            "color" => "",
-                            "icon" => "lucide:book-open",
-                            "width" => "",
-                            "path" => "/franchisees/training/management"
-                        ],
-                        [
                             "value" => "Pedidos",
-                            "label" => "franchisees",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
                             "path" => "/franchisees/orders"
                         ],
+                        // [
+                        //     "value" => "Treinamentos",
+                        //     "label" => "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:graduation-cap",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/training"
+                        // ],
+                        // [
+                        //     "value" => "Gestão de Treinamentos",
+                        //     "label" => "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:book-open",
+                        //     "width" => "",
+                        //     "path" => "/Franquias/training/management"
+                        // ],
                         /*
                 [
                     "value" => "Suporte",
@@ -550,22 +550,6 @@ class Settings extends REST_Controller
                             "path" => "/franchisees/contracts/list"
                         ],
                         [
-                            "value" => "Treinamentos",
-                            "label" => "franchisees",
-                            "color" => "",
-                            "icon" => "lucide:graduation-cap",
-                            "width" => "",
-                            "path" => "/franchisees/training"
-                        ],
-                        [
-                            "value" => "Gestão de Treinamentos",
-                            "label" => "franchisees",
-                            "color" => "",
-                            "icon" => "lucide:book-open",
-                            "width" => "",
-                            "path" => "/franchisees/training/management"
-                        ],
-                        [
                             "value" => "Pedidos",
                             "label" => "franchisees",
                             "color" => "",
@@ -573,6 +557,23 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/franchisees/orders"
                         ],
+                        // [
+                        //     "value" => "Treinamentos",
+                        //     "label" => "franchisees",
+                        //     "color" => "",
+                        //     "icon" => "lucide:graduation-cap",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/training"
+                        // ],
+                        // [
+                        //     "value" => "Gestão de Treinamentos",
+                        //     "label" => "franchisees",
+                        //     "color" => "",
+                        //     "icon" => "lucide:book-open",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/training/management"
+                        // ],
+
                     ]
                 ]
             ],

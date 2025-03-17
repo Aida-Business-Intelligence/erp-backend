@@ -386,23 +386,16 @@ class Staffs extends REST_Controller
         $page = $page + 1;
 
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $search = $this->post('search') ?: ''; // Alterado para this->post
-        $sortField = $this->post('sortField') ?: 'staffid'; // Alterado para this->post
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'staffid';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+        $warehouse_id = $this->post('warehouse_id') ?: 0;
 
         // Garantir que a pesquisa seja aplicada corretamente na consulta
-        $data = $this->Staff_model->get_api2($id, $page, $limit, $search, $sortField, $sortOrder);
-
-        // Filtrando os dados para pegar apenas os itens com type 'representative'
-        $filteredData = array_filter($data['data'], function ($item) {
-            return $item['type'] === 'representative';
-        });
-
-        // Atualizando o total para refletir o número de itens filtrados
-        $filteredTotal = count($filteredData);
+        $data = $this->Staff_model->get_api2($id, $page, $limit, $search, $sortField, $sortOrder, 'representative', $warehouse_id);
 
         // Verificando se há dados após o filtro
-        if ($filteredTotal == 0) {
+        if (empty($data['data'])) {
             $this->response(
                 [
                     'status' => FALSE,
@@ -414,8 +407,8 @@ class Staffs extends REST_Controller
             $this->response(
                 [
                     'status' => true,
-                    'total' => (int) $filteredTotal, // Total de registros filtrados
-                    'data' => array_values($filteredData) // Dados filtrados
+                    'total' => (int) $data['total'], // Total de registros filtrados
+                    'data' => array_values($data['data']) // Dados filtrados
                 ],
                 REST_Controller::HTTP_OK
             );
@@ -442,6 +435,8 @@ class Staffs extends REST_Controller
             'type' => $_POST['type'] ?? null,
             'linkedin' => $_POST['linkedin'] ?? null,
             'documentType' => $_POST['documentType'] ?? null,
+            'warehouse_id' => $_POST['warehouse_id'] ?? null,
+            // 'franqueado_id' => $_POST['franqueado_id'] ?? null,
             'vat' => $_POST['vat'] ?? null,
         ];
 

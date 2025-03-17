@@ -875,13 +875,15 @@ class Contracts_model extends App_Model
         return $merge_fields;
     }
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
     {
         if (!is_numeric($id)) {
             // Seleciona os campos necessários das tabelas tblcontracts e tblstaff
             $this->db->select('tblcontracts.*, tblstaff.firstname, tblstaff.lastname, tblstaff.email, tblstaff.vat');
             $this->db->from('tblcontracts'); // Define a tabela principal como tblcontracts
             $this->db->join('tblstaff', 'tblstaff.staffid = tblcontracts.staffid', 'left'); // JOIN com tblstaff
+            // $this->db->where('contracts.franqueado_id', value: $franqueado_id);
+            $this->db->where('tblcontracts.warehouse_id', value: $warehouse_id);
 
             // Filtro de busca
             if (!empty($search)) {
@@ -891,6 +893,8 @@ class Contracts_model extends App_Model
                 $this->db->or_like('tblstaff.lastname', $search);
                 $this->db->or_like('tblstaff.email', $search);
                 $this->db->or_like('tblstaff.vat', $search);
+                $this->db->or_like('tblcontracts.royalties', $search);
+                $this->db->or_like('tblcontracts.contract_value', $search);
                 $this->db->group_end();
             }
 
@@ -907,6 +911,8 @@ class Contracts_model extends App_Model
             $this->db->reset_query();
             $this->db->from('tblcontracts');
             $this->db->join('tblstaff', 'tblstaff.staffid = tblcontracts.staffid', 'left'); // JOIN com tblstaff
+            // $this->db->where('contracts.franqueado_id', value: $franqueado_id);
+            $this->db->where('tblcontracts.warehouse_id', value: $warehouse_id);
 
             // Filtro de busca na contagem
             if (!empty($search)) {
@@ -916,6 +922,8 @@ class Contracts_model extends App_Model
                 $this->db->or_like('tblstaff.lastname', $search);
                 $this->db->or_like('tblstaff.email', $search);
                 $this->db->or_like('tblstaff.vat', $search);
+                $this->db->or_like('tblcontracts.royalties', $search);
+                $this->db->or_like('tblcontracts.contract_value', $search);
                 $this->db->group_end();
             }
 
@@ -928,12 +936,24 @@ class Contracts_model extends App_Model
             $this->db->from('tblcontracts');
             $this->db->join('tblstaff', 'tblstaff.staffid = tblcontracts.staffid', 'left'); // JOIN com tblstaff
             $this->db->where('tblcontracts.contract_id', $id); // Filtro pelo ID do contrato
+            // $this->db->where('contracts.franqueado_id', value: $franqueado_id);
+            $this->db->where('tblcontracts.warehouse_id', value: $warehouse_id);
 
             $contract = $this->db->get()->row();
             $total = $contract ? 1 : 0;
 
             return ['data' => (array) $contract, 'total' => $total];
         }
+    }
+
+    public function delete2($id)
+    {
+        // Verificar se o ID existe antes de deletar
+        $this->db->where('id', $id);
+        $this->db->delete(db_prefix() . 'contracts');
+
+        // Retornar true se a exclusão foi bem-sucedida
+        return ($this->db->affected_rows() > 0);
     }
 
 }

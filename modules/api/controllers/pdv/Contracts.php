@@ -332,9 +332,10 @@ class Contracts extends REST_Controller
         $search = $this->post('search') ?: ''; // Alterado para this->post
         $sortField = $this->post('sortField') ?: 'id'; // Alterado para this->post
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
-        // $warehouse_id = $this->post('warehouse_id') ?: 0;
+        $warehouse_id = $this->post('warehouse_id') ?: 0;
+        // $franqueado_id = $this->post('franqueado_id') ?: 0;
 
-        $data = $this->Contracts_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        $data = $this->Contracts_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
 
 
         // var_dump($data);
@@ -351,6 +352,34 @@ class Contracts extends REST_Controller
                 $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
             }
         }
+    }
+
+    public function remove_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST['rows']) || !is_array($_POST['rows'])) {
+            $this->response(['status' => FALSE, 'message' => 'Invalid request: rows array is required'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $ids = array_filter($_POST['rows'], 'is_numeric');
+        $success_count = 0;
+        $failed_ids = [];
+
+        foreach ($ids as $id) {
+            if ($this->Contracts_model->delete2($id)) {
+                $success_count++;
+            } else {
+                $failed_ids[] = $id;
+            }
+        }
+
+        $this->response([
+            'status' => $success_count > 0,
+            'message' => $success_count . 'Contract(s) deleted successfully',
+            'failed_ids' => $failed_ids
+        ], $success_count > 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_NOT_FOUND);
     }
 
 }

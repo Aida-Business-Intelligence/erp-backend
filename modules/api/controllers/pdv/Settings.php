@@ -756,6 +756,9 @@ class Settings extends REST_Controller
 
     public function update_config_post()
     {
+        
+        
+        
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST)) {
@@ -795,6 +798,18 @@ class Settings extends REST_Controller
             'pdv_nfe_cartao' => [
                 'type' => 'boolean',
                 'required' => false
+            ],
+            'pdv_nfe_cartao' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'pdv_senha_gerente_close_cash' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'pdv_senha_gerente_open_cash' => [
+                'type' => 'boolean',
+                'required' => false
             ]
         ];
 
@@ -802,6 +817,7 @@ class Settings extends REST_Controller
         $errors = [];
 
         foreach ($_POST as $key => $value) {
+            
             if (!isset($allowed_configs[$key])) {
                 $errors[] = "Configuration key '{$key}' is not allowed";
                 continue;

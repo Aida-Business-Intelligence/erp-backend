@@ -117,23 +117,18 @@ class Users extends REST_Controller
         $page = $page + 1;
 
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $search = $this->post('search') ?: ''; // Alterado para this->post
-        $sortField = $this->post('sortField') ?: 'staffid'; // Alterado para this->post
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'staffid';
+        $sortOrder = strtoupper($this->post('sortOrder')) === 'DESC' ? 'DESC' : 'ASC';
 
-        // Garantir que a pesquisa seja aplicada corretamente na consulta
-        $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        // Debug: Verifique os valores recebidos
+        // var_dump($sortField, $sortOrder, $search, $page, $limit);
 
-        // Filtrando os dados para pegar apenas os itens com type 'pdv'
-        $filteredData = array_filter($data['data'], function ($item) {
-            return $item['type'] === 'pdv';
-        });
+        // Busca os dados com ordenação
+        $data = $this->Staff_model->get_api3($id, $page, $limit, $search, $sortField, $sortOrder);
 
-        // Atualizando o total para refletir o número de itens filtrados
-        $filteredTotal = count($filteredData);
-
-        // Verificando se há dados após o filtro
-        if ($filteredTotal == 0) {
+        // Verifica se há dados retornados
+        if (empty($data['data'])) {
             $this->response(
                 [
                     'status' => FALSE,
@@ -145,8 +140,8 @@ class Users extends REST_Controller
             $this->response(
                 [
                     'status' => true,
-                    'total' => (int) $filteredTotal, // Total de registros filtrados
-                    'data' => array_values($filteredData) // Dados filtrados
+                    'total' => (int) $data['total'],
+                    'data' => $data['data']
                 ],
                 REST_Controller::HTTP_OK
             );
@@ -298,6 +293,33 @@ class Users extends REST_Controller
                 $message = array('status' => FALSE, 'message' => 'Users Update Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
+        }
+    }
+
+
+
+    public function put_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['staffids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $staffids = $_POST['staffids'];
+        $active = "0"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Staff_model->update_active($staffids, $active);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Users Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Users.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }
 }

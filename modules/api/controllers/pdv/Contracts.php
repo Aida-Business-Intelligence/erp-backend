@@ -331,7 +331,7 @@ class Contracts extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: ''; // Alterado para this->post
         $sortField = $this->post('sortField') ?: 'id'; // Alterado para this->post
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
+        $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC'; // Alterado para this->post
         $warehouse_id = $this->post('warehouse_id') ?: 0;
         // $franqueado_id = $this->post('franqueado_id') ?: 0;
 

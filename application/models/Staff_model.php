@@ -1011,23 +1011,121 @@ class Staff_model extends App_Model
                 $this->db->group_end();
             }
 
-            $this->db->order_by($sortField, $sortOrder);
-            $offset = ($page - 1) * $limit;  // Calcula o offset corretamente
-            $this->db->limit($limit, $offset); // Agora passa o offset corretamente
+            // JOIN com a tabela tblroles para obter o nome do cargo
+            $this->db->join(db_prefix() . 'roles', db_prefix() . 'roles.roleid = ' . db_prefix() . 'staff.role', 'left');
+
+            // Aplica a ordenação
+            if ($sortField === 'firstname') {
+                // Ordenação por firstname, tratando valores nulos ou vazios
+                $this->db->order_by("CASE WHEN firstname IS NULL OR firstname = '' THEN 1 ELSE 0 END, firstname", $sortOrder);
+            } elseif ($sortField === 'role_name') {
+                // Ordenação pelo nome do cargo (tblroles.name)
+                $this->db->order_by(db_prefix() . 'roles.name', $sortOrder);
+            } else {
+                // Ordenação padrão
+                $this->db->order_by($sortField, $sortOrder);
+            }
+
+            $offset = ($page - 1) * $limit;
+            $this->db->limit($limit, $offset);
             $data = $this->db->get(db_prefix() . 'staff')->result_array();
 
             // Adicionar o nome do cargo (role) de cada staff
             foreach ($data as $key => $staff) {
                 if ($staff['role'] > 0) {
-                    $role = $this->roles_model->get($staff['role']); // Busca o nome do role
+                    $role = $this->roles_model->get($staff['role']);
                     $data[$key]['role_name'] = $role->name;
                 }
             }
 
-            // Retornar os dados com o total correto
             return ['data' => $data, 'total' => $total];
         } else {
             return ['data' => (array) $this->get($id), 'total' => 1];
         }
+    }
+
+    public function get_api3($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'pdv')
+    {
+        $this->load->model("roles_model");
+
+        if (!is_numeric($id)) {
+            // Aplicar filtro pelo tipo
+            if (!empty($type)) {
+                $this->db->where('type', $type); // Filtra por type = "pdv"
+            }
+
+            // Filtro para pegar apenas os registros com active = 1
+            $this->db->where('active', 1);
+
+            // Adicionar condições de busca
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('firstname', $search);
+                $this->db->or_like('lastname', $search);
+                $this->db->or_like('email', $search);
+                $this->db->or_like('phonenumber', $search);
+                $this->db->group_end();
+            }
+
+            // JOIN com a tabela tblroles para obter o nome do cargo
+            $this->db->join(db_prefix() . 'roles', db_prefix() . 'roles.roleid = ' . db_prefix() . 'staff.role', 'left');
+
+            // Contagem total de registros sem paginação
+            $total = $this->db->count_all_results(db_prefix() . 'staff');
+
+            // Obter os dados com paginação e ordenação
+            $this->db->reset_query();
+            $this->db->where('active', 1);
+            if (!empty($type)) {
+                $this->db->where('type', $type); // Filtra por type = "pdv"
+            }
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('firstname', $search);
+                $this->db->or_like('lastname', $search);
+                $this->db->or_like('email', $search);
+                $this->db->or_like('phonenumber', $search);
+                $this->db->group_end();
+            }
+
+            // JOIN com a tabela tblroles para obter o nome do cargo
+            $this->db->join(db_prefix() . 'roles', db_prefix() . 'roles.roleid = ' . db_prefix() . 'staff.role', 'left');
+
+            // Aplica a ordenação
+            if ($sortField === 'firstname') {
+                // Ordenação por firstname, tratando valores nulos ou vazios
+                $this->db->order_by("CASE WHEN firstname IS NULL OR firstname = '' THEN 1 ELSE 0 END, firstname", $sortOrder);
+            } elseif ($sortField === 'role_name') {
+                // Ordenação pelo nome do cargo (tblroles.name)
+                $this->db->order_by(db_prefix() . 'roles.name', $sortOrder);
+            } else {
+                // Ordenação padrão
+                $this->db->order_by($sortField, $sortOrder);
+            }
+
+            $offset = ($page - 1) * $limit;
+            $this->db->limit($limit, $offset);
+            $data = $this->db->get(db_prefix() . 'staff')->result_array();
+
+            // Adicionar o nome do cargo (role) de cada staff
+            foreach ($data as $key => $staff) {
+                if ($staff['role'] > 0) {
+                    $role = $this->roles_model->get($staff['role']);
+                    $data[$key]['role_name'] = $role->name;
+                }
+            }
+
+            return ['data' => $data, 'total' => $total];
+        } else {
+            return ['data' => (array) $this->get($id), 'total' => 1];
+        }
+    }
+
+    // Método para atualizar o campo 'active' de múltiplos usuários
+    public function update_active($staffids, $active)
+    {
+        $this->db->where_in('staffid', $staffids);
+        $this->db->set('active', $active);
+        return $this->db->update('tblstaff');
     }
 }

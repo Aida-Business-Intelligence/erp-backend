@@ -388,7 +388,7 @@ class Staffs extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: '';
         $sortField = $this->post('sortField') ?: 'staffid';
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+        $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC';
         $warehouse_id = $this->post('warehouse_id') ?: 0;
 
         // Garantir que a pesquisa seja aplicada corretamente na consulta

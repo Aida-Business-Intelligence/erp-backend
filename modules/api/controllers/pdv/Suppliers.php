@@ -562,7 +562,7 @@ class Suppliers extends REST_Controller
     $limit = $this->get('limit') ? (int)$this->get('limit') : 10;
     $search = $this->get('search') ?: '';
     $status = $this->get('status');
-    $sortField = $this->get('sortField') ?: 'company';
+    $sortField = $this->get('sortField') ?: 'userid';
     $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
     $startDate = $this->get('startDate');
     $endDate = $this->get('endDate');
@@ -611,6 +611,7 @@ class Suppliers extends REST_Controller
     $this->db->group_by('c.userid');
 
     $validSortFields = [
+      'userid' => 'c.userid',
       'name' => 'c.company',
       'company' => 'c.company',
       'city' => 'c.city',
@@ -657,25 +658,25 @@ class Suppliers extends REST_Controller
               return ['type' => 'cnpj', 'number' => $doc];
             }, $supplier['additional_documents'] ? explode(',', $supplier['additional_documents']) : [])
           ),
-          'address' => $supplier['address'],
-          'city' => $supplier['city'],
-          'state' => $supplier['state'],
-          'country' => $supplier['country'],
-          'payment_terms' => $supplier['payment_terms'],
+          'address' => $supplier['address'] ?? null,
+          'city' => $supplier['city'] ?? null,
+          'state' => $supplier['state'] ?? null,
+          'country' => $supplier['country'] ?? null,
+          'payment_terms' => $supplier['payment_terms'] ?? null,
           'emails' => array_filter(array_merge(
             [$supplier['email_default']],
             $supplier['additional_emails'] ? explode(',', $supplier['additional_emails']) : []
           )),
-          'contacts' => $supplier['contacts'],
-          'contacts_count' => (int)$supplier['contacts_count'],
+          'contacts' => $supplier['contacts'] ?? [],
+          'contacts_count' => (int)($supplier['contacts_count'] ?? 0),
           'status' => $supplier['active'] ? 'active' : 'inactive',
-          'created_at' => $supplier['datecreated'],
-          'inscricao_estadual' => $supplier['inscricao_estadual'],
-          'inscricao_municipal' => $supplier['inscricao_municipal'],
-          'company_type' => $supplier['company_type'],
-          'business_type' => $supplier['business_type'],
-          'segment' => $supplier['segment'],
-          'company_size' => $supplier['company_size'],
+          'created_at' => $supplier['datecreated'] ?? null,
+          'inscricao_estadual' => $supplier['inscricao_estadual'] ?? null,
+          'inscricao_municipal' => $supplier['inscricao_municipal'] ?? null,
+          'company_type' => $supplier['company_type'] ?? null,
+          'business_type' => $supplier['business_type'] ?? null,
+          'segment' => $supplier['segment'] ?? null,
+          'company_size' => $supplier['company_size'] ?? null,
           'observations' => $supplier['observations'] ?? null,
           'commission' => !empty($supplier['commission']) ? (float)$supplier['commission'] : 0,
           'commercial_conditions' => $supplier['commercial_conditions'] ?? null,

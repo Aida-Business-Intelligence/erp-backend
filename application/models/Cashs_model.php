@@ -57,12 +57,30 @@ class Cashs_model extends App_Model
         return $client;
     }
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
+    public function get_by_id($id)
+    {
+
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->where('cashs.id', $id);
+        $client = $this->db->get()->row();
+
+        return $client;
+    }
+
+    public function get_by_id2($id)
+    {
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->where('id', $id);
+        return $this->db->get()->row();
+    }
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
     {
         if (!is_numeric($id)) {
             $this->db->select('cashs.*, staff.firstname, staff.lastname');
             $this->db->from(db_prefix() . 'cashs');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
+            $this->db->where('cashs.warehouse_id', $warehouse_id);
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -84,6 +102,7 @@ class Cashs_model extends App_Model
             $this->db->reset_query();
 
             $this->db->from(db_prefix() . 'cashs');
+            $this->db->where('cashs.warehouse_id', $warehouse_id); // Filtro por franqueado_id na contagem
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
 
             if (!empty($search)) {
@@ -105,6 +124,7 @@ class Cashs_model extends App_Model
             $this->db->from(db_prefix() . 'cashs');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
             $this->db->where('cashs.id', $id);
+           // $this->db->where('cashs.warehouse_id', $warehouse_id);
 
             $client = $this->db->get()->row();
             $total = $client ? 1 : 0;
@@ -112,7 +132,7 @@ class Cashs_model extends App_Model
             return ['data' => (array) $client, 'total' => $total];
         }
     }
-    public function get_inactive()
+    public function get_inactive($warehouse_id)
     {
         // JOIN com a tabela staff
         //  $this->db->select('cashs.*, staff.firstname, staff.lastname');
@@ -121,6 +141,7 @@ class Cashs_model extends App_Model
         // Filtra somente as caixas ativas (status=1)
         $this->db->where('cashs.status', '0');
         $this->db->where('cashs.active', '0');
+        $this->db->where('cashs.warehouse_id', $warehouse_id);
 
         // Ordena os resultados
         $this->db->order_by('cashs.number');
@@ -136,35 +157,25 @@ class Cashs_model extends App_Model
         ];
     }
 
-    public function get_transactions($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $cash_id)
+    public function get_transactions($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $cash_id, $warehouse_id = '')
     {
         $this->db->from(db_prefix() . 'cashextracts as c');
-        $this->db->select('c.*, clients.company, clients.vat, tblcashs.number');
+        $this->db->select('c.id as extract_id, c.*, clients.company, clients.vat, tblcashs.number'); // Especifica o alias para o id
         $this->db->join(db_prefix() . 'clients', 'c.client_id = clients.userid', 'left');
         $this->db->join(db_prefix() . 'cashs as tblcashs', 'c.cash_id = tblcashs.id', 'left');
         $this->db->join(db_prefix() . 'itemcash as items', 'c.cash_id = items.cash_id', 'left');
 
-        if ($cash_id) {
-            $this->db->reset_query();
-            $this->db->select('id');
-            $this->db->from(db_prefix() . 'cashs');
-            $this->db->where('number', $cash_id);
-            $cash_record = $this->db->get()->row();
-
-            $this->db->reset_query();
-            $this->db->from(db_prefix() . 'cashextracts as c');
-            $this->db->select('c.*, clients.company, clients.vat, tblcashs.number');
-            $this->db->join(db_prefix() . 'clients', 'c.client_id = clients.userid', 'left');
-            $this->db->join(db_prefix() . 'cashs as tblcashs', 'c.cash_id = tblcashs.id', 'left');
-            $this->db->join(db_prefix() . 'itemcash as items', 'c.cash_id = items.cash_id', 'left');
-
-            if ($cash_record) {
-                $this->db->where('c.cash_id', $cash_record->id);
-            } else {
-                $this->db->where('c.cash_id', $cash_id);
-            }
+        // Filtro pelo warehouse_id
+        if ($warehouse_id) {
+            $this->db->where('c.warehouse_id', $warehouse_id);
         }
 
+        // Filtro pelo cash_id (ID do caixa)
+        if ($cash_id) {
+            $this->db->where('c.cash_id', $cash_id); // Filtra diretamente pelo ID do caixa
+        }
+
+        // Filtros adicionais
         if (isset($filters['start_date']) && !empty($filters['start_date'])) {
             $this->db->where('DATE(c.datesale) >=', date('Y-m-d', strtotime($filters['start_date'])));
         }
@@ -177,12 +188,92 @@ class Cashs_model extends App_Model
             $this->db->where_in('c.status', $filters['status']);
         }
 
+        if (isset($filters['payment_type']) && !empty($filters['payment_type'])) {
+            $this->db->like('c.form_payments', $filters['payment_type']);
+        }
+
+        // Filtro por ID específico (se necessário)
         if (!empty($id)) {
             $this->db->where('c.id', $id);
             $client = $this->db->get()->row();
             return ['data' => $client ? (array) $client : [], 'total' => $client ? 1 : 0];
         }
 
+        // Filtro de busca
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('c.type', $search);
+            $this->db->or_like('clients.company', $search);
+            $this->db->or_like('c.doc', $search);
+            $this->db->or_like('c.total', $search);
+            $this->db->or_like('c.nota', $search);
+            $this->db->or_like('c.operacao', $search);
+            $this->db->or_like('items.description', $search);
+            $this->db->or_like('items.long_description', $search);
+            $this->db->group_end();
+        }
+
+        // Agrupamento e ordenação
+        $this->db->group_by('c.id');
+        $this->db->order_by($sortField, $sortOrder);
+
+        // Paginação
+        $total_query = clone $this->db;
+        $total = $total_query->count_all_results();
+
+        if ($page > 0) {
+            $offset = ($page - 1) * $limit;
+            $this->db->limit($limit, $offset);
+        }
+
+        // Obtém as transações
+        $clients = $this->db->get()->result_array();
+
+
+        return [
+            'data' => $clients,
+            'total' => $total
+        ];
+    }
+
+    public function get_transactions2($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $cash_id)
+    {
+        $this->db->from(db_prefix() . 'cashextracts as c');
+        $this->db->select('c.*, clients.company, clients.vat, tblcashs.number');
+        $this->db->join(db_prefix() . 'clients', 'c.client_id = clients.userid', 'left');
+        $this->db->join(db_prefix() . 'cashs as tblcashs', 'c.cash_id = tblcashs.id', 'left');
+        $this->db->join(db_prefix() . 'itemcash as items', 'c.cash_id = items.cash_id', 'left');
+
+        // Filtro pelo cash_id
+        if ($cash_id) {
+            $this->db->where('c.cash_id', $cash_id);
+        }
+
+        // Filtros adicionais (data, status, etc.)
+        if (isset($filters['start_date']) && !empty($filters['start_date'])) {
+            $this->db->where('DATE(c.datesale) >=', date('Y-m-d', strtotime($filters['start_date'])));
+        }
+
+        if (isset($filters['end_date']) && !empty($filters['end_date'])) {
+            $this->db->where('DATE(c.datesale) <=', date('Y-m-d', strtotime($filters['end_date'])));
+        }
+
+        if (isset($filters['status']) && is_array($filters['status']) && !empty($filters['status'])) {
+            $this->db->where_in('c.status', $filters['status']);
+        }
+
+        if (isset($filters['payment_type']) && !empty($filters['payment_type'])) {
+            $this->db->like('c.form_payments', $filters['payment_type']);
+        }
+
+        // Filtro por ID (se fornecido)
+        if (!empty($id)) {
+            $this->db->where('c.id', $id);
+            $client = $this->db->get()->row();
+            return ['data' => $client ? (array) $client : [], 'total' => $client ? 1 : 0];
+        }
+
+        // Filtro de busca
         if (!empty($search)) {
             $this->db->group_start();
             $this->db->like('c.type', $search);
@@ -198,32 +289,36 @@ class Cashs_model extends App_Model
 
         $this->db->group_by('c.id');
 
+        // Contagem total de registros
         $total_query = clone $this->db;
         $total = $total_query->count_all_results();
 
+        // Ordenação
         $this->db->order_by($sortField, $sortOrder);
 
+        // Paginação
         if ($page > 0) {
             $offset = ($page - 1) * $limit;
             $this->db->limit($limit, $offset);
         }
 
+        // Executa a consulta
         $clients = $this->db->get()->result_array();
-
-        if (!empty($clients)) {
-            foreach ($clients as $key => $client) {
-                $items = $this->get_items_cashs($client['cash_id']);
-                $clients[$key]['items'] = $items;
-            }
-        }
-
-        log_message('debug', 'Last Query: ' . $this->db->last_query());
 
         return [
             'data' => $clients,
             'total' => $total
         ];
     }
+
+    // Nova função para buscar itens pelo item_order
+    public function get_items_cashs_by_order($sale_id)
+    {
+        $this->db->from(db_prefix() . 'itemcash');
+        $this->db->where('item_order', $sale_id); // Filtra pelo item_order correspondente ao ID da venda
+        return $this->db->get()->result_array();
+    }
+
     public function get_extracts($cash_id, $id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
     {
         if (!is_numeric($id)) {
@@ -329,6 +424,18 @@ class Cashs_model extends App_Model
         return $this->db->get(db_prefix() . 'itemcash')->result_array();
     }
 
+    public function get_items_cashs2($cash_id, $item_order = null)
+    {
+        $this->db->from(db_prefix() . 'itemcash');
+        $this->db->where('cash_id', $cash_id);
+
+        if ($item_order !== null) {
+            $this->db->where('item_order', $item_order);
+        }
+
+        return $this->db->get()->result_array();
+    }
+
     public function delete($id)
     {
         // Verifica se o ID é válido e se é numérico
@@ -374,6 +481,13 @@ class Cashs_model extends App_Model
         return $this->db->update('cashs', $data);
     }
 
+    public function update_by_id($data, $id)
+    {
+
+        $this->db->where('id', $id);
+        return $this->db->update('cashs', $data);
+    }
+
     public function update_extracts($data, $id)
     {
         $this->db->where('id', $id);
@@ -383,9 +497,9 @@ class Cashs_model extends App_Model
     public function update_itemstocks($qtde, $item_id, $warehouse_id)
     {
         // Retrieve the current quantity
-        $this->db->select('qtde, id');
-        $this->db->from(db_prefix() . 'itemstocks');
-        $this->db->where('item_id', $item_id);
+        $this->db->select('stock, id');
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where('id', $item_id);
         $this->db->where('warehouse_id', $warehouse_id);
         $query = $this->db->get();
 
@@ -395,10 +509,10 @@ class Cashs_model extends App_Model
             $updatedQuantity = $currentQuantity - $qtde;
 
             // Update the quantity in the database
-            $this->db->where('item_id', $item_id);
+            $this->db->where('id', $item_id);
             $this->db->where('warehouse_id', $warehouse_id);
-            $this->db->set('qtde', $updatedQuantity);
-            $this->db->update(db_prefix() . 'itemstocks');
+            $this->db->set('stock', $updatedQuantity);
+            $this->db->update(db_prefix() . 'items');
 
             // Return the ID of the updated record
             return $row->id;
@@ -473,10 +587,12 @@ class Cashs_model extends App_Model
 
                 $warehouse_id = 1;
 
-                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $warehouse_id);
+                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $data['warehouse_id']);
 
                 $data_itemstocksmov = array(
-                    'itemstock_id' => $id_itemstocks,
+                    'warehouse_id' => $data['warehouse_id'],
+                    'transaction_id' => $id_itemstocks,
+                    'cash_id' => $data['cash_id'],
                     'qtde' => $item['qty'],
                     'transaction_id' => $detalhes_caixa->id,
                     'hash' => $data['hash'],
@@ -497,22 +613,27 @@ class Cashs_model extends App_Model
 
     public function add($data)
     {
-
+        
+   
 
         // Iniciar transação
         $this->db->trans_start();
 
         // Gera hash e obtém detalhes da caixa
         $data['hash'] = app_generate_hash();
-        $detalhes_caixa = $this->get_by_number($data['cash_id']);
+        $detalhes_caixa = $this->get_by_id($data['cash_id']);
         $data['cash_id'] = $detalhes_caixa->id;
 
         $items = isset($data['newitems']) ? $data['newitems'] : [];
+        $data['items'] = json_encode($items);
         unset($data['newitems']);
 
         // Insere a nova entrada de caixa
         $this->db->insert(db_prefix() . 'cashextracts', $data);
         $insert_id = $this->db->insert_id();
+
+
+
 
         if ($insert_id) {
             $update_data = [
@@ -554,11 +675,14 @@ class Cashs_model extends App_Model
                     'unit' => $item['unit']
                 ]);
 
-                $warehouse_id = 1;
-                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $warehouse_id);
+
+                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $data['warehouse_id']);
 
                 $data_itemstocksmov = [
-                    'itemstock_id' => $id_itemstocks,
+
+                    'warehouse_id' => $data['warehouse_id'],
+                    'transaction_id' => $id_itemstocks,
+                    'cash_id' => $data['cash_id'],
                     'qtde' => $item['qty'],
                     'transaction_id' => $detalhes_caixa->id,
                     'hash' => $data['hash'],
@@ -594,4 +718,16 @@ class Cashs_model extends App_Model
         $query = $this->db->get();
         return $query->result_array();
     }
+    
+    public function count_by_number_warehouse_id($number, $warehouse_id)
+{
+    $this->db->select('COUNT(id) as count');
+    $this->db->from(db_prefix() . 'cashs');
+    $this->db->where('number', $number);
+    $this->db->where('warehouse_id', $warehouse_id);
+    $query = $this->db->get();
+        // Exibe a última query gerada
+    return $query->row()->count; // Retorna apenas o número de registros encontrados
 }
+}
+

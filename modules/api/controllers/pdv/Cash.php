@@ -738,7 +738,7 @@ class Cash extends REST_Controller
 
         );
 
-        if ($this->cashs_model->update_by_number($update_data, $number)) {
+        if ($this->cashs_model->update_by_id($update_data, $number)) {
 
             if ($tatus == 0) {
                 $subtotal = 0;

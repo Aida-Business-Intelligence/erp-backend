@@ -595,9 +595,12 @@ class Cash extends REST_Controller
 
 
 
+        /*
         $email = $this->authservice->user->email;
         $password = $_POST['password'];
         $data = $this->Authentication_model->login_api($email, $password);
+         * 
+        
 
         if (!$data['success']) {
 
@@ -606,6 +609,8 @@ class Cash extends REST_Controller
                 'message' => 'Senha inválida'
             ], REST_Controller::HTTP_OK);
         }
+         * 
+         */
 
         $detalhes_caixa = $this->cashs_model->get_by_id($caixaId);
 

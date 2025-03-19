@@ -915,6 +915,7 @@ class Produto extends REST_Controller
             c.company as supplier_name,
             c.vat as supplier_document,
             c.phonenumber as supplier_phone,
+            c.min_purchase,
             COUNT(DISTINCT pn.id) as total_items,
             SUM(pn.qtde) as total_quantity,
             SUM(pn.qtde * i.cost) as total_cost

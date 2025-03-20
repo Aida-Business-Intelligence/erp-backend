@@ -83,7 +83,7 @@ class Client extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: ''; // Alterado para this->post
         $sortField = $this->post('sortField') ?: 'userid'; // Alterado para this->post
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
+        $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC'; // Alterado para this->post
         $warehouse_id = $this->post('warehouse_id') ?: 0;
 
         $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);

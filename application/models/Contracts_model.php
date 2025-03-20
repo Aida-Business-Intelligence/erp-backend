@@ -43,7 +43,7 @@ class Contracts_model extends App_Model
             return $contract;
         }
         $contracts = $this->db->get(db_prefix() . 'contracts')->result_array();
-        $i         = 0;
+        $i = 0;
         foreach ($contracts as $contract) {
             $contracts[$i]['attachments'] = $this->get_contract_attachments('', $contract['id']);
             $i++;
@@ -201,7 +201,7 @@ class Contracts_model extends App_Model
             $content = override_merge_fields($this->get_merge_fields($contract), $contract->content);
 
             $this->db->where('id', $id);
-            $this->db->update(db_prefix().'contracts', array_merge(get_acceptance_info_array(), [
+            $this->db->update(db_prefix() . 'contracts', array_merge(get_acceptance_info_array(), [
                 'signed' => 1,
                 'content' => $content
             ]));
@@ -242,10 +242,10 @@ class Contracts_model extends App_Model
     }
 
     /**
-    * Add contract comment
-    * @param mixed  $data   $_POST comment data
-    * @param boolean $client is request coming from the client side
-    */
+     * Add contract comment
+     * @param mixed  $data   $_POST comment data
+     * @param boolean $client is request coming from the client side
+     */
     public function add_comment($data, $client = false)
     {
         if (is_staff_logged_in()) {
@@ -284,11 +284,11 @@ class Contracts_model extends App_Model
 
                 foreach ($staff_contract as $member) {
                     $notified = add_notification([
-                        'description'     => 'not_contract_comment_from_client',
-                        'touserid'        => $member['staffid'],
-                        'fromcompany'     => 1,
-                        'fromuserid'      => 0,
-                        'link'            => 'contracts/contract/' . $data['contract_id'],
+                        'description' => 'not_contract_comment_from_client',
+                        'touserid' => $member['staffid'],
+                        'fromcompany' => 1,
+                        'fromuserid' => 0,
+                        'link' => 'contracts/contract/' . $data['contract_id'],
                         'additional_data' => serialize([
                             $contract->subject,
                         ]),
@@ -298,7 +298,7 @@ class Contracts_model extends App_Model
                         array_push($notifiedUsers, $member['staffid']);
                     }
 
-                    $template     = mail_template('contract_comment_to_staff', $contract, $member);
+                    $template = mail_template('contract_comment_to_staff', $contract, $member);
                     $merge_fields = $template->get_merge_fields();
                     $template->send();
 
@@ -310,7 +310,7 @@ class Contracts_model extends App_Model
                 $contacts = $this->clients_model->get_contacts($contract->client, ['active' => 1, 'contract_emails' => 1]);
 
                 foreach ($contacts as $contact) {
-                    $template     = mail_template('contract_comment_to_customer', $contract, $contact);
+                    $template = mail_template('contract_comment_to_customer', $contract, $contact);
                     $merge_fields = $template->get_merge_fields();
                     $template->send();
 
@@ -385,8 +385,8 @@ class Contracts_model extends App_Model
 
     public function copy($id)
     {
-        $contract       = $this->get($id, [], true);
-        $fields         = $this->db->list_fields(db_prefix() . 'contracts');
+        $contract = $this->get($id, [], true);
+        $fields = $this->db->list_fields(db_prefix() . 'contracts');
         $newContactData = [];
 
         $contract->content = restore_merge_fields($contract->content);
@@ -398,18 +398,18 @@ class Contracts_model extends App_Model
 
         unset($newContactData['id']);
 
-        $newContactData['trash']            = 0;
+        $newContactData['trash'] = 0;
         $newContactData['isexpirynotified'] = 0;
-        $newContactData['signed']           = 0;
+        $newContactData['signed'] = 0;
         $newContactData['marked_as_signed'] = 0;
-        $newContactData['signature']        = null;
+        $newContactData['signature'] = null;
 
         $newContactData = array_merge($newContactData, get_acceptance_info_array(true));
 
         if ($contract->dateend) {
-            $dStart                    = new DateTime($contract->datestart);
-            $dEnd                      = new DateTime($contract->dateend);
-            $dDiff                     = $dStart->diff($dEnd);
+            $dStart = new DateTime($contract->datestart);
+            $dEnd = new DateTime($contract->dateend);
+            $dDiff = $dStart->diff($dEnd);
             $newContactData['dateend'] = _d(date('Y-m-d', strtotime(date('Y-m-d', strtotime('+' . $dDiff->days . 'DAY')))));
         } else {
             $newContactData['dateend'] = '';
@@ -423,10 +423,10 @@ class Contracts_model extends App_Model
                 $value = get_custom_field_value($id, $field['id'], 'contracts', false);
                 if ($value != '') {
                     $this->db->insert(db_prefix() . 'customfieldsvalues', [
-                    'relid'   => $newId,
-                    'fieldid' => $field['id'],
-                    'fieldto' => 'contracts',
-                    'value'   => $value,
+                        'relid' => $newId,
+                        'fieldid' => $field['id'],
+                        'fieldto' => 'contracts',
+                        'value' => $value,
                     ]);
                 }
             }
@@ -501,7 +501,7 @@ class Contracts_model extends App_Model
     {
         $contract = $this->get($id, [], true);
         if (!is_object($contract)) {
-            return  false;
+            return false;
         }
         $content = override_merge_fields($this->get_merge_fields($contract), $contract->content);
 
@@ -525,7 +525,7 @@ class Contracts_model extends App_Model
     {
         $contract = $this->get($id, [], true);
         if (!is_object($contract)) {
-            return  false;
+            return false;
         }
 
         $this->db->where('id', $id);
@@ -550,12 +550,12 @@ class Contracts_model extends App_Model
 
         if ($attachpdf) {
             set_mailing_constant();
-            $pdf    = contract_pdf($contract);
+            $pdf = contract_pdf($contract);
             $attach = $pdf->Output(slug_it($contract->subject) . '.pdf', 'S');
         }
 
         $sent_to = $this->input->post('sent_to');
-        $sent    = false;
+        $sent = false;
 
         if (is_array($sent_to)) {
             $i = 0;
@@ -573,8 +573,8 @@ class Contracts_model extends App_Model
                     if ($attachpdf) {
                         $template->add_attachment([
                             'attachment' => $attach,
-                            'filename'   => slug_it($contract->subject) . '.pdf',
-                            'type'       => 'application/pdf',
+                            'filename' => slug_it($contract->subject) . '.pdf',
+                            'type' => 'application/pdf',
                         ]);
                     }
 
@@ -591,18 +591,18 @@ class Contracts_model extends App_Model
             $contactsSent = [];
 
             if (!empty($contract->contacts_sent_to)) {
-                $sentTo       = json_decode($contract->contacts_sent_to, true);
-                $cc           = array_unique(array_merge(is_array($sentTo['cc']) ? $sentTo['cc'] : explode(',', $sentTo['cc']), explode(',', $cc)));
+                $sentTo = json_decode($contract->contacts_sent_to, true);
+                $cc = array_unique(array_merge(is_array($sentTo['cc']) ? $sentTo['cc'] : explode(',', $sentTo['cc']), explode(',', $cc)));
                 $contactsSent = $sentTo['contact_ids'];
             }
 
 
             $this->db->where('id', $id);
             $this->db->update(db_prefix() . 'contracts', [
-                'last_sent_at'     => date('c'),
+                'last_sent_at' => date('c'),
                 'contacts_sent_to' => json_encode([
                     'contact_ids' => array_unique(array_merge($contactsSent, $sent_to)),
-                    'cc'          =>  is_array($cc) ? join(',', $cc) : $cc,
+                    'cc' => is_array($cc) ? join(',', $cc) : $cc,
                 ]),
             ]);
 
@@ -619,7 +619,7 @@ class Contracts_model extends App_Model
      */
     public function delete_contract_attachment($attachment_id)
     {
-        $deleted    = false;
+        $deleted = false;
         $attachment = $this->get_contract_attachments($attachment_id);
 
         if ($attachment) {
@@ -664,24 +664,24 @@ class Contracts_model extends App_Model
             $data['new_value'] = $contract->contract_value;
         }
 
-        $data['new_start_date']      = to_sql_date($data['new_start_date']);
-        $data['new_end_date']        = to_sql_date($data['new_end_date']);
-        $data['date_renewed']        = date('Y-m-d H:i:s');
-        $data['renewed_by']          = get_staff_full_name(get_staff_user_id());
+        $data['new_start_date'] = to_sql_date($data['new_start_date']);
+        $data['new_end_date'] = to_sql_date($data['new_end_date']);
+        $data['date_renewed'] = date('Y-m-d H:i:s');
+        $data['renewed_by'] = get_staff_full_name(get_staff_user_id());
         $data['renewed_by_staff_id'] = get_staff_user_id();
         if (!is_date($data['new_end_date'])) {
             unset($data['new_end_date']);
         }
         // get the original contract so we can check if is expiry notified on delete the expiry to revert
-        $_contract                         = $this->get($data['contractid']);
+        $_contract = $this->get($data['contractid']);
         $data['is_on_old_expiry_notified'] = $_contract->isexpirynotified;
         $this->db->insert(db_prefix() . 'contract_renewals', $data);
         $insert_id = $this->db->insert_id();
         if ($insert_id) {
             $this->db->where('id', $data['contractid']);
             $_data = [
-                'datestart'        => $data['new_start_date'],
-                'contract_value'   => $data['new_value'],
+                'datestart' => $data['new_start_date'],
+                'contract_value' => $data['new_value'],
                 'isexpirynotified' => 0,
             ];
 
@@ -690,7 +690,7 @@ class Contracts_model extends App_Model
             }
 
             if (!$keepSignature) {
-                $_data           = array_merge($_data, get_acceptance_info_array(true));
+                $_data = array_merge($_data, get_acceptance_info_array(true));
                 $_data['signed'] = 0;
                 if (!empty($_contract->signature)) {
                     unlink(get_upload_path_by_type('contract') . $data['contractid'] . '/' . $_contract->signature);
@@ -723,9 +723,9 @@ class Contracts_model extends App_Model
     {
         // check if this renewal is last so we can revert back the old values, if is not last we wont do anything
         $this->db->select('id')->from(db_prefix() . 'contract_renewals')->where('contractid', $contractid)->order_by('id', 'desc')->limit(1);
-        $query                 = $this->db->get();
+        $query = $this->db->get();
         $last_contract_renewal = $query->row()->id;
-        $is_last               = false;
+        $is_last = false;
         if ($last_contract_renewal == $id) {
             $is_last = true;
             $this->db->where('id', $id);
@@ -743,8 +743,8 @@ class Contracts_model extends App_Model
             if ($is_last == true) {
                 $this->db->where('id', $contractid);
                 $data = [
-                    'datestart'        => $original_renewal->old_start_date,
-                    'contract_value'   => $original_renewal->old_value,
+                    'datestart' => $original_renewal->old_start_date,
+                    'contract_value' => $original_renewal->old_value,
                     'isexpirynotified' => $original_renewal->is_on_old_expiry_notified,
                 ];
                 if ($original_renewal->old_end_date != '0000-00-00') {
@@ -773,7 +773,7 @@ class Contracts_model extends App_Model
         $diff1 = date('Y-m-d', strtotime('-' . $days . ' days'));
         $diff2 = date('Y-m-d', strtotime('+' . $days . ' days'));
 
-        if ($staffId && ! staff_can('view', 'contracts', $staffId)) {
+        if ($staffId && !staff_can('view', 'contracts', $staffId)) {
             $this->db->where('addedfrom', $staffId);
         }
 
@@ -849,9 +849,9 @@ class Contracts_model extends App_Model
     }
 
     /**
-    * Get contract types values for chart
-    * @return array
-    */
+     * Get contract types values for chart
+     * @return array
+     */
     public function get_contracts_types_values_chart_data()
     {
         return $this->contract_types_model->get_values_chart_data();
@@ -874,4 +874,86 @@ class Contracts_model extends App_Model
 
         return $merge_fields;
     }
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
+    {
+        if (!is_numeric($id)) {
+            // Seleciona os campos necessários das tabelas tblcontracts e tblstaff
+            $this->db->select('tblcontracts.*, tblstaff.firstname, tblstaff.lastname, tblstaff.email, tblstaff.vat');
+            $this->db->from('tblcontracts'); // Define a tabela principal como tblcontracts
+            $this->db->join('tblstaff', 'tblstaff.staffid = tblcontracts.staffid', 'left'); // JOIN com tblstaff
+            // $this->db->where('contracts.franqueado_id', value: $franqueado_id);
+            $this->db->where('tblcontracts.warehouse_id', value: $warehouse_id);
+
+            // Filtro de busca
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('tblcontracts.subject', $search);
+                $this->db->or_like('tblstaff.firstname', $search);
+                $this->db->or_like('tblstaff.lastname', $search);
+                $this->db->or_like('tblstaff.email', $search);
+                $this->db->or_like('tblstaff.vat', $search);
+                $this->db->or_like('tblcontracts.royalties', $search);
+                $this->db->or_like('tblcontracts.contract_value', $search);
+                $this->db->group_end();
+            }
+
+            // Ordenação
+            $this->db->order_by($sortField, $sortOrder);
+
+            // Paginação
+            $this->db->limit($limit, ($page - 1) * $limit);
+
+            // Executa a query e obtém os resultados
+            $contracts = $this->db->get()->result_array();
+
+            // Contagem total de registros (para paginação)
+            $this->db->reset_query();
+            $this->db->from('tblcontracts');
+            $this->db->join('tblstaff', 'tblstaff.staffid = tblcontracts.staffid', 'left'); // JOIN com tblstaff
+            // $this->db->where('contracts.franqueado_id', value: $franqueado_id);
+            $this->db->where('tblcontracts.warehouse_id', value: $warehouse_id);
+
+            // Filtro de busca na contagem
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('tblcontracts.subject', $search);
+                $this->db->or_like('tblstaff.firstname', $search);
+                $this->db->or_like('tblstaff.lastname', $search);
+                $this->db->or_like('tblstaff.email', $search);
+                $this->db->or_like('tblstaff.vat', $search);
+                $this->db->or_like('tblcontracts.royalties', $search);
+                $this->db->or_like('tblcontracts.contract_value', $search);
+                $this->db->group_end();
+            }
+
+            $total = $this->db->count_all_results(); // Contagem correta
+
+            return ['data' => $contracts, 'total' => $total];
+        } else {
+            // Busca um contrato específico pelo ID
+            $this->db->select('tblcontracts.*, tblstaff.firstname, tblstaff.lastname, tblstaff.email, tblstaff.vat');
+            $this->db->from('tblcontracts');
+            $this->db->join('tblstaff', 'tblstaff.staffid = tblcontracts.staffid', 'left'); // JOIN com tblstaff
+            $this->db->where('tblcontracts.contract_id', $id); // Filtro pelo ID do contrato
+            // $this->db->where('contracts.franqueado_id', value: $franqueado_id);
+            $this->db->where('tblcontracts.warehouse_id', value: $warehouse_id);
+
+            $contract = $this->db->get()->row();
+            $total = $contract ? 1 : 0;
+
+            return ['data' => (array) $contract, 'total' => $total];
+        }
+    }
+
+    public function delete2($id)
+    {
+        // Verificar se o ID existe antes de deletar
+        $this->db->where('id', $id);
+        $this->db->delete(db_prefix() . 'contracts');
+
+        // Retornar true se a exclusão foi bem-sucedida
+        return ($this->db->affected_rows() > 0);
+    }
+
 }

@@ -117,23 +117,18 @@ class Users extends REST_Controller
         $page = $page + 1;
 
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $search = $this->post('search') ?: ''; // Alterado para this->post
-        $sortField = $this->post('sortField') ?: 'staffid'; // Alterado para this->post
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'staffid';
+        $sortOrder = strtoupper($this->post('sortOrder')) === 'DESC' ? 'DESC' : 'ASC';
 
-        // Garantir que a pesquisa seja aplicada corretamente na consulta
-        $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        // Debug: Verifique os valores recebidos
+        // var_dump($sortField, $sortOrder, $search, $page, $limit);
 
-        // Filtrando os dados para pegar apenas os itens com type 'pdv'
-        $filteredData = array_filter($data['data'], function ($item) {
-            return $item['type'] === 'pdv';
-        });
+        // Busca os dados com ordenação
+        $data = $this->Staff_model->get_api3($id, $page, $limit, $search, $sortField, $sortOrder);
 
-        // Atualizando o total para refletir o número de itens filtrados
-        $filteredTotal = count($filteredData);
-
-        // Verificando se há dados após o filtro
-        if ($filteredTotal == 0) {
+        // Verifica se há dados retornados
+        if (empty($data['data'])) {
             $this->response(
                 [
                     'status' => FALSE,
@@ -145,99 +140,13 @@ class Users extends REST_Controller
             $this->response(
                 [
                     'status' => true,
-                    'total' => (int) $filteredTotal, // Total de registros filtrados
-                    'data' => array_values($filteredData) // Dados filtrados
+                    'total' => (int) $data['total'],
+                    'data' => $data['data']
                 ],
                 REST_Controller::HTTP_OK
             );
         }
     }
-
-
-
-
-
-    /**
-     * @api {post} api/customers Add New Customer
-     * @apiName PostCustomer
-     * @apiGroup Customer
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {String} company               Mandatory Customer company.
-     * @apiParam {String} [vat]                 Optional Vat.
-     * @apiParam {String} [phonenumber]         Optional Customer Phone.
-     * @apiParam {String} [website]             Optional Customer Website.
-     * @apiParam {Number[]} [groups_in]         Optional Customer groups.
-     * @apiParam {String} [default_language]    Optional Customer Default Language.
-     * @apiParam {String} [default_currency]    Optional default currency.
-     * @apiParam {String} [address]             Optional Customer address.
-     * @apiParam {String} [city]                Optional Customer City.
-     * @apiParam {String} [state]               Optional Customer state.
-     * @apiParam {String} [zip]                 Optional Zip Code.
-     * @apiParam {String} [partnership_type]    Optional Customer partnership type.
-     * @apiParam {String} [country]             Optional country.
-     * @apiParam {String} [billing_street]      Optional Billing Address: Street.
-     * @apiParam {String} [billing_city]        Optional Billing Address: City.
-     * @apiParam {Number} [billing_state]       Optional Billing Address: State.
-     * @apiParam {String} [billing_zip]         Optional Billing Address: Zip.
-     * @apiParam {String} [billing_country]     Optional Billing Address: Country.
-     * @apiParam {String} [shipping_street]     Optional Shipping Address: Street.
-     * @apiParam {String} [shipping_city]       Optional Shipping Address: City.
-     * @apiParam {String} [shipping_state]      Optional Shipping Address: State.
-     * @apiParam {String} [shipping_zip]        Optional Shipping Address: Zip.
-     * @apiParam {String} [shipping_country]    Optional Shipping Address: Country.
-     *
-     * @apiParamExample {Multipart Form} Request-Example:
-     *   array (size=22)
-     *     'company' => string 'Themesic Interactive' (length=38)
-     *     'vat' => string '123456789' (length=9)
-     *     'phonenumber' => string '123456789' (length=9)
-     *     'website' => string 'AAA.com' (length=7)
-     *     'groups_in' =>
-     *       array (size=2)
-     *         0 => string '1' (length=1)
-     *         1 => string '4' (length=1)
-     *     'default_currency' => string '3' (length=1)
-     *     'default_language' => string 'english' (length=7)
-     *     'address' => string '1a The Alexander Suite Silk Point' (length=27)
-     *     'city' => string 'London' (length=14)
-     *     'state' => string 'London' (length=14)
-     *     'zip' => string '700000' (length=6)
-     *     'country' => string '243' (length=3)
-     *     'billing_street' => string '1a The Alexander Suite Silk Point' (length=27)
-     *     'billing_city' => string 'London' (length=14)
-     *     'billing_state' => string 'London' (length=14)
-     *     'billing_zip' => string '700000' (length=6)
-     *     'billing_country' => string '243' (length=3)
-     *     'shipping_street' => string '1a The Alexander Suite Silk Point' (length=27)
-     *     'shipping_city' => string 'London' (length=14)
-     *     'shipping_state' => string 'London' (length=14)
-     *     'shipping_zip' => string '700000' (length=6)
-     *     'shipping_country' => string '243' (length=3)
-     *
-     *
-     * @apiSuccess {Boolean} status Request status.
-     * @apiSuccess {String} message Customer add successful.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "status": true,
-     *       "message": "Customer add successful."
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message Customer add fail.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "Customer add fail."
-     *     }
-     *
-     */
 
 
     public function create_post()
@@ -283,36 +192,6 @@ class Users extends REST_Controller
         }
     }
 
-
-    /**
-     * @api {delete} api/delete/customers/:id Delete a Customer
-     * @apiName DeleteCustomer
-     * @apiGroup Customer
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {Number} id Customer unique ID.
-     *
-     * @apiSuccess {String} status Request status.
-     * @apiSuccess {String} message Customer Delete Successful.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "status": true,
-     *       "message": "Customer Delete Successful."
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message Customer Delete Fail.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "Customer Delete Fail."
-     *     }
-     */
     public function remove_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -362,41 +241,6 @@ class Users extends REST_Controller
         }
     }
 
-    /**
-     * @api {get} api/pdv/client/get/:id Get Client by ID
-     * @apiName GetClient
-     * @apiGroup Client
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {Number} id Client unique ID.
-     *
-     * @apiSuccess {Boolean} status Request status.
-     * @apiSuccess {Object} data Client information.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "status": true,
-     *       "data": {
-     *         "userid": "1",
-     *         "company": "Test Company",
-     *         "vat": "123456789",
-     *         "phonenumber": "123-456-7890",
-     *         ...
-     *       }
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message No data were found.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "No data were found"
-     *     }
-     */
     public function get_get($id = '')
     {
         if (empty($id) || !is_numeric($id)) {
@@ -421,82 +265,6 @@ class Users extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
-
-    /**
-     * @api {put} api/customers/:id Update a Customer
-     * @apiName PutCustomer
-     * @apiGroup Customer
-     *
-     * @apiHeader {String} Authorization Basic Access Authentication token.
-     *
-     * @apiParam {String} company               Mandatory Customer company.
-     * @apiParam {String} [vat]                 Optional Vat.
-     * @apiParam {String} [phonenumber]         Optional Customer Phone.
-     * @apiParam {String} [website]             Optional Customer Website.
-     * @apiParam {Number[]} [groups_in]         Optional Customer groups.
-     * @apiParam {String} [default_language]    Optional Customer Default Language.
-     * @apiParam {String} [default_currency]    Optional default currency.
-     * @apiParam {String} [address]             Optional Customer address.
-     * @apiParam {String} [city]                Optional Customer City.
-     * @apiParam {String} [state]               Optional Customer state.
-     * @apiParam {String} [zip]                 Optional Zip Code.
-     * @apiParam {String} [country]             Optional country.
-     * @apiParam {String} [billing_street]      Optional Billing Address: Street.
-     * @apiParam {String} [billing_city]        Optional Billing Address: City.
-     * @apiParam {Number} [billing_state]       Optional Billing Address: State.
-     * @apiParam {String} [billing_zip]         Optional Billing Address: Zip.
-     * @apiParam {String} [billing_country]     Optional Billing Address: Country.
-     * @apiParam {String} [shipping_street]     Optional Shipping Address: Street.
-     * @apiParam {String} [shipping_city]       Optional Shipping Address: City.
-     * @apiParam {String} [shipping_state]      Optional Shipping Address: State.
-     * @apiParam {String} [shipping_zip]        Optional Shipping Address: Zip.
-     * @apiParam {String} [shipping_country]    Optional Shipping Address: Country.
-     *
-     * @apiParamExample {json} Request-Example:
-     *  {
-     *     "company": "Công ty A",
-     *     "vat": "",
-     *     "phonenumber": "0123456789",
-     *     "website": "",
-     *     "default_language": "",
-     *     "default_currency": "0",
-     *     "country": "243",
-     *     "city": "TP London",
-     *     "zip": "700000",
-     *     "state": "Quận 12",
-     *     "address": "hẻm 71, số 34\/3 Đường TA 16, Phường Thới An, Quận 12",
-     *     "billing_street": "hẻm 71, số 34\/3 Đường TA 16, Phường Thới An, Quận 12",
-     *     "billing_city": "TP London",
-     *     "billing_state": "Quận 12",
-     *     "billing_zip": "700000",
-     *     "billing_country": "243",
-     *     "shipping_street": "",
-     *     "shipping_city": "",
-     *     "shipping_state": "",
-     *     "shipping_zip": "",
-     *     "shipping_country": "0"
-     *   }
-     *
-     * @apiSuccess {Boolean} status Request status.
-     * @apiSuccess {String} message Customer Update Successful.
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "status": true,
-     *       "message": "Customer Update Successful."
-     *     }
-     *
-     * @apiError {Boolean} status Request status.
-     * @apiError {String} message Customer Update Fail.
-     *
-     * @apiErrorExample Error-Response:
-     *     HTTP/1.1 404 Not Found
-     *     {
-     *       "status": false,
-     *       "message": "Customer Update Fail."
-     *     }
-     */
     public function update_post($id = '')
     {
 
@@ -525,6 +293,33 @@ class Users extends REST_Controller
                 $message = array('status' => FALSE, 'message' => 'Users Update Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
+        }
+    }
+
+
+
+    public function put_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['staffids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $staffids = $_POST['staffids'];
+        $active = "0"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Staff_model->update_active($staffids, $active);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Users Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Users.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }
 }

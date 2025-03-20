@@ -65,7 +65,7 @@ class Cash extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: ''; // Alterado para this->post
         $sortField = $this->post('sortField') ?: 'id'; // Alterado para this->post
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Alterado para this->post
+        $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC'; // Alterado para this->post
         $warehouse_id = $this->post('warehouse_id') ?: 0; // Se não vier, define como 0
 
         $data = $this->cashs_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
@@ -123,7 +123,7 @@ class Cash extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
         $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
         $sortField = $this->post('sortField') ?: 'id'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
+        $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
         $data = $this->cashs_model->get_extracts($id, $page, $limit, $search, $sortField, $sortOrder);
 
         if ($data['total'] == 0) {
@@ -385,9 +385,9 @@ class Cash extends REST_Controller
             'payment_type' => $this->post('payment_type'), // Adicionando o filtro de formas de pagamento
         ];
 
-        $cash_id = $this->post('cash_id');
+        $number = $this->post('number');
 
-        $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $cash_id, $warehouse_id);
+        $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $number, $warehouse_id);
 
         // Always return HTTP_OK with the data and total, even if total is 0
         $this->response([
@@ -429,7 +429,7 @@ class Cash extends REST_Controller
         $limit = $this->input->get('pageSize') ? (int) $this->input->get('pageSize') : 10;
         $search = $this->input->get('search') ?: '';
         $sortField = $this->input->get('sortField') ?: 'id';
-        $sortOrder = $this->input->get('sortOrder') === 'asc' ? 'ASC' : 'DESC';
+        $sortOrder = $this->input->get('sortOrder') === 'ASC' ? 'ASC' : 'DESC';
 
         // Busca as transações pelo cash_id
         $cash = $this->cashs_model->get_transactions2($id = '', $page, $limit, $search, $sortField, $sortOrder, $filters = null, $caixaId);
@@ -461,7 +461,7 @@ class Cash extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
         $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
         $sortField = $this->post('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
-        $sortOrder = $this->post('sortOrder') === 'asc' ? 'ASC' : 'DESC'; // Ordem, padrão crescente
+        $sortOrder = $this->post('sortOrder') === 'ASC' ? 'ASC' : 'DESC'; // Ordem, padrão crescente
 
 
         $detalhes_caixa = $this->cashs_model->get_by_id($number);

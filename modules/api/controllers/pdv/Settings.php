@@ -38,7 +38,7 @@ class Settings extends REST_Controller
                     "menu" => [
                         [
                             "value" => "indice",
-                            "label" =>  "my_account",
+                            "label" => "my_account",
                             "color" => "",
                             "icon" => "lucide:home",
                             "width" => "",
@@ -47,7 +47,7 @@ class Settings extends REST_Controller
 
                         [
                             "value" => "GPTW",
-                            "label" =>  "my_account",
+                            "label" => "my_account",
                             "color" => "",
                             "icon" => "lucide:heart",
                             "width" => "",
@@ -56,7 +56,7 @@ class Settings extends REST_Controller
 
                         [
                             "value" => "Gestão GPTW ",
-                            "label" =>  "my_account",
+                            "label" => "my_account",
                             "color" => "",
                             "icon" => "lucide:wrench",
                             "width" => "",
@@ -193,7 +193,7 @@ class Settings extends REST_Controller
                             "path" => "/warehouse"
                         ],
                         [
-                            "value" => "Contas e pagar ",
+                            "value" => "Contas a pagar",
                             "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:credit-card",
@@ -201,7 +201,7 @@ class Settings extends REST_Controller
                             "path" => "/financial"
                         ],
                         [
-                            "value" => "Contas e pagar ",
+                            "value" => "Contas a pagar",
                             "label" => "financial",
                             "color" => "",
                             "icon" => "lucide:credit-card",
@@ -226,7 +226,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Relatórios",
-                            "label" =>  "home",
+                            "label" => "home",
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
@@ -234,7 +234,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Painel do Franqueado",
-                            "label" =>  "Franquias",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:bar-chart-2",
                             "width" => "",
@@ -242,55 +242,59 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Gestão de Franquias",
-                            "label" =>  "Franquias",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:store",
                             "width" => "",
-                            "path" => "/franchisees/management"
+                            "path" => "/franchisees/management/list"
                         ],
                         [
                             "value" => "Contratos",
-                            "label" =>  "Franquias",
+
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:handshake",
                             "width" => "",
-                            "path" => "/franchisees/contracts"
-                        ],
-                        [
-                            "value" => "Treinamentos",
-                            "label" =>  "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:graduation-cap",
-                            "width" => "",
-                            "path" => "/franchisees/training"
-                        ],
-                        [
-                            "value" => "Gestão de Treinamentos",
-                            "label" =>  "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:book-open",
-                            "width" => "",
-                            "path" => "/franchisees/training/management"
+                            "path" => "/franchisees/contracts/list"
                         ],
                         [
                             "value" => "Pedidos",
-                            "label" =>  "Franquias",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
                             "path" => "/franchisees/orders"
                         ],
+                        [
+                            "value" => "Suporte",
+                            "label" => "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:message-circle",
+                            "width" => "",
+                            "path" => "/franchisees/support"
+                        ],
+
+                        // [
+                        //     "value" => "Treinamentos",
+                        //     "label" => "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:graduation-cap",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/training"
+                        // ],
+                        // [
+                        //     "value" => "Gestão de Treinamentos",
+                        //     "label" => "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:book-open",
+                        //     "width" => "",
+                        //     "path" => "/Franquias/training/management"
+                        // ],
                         /*
-                [
-                    "value" => "Suporte",
-                    "label" =>  "Franquias",
-                    "color" => "",
-                    "icon" => "lucide:message-circle",
-                    "width" => "",
-                    "path" => "/franchisees/suport"
-                ],
-                 * 
-                 */
+                         * 
+                         */
+
+
                         [
                             "value" => "users",
                             "label" => "admin",
@@ -524,7 +528,66 @@ class Settings extends REST_Controller
                             "icon" => "lucide:trash",
                             "width" => "",
                             "path" => "/auth/clean"
-                        ]
+                        ],
+                        [
+                            "value" => "Painel do Franqueado",
+                            "label" => "franchisees",
+                            "color" => "",
+                            "icon" => "lucide:bar-chart-2",
+                            "width" => "",
+                            "path" => "/franchisees/dashboard"
+                        ],
+                        [
+                            "value" => "Gestão de Franquias",
+                            "label" => "franchisees",
+                            "color" => "",
+                            "icon" => "lucide:store",
+                            "width" => "",
+                            "path" => "/franchisees/management/list"
+                        ],
+                        [
+                            "value" => "Contratos",
+                            "label" => "franchisees",
+                            "color" => "",
+                            "icon" => "lucide:handshake",
+                            "width" => "",
+                            "path" => "/franchisees/contracts/list"
+                        ],
+                        [
+                            "value" => "Pedidos",
+                            "label" => "franchisees",
+                            "color" => "",
+                            "icon" => "lucide:file-text",
+                            "width" => "",
+                            "path" => "/franchisees/orders"
+                        ],
+                        [
+                            "value" => "Suporte",
+                            "label" => "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:message-circle",
+                            "width" => "",
+                            "path" => "/franchisees/support"
+                        ],
+
+
+                        // [
+                        //     "value" => "Treinamentos",
+                        //     "label" => "franchisees",
+                        //     "color" => "",
+                        //     "icon" => "lucide:graduation-cap",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/training"
+                        // ],
+                        // [
+                        //     "value" => "Gestão de Treinamentos",
+                        //     "label" => "franchisees",
+                        //     "color" => "",
+                        //     "icon" => "lucide:book-open",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/training/management"
+                        // ],
+
                     ]
                 ]
             ],
@@ -601,7 +664,7 @@ class Settings extends REST_Controller
     {
         $output = $this->Settings_model->get_options();
 
-        $warehouses =  $this->Settings_model->get_warehouses();
+        $warehouses = $this->Settings_model->get_warehouses();
 
         $formattedOutput = [];
         foreach ($output as $item) {

@@ -124,7 +124,7 @@ class Cashs_model extends App_Model
             $this->db->from(db_prefix() . 'cashs');
             $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left');
             $this->db->where('cashs.id', $id);
-           // $this->db->where('cashs.warehouse_id', $warehouse_id);
+            // $this->db->where('cashs.warehouse_id', $warehouse_id);
 
             $client = $this->db->get()->row();
             $total = $client ? 1 : 0;
@@ -157,7 +157,7 @@ class Cashs_model extends App_Model
         ];
     }
 
-    public function get_transactions($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $cash_id, $warehouse_id = '')
+    public function get_transactions($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $filters = null, $number, $warehouse_id = '')
     {
         $this->db->from(db_prefix() . 'cashextracts as c');
         $this->db->select('c.id as extract_id, c.*, clients.company, clients.vat, tblcashs.number'); // Especifica o alias para o id
@@ -170,9 +170,9 @@ class Cashs_model extends App_Model
             $this->db->where('c.warehouse_id', $warehouse_id);
         }
 
-        // Filtro pelo cash_id (ID do caixa)
-        if ($cash_id) {
-            $this->db->where('c.cash_id', $cash_id); // Filtra diretamente pelo ID do caixa
+        // Filtro pelo number (numero do caixa)
+        if ($number) {
+            $this->db->where('number', $number); // Filtra diretamente pelo ID do caixa
         }
 
         // Filtros adicionais
@@ -613,8 +613,8 @@ class Cashs_model extends App_Model
 
     public function add($data)
     {
-        
-   
+
+
 
         // Iniciar transação
         $this->db->trans_start();
@@ -718,16 +718,16 @@ class Cashs_model extends App_Model
         $query = $this->db->get();
         return $query->result_array();
     }
-    
+
     public function count_by_number_warehouse_id($number, $warehouse_id)
-{
-    $this->db->select('COUNT(id) as count');
-    $this->db->from(db_prefix() . 'cashs');
-    $this->db->where('number', $number);
-    $this->db->where('warehouse_id', $warehouse_id);
-    $query = $this->db->get();
+    {
+        $this->db->select('COUNT(id) as count');
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->where('number', $number);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $query = $this->db->get();
         // Exibe a última query gerada
-    return $query->row()->count; // Retorna apenas o número de registros encontrados
-}
+        return $query->row()->count; // Retorna apenas o número de registros encontrados
+    }
 }
 

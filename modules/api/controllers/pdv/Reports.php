@@ -16,12 +16,20 @@ class Reports extends REST_Controller
   {
     $period = $this->post('period') ?: '6months';
     $category = $this->post('category');
-    $warehouse = $this->post('warehouse');
+    $warehouse_id = $this->post('warehouse_id');
     $stockStatus = $this->post('stockStatus');
     $topProductsLimit = $this->post('topProductsLimit') ?: 10;
     $orderBy = $this->post('orderBy') ?: 'quantidade';
     $customStartDate = $this->post('customStartDate');
     $customEndDate = $this->post('customEndDate');
+
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
 
     $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
     $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
@@ -54,32 +62,41 @@ class Reports extends REST_Controller
         break;
     }
 
+    if (!$startDate) {
+      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+    }
+
     $this->db->select('
             i.id,
             i.description,
-            ig.name as category,
-            SUM(ic.qty) as total_qty,
-            AVG(ic.rate) as avg_price,
-            SUM(ic.qty * ic.rate) as total_value,
             i.stock as current_stock,
             i.minStock,
+            i.cost,
+            i.rate as price,
+            i.sku_code,
+            i.barcode,
+            ig.name as category,
+            COALESCE(SUM(ic.qty), 0) as total_qty,
+            COALESCE(AVG(ic.rate), i.rate) as avg_price,
+            COALESCE(SUM(ic.qty * ic.rate), 0) as total_value,
             DATE_FORMAT(ic.data, "%Y-%m") as month_year,
             MIN(ic.data) as first_sale,
             MAX(ic.data) as last_sale
         ');
     $this->db->from(db_prefix() . 'items i');
-    $this->db->join(db_prefix() . 'itemcash ic', 'ic.item_id = i.id');
+    $this->db->join(db_prefix() . 'itemcash ic', 'ic.item_id = i.id', 'left');
     $this->db->join(db_prefix() . 'items_groups ig', 'ig.id = i.group_id', 'left');
-
-    $this->db->where('ic.data BETWEEN "' . $startDate . '" AND "' . $endDate . '"');
+    $this->db->join(db_prefix() . 'cashs c', 'c.id = ic.cash_id', 'left');
+    $this->db->where('i.warehouse_id', $warehouse_id);
+    $this->db->where('i.active', 1);
+    $this->db->where('c.status', 1); 
+    $this->db->where('ic.data >=', $startDate);
+    $this->db->where('ic.data <=', $endDate);
 
     if ($category) {
       $this->db->where('ig.id', $category);
     }
-    if ($warehouse) {
-      $this->db->join(db_prefix() . 'cashs c', 'c.id = ic.cash_id');
-      $this->db->where('c.warehouse_id', $warehouse);
-    }
+
     if ($stockStatus) {
       switch ($stockStatus) {
         case 'baixo':
@@ -95,6 +112,7 @@ class Reports extends REST_Controller
     }
 
     $this->db->group_by('i.id, month_year');
+    $this->db->having('total_qty > 0');  
     $this->db->order_by('total_qty', 'DESC');
     $this->db->limit(10);
 
@@ -102,7 +120,7 @@ class Reports extends REST_Controller
 
     $monthlyData = [];
     foreach ($chart_results as $row) {
-      $monthYear = $row['month_year'];
+      $monthYear = $row['month_year'] ?: date('Y-m', strtotime($startDate));
 
       if (!isset($monthlyData[$monthYear])) {
         $monthlyData[$monthYear] = [
@@ -121,63 +139,29 @@ class Reports extends REST_Controller
         'price' => floatval($row['avg_price']),
         'total_value' => floatval($row['total_value']),
         'current_stock' => $row['current_stock'],
-        'min_stock' => $row['minStock']
+        'min_stock' => $row['minStock'],
+        'cost' => floatval($row['cost']),
+        'sku_code' => $row['sku_code'],
+        'barcode' => $row['barcode']
       ];
     }
 
+    // Count query
     $this->db->select('COUNT(DISTINCT i.id) as total_count');
     $this->db->from(db_prefix() . 'items i');
-    $this->db->join(db_prefix() . 'itemcash ic', 'ic.item_id = i.id');
+    $this->db->join(db_prefix() . 'itemcash ic', 'ic.item_id = i.id', 'left');
     $this->db->join(db_prefix() . 'items_groups ig', 'ig.id = i.group_id', 'left');
+    $this->db->join(db_prefix() . 'cashs c', 'c.id = ic.cash_id', 'left');
+    $this->db->where('i.warehouse_id', $warehouse_id);
+    $this->db->where('i.active', 1);
+    $this->db->where('c.status', 1); 
     $this->db->where('ic.data >=', $startDate);
     $this->db->where('ic.data <=', $endDate);
 
     if ($category) {
       $this->db->where('ig.id', $category);
     }
-    if ($warehouse) {
-      $this->db->join(db_prefix() . 'cashs c', 'c.id = ic.cash_id');
-      $this->db->where('c.warehouse_id', $warehouse);
-    }
-    if ($stockStatus) {
-      switch ($stockStatus) {
-        case 'baixo':
-          $this->db->where('i.stock <= i.minStock');
-          break;
-        case 'esgotado':
-          $this->db->where('i.stock', 0);
-          break;
-        case 'disponivel':
-          $this->db->where('i.stock > i.minStock');
-          break;
-      }
-    }
 
-    $total_items = $this->db->get()->row()->total_count;
-
-    $this->db->select('
-            i.id,
-            i.description,
-            ig.name as category,
-            SUM(ic.qty) as total_qty,
-            AVG(ic.rate) as avg_price,
-            SUM(ic.qty * ic.rate) as total_value,
-            i.stock as current_stock,
-            i.minStock
-        ');
-    $this->db->from(db_prefix() . 'items i');
-    $this->db->join(db_prefix() . 'itemcash ic', 'ic.item_id = i.id');
-    $this->db->join(db_prefix() . 'items_groups ig', 'ig.id = i.group_id', 'left');
-    $this->db->where('ic.data >=', $startDate);
-    $this->db->where('ic.data <=', $endDate);
-
-    if ($category) {
-      $this->db->where('ig.id', $category);
-    }
-    if ($warehouse) {
-      $this->db->join(db_prefix() . 'cashs c', 'c.id = ic.cash_id');
-      $this->db->where('c.warehouse_id', $warehouse);
-    }
     if ($stockStatus) {
       switch ($stockStatus) {
         case 'baixo':
@@ -193,6 +177,54 @@ class Reports extends REST_Controller
     }
 
     $this->db->group_by('i.id');
+    $this->db->having('SUM(COALESCE(ic.qty, 0)) > 0');  
+    $count_result = $this->db->get()->row();
+    $total_items = $count_result ? $count_result->total_count : 0;
+
+    $this->db->select('
+            i.id,
+            i.description,
+            i.stock as current_stock,
+            i.minStock,
+            i.cost,
+            i.rate as price,
+            i.sku_code,
+            i.barcode,
+            ig.name as category,
+            COALESCE(SUM(ic.qty), 0) as total_qty,
+            COALESCE(AVG(ic.rate), i.rate) as avg_price,
+            COALESCE(SUM(ic.qty * ic.rate), 0) as total_value
+        ');
+    $this->db->from(db_prefix() . 'items i');
+    $this->db->join(db_prefix() . 'itemcash ic', 'ic.item_id = i.id', 'left');
+    $this->db->join(db_prefix() . 'items_groups ig', 'ig.id = i.group_id', 'left');
+    $this->db->join(db_prefix() . 'cashs c', 'c.id = ic.cash_id', 'left');
+    $this->db->where('i.warehouse_id', $warehouse_id);
+    $this->db->where('i.active', 1);
+    $this->db->where('c.status', 1);
+    $this->db->where('ic.data >=', $startDate);
+    $this->db->where('ic.data <=', $endDate);
+
+    if ($category) {
+      $this->db->where('ig.id', $category);
+    }
+
+    if ($stockStatus) {
+      switch ($stockStatus) {
+        case 'baixo':
+          $this->db->where('i.stock <= i.minStock');
+          break;
+        case 'esgotado':
+          $this->db->where('i.stock', 0);
+          break;
+        case 'disponivel':
+          $this->db->where('i.stock > i.minStock');
+          break;
+      }
+    }
+
+    $this->db->group_by('i.id');
+    $this->db->having('total_qty > 0');  
 
     switch ($orderBy) {
       case 'quantidade':
@@ -202,7 +234,7 @@ class Reports extends REST_Controller
         $this->db->order_by('total_value', 'DESC');
         break;
       case 'recente':
-        $this->db->order_by('ic.data', 'DESC');
+        $this->db->order_by('MAX(ic.data)', 'DESC');
         break;
     }
 

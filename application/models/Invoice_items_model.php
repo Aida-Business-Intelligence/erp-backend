@@ -112,8 +112,9 @@ class Invoice_items_model extends App_Model
         return $this->db->get()->row();
     }
 
-
-
+    /**
+     * Get items with API formatting
+     */
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'DESC', $statusFilter = null, $startDate = null, $endDate = null, $category = null, $subcategory = null, $warehouse_id = null)
     {
         $items_table = db_prefix() . 'items';
@@ -121,14 +122,28 @@ class Invoice_items_model extends App_Model
         $subgroups_table = db_prefix() . 'wh_sub_group';
 
         if (is_numeric($id)) {
+            $this->db->select([
+                "$items_table.*",
+                "$groups_table.name as group_name",
+                "$subgroups_table.sub_group_name",
+                "$subgroups_table.id as sub_group_id"
+            ]);
+            
             $this->db->from($items_table)
-                ->where("$items_table.id", $id)
-                ->or_where("$items_table.commodity_barcode", $id);
+                ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
+                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group_id", 'left')
+                ->where("$items_table.id", $id);
+
             if ($warehouse_id) {
                 $this->db->where("$items_table.warehouse_id", $warehouse_id);
             }
-            $item = $this->db->get()->row();
-            return ['data' => (array) $item, 'total' => ($item) ? 1 : 0];
+
+            $item = $this->db->get()->row_array();
+            
+            if ($item) {
+                return ['data' => [$item], 'total' => 1];
+            }
+            return ['data' => [], 'total' => 0];
         }
 
         $this->db->select([
@@ -203,16 +218,15 @@ class Invoice_items_model extends App_Model
                 ->group_end();
         }
 
+        $total = $this->db->count_all_results('', false);
+
         $allowedSortFields = ['id', 'description', 'rate', 'sku_code', 'createdAt', 'updatedAt'];
         $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'id';
 
         $this->db->order_by("$items_table.$sortField", $sortOrder);
         $this->db->limit($limit, ($page - 1) * $limit);
 
-        $query_count = clone $this->db;
         $items = $this->db->get()->result_array();
-
-        $total = $query_count->select('COUNT(*) as total')->limit(null, null)->get()->row()->total;
 
         return ['data' => $items, 'total' => $total];
     }

@@ -165,6 +165,157 @@ class Invoices extends REST_Controller
         }
     }
 
+    public function create_bulk_purchase_orders_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['supplier_ids']) || empty($_POST['supplier_ids'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No supplier IDs provided'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['warehouse_id']) || empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            $this->db->trans_start();
+
+            $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+            if (!$decodedToken['status']) {
+                throw new Exception('User not authenticated');
+            }
+
+            $user_id = $decodedToken['data']->user->staffid;
+            $warehouse_id = $_POST['warehouse_id'];
+            $supplier_ids = $_POST['supplier_ids'];
+
+            if (empty($user_id)) {
+                throw new Exception('User ID not found in token');
+            }
+
+            $results = [];
+            $errors = [];
+
+            foreach ($supplier_ids as $supplier_id) {
+                $this->db->select('pn.*, i.cost, i.description, i.unit');
+                $this->db->from(db_prefix() . 'purchase_needs pn');
+                $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id');
+                $this->db->where('pn.status', 0);
+                $this->db->where('i.userid', $supplier_id);
+                $this->db->where('i.warehouse_id', $warehouse_id);
+                $purchase_needs = $this->db->get()->result_array();
+
+                if (empty($purchase_needs)) {
+                    continue;
+                }
+
+                $newitems = [];
+                $total = 0;
+
+                foreach ($purchase_needs as $purchase_need) {
+                    $item_total = $purchase_need['cost'] * $purchase_need['qtde'];
+                    $total += $item_total;
+
+                    $newitems[] = [
+                        'description' => $purchase_need['description'],
+                        'long_description' => '',
+                        'qty' => $purchase_need['qtde'],
+                        'rate' => $purchase_need['cost'],
+                        'unit' => $purchase_need['unit'],
+                        'item_id' => $purchase_need['item_id'],
+                        'order' => count($newitems) + 1
+                    ];
+                }
+
+                $invoice_data = [
+                    'clientid' => $supplier_id,
+                    'number' => get_option('next_invoice_number'),
+                    'date' => date('Y-m-d'),
+                    'duedate' => date('Y-m-d', strtotime('+30 days')),
+                    'subtotal' => $total,
+                    'total' => $total,
+                    'status' => 1,
+                    'clientnote' => '',
+                    'adminnote' => '',
+                    'currency' => get_base_currency()->id,
+                    'billing_street' => '',
+                    'billing_city' => '',
+                    'billing_state' => '',
+                    'billing_zip' => '',
+                    'billing_country' => '',
+                    'shipping_street' => '',
+                    'shipping_city' => '',
+                    'shipping_state' => '',
+                    'shipping_zip' => '',
+                    'shipping_country' => '',
+                    'include_shipping' => 0,
+                    'show_shipping_on_invoice' => 0,
+                    'show_quantity_as' => 1,
+                    'newitems' => $newitems,
+                    'cancel_overdue_reminders' => 1,
+                    'allowed_payment_modes' => serialize([]),
+                    'prefix' => get_option('invoice_prefix'),
+                    'number_format' => get_option('invoice_number_format'),
+                    'datecreated' => date('Y-m-d H:i:s'),
+                    'addedfrom' => $user_id,
+                    'warehouse_id' => $warehouse_id
+                ];
+
+                $invoice_id = $this->Invoices_model->add($invoice_data);
+
+                if (!$invoice_id) {
+                    $errors[] = "Failed to create invoice for supplier ID: {$supplier_id}";
+                    continue;
+                }
+
+                foreach ($purchase_needs as $purchase_need) {
+                    $this->db->where('id', $purchase_need['id']);
+                    $this->db->update(db_prefix() . 'purchase_needs', [
+                        'status' => 1,
+                        'user_id' => $user_id,
+                        'date' => date('Y-m-d H:i:s'),
+                        'invoice_id' => $invoice_id
+                    ]);
+                }
+
+                $results[] = [
+                    'supplier_id' => $supplier_id,
+                    'invoice_id' => $invoice_id,
+                    'total_items' => count($purchase_needs),
+                    'total_amount' => $total
+                ];
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Transaction failed');
+            }
+
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Bulk purchase orders created successfully',
+                'results' => $results,
+                'errors' => $errors
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     public function list_post()
     {
         $warehouse_id = $this->post('warehouse_id');

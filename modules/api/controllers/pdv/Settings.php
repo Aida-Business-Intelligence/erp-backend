@@ -27,8 +27,10 @@ class Settings extends REST_Controller
         $this->load->model('Settings_model');
     }
 
+    
 
-    public function options_get()
+
+    public function options_get2()
     {
         $data = [
             [
@@ -38,7 +40,7 @@ class Settings extends REST_Controller
                     "menu" => [
                         [
                             "value" => "indice",
-                            "label" =>  "my_account",
+                            "label" => "my_account",
                             "color" => "",
                             "icon" => "lucide:home",
                             "width" => "",
@@ -47,7 +49,7 @@ class Settings extends REST_Controller
 
                         [
                             "value" => "GPTW",
-                            "label" =>  "my_account",
+                            "label" => "my_account",
                             "color" => "",
                             "icon" => "lucide:heart",
                             "width" => "",
@@ -56,7 +58,7 @@ class Settings extends REST_Controller
 
                         [
                             "value" => "Gestão GPTW ",
-                            "label" =>  "my_account",
+                            "label" => "my_account",
                             "color" => "",
                             "icon" => "lucide:wrench",
                             "width" => "",
@@ -193,7 +195,7 @@ class Settings extends REST_Controller
                             "path" => "/warehouse"
                         ],
                         [
-                            "value" => "Contas e pagar ",
+                            "value" => "Contas a pagar",
                             "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:credit-card",
@@ -201,7 +203,7 @@ class Settings extends REST_Controller
                             "path" => "/financial"
                         ],
                         [
-                            "value" => "Contas e pagar ",
+                            "value" => "Contas a pagar",
                             "label" => "financial",
                             "color" => "",
                             "icon" => "lucide:credit-card",
@@ -226,7 +228,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Relatórios",
-                            "label" =>  "home",
+                            "label" => "home",
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
@@ -234,7 +236,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Painel do Franqueado",
-                            "label" =>  "Franquias",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:bar-chart-2",
                             "width" => "",
@@ -242,55 +244,59 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Gestão de Franquias",
-                            "label" =>  "Franquias",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:store",
                             "width" => "",
-                            "path" => "/franchisees/management"
+                            "path" => "/franchisees/management/list"
                         ],
                         [
                             "value" => "Contratos",
-                            "label" =>  "Franquias",
+
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:handshake",
                             "width" => "",
-                            "path" => "/franchisees/contracts"
-                        ],
-                        [
-                            "value" => "Treinamentos",
-                            "label" =>  "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:graduation-cap",
-                            "width" => "",
-                            "path" => "/franchisees/training"
-                        ],
-                        [
-                            "value" => "Gestão de Treinamentos",
-                            "label" =>  "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:book-open",
-                            "width" => "",
-                            "path" => "/franchisees/training/management"
+                            "path" => "/franchisees/contracts/list"
                         ],
                         [
                             "value" => "Pedidos",
-                            "label" =>  "Franquias",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
                             "path" => "/franchisees/orders"
                         ],
+                        [
+                            "value" => "Suporte",
+                            "label" => "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:message-circle",
+                            "width" => "",
+                            "path" => "/franchisees/support"
+                        ],
+
+                        // [
+                        //     "value" => "Treinamentos",
+                        //     "label" => "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:graduation-cap",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/training"
+                        // ],
+                        // [
+                        //     "value" => "Gestão de Treinamentos",
+                        //     "label" => "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:book-open",
+                        //     "width" => "",
+                        //     "path" => "/Franquias/training/management"
+                        // ],
                         /*
-                [
-                    "value" => "Suporte",
-                    "label" =>  "Franquias",
-                    "color" => "",
-                    "icon" => "lucide:message-circle",
-                    "width" => "",
-                    "path" => "/franchisees/suport"
-                ],
-                 * 
-                 */
+                         * 
+                         */
+
+
                         [
                             "value" => "users",
                             "label" => "admin",
@@ -404,8 +410,7 @@ class Settings extends REST_Controller
         $this->response($data, REST_Controller::HTTP_OK);
     }
 
-
-    public function options_get1()
+    public function options_get()
     {
         $data = [
             [
@@ -414,20 +419,82 @@ class Settings extends REST_Controller
                 "list" => [
                     "menu" => [
                         [
+                            "value" => "indice",
+                            "label" =>  "Início",
+                            "color" => "",
+                            "icon" => "lucide:home",
+                            "width" => "",
+                            "path" => "/home"
+                        ],
+                        [
+                            "value" => "emails",
+                            "label" => "Início",
+                            "color" => "",
+                            "icon" => "lucide:mail",
+                            "width" => "",
+                            "path" => "/emails"
+                        ],
+                    
+
+                        // [
+                        //     "value" => "GPTW",
+                        //     "label" =>  "home",
+                        //     "color" => "",
+                        //     "icon" => "lucide:heart",
+                        //     "width" => "",
+                        //     "path" => "/gptw"
+                        // ],
+
+                       
+                        [
                             "value" => "dashboard",
-                            "label" => "home",
+                            "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:chart-pie",
                             "width" => "",
                             "path" => "/dashboard"
                         ],
                         [
+                            "value" => "Relatórios",
+                            "label" =>  "pdv",
+                            "color" => "",
+                            "icon" => "lucide:file-text",
+                            "width" => "",
+                            "path" => "/reports"
+                        ],
+
+                        [
                             "value" => "Catálogo",
-                            "label" => "home",
+                            "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:album",
                             "width" => "",
                             "path" => "/products"
+                        ],
+                        
+                        [
+                            "value" => "Categorias",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:edit",
+                            "width" => "",
+                            "path" => "/categories"
+                        ],
+                        [
+                            "value" => "product",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:edit",
+                            "width" => "",
+                            "path" => "/produto"
+                        ],
+                        [
+                            "value" => "clients",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:book-user",
+                            "width" => "",
+                            "path" => "/client"
                         ],
                         [
                             "value" => "cash",
@@ -445,13 +512,14 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/pdv"
                         ],
+                        
                         [
-                            "value" => "Ordens de Compra",
+                            "value" => "Orçamentos",
                             "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:shopping-bag",
                             "width" => "",
-                            "path" => "/sales-orders"
+                            "path" => "/buy-orders"
                         ],
                         [
                             "value" => "Vendas",
@@ -461,46 +529,166 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/transactions"
                         ],
+                        
                         [
-                            "value" => "clients",
+                            "value" => "Ordens de Compras",
                             "label" => "pdv",
                             "color" => "",
-                            "icon" => "lucide:book-user",
+                            "icon" => "lucide:shopping-cart",
                             "width" => "",
-                            "path" => "/client"
+                            "path" => "/sales-orders"
                         ],
                         [
-                            "value" => "Categorias",
-                            "label" => "pdv",
+                            "value" => "Representadas",
+                            "label" => "cadastros",
                             "color" => "",
-                            "icon" => "lucide:list",
+                            "icon" => "lucide:folder",
                             "width" => "",
-                            "path" => "/categories"
+                            "path" => "/representatives"
                         ],
                         [
-                            "value" => "product",
-                            "label" => "pdv",
+                            "value" => "Representantes",
+                            "label" => "cadastros",
+                            "color" => "",
+                            "icon" => "lucide:user",
+                            "width" => "",
+                            "path" => "/sales-reps"
+                        ],
+                        [
+                            "value" => "Fornecedores",
+                            "label" => "cadastros",
+                            "color" => "",
+                            "icon" => "lucide:building",
+                            "width" => "",
+                            "path" => "/suppliers"
+                        ],
+                        [
+                            "value" => "Transportadoras",
+                            "label" => "cadastros",
+                            "color" => "",
+                            "icon" => "lucide:truck",
+                            "width" => "",
+                            "path" => "/carriers"
+                        ],
+
+                        
+                        
+                        [
+                            "value" => "Produto",
+                            "label" => "cadastros",
                             "color" => "",
                             "icon" => "lucide:edit",
                             "width" => "",
                             "path" => "/produto"
                         ],
+                      
                         [
-                            "value" => "Contas a pagar",
-                            "label" => "financial",
+                            "value" => "Contas a pagar ",
+                            "label" => "pdv",
                             "color" => "",
-                            "icon" => "lucide:wallet",
+                            "icon" => "lucide:credit-card",
                             "width" => "",
                             "path" => "/financial"
                         ],
                         [
-                            "value" => "Relatórios",
-                            "label" => "home",
+                            "value" => "Painel Geral ",
+                            "label" => "financial",
+                            "color" => "",
+                            "icon" => "lucide:wallet",
+                            "width" => "",
+                            "path" => "/financial-erp/panel"
+                        ],
+                        [
+                            "value" => "Conciliação Bancária ",
+                            "label" => "financial",
+                            "color" => "",
+                            "icon" => "lucide:landmark",
+                            "width" => "",
+                            "path" => "/financial-erp/bank-reconciliation"
+                        ],
+                        // [
+                        //     "value" => "Contas a pagar ",
+                        //     "label" => "financial",
+                        //     "color" => "",
+                        //     "icon" => "lucide:credit-card",
+                        //     "width" => "",
+                        //     "path" => "/financial"
+                        // ],
+                        // [
+                        //     "value" => "Carteira de Títulos ",
+                        //     "label" => "financial",
+                        //     "color" => "",
+                        //     "icon" => "lucide:wallet",
+                        //     "width" => "",
+                        //     "path" => "/financial-erp/titles"
+                        // ],
+                        [
+                            "value" => "Simulador de Encargos ",
+                            "label" => "financial",
+                            "color" => "",
+                            "icon" => "lucide:book",
+                            "width" => "",
+                            "path" => "/financial-erp/contability"
+                        ],
+                      
+                        [
+                            "value" => "Painel do Franqueado",
+                            "label" =>  "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:bar-chart-2",
+                            "width" => "",
+                            "path" => "/franchisees/dashboard"
+                        ],
+                        [
+                            "value" => "Gestão de Franquias",
+                            "label" =>  "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:store",
+                            "width" => "",
+                            "path" => "/franchisees/management"
+                        ],
+                        [
+                            "value" => "Contratos",
+                            "label" =>  "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:handshake",
+                            "width" => "",
+                            "path" => "/franchisees/contracts"
+                        ],
+                        [
+                            "value" => "Treinamentos",
+                            "label" =>  "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:graduation-cap",
+                            "width" => "",
+                            "path" => "/franchisees/training"
+                        ],
+                        [
+                            "value" => "Gestão de Treinamentos",
+                            "label" =>  "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:book-open",
+                            "width" => "",
+                            "path" => "/franchisees/training/management"
+                        ],
+                        [
+                            "value" => "Pedidos",
+                            "label" =>  "Franquias",
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
-                            "path" => "/reports"
+                            "path" => "/franchisees/orders"
                         ],
+                        
+                [
+                    "value" => "Suporte",
+                    "label" =>  "Franquias",
+                    "color" => "",
+                    "icon" => "lucide:message-circle",
+                    "width" => "",
+                    "path" => "/franchisees/support"
+                ],
+            
                         [
                             "value" => "users",
                             "label" => "admin",
@@ -510,6 +698,43 @@ class Settings extends REST_Controller
                             "path" => "/admin/user/list"
                         ],
                         [
+                            "value" => "Lojas",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:edit",
+                            "width" => "",
+                            "path" => "/warehouse"
+                        ],
+                        [
+                            "value" => "Gestão GPTW ",
+                            "label" =>  "admin",
+                            "color" => "",
+                            "icon" => "lucide:wrench",
+                            "width" => "",
+                            "path" => "/gptw-management"
+                        ],
+                        /*
+                [
+                    "value" => "languages",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:globe-2",
+                    "width" => "",
+                    "path" => "/admin/languages"
+                ],
+                 * 
+                
+                [
+                    "value" => "options",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:sliders-horizontal",
+                    "width" => "",
+                    "path" => "/admin/options"
+                ],
+                 * 
+                 */
+                        [
                             "value" => "config",
                             "label" => "admin",
                             "color" => "",
@@ -517,6 +742,18 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/admin/config"
                         ],
+                 
+                        /*
+                [
+                    "value" => "apis",
+                    "label" => "admin",
+                    "color" => "",
+                    "icon" => "lucide:unlock-keyhole",
+                    "width" => "",
+                    "path" => "/admin/apis"
+                ],
+                 * 
+                 */
                         [
                             "value" => "Limpar",
                             "label" => "admin",
@@ -570,6 +807,7 @@ class Settings extends REST_Controller
             ]
         ];
 
+
         $this->response($data, REST_Controller::HTTP_OK);
     }
 
@@ -601,7 +839,7 @@ class Settings extends REST_Controller
     {
         $output = $this->Settings_model->get_options();
 
-        $warehouses =  $this->Settings_model->get_warehouses();
+        $warehouses = $this->Settings_model->get_warehouses();
 
         $formattedOutput = [];
         foreach ($output as $item) {

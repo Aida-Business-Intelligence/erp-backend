@@ -1182,4 +1182,82 @@ class Expenses extends REST_Controller
       ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
   }
+
+  public function calendar_days_get()
+  {
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+    $month = $this->get('month');
+    $year = $this->get('year') ?: date('Y');
+    $warehouse_id = $this->get('warehouse_id');
+
+    if (empty($month) || !is_numeric($month) || $month < 1 || $month > 12) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Valid month (1-12) is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $start_date = sprintf('%d-%02d-01', $year, $month);
+    $end_date = date('Y-m-t', strtotime($start_date));
+    $today = date('Y-m-d');
+
+    $this->db->select('
+      DATE(date) as expense_date,
+      status,
+      COUNT(*) as expense_count
+    ');
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->where('warehouse_id', $warehouse_id);
+    $this->db->where('date >=', $start_date);
+    $this->db->where('date <=', $end_date);
+    $this->db->group_by('DATE(date), status');
+    $results = $this->db->get()->result_array();
+
+    $calendar_days = [];
+
+    foreach ($results as $row) {
+      $date = $row['expense_date'];
+      $day = (int)date('d', strtotime($date));
+      
+      if (!isset($calendar_days[$day])) {
+        $calendar_days[$day] = [
+          'day' => $day,
+          'has_paid' => false,
+          'has_pending' => false,
+          'has_late' => false
+        ];
+      }
+
+      if ($row['status'] === 'paid') {
+        $calendar_days[$day]['has_paid'] = true;
+      } else if ($row['status'] === 'pending') {
+        if (strtotime($date) < strtotime($today)) {
+          $calendar_days[$day]['has_late'] = true;
+        } else {
+          $calendar_days[$day]['has_pending'] = true;
+        }
+      }
+    }
+
+    $calendar_days = array_values($calendar_days);
+
+    $this->response([
+      'status' => TRUE,
+      'data' => [
+        'year' => (int)$year,
+        'month' => (int)$month,
+        'days' => $calendar_days
+      ]
+    ], REST_Controller::HTTP_OK);
+  }
 }

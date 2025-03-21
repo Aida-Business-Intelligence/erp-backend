@@ -453,7 +453,6 @@ class Expenses extends REST_Controller
         return;
       }
 
-      // Validate file size (max 5MB)
       $max_size = 5 * 1024 * 1024;
       if ($file['size'] > $max_size) {
         $this->Expenses_model->delete($expense_id);
@@ -891,7 +890,19 @@ class Expenses extends REST_Controller
   {
     \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    $content_type = isset($this->input->request_headers()['Content-Type'])
+      ? $this->input->request_headers()['Content-Type']
+      : (isset($this->input->request_headers()['content-type'])
+        ? $this->input->request_headers()['content-type']
+        : null);
+
+    $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
+
+    if ($is_multipart) {
+      $input = $this->input->post();
+    } else {
+      $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    }
 
     if (empty($input['id']) || empty($input['status'])) {
       $this->response([
@@ -930,6 +941,51 @@ class Expenses extends REST_Controller
       }
 
       $data['last_recurring_date'] = $input['payment_date'];
+
+      if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['comprovante'];
+
+        $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        if (!in_array($file['type'], $allowed_types)) {
+          $this->response([
+            'status' => FALSE,
+            'message' => 'Tipo de arquivo não permitido. Tipos permitidos: JPG, PNG, PDF, DOC, DOCX'
+          ], REST_Controller::HTTP_BAD_REQUEST);
+          return;
+        }
+
+        $max_size = 5 * 1024 * 1024;
+        if ($file['size'] > $max_size) {
+          $this->response([
+            'status' => FALSE,
+            'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+          ], REST_Controller::HTTP_BAD_REQUEST);
+          return;
+        }
+
+        $upload_dir = './uploads/expenses/' . $input['id'] . '/comprovante/';
+        if (!file_exists($upload_dir)) {
+          mkdir($upload_dir, 0777, true);
+        }
+
+        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $filename = uniqid() . '.' . $extension;
+        $upload_path = $upload_dir . $filename;
+
+        if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+          $server_url = base_url();
+          $relative_path = str_replace('./', '', $upload_path);
+          $file_url = rtrim($server_url, '/') . '/' . $relative_path;
+          $data['comprovante'] = $file_url;
+        } else {
+          log_activity('Failed to move uploaded payment receipt for expense ' . $input['id']);
+          $this->response([
+            'status' => FALSE,
+            'message' => 'Failed to upload payment receipt'
+          ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+          return;
+        }
+      }
 
       if ($expense->recurring == 1) {
         $new_cycles = (int)$expense->cycles + 1;
@@ -1228,7 +1284,7 @@ class Expenses extends REST_Controller
     foreach ($results as $row) {
       $date = $row['expense_date'];
       $day = (int)date('d', strtotime($date));
-      
+
       if (!isset($calendar_days[$day])) {
         $calendar_days[$day] = [
           'day' => $day,

@@ -553,7 +553,15 @@ class Reports extends REST_Controller
     $customStartDate = $this->post('startDate');
     $customEndDate = $this->post('endDate');
     $orderBy = $this->post('orderBy') ?: 'depletion';
-    // $warehouse_id = $this->post('warehouse_id') ?: 0;
+    $warehouse_id = $this->post('warehouse_id');
+
+      if (empty($warehouse_id)) {
+          $this->response(
+              ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+               REST_Controller::HTTP_BAD_REQUEST
+          );
+          return;
+       }
 
     $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
     $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
@@ -612,10 +620,7 @@ class Reports extends REST_Controller
     $this->db->where(db_prefix() . 'itemcash.data >=', $startDate);
     $this->db->where(db_prefix() . 'itemcash.data <=', $endDate);
 
-    // // Adicionando a condição do warehouse_id
-    // if ($warehouse_id) {
-    //   $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
-    // }
+    $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
 
 
     if ($franchise) {
@@ -711,13 +716,13 @@ class Reports extends REST_Controller
       if ($days_to_depletion < 30 && $turnover_rate > 30 && $profit_margin > 0.3) {
         $suggestion = [
           'action' => 'increase',
-          'suggestion' => 'Aumentar estoque em 50%. Produto com alta rotatividade e boa margem de lucro.',
+          'suggestion' => 'Produto com alta rotatividade e boa margem de lucro.',
           'priority' => 'high'
         ];
       } elseif ($days_to_depletion > 90 && $turnover_rate < 10) {
         $suggestion = [
           'action' => 'decrease',
-          'suggestion' => 'Reduzir estoque em 30%. Baixa rotatividade e capital parado.',
+          'suggestion' => 'Baixa rotatividade.',
           'priority' => 'medium'
         ];
       } else {
@@ -773,7 +778,7 @@ class Reports extends REST_Controller
 
     $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
     $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
-    $warehouse_id = $this->post('warehouse_id') ?: 0;
+    $warehouse_id = $this->post('warehouse_id');
 
     $startDate = null;
     $endDate = date('Y-m-d 23:59:59');
@@ -992,12 +997,7 @@ class Reports extends REST_Controller
       ? (($today_data['card_sales'] - $yesterday_data['card_sales']) / $yesterday_data['card_sales']) * 100
       : 0;
 
-    /**
-      PRECISA ALTERAR ESSE VALOR E PUXAR PELO
-      ID DA WAREHOUSE OU PELO ID DA FRANQUIA
-      POR ENQUANTO, O VALOR DE MONTLY GOAL ESTÁ
-      DEFINIDO DE FORMA ESTÁTICA
-     */
+  
     $monthly_goal = 100000;
     $goal_progress = $current_month_data['total_sales'] > 0
       ? ($current_month_data['total_sales'] / $monthly_goal) * 100

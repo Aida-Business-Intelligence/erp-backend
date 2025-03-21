@@ -2050,5 +2050,13 @@ class Invoices_model extends App_Model
         return $this->db->update('tblinvoices');
     }
 
+       // Fatura o/os pedidos
+       public function update_faturar($ids, $status)
+       {
+           $this->db->where_in('id', $ids);
+           $this->db->set('status', $status);
+           return $this->db->update('tblinvoices');
+       }
+
 
 }

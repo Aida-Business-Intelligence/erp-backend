@@ -448,10 +448,10 @@ class Invoices extends REST_Controller
         $output = $this->Invoices_model->update_reject($ids, $status);
 
         if ($output) {
-            $message = array('status' => TRUE, 'message' => 'Users Updated Successfully.');
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
             $this->response($message, REST_Controller::HTTP_OK);
         } else {
-            $message = array('status' => FALSE, 'message' => 'Failed to Update Users.');
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }
@@ -474,10 +474,36 @@ class Invoices extends REST_Controller
         $output = $this->Invoices_model->update_aprove($ids, $status);
 
         if ($output) {
-            $message = array('status' => TRUE, 'message' => 'Users Updated Successfully.');
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
             $this->response($message, REST_Controller::HTTP_OK);
         } else {
-            $message = array('status' => FALSE, 'message' => 'Failed to Update Users.');
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    // Fatura o/os pedidos
+    public function put_fatura_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "7"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Invoices_model->update_faturar($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }

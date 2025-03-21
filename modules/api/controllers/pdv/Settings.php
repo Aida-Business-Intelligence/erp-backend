@@ -273,7 +273,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:message-circle",
                             "width" => "",
-                            "path" => "/franchisees/support"
+                            "path" => "/franchisees/support/list"
                         ],
 
                         // [
@@ -687,7 +687,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:message-circle",
                             "width" => "",
-                            "path" => "/franchisees/support"
+                            "path" => "/franchisees/support/list"
                         ],
 
                         [

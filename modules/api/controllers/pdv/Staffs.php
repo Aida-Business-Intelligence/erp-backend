@@ -378,7 +378,7 @@ class Staffs extends REST_Controller
         }
     }
 
-    //-----> REPRESENTATIVES - IMPLEMENTACAO
+    //-----> FRANQUIAS/REPRESENTATIVE - IMPLEMENTACAO
 
     public function list_post($id = '')
     {

@@ -27,7 +27,7 @@ class Settings extends REST_Controller
         $this->load->model('Settings_model');
     }
 
-    
+
 
 
     public function options_get2()
@@ -260,12 +260,12 @@ class Settings extends REST_Controller
                             "path" => "/franchisees/contracts/list"
                         ],
                         [
-                            "value" => "Pedidos",
+                            "value" => "Gestão de Pedidos",
                             "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
-                            "path" => "/franchisees/orders"
+                            "path" => "/franchisees/orders/list"
                         ],
                         [
                             "value" => "Suporte",
@@ -420,7 +420,7 @@ class Settings extends REST_Controller
                     "menu" => [
                         [
                             "value" => "indice",
-                            "label" =>  "Início",
+                            "label" => "Início",
                             "color" => "",
                             "icon" => "lucide:home",
                             "width" => "",
@@ -434,7 +434,7 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/emails"
                         ],
-                    
+
 
                         // [
                         //     "value" => "GPTW",
@@ -445,7 +445,7 @@ class Settings extends REST_Controller
                         //     "path" => "/gptw"
                         // ],
 
-                       
+
                         [
                             "value" => "dashboard",
                             "label" => "pdv",
@@ -456,7 +456,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Relatórios",
-                            "label" =>  "pdv",
+                            "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
@@ -471,7 +471,7 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/products"
                         ],
-                        
+
                         [
                             "value" => "Categorias",
                             "label" => "pdv",
@@ -512,7 +512,7 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/pdv"
                         ],
-                        
+
                         [
                             "value" => "Orçamentos",
                             "label" => "pdv",
@@ -529,7 +529,7 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/transactions"
                         ],
-                        
+
                         [
                             "value" => "Ordens de Compras",
                             "label" => "pdv",
@@ -571,8 +571,8 @@ class Settings extends REST_Controller
                             "path" => "/carriers"
                         ],
 
-                        
-                        
+
+
                         [
                             "value" => "Produto",
                             "label" => "cadastros",
@@ -581,7 +581,7 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/produto"
                         ],
-                      
+
                         [
                             "value" => "Contas a pagar ",
                             "label" => "pdv",
@@ -630,10 +630,10 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/financial-erp/contability"
                         ],
-                      
+
                         [
                             "value" => "Painel do Franqueado",
-                            "label" =>  "Franquias",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:bar-chart-2",
                             "width" => "",
@@ -641,54 +641,55 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Gestão de Franquias",
-                            "label" =>  "Franquias",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:store",
                             "width" => "",
-                            "path" => "/franchisees/management"
+                            "path" => "/franchisees/management/list"
                         ],
                         [
                             "value" => "Contratos",
-                            "label" =>  "Franquias",
+
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:handshake",
                             "width" => "",
-                            "path" => "/franchisees/contracts"
+                            "path" => "/franchisees/contracts/list"
                         ],
+                        // [
+                        //     "value" => "Treinamentos",
+                        //     "label" =>  "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:graduation-cap",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/training"
+                        // ],
+                        // [
+                        //     "value" => "Gestão de Treinamentos",
+                        //     "label" =>  "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:book-open",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/training/management"
+                        // ],
                         [
-                            "value" => "Treinamentos",
-                            "label" =>  "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:graduation-cap",
-                            "width" => "",
-                            "path" => "/franchisees/training"
-                        ],
-                        [
-                            "value" => "Gestão de Treinamentos",
-                            "label" =>  "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:book-open",
-                            "width" => "",
-                            "path" => "/franchisees/training/management"
-                        ],
-                        [
-                            "value" => "Pedidos",
-                            "label" =>  "Franquias",
+                            "value" => "Gestão de Pedidos",
+                            "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
-                            "path" => "/franchisees/orders"
+                            "path" => "/franchisees/orders/list"
                         ],
-                        
-                [
-                    "value" => "Suporte",
-                    "label" =>  "Franquias",
-                    "color" => "",
-                    "icon" => "lucide:message-circle",
-                    "width" => "",
-                    "path" => "/franchisees/support"
-                ],
-            
+
+                        [
+                            "value" => "Suporte",
+                            "label" => "Franquias",
+                            "color" => "",
+                            "icon" => "lucide:message-circle",
+                            "width" => "",
+                            "path" => "/franchisees/support"
+                        ],
+
                         [
                             "value" => "users",
                             "label" => "admin",
@@ -707,7 +708,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Gestão GPTW ",
-                            "label" =>  "admin",
+                            "label" => "admin",
                             "color" => "",
                             "icon" => "lucide:wrench",
                             "width" => "",
@@ -742,7 +743,7 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/admin/config"
                         ],
-                 
+
                         /*
                 [
                     "value" => "apis",
@@ -994,9 +995,9 @@ class Settings extends REST_Controller
 
     public function update_config_post()
     {
-        
-        
-        
+
+
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST)) {
@@ -1055,7 +1056,7 @@ class Settings extends REST_Controller
         $errors = [];
 
         foreach ($_POST as $key => $value) {
-            
+
             if (!isset($allowed_configs[$key])) {
                 $errors[] = "Configuration key '{$key}' is not allowed";
                 continue;

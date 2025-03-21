@@ -327,8 +327,8 @@ class Invoices extends REST_Controller
             return;
         }
 
-        $page = $this->post('page') ? (int)$this->post('page') : 1;
-        $limit = $this->post('limit') ? (int)$this->post('limit') : 10;
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('limit') ? (int) $this->post('limit') : 10;
         $search = $this->post('search') ?: '';
         $sortField = $this->post('sortField') ?: 'datecreated';
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
@@ -423,10 +423,88 @@ class Invoices extends REST_Controller
 
         $this->response([
             'status' => TRUE,
-            'total' => (int)$total,
-            'page' => (int)$page,
-            'limit' => (int)$limit,
+            'total' => (int) $total,
+            'page' => (int) $page,
+            'limit' => (int) $limit,
             'data' => $invoices
         ], REST_Controller::HTTP_OK);
+    }
+
+    // Rejeita o/os pedidos
+    public function put_canceled_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "5"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Invoices_model->update_reject($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    // Aprova/Transmite o/os pedidos
+    public function put_aprove_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "2"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Invoices_model->update_aprove($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    // Fatura o/os pedidos
+    public function put_fatura_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "7"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Invoices_model->update_faturar($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
     }
 }

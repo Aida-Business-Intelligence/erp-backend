@@ -79,8 +79,8 @@ class Invoices_model extends App_Model
             return $invoice;
         }, $invoices);
     }
-    
-    
+
+
     /**
      * Get invoice by id
      * @param  mixed $id
@@ -98,7 +98,7 @@ class Invoices_model extends App_Model
             if ($invoice) {
                 $invoice->total_left_to_pay = get_invoice_total_left_to_pay($invoice->id, $invoice->total);
 
-                $invoice->items       = get_items_by_type('invoice', $id);
+                $invoice->items = get_items_by_type('invoice', $id);
                 $invoice->attachments = $this->get_attachments($id);
 
                 if ($invoice->project_id) {
@@ -115,10 +115,10 @@ class Invoices_model extends App_Model
                     }
                 }
 
-                $client          = $this->clients_model->get($invoice->clientid);
+                $client = $this->clients_model->get($invoice->clientid);
                 $invoice->client = $client;
                 if (!$invoice->client) {
-                    $invoice->client          = new stdClass();
+                    $invoice->client = new stdClass();
                     $invoice->client->company = $invoice->deleted_customer_name;
                 }
 
@@ -136,10 +136,11 @@ class Invoices_model extends App_Model
 
         return $this->db->get()->result_array();
     }
-    
-    
-     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $start_date = '', $end_date = '') {
-         
+
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $start_date = '', $end_date = '')
+    {
+
 
         if (!is_numeric($id)) {
             // Add date filtering conditions
@@ -196,16 +197,15 @@ class Invoices_model extends App_Model
             $this->db->join(db_prefix() . 'clients as s', 'invoices.supplier_id = s.userid', 'left');
 
 
-            foreach ($clients as $key => $client)
-            {
-                $items= $this->get_items_invoices($client['id']);
+            foreach ($clients as $key => $client) {
+                $items = $this->get_items_invoices($client['id']);
                 $clients[$key]['items'] = $items;
             }
 
             $total = count($clients);
 
             return ['data' => $clients, 'total' => $total];
-      
+
             return ['data' => (array) $this->get($id), 'total' => 1];
         }
     }
@@ -228,7 +228,7 @@ class Invoices_model extends App_Model
             if ($invoice) {
                 $invoice->total_left_to_pay = get_invoice_total_left_to_pay($invoice->id, $invoice->total);
 
-                $invoice->items       = get_items_by_type('invoice', $id);
+                $invoice->items = get_items_by_type('invoice', $id);
                 $invoice->attachments = $this->get_attachments($id);
 
                 if ($invoice->project_id) {
@@ -245,10 +245,10 @@ class Invoices_model extends App_Model
                     }
                 }
 
-                $client          = $this->clients_model->get($invoice->clientid);
+                $client = $this->clients_model->get($invoice->clientid);
                 $invoice->client = $client;
                 if (!$invoice->client) {
-                    $invoice->client          = new stdClass();
+                    $invoice->client = new stdClass();
                     $invoice->client->company = $invoice->deleted_customer_name;
                 }
 
@@ -281,7 +281,7 @@ class Invoices_model extends App_Model
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'invoices', [
             'status' => self::STATUS_CANCELLED,
-            'sent'   => 1,
+            'sent' => 1,
         ]);
 
         if ($this->db->affected_rows() > 0) {
@@ -327,7 +327,7 @@ class Invoices_model extends App_Model
     {
         $this->db->select('id');
         $this->db->where('is_recurring_from', $id);
-        $invoices           = $this->db->get(db_prefix() . 'invoices')->result_array();
+        $invoices = $this->db->get(db_prefix() . 'invoices')->result_array();
         $recurring_invoices = [];
 
         foreach ($invoices as $invoice) {
@@ -361,15 +361,15 @@ class Invoices_model extends App_Model
             $currencyid = $this->currencies_model->get_base_currency()->id;
         }
 
-        $result            = [];
-        $result['due']     = [];
-        $result['paid']    = [];
+        $result = [];
+        $result['due'] = [];
+        $result['paid'] = [];
         $result['overdue'] = [];
 
-        $has_permission_view                = has_permission('invoices', '', 'view');
-        $has_permission_view_own            = has_permission('invoices', '', 'view_own');
+        $has_permission_view = has_permission('invoices', '', 'view');
+        $has_permission_view_own = has_permission('invoices', '', 'view_own');
         $allow_staff_view_invoices_assigned = get_option('allow_staff_view_invoices_assigned');
-        $noPermissionsQuery                 = get_invoices_where_sql_for_staff(get_staff_user_id());
+        $noPermissionsQuery = get_invoices_where_sql_for_staff(get_staff_user_id());
 
         for ($i = 1; $i <= 3; $i++) {
             $select = 'id,total';
@@ -421,11 +421,11 @@ class Invoices_model extends App_Model
                 }
             }
         }
-        $currency             = get_currency($currencyid);
-        $result['due']        = array_sum($result['due']);
-        $result['paid']       = array_sum($result['paid']);
-        $result['overdue']    = array_sum($result['overdue']);
-        $result['currency']   = $currency;
+        $currency = get_currency($currencyid);
+        $result['due'] = array_sum($result['due']);
+        $result['paid'] = array_sum($result['paid']);
+        $result['overdue'] = array_sum($result['overdue']);
+        $result['currency'] = $currency;
         $result['currencyid'] = $currencyid;
 
         return $result;
@@ -438,9 +438,9 @@ class Invoices_model extends App_Model
      */
     public function add($data, $expense = false)
     {
-        
-       
-        
+
+
+
         $data['prefix'] = get_option('invoice_prefix');
 
         $data['number_format'] = get_option('invoice_number_format');
@@ -475,13 +475,13 @@ class Invoices_model extends App_Model
 
         if (isset($data['recurring'])) {
             if ($data['recurring'] == 'custom') {
-                $data['recurring_type']   = $data['repeat_type_custom'];
+                $data['recurring_type'] = $data['repeat_type_custom'];
                 $data['custom_recurring'] = 1;
-                $data['recurring']        = $data['repeat_every_custom'];
+                $data['recurring'] = $data['repeat_every_custom'];
             }
         } else {
             $data['custom_recurring'] = 0;
-            $data['recurring']        = 0;
+            $data['recurring'] = 0;
         }
 
         if (isset($data['custom_fields'])) {
@@ -515,11 +515,11 @@ class Invoices_model extends App_Model
         $data['duedate'] = isset($data['duedate']) && empty($data['duedate']) ? null : $data['duedate'];
 
         $hook = hooks()->apply_filters('before_invoice_added', [
-            'data'  => $data,
+            'data' => $data,
             'items' => $items,
         ]);
 
-        $data  = $hook['data'];
+        $data = $hook['data'];
         $items = $hook['items'];
 
         $this->db->insert(db_prefix() . 'invoices', $data);
@@ -532,7 +532,7 @@ class Invoices_model extends App_Model
             handle_tags_save($tags, $insert_id, 'invoice');
 
             foreach ($invoices_to_merge as $m) {
-                $merged   = false;
+                $merged = false;
                 $or_merge = $this->get($m);
                 if ($cancel_merged_invoices == false) {
                     if ($this->delete($m, true)) {
@@ -540,9 +540,9 @@ class Invoices_model extends App_Model
                     }
                 } else {
                     if ($this->mark_as_cancelled($m)) {
-                        $merged     = true;
+                        $merged = true;
                         $admin_note = $or_merge->adminnote;
-                        $note       = 'Merged into invoice ' . format_invoice_number($insert_id);
+                        $note = 'Merged into invoice ' . format_invoice_number($insert_id);
                         if ($admin_note != '') {
                             $admin_note .= "\n\r" . $note;
                         } else {
@@ -568,18 +568,22 @@ class Invoices_model extends App_Model
                             'invoiceid' => $insert_id,
                         ]);
                     }
-                    if (total_rows(db_prefix() . 'estimates', [
-                        'invoiceid' => $or_merge->id,
-                    ]) > 0) {
+                    if (
+                        total_rows(db_prefix() . 'estimates', [
+                            'invoiceid' => $or_merge->id,
+                        ]) > 0
+                    ) {
                         $this->db->where('invoiceid', $or_merge->id);
                         $estimate = $this->db->get(db_prefix() . 'estimates')->row();
                         $this->db->where('id', $estimate->id);
                         $this->db->update(db_prefix() . 'estimates', [
                             'invoiceid' => $insert_id,
                         ]);
-                    } elseif (total_rows(db_prefix() . 'proposals', [
-                        'invoice_id' => $or_merge->id,
-                    ]) > 0) {
+                    } elseif (
+                        total_rows(db_prefix() . 'proposals', [
+                            'invoice_id' => $or_merge->id,
+                        ]) > 0
+                    ) {
                         $this->db->where('invoice_id', $or_merge->id);
                         $proposal = $this->db->get(db_prefix() . 'proposals')->row();
                         $this->db->where('id', $proposal->id);
@@ -593,17 +597,17 @@ class Invoices_model extends App_Model
             foreach ($billed_tasks as $key => $tasks) {
                 foreach ($tasks as $t) {
                     $this->db->select('status')
-                    ->where('id', $t);
+                        ->where('id', $t);
 
                     $_task = $this->db->get(db_prefix() . 'tasks')->row();
 
                     $taskUpdateData = [
-                        'billed'     => 1,
+                        'billed' => 1,
                         'invoice_id' => $insert_id,
                     ];
 
                     if ($_task->status != Tasks_model::STATUS_COMPLETE) {
-                        $taskUpdateData['status']       = Tasks_model::STATUS_COMPLETE;
+                        $taskUpdateData['status'] = Tasks_model::STATUS_COMPLETE;
                         $taskUpdateData['datefinished'] = date('Y-m-d H:i:s');
                     }
 
@@ -633,16 +637,16 @@ class Invoices_model extends App_Model
                     if (isset($billed_tasks[$key])) {
                         foreach ($billed_tasks[$key] as $_task_id) {
                             $this->db->insert(db_prefix() . 'related_items', [
-                                'item_id'  => $itemid,
-                                'rel_id'   => $_task_id,
+                                'item_id' => $itemid,
+                                'rel_id' => $_task_id,
                                 'rel_type' => 'task',
                             ]);
                         }
                     } elseif (isset($billed_expenses[$key])) {
                         foreach ($billed_expenses[$key] as $_expense_id) {
                             $this->db->insert(db_prefix() . 'related_items', [
-                                'item_id'  => $itemid,
-                                'rel_id'   => $_expense_id,
+                                'item_id' => $itemid,
+                                'rel_id' => $_expense_id,
                                 'rel_type' => 'expense',
                             ]);
                         }
@@ -703,7 +707,7 @@ class Invoices_model extends App_Model
             self::STATUS_OVERDUE,
             self::STATUS_DRAFT,
         ];
-        $noPermissionsQuery  = get_invoices_where_sql_for_staff(get_staff_user_id());
+        $noPermissionsQuery = get_invoices_where_sql_for_staff(get_staff_user_id());
         $has_permission_view = has_permission('invoices', '', 'view');
         $this->db->select('id');
         $this->db->where('clientid', $client_id);
@@ -738,70 +742,70 @@ class Invoices_model extends App_Model
      */
     public function copy($id)
     {
-        $_invoice                     = $this->get($id);
-        $new_invoice_data             = [];
+        $_invoice = $this->get($id);
+        $new_invoice_data = [];
         $new_invoice_data['clientid'] = $_invoice->clientid;
-        $new_invoice_data['number']   = get_option('next_invoice_number');
-        $new_invoice_data['date']     = _d(date('Y-m-d'));
+        $new_invoice_data['number'] = get_option('next_invoice_number');
+        $new_invoice_data['date'] = _d(date('Y-m-d'));
 
         if ($_invoice->duedate && get_option('invoice_due_after') != 0) {
             $new_invoice_data['duedate'] = _d(date('Y-m-d', strtotime('+' . get_option('invoice_due_after') . ' DAY', strtotime(date('Y-m-d')))));
         }
 
-        $new_invoice_data['save_as_draft']    = true;
-        $new_invoice_data['recurring_type']   = $_invoice->recurring_type;
+        $new_invoice_data['save_as_draft'] = true;
+        $new_invoice_data['recurring_type'] = $_invoice->recurring_type;
         $new_invoice_data['custom_recurring'] = $_invoice->custom_recurring;
         $new_invoice_data['show_quantity_as'] = $_invoice->show_quantity_as;
-        $new_invoice_data['currency']         = $_invoice->currency;
-        $new_invoice_data['subtotal']         = $_invoice->subtotal;
-        $new_invoice_data['total']            = $_invoice->total;
-        $new_invoice_data['adminnote']        = $_invoice->adminnote;
-        $new_invoice_data['adjustment']       = $_invoice->adjustment;
+        $new_invoice_data['currency'] = $_invoice->currency;
+        $new_invoice_data['subtotal'] = $_invoice->subtotal;
+        $new_invoice_data['total'] = $_invoice->total;
+        $new_invoice_data['adminnote'] = $_invoice->adminnote;
+        $new_invoice_data['adjustment'] = $_invoice->adjustment;
         $new_invoice_data['discount_percent'] = $_invoice->discount_percent;
-        $new_invoice_data['discount_total']   = $_invoice->discount_total;
-        $new_invoice_data['recurring']        = $_invoice->recurring;
-        $new_invoice_data['discount_type']    = $_invoice->discount_type;
-        $new_invoice_data['terms']            = $_invoice->terms;
-        $new_invoice_data['sale_agent']       = $_invoice->sale_agent;
-        $new_invoice_data['project_id']       = $_invoice->project_id;
-        $new_invoice_data['cycles']           = $_invoice->cycles;
-        $new_invoice_data['total_cycles']     = 0;
+        $new_invoice_data['discount_total'] = $_invoice->discount_total;
+        $new_invoice_data['recurring'] = $_invoice->recurring;
+        $new_invoice_data['discount_type'] = $_invoice->discount_type;
+        $new_invoice_data['terms'] = $_invoice->terms;
+        $new_invoice_data['sale_agent'] = $_invoice->sale_agent;
+        $new_invoice_data['project_id'] = $_invoice->project_id;
+        $new_invoice_data['cycles'] = $_invoice->cycles;
+        $new_invoice_data['total_cycles'] = 0;
         // Since version 1.0.6
-        $new_invoice_data['billing_street']   = clear_textarea_breaks($_invoice->billing_street);
-        $new_invoice_data['billing_city']     = $_invoice->billing_city;
-        $new_invoice_data['billing_state']    = $_invoice->billing_state;
-        $new_invoice_data['billing_zip']      = $_invoice->billing_zip;
-        $new_invoice_data['billing_country']  = $_invoice->billing_country;
-        $new_invoice_data['shipping_street']  = clear_textarea_breaks($_invoice->shipping_street);
-        $new_invoice_data['shipping_city']    = $_invoice->shipping_city;
-        $new_invoice_data['shipping_state']   = $_invoice->shipping_state;
-        $new_invoice_data['shipping_zip']     = $_invoice->shipping_zip;
+        $new_invoice_data['billing_street'] = clear_textarea_breaks($_invoice->billing_street);
+        $new_invoice_data['billing_city'] = $_invoice->billing_city;
+        $new_invoice_data['billing_state'] = $_invoice->billing_state;
+        $new_invoice_data['billing_zip'] = $_invoice->billing_zip;
+        $new_invoice_data['billing_country'] = $_invoice->billing_country;
+        $new_invoice_data['shipping_street'] = clear_textarea_breaks($_invoice->shipping_street);
+        $new_invoice_data['shipping_city'] = $_invoice->shipping_city;
+        $new_invoice_data['shipping_state'] = $_invoice->shipping_state;
+        $new_invoice_data['shipping_zip'] = $_invoice->shipping_zip;
         $new_invoice_data['shipping_country'] = $_invoice->shipping_country;
         if ($_invoice->include_shipping == 1) {
             $new_invoice_data['include_shipping'] = $_invoice->include_shipping;
         }
         $new_invoice_data['show_shipping_on_invoice'] = $_invoice->show_shipping_on_invoice;
         // Set to unpaid status automatically
-        $new_invoice_data['status']                = self::STATUS_UNPAID;
-        $new_invoice_data['clientnote']            = $_invoice->clientnote;
-        $new_invoice_data['adminnote']             = $_invoice->adminnote;
+        $new_invoice_data['status'] = self::STATUS_UNPAID;
+        $new_invoice_data['clientnote'] = $_invoice->clientnote;
+        $new_invoice_data['adminnote'] = $_invoice->adminnote;
         $new_invoice_data['allowed_payment_modes'] = unserialize($_invoice->allowed_payment_modes);
-        $new_invoice_data['newitems']              = [];
-        $key                                       = 1;
+        $new_invoice_data['newitems'] = [];
+        $key = 1;
 
         $custom_fields_items = get_custom_fields('items');
         foreach ($_invoice->items as $item) {
-            $new_invoice_data['newitems'][$key]['description']      = $item['description'];
+            $new_invoice_data['newitems'][$key]['description'] = $item['description'];
             $new_invoice_data['newitems'][$key]['long_description'] = clear_textarea_breaks($item['long_description']);
-            $new_invoice_data['newitems'][$key]['qty']              = $item['qty'];
-            $new_invoice_data['newitems'][$key]['unit']             = $item['unit'];
-            $new_invoice_data['newitems'][$key]['taxname']          = [];
-            $taxes                                                  = get_invoice_item_taxes($item['id']);
+            $new_invoice_data['newitems'][$key]['qty'] = $item['qty'];
+            $new_invoice_data['newitems'][$key]['unit'] = $item['unit'];
+            $new_invoice_data['newitems'][$key]['taxname'] = [];
+            $taxes = get_invoice_item_taxes($item['id']);
             foreach ($taxes as $tax) {
                 // tax name is in format TAX1|10.00
                 array_push($new_invoice_data['newitems'][$key]['taxname'], $tax['taxname']);
             }
-            $new_invoice_data['newitems'][$key]['rate']  = $item['rate'];
+            $new_invoice_data['newitems'][$key]['rate'] = $item['rate'];
             $new_invoice_data['newitems'][$key]['order'] = $item['item_order'];
 
             foreach ($custom_fields_items as $cf) {
@@ -827,10 +831,10 @@ class Invoices_model extends App_Model
                     continue;
                 }
                 $this->db->insert(db_prefix() . 'customfieldsvalues', [
-                    'relid'   => $id,
+                    'relid' => $id,
                     'fieldid' => $field['id'],
                     'fieldto' => 'invoice',
-                    'value'   => $value,
+                    'value' => $value,
                 ]);
             }
 
@@ -856,7 +860,7 @@ class Invoices_model extends App_Model
     public function update($data, $id)
     {
         $original_invoice = $this->get($id);
-        $updated          = false;
+        $updated = false;
 
         // Perhaps draft?
         if (isset($data['nubmer'])) {
@@ -864,39 +868,39 @@ class Invoices_model extends App_Model
         }
 
         $original_number_formatted = format_invoice_number($id);
-        $original_number           = $original_invoice->number;
-        $save_and_send             = isset($data['save_and_send']);
-        $cancel_merged_invoices    = isset($data['cancel_merged_invoices']);
-        $invoices_to_merge         = isset($data['invoices_to_merge']) ? $data['invoices_to_merge'] : [];
-        $billed_tasks              = isset($data['billed_tasks']) ? $data['billed_tasks'] : [];
-        $billed_expenses           = isset($data['billed_expenses']) ?
-        array_map('unserialize', array_unique(array_map('serialize', $data['billed_expenses']))) :
-        [];
+        $original_number = $original_invoice->number;
+        $save_and_send = isset($data['save_and_send']);
+        $cancel_merged_invoices = isset($data['cancel_merged_invoices']);
+        $invoices_to_merge = isset($data['invoices_to_merge']) ? $data['invoices_to_merge'] : [];
+        $billed_tasks = isset($data['billed_tasks']) ? $data['billed_tasks'] : [];
+        $billed_expenses = isset($data['billed_expenses']) ?
+            array_map('unserialize', array_unique(array_map('serialize', $data['billed_expenses']))) :
+            [];
         $data['cancel_overdue_reminders'] = isset($data['cancel_overdue_reminders']) ? 1 : 0;
-        $data['cycles']                   = !isset($data['cycles']) ? 0 : $data['cycles'];
-        $data['allowed_payment_modes']    = isset($data['allowed_payment_modes']) ?
-        serialize($data['allowed_payment_modes']) :
-        serialize([]);
+        $data['cycles'] = !isset($data['cycles']) ? 0 : $data['cycles'];
+        $data['allowed_payment_modes'] = isset($data['allowed_payment_modes']) ?
+            serialize($data['allowed_payment_modes']) :
+            serialize([]);
 
         if (isset($data['recurring'])) {
             if ($data['recurring'] == 'custom') {
-                $data['recurring_type']   = $data['repeat_type_custom'];
+                $data['recurring_type'] = $data['repeat_type_custom'];
                 $data['custom_recurring'] = 1;
-                $data['recurring']        = $data['repeat_every_custom'];
+                $data['recurring'] = $data['repeat_every_custom'];
             } else {
-                $data['recurring_type']   = null;
+                $data['recurring_type'] = null;
                 $data['custom_recurring'] = 0;
             }
         } else {
             $data['custom_recurring'] = 0;
-            $data['recurring']        = 0;
-            $data['recurring_type']   = null;
+            $data['recurring'] = 0;
+            $data['recurring_type'] = null;
         }
 
         // Recurring invoice set to NO, Cancelled
         if ($original_invoice->recurring != 0 && $data['recurring'] == 0) {
-            $data['cycles']              = 0;
-            $data['total_cycles']        = 0;
+            $data['cycles'] = 0;
+            $data['total_cycles'] = 0;
             $data['last_recurring_date'] = null;
         }
 
@@ -913,7 +917,7 @@ class Invoices_model extends App_Model
         }
         $data['duedate'] = isset($data['duedate']) && empty($data['duedate']) ? null : $data['duedate'];
 
-        $items    = $data['items'] ?? [];
+        $items = $data['items'] ?? [];
         $newitems = $data['newitems'] ?? [];
 
         if (handle_custom_fields_post($id, $custom_fields = $data['custom_fields'] ?? [])) {
@@ -928,46 +932,49 @@ class Invoices_model extends App_Model
 
         unset($data['items'], $data['newitems'], $data['custom_fields'], $data['tags']);
 
-        $hook = apply_filters_deprecated('before_invoice_updated', [[
-            'data' => array_merge($data, [
-                'tags'          => $tags ?? null,
-                'custom_fields' => $custom_fields,
-            ]),
-            'items'         => $items,
-            'newitems'      => $newitems,
-            'removed_items' => isset($data['removed_items']) ? $data['removed_items'] : [],
-        ], $id], '3.0.0', 'before_update_invoice');
+        $hook = apply_filters_deprecated('before_invoice_updated', [
+            [
+                'data' => array_merge($data, [
+                    'tags' => $tags ?? null,
+                    'custom_fields' => $custom_fields,
+                ]),
+                'items' => $items,
+                'newitems' => $newitems,
+                'removed_items' => isset($data['removed_items']) ? $data['removed_items'] : [],
+            ],
+            $id
+        ], '3.0.0', 'before_update_invoice');
 
         extract($hook);
         unset($data['custom_fields'], $data['tags']);
 
         $hookData = [
-            'id'                     => $id,
-            'data'                   => $data,
-            'items'                  => $items,
-            'new_items'              => $newitems,
-            'removed_items'          => $removed_items,
-            'custom_fields'          => $custom_fields,
-            'billed_tasks'           => $billed_tasks,
-            'invoices_to_merge'      => $invoices_to_merge,
+            'id' => $id,
+            'data' => $data,
+            'items' => $items,
+            'new_items' => $newitems,
+            'removed_items' => $removed_items,
+            'custom_fields' => $custom_fields,
+            'billed_tasks' => $billed_tasks,
+            'invoices_to_merge' => $invoices_to_merge,
             'cancel_merged_invoices' => $cancel_merged_invoices,
-            'tags'                   => $tags ?? null,
-            'billed_expenses'        => $billed_expenses,
-            'billed_tasks'           => $billed_tasks,
+            'tags' => $tags ?? null,
+            'billed_expenses' => $billed_expenses,
+            'billed_tasks' => $billed_tasks,
         ];
 
         $hook = hooks()->apply_filters('before_update_invoice', $hookData, $id);
 
-        $data              = $hook['data'];
-        $items             = $hook['items'];
-	    $newitems         = $hook['new_items'];
-        $removed_items     = $hook['removed_items'];
-        $custom_fields     = $hook['custom_fields'];
-        $billed_tasks      = $hook['billed_tasks'];
+        $data = $hook['data'];
+        $items = $hook['items'];
+        $newitems = $hook['new_items'];
+        $removed_items = $hook['removed_items'];
+        $custom_fields = $hook['custom_fields'];
+        $billed_tasks = $hook['billed_tasks'];
         $invoices_to_merge = $hook['invoices_to_merge'];
-        $tags              = $hook['tags'];
-        $billed_expenses   = $hook['billed_expenses'];
-        $billed_tasks      = $hook['billed_tasks'];
+        $tags = $hook['tags'];
+        $billed_expenses = $hook['billed_expenses'];
+        $billed_tasks = $hook['billed_tasks'];
 
 
         foreach ($billed_tasks as $tasks) {
@@ -978,7 +985,7 @@ class Invoices_model extends App_Model
                 $taskUpdateData = ['billed' => 1, 'invoice_id' => $id];
 
                 if ($taskStatus != Tasks_model::STATUS_COMPLETE) {
-                    $taskUpdateData['status']       = Tasks_model::STATUS_COMPLETE;
+                    $taskUpdateData['status'] = Tasks_model::STATUS_COMPLETE;
                     $taskUpdateData['datefinished'] = date('Y-m-d H:i:s');
                 }
 
@@ -1066,7 +1073,7 @@ class Invoices_model extends App_Model
                     if ($rel_item['rel_type'] == 'task') {
                         $this->db->where('id', $rel_item['rel_id'])->update('tasks', [
                             'invoice_id' => null,
-                            'billed'     => 0,
+                            'billed' => 0,
                         ]);
                     } elseif ($rel_item['rel_type'] == 'expense') {
                         $this->db->where('id', $rel_item['rel_id'])->update('expenses', [
@@ -1084,7 +1091,7 @@ class Invoices_model extends App_Model
     protected function merge_invoices($invoices, $id, $cancel)
     {
         foreach ($invoices as $mergeId) {
-            $merged          = false;
+            $merged = false;
             $originalInvoice = $this->get($mergeId);
 
             if ($cancel == false) {
@@ -1093,9 +1100,9 @@ class Invoices_model extends App_Model
                 }
             } else {
                 if ($this->mark_as_cancelled($mergeId)) {
-                    $merged     = true;
+                    $merged = true;
                     $admin_note = $originalInvoice->adminnote;
-                    $note       = 'Merged into invoice ' . format_invoice_number($id);
+                    $note = 'Merged into invoice ' . format_invoice_number($id);
                     if ($admin_note != '') {
                         $admin_note .= "\n\r" . $note;
                     } else {
@@ -1116,18 +1123,22 @@ class Invoices_model extends App_Model
                     ]);
                 }
 
-                if (total_rows('estimates', [
-                    'invoiceid' => $originalInvoice->id,
-                ]) > 0) {
+                if (
+                    total_rows('estimates', [
+                        'invoiceid' => $originalInvoice->id,
+                    ]) > 0
+                ) {
                     $this->db->where('invoiceid', $originalInvoice->id);
                     $estimate = $this->db->get('estimates')->row();
 
                     $this->db->where('id', $estimate->id)->update('estimates', [
                         'invoiceid' => $id,
                     ]);
-                } elseif (total_rows('proposals', [
-                    'invoice_id' => $originalInvoice->id,
-                ]) > 0) {
+                } elseif (
+                    total_rows('proposals', [
+                        'invoice_id' => $originalInvoice->id,
+                    ]) > 0
+                ) {
                     $this->db->where('invoice_id', $originalInvoice->id);
                     $proposal = $this->db->get('proposals')->row();
 
@@ -1148,16 +1159,16 @@ class Invoices_model extends App_Model
                 if (isset($billed_tasks[$key])) {
                     foreach ($billed_tasks[$key] as $_task_id) {
                         $this->db->insert('related_items', [
-                            'item_id'  => $new_item_added,
-                            'rel_id'   => $_task_id,
+                            'item_id' => $new_item_added,
+                            'rel_id' => $_task_id,
                             'rel_type' => 'task',
                         ]);
                     }
                 } elseif (isset($billed_expenses[$key])) {
                     foreach ($billed_expenses[$key] as $_expense_id) {
                         $this->db->insert('related_items', [
-                            'item_id'  => $new_item_added,
-                            'rel_id'   => $_expense_id,
+                            'item_id' => $new_item_added,
+                            'rel_id' => $_expense_id,
                             'rel_type' => 'expense',
                         ]);
                     }
@@ -1233,7 +1244,7 @@ class Invoices_model extends App_Model
                     $updated = true;
                 }
             } else {
-                $item_taxes        = get_invoice_item_taxes($item['itemid']);
+                $item_taxes = get_invoice_item_taxes($item['itemid']);
                 $_item_taxes_names = [];
                 foreach ($item_taxes as $_item_tax) {
                     array_push($_item_taxes_names, $_item_tax['taxname']);
@@ -1286,7 +1297,7 @@ class Invoices_model extends App_Model
     public function delete_attachment($id)
     {
         $attachment = $this->get_attachments('', $id);
-        $deleted    = false;
+        $deleted = false;
         if ($attachment) {
             if (empty($attachment->external)) {
                 unlink(get_upload_path_by_type('invoice') . $attachment->rel_id . '/' . $attachment->file_name);
@@ -1318,13 +1329,15 @@ class Invoices_model extends App_Model
      */
     public function delete($id, $simpleDelete = false)
     {
-        if (get_option('delete_only_on_last_invoice') == 1 &&
+        if (
+            get_option('delete_only_on_last_invoice') == 1 &&
             $simpleDelete == false &&
-            !is_last_invoice($id)) {
+            !is_last_invoice($id)
+        ) {
             return false;
         }
 
-        $number  = format_invoice_number($id);
+        $number = format_invoice_number($id);
         $isDraft = $this->is_draft($id);
 
         hooks()->do_action('before_invoice_deleted', $id);
@@ -1339,10 +1352,12 @@ class Invoices_model extends App_Model
                 app_archive_short_link($invoice->short_link);
             }
 
-            if (get_option('invoice_number_decrement_on_delete') == 1 &&
-            get_option('next_invoice_number') > 1 &&
-            $simpleDelete == false &&
-            !$isDraft) {
+            if (
+                get_option('invoice_number_decrement_on_delete') == 1 &&
+                get_option('next_invoice_number') > 1 &&
+                $simpleDelete == false &&
+                !$isDraft
+            ) {
                 // Decrement next invoice number to
                 $this->decrement_next_number();
             }
@@ -1350,32 +1365,34 @@ class Invoices_model extends App_Model
             if ($simpleDelete == false) {
                 $this->db->where('invoiceid', $id);
                 $this->db->update(db_prefix() . 'expenses', [
-            'invoiceid' => null,
-        ]);
+                    'invoiceid' => null,
+                ]);
 
                 $this->db->where('invoice_id', $id);
                 $this->db->update(db_prefix() . 'proposals', [
-            'invoice_id'     => null,
-            'date_converted' => null,
-        ]);
+                    'invoice_id' => null,
+                    'date_converted' => null,
+                ]);
 
                 $this->db->where('invoice_id', $id);
                 $this->db->update(db_prefix() . 'tasks', [
-            'invoice_id' => null,
-            'billed'     => 0,
-        ]);
+                    'invoice_id' => null,
+                    'billed' => 0,
+                ]);
 
                 // if is converted from estimate set the estimate invoice to null
-                if (total_rows(db_prefix() . 'estimates', [
-            'invoiceid' => $id,
-        ]) > 0) {
+                if (
+                    total_rows(db_prefix() . 'estimates', [
+                        'invoiceid' => $id,
+                    ]) > 0
+                ) {
                     $this->db->where('invoiceid', $id);
                     $estimate = $this->db->get(db_prefix() . 'estimates')->row();
                     $this->db->where('id', $estimate->id);
                     $this->db->update(db_prefix() . 'estimates', [
-                'invoiceid'     => null,
-                'invoiced_date' => null,
-            ]);
+                        'invoiceid' => null,
+                        'invoiced_date' => null,
+                    ]);
                     $this->load->model('estimates_model');
                     $this->estimates_model->log_estimate_activity($estimate->id, 'not_estimate_invoice_deleted');
                 }
@@ -1439,8 +1456,8 @@ class Invoices_model extends App_Model
 
             $this->db->where('is_recurring_from', $id);
             $this->db->update(db_prefix() . 'invoices', [
-        'is_recurring_from' => null,
-    ]);
+                'is_recurring_from' => null,
+            ]);
 
             // Delete the custom field values
             $this->db->where('relid', $id);
@@ -1457,9 +1474,9 @@ class Invoices_model extends App_Model
             foreach ($tasks as $task) {
                 $this->db->where('id', $task['id']);
                 $this->db->update(db_prefix() . 'tasks', [
-            'invoice_id' => null,
-            'billed'     => 0,
-        ]);
+                    'invoice_id' => null,
+                    'billed' => 0,
+                ]);
             }
 
             $attachments = $this->get_attachments($id);
@@ -1495,7 +1512,7 @@ class Invoices_model extends App_Model
     {
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'invoices', [
-            'sent'     => 1,
+            'sent' => 1,
             'datesend' => date('Y-m-d H:i:s'),
         ]);
 
@@ -1518,7 +1535,7 @@ class Invoices_model extends App_Model
                 $description = 'invoice_activity_sent_to_client';
             } else {
                 $additional_activity_data = serialize([]);
-                $description              = 'invoice_activity_marked_as_sent';
+                $description = 'invoice_activity_marked_as_sent';
             }
         }
 
@@ -1542,7 +1559,7 @@ class Invoices_model extends App_Model
      */
     public function send_invoice_overdue_notice($id)
     {
-        $invoice        = $this->get($id);
+        $invoice = $this->get($id);
         $invoice_number = format_invoice_number($invoice->id);
         set_mailing_constant();
         $pdf = invoice_pdf($invoice);
@@ -1553,9 +1570,9 @@ class Invoices_model extends App_Model
             $attach = $pdf->Output($invoice_number . '.pdf', 'S');
         }
 
-        $emails_sent      = [];
-        $email_sent       = false;
-        $sms_sent         = false;
+        $emails_sent = [];
+        $email_sent = false;
+        $sms_sent = false;
         $sms_reminder_log = [];
 
         // For all cases update this to prevent sending multiple reminders eq on fail
@@ -1572,8 +1589,8 @@ class Invoices_model extends App_Model
             if ($attach_pdf === true) {
                 $template->add_attachment([
                     'attachment' => $attach,
-                    'filename'   => str_replace('/', '-', $invoice_number . '.pdf'),
-                    'type'       => 'application/pdf',
+                    'filename' => str_replace('/', '-', $invoice_number . '.pdf'),
+                    'type' => 'application/pdf',
                 ]);
             }
 
@@ -1584,8 +1601,10 @@ class Invoices_model extends App_Model
                 $email_sent = true;
             }
 
-            if (can_send_sms_based_on_creation_date($invoice->datecreated)
-                && $this->app_sms->trigger(SMS_TRIGGER_INVOICE_OVERDUE, $contact['phonenumber'], $merge_fields)) {
+            if (
+                can_send_sms_based_on_creation_date($invoice->datecreated)
+                && $this->app_sms->trigger(SMS_TRIGGER_INVOICE_OVERDUE, $contact['phonenumber'], $merge_fields)
+            ) {
                 $sms_sent = true;
                 array_push($sms_reminder_log, $contact['firstname'] . ' (' . $contact['phonenumber'] . ')');
             }
@@ -1594,22 +1613,22 @@ class Invoices_model extends App_Model
         if ($email_sent || $sms_sent) {
             if ($email_sent) {
                 $this->log_invoice_activity($id, 'user_sent_overdue_reminder', false, serialize([
-                '<custom_data>' . implode(', ', $emails_sent) . '</custom_data>',
-                defined('CRON') ? ' ' : get_staff_full_name(),
-            ]));
+                    '<custom_data>' . implode(', ', $emails_sent) . '</custom_data>',
+                    defined('CRON') ? ' ' : get_staff_full_name(),
+                ]));
             }
 
             if ($sms_sent) {
                 $this->log_invoice_activity($id, 'sms_reminder_sent_to', false, serialize([
-               implode(', ', $sms_reminder_log),
-           ]));
+                    implode(', ', $sms_reminder_log),
+                ]));
             }
 
             hooks()->do_action('invoice_overdue_reminder_sent', [
-            'invoice_id' => $id,
-            'sent_to'    => $emails_sent,
-            'sms_send'   => $sms_sent,
-        ]);
+                'invoice_id' => $id,
+                'sent_to' => $emails_sent,
+                'sms_send' => $sms_sent,
+            ]);
 
             return true;
         }
@@ -1626,7 +1645,7 @@ class Invoices_model extends App_Model
      */
     public function send_invoice_due_notice($id)
     {
-        $invoice        = $this->get($id);
+        $invoice = $this->get($id);
         $invoice_number = format_invoice_number($invoice->id);
 
         set_mailing_constant();
@@ -1637,9 +1656,9 @@ class Invoices_model extends App_Model
             $attach = $pdf->Output($invoice_number . '.pdf', 'S');
         }
 
-        $emails_sent      = [];
-        $email_sent       = false;
-        $sms_sent         = false;
+        $emails_sent = [];
+        $email_sent = false;
+        $sms_sent = false;
         $sms_reminder_log = [];
 
         // For all cases update this to prevent sending multiple reminders eq on fail
@@ -1656,8 +1675,8 @@ class Invoices_model extends App_Model
             if ($attach_pdf === true) {
                 $template->add_attachment([
                     'attachment' => $attach,
-                    'filename'   => str_replace('/', '-', $invoice_number . '.pdf'),
-                    'type'       => 'application/pdf',
+                    'filename' => str_replace('/', '-', $invoice_number . '.pdf'),
+                    'type' => 'application/pdf',
                 ]);
             }
 
@@ -1668,8 +1687,10 @@ class Invoices_model extends App_Model
                 $email_sent = true;
             }
 
-            if (can_send_sms_based_on_creation_date($invoice->datecreated)
-                && $this->app_sms->trigger(SMS_TRIGGER_INVOICE_DUE, $contact['phonenumber'], $merge_fields)) {
+            if (
+                can_send_sms_based_on_creation_date($invoice->datecreated)
+                && $this->app_sms->trigger(SMS_TRIGGER_INVOICE_DUE, $contact['phonenumber'], $merge_fields)
+            ) {
                 $sms_sent = true;
                 array_push($sms_reminder_log, $contact['firstname'] . ' (' . $contact['phonenumber'] . ')');
             }
@@ -1678,22 +1699,22 @@ class Invoices_model extends App_Model
         if ($email_sent || $sms_sent) {
             if ($email_sent) {
                 $this->log_invoice_activity($id, 'activity_due_reminder_is_sent', false, serialize([
-                '<custom_data>' . implode(', ', $emails_sent) . '</custom_data>',
-                defined('CRON') ? ' ' : get_staff_full_name(),
-            ]));
+                    '<custom_data>' . implode(', ', $emails_sent) . '</custom_data>',
+                    defined('CRON') ? ' ' : get_staff_full_name(),
+                ]));
             }
 
             if ($sms_sent) {
                 $this->log_invoice_activity($id, 'sms_reminder_sent_to', false, serialize([
-               implode(', ', $sms_reminder_log),
-           ]));
+                    implode(', ', $sms_reminder_log),
+                ]));
             }
 
             hooks()->do_action('invoice_due_reminder_sent', [
-            'invoice_id' => $id,
-            'sent_to'    => $emails_sent,
-            'sms_send'   => $sms_sent,
-        ]);
+                'invoice_id' => $id,
+                'sent_to' => $emails_sent,
+                'sms_send' => $sms_sent,
+            ]);
 
             return true;
         }
@@ -1724,14 +1745,14 @@ class Invoices_model extends App_Model
 
         if ($template_name == '') {
             $template_name = $invoice->sent == 0 ?
-            'invoice_send_to_customer' :
-            'invoice_send_to_customer_already_sent';
+                'invoice_send_to_customer' :
+                'invoice_send_to_customer_already_sent';
 
             $template_name = hooks()->apply_filters('after_invoice_sent_template_statement', $template_name);
         }
 
         $emails_sent = [];
-        $send_to     = [];
+        $send_to = [];
 
         // Manually is used when sending the invoice via add/edit area button Save & Send
         if (!DEFINED('CRON') && $manually === false) {
@@ -1749,7 +1770,7 @@ class Invoices_model extends App_Model
         $attachStatementPdf = false;
         if (is_array($send_to) && count($send_to) > 0) {
             if (isset($attachStatement['attach']) && $attachStatement['attach'] == true) {
-                $statement    = $this->clients_model->get_statement($invoice->clientid, $attachStatement['from'], $attachStatement['to']);
+                $statement = $this->clients_model->get_statement($invoice->clientid, $attachStatement['from'], $attachStatement['to']);
                 $statementPdf = statement_pdf($statement);
 
                 $statementPdfFileName = slug_it(_l('customer_statement') . '-' . $statement['client']->company);
@@ -1763,7 +1784,7 @@ class Invoices_model extends App_Model
 
             if ($attachpdf) {
                 set_mailing_constant();
-                $pdf    = invoice_pdf($this->get($id));
+                $pdf = invoice_pdf($this->get($id));
                 $attach = $pdf->Output($invoice_number . '.pdf', 'S');
             }
 
@@ -1787,16 +1808,16 @@ class Invoices_model extends App_Model
                     if ($attachpdf) {
                         $template->add_attachment([
                             'attachment' => $attach,
-                            'filename'   => str_replace('/', '-', $invoice_number . '.pdf'),
-                            'type'       => 'application/pdf',
+                            'filename' => str_replace('/', '-', $invoice_number . '.pdf'),
+                            'type' => 'application/pdf',
                         ]);
                     }
 
                     if ($attachStatementPdf) {
                         $template->add_attachment([
                             'attachment' => $attachStatementPdf,
-                            'filename'   => $statementPdfFileName . '.pdf',
-                            'type'       => 'application/pdf',
+                            'filename' => $statementPdfFileName . '.pdf',
+                            'type' => 'application/pdf',
                         ]);
                     }
 
@@ -1877,25 +1898,25 @@ class Invoices_model extends App_Model
     public function log_invoice_activity($id, $description = '', $client = false, $additional_data = '')
     {
         if (DEFINED('CRON')) {
-            $staffid   = '[CRON]';
+            $staffid = '[CRON]';
             $full_name = '[CRON]';
         } elseif (defined('STRIPE_SUBSCRIPTION_INVOICE')) {
-            $staffid   = null;
+            $staffid = null;
             $full_name = '[Stripe]';
         } elseif ($client == true) {
-            $staffid   = null;
+            $staffid = null;
             $full_name = '';
         } else {
-            $staffid   = get_staff_user_id();
+            $staffid = get_staff_user_id();
             $full_name = get_staff_full_name(get_staff_user_id());
         }
         $this->db->insert(db_prefix() . 'sales_activity', [
-            'description'     => $description,
-            'date'            => date('Y-m-d H:i:s'),
-            'rel_id'          => $id,
-            'rel_type'        => 'invoice',
-            'staffid'         => $staffid,
-            'full_name'       => $full_name,
+            'description' => $description,
+            'date' => date('Y-m-d H:i:s'),
+            'rel_id' => $id,
+            'rel_type' => 'invoice',
+            'staffid' => $staffid,
+            'full_name' => $full_name,
             'additional_data' => $additional_data,
         ]);
     }
@@ -1927,7 +1948,7 @@ class Invoices_model extends App_Model
                 }
             }
             $data['show_shipping_on_invoice'] = 1;
-            $data['include_shipping']         = 0;
+            $data['include_shipping'] = 0;
         } else {
             // We dont need to overwrite to 1 unless its coming from the main function add
             if (!DEFINED('CRON') && $expense == false) {
@@ -2008,9 +2029,34 @@ class Invoices_model extends App_Model
     protected function get_contacts_for_invoice_emails($client_id)
     {
         return $this->clients_model->get_contacts($client_id, [
-            'active' => 1, 'invoice_emails' => 1,
+            'active' => 1,
+            'invoice_emails' => 1,
         ]);
     }
-    
-    
+
+    // Rejeita o/os pedidos
+    public function update_reject($ids, $status)
+    {
+        $this->db->where_in('id', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tblinvoices');
+    }
+
+    // Aprova/Transmite o/os pedidos
+    public function update_aprove($ids, $status)
+    {
+        $this->db->where_in('id', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tblinvoices');
+    }
+
+       // Fatura o/os pedidos
+       public function update_faturar($ids, $status)
+       {
+           $this->db->where_in('id', $ids);
+           $this->db->set('status', $status);
+           return $this->db->update('tblinvoices');
+       }
+
+
 }

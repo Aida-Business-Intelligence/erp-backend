@@ -79,24 +79,15 @@ class Expenses_model extends App_Model
     {
         $data['date'] = to_sql_date($data['date']);
         $data['note'] = nl2br($data['note']);
-        if (isset($data['billable'])) {
-            $data['billable'] = 1;
-        } else {
-            $data['billable'] = 0;
-        }
-        if (isset($data['create_invoice_billable'])) {
-            $data['create_invoice_billable'] = 1;
-        } else {
-            $data['create_invoice_billable'] = 0;
-        }
+
+        $data['clientid'] = isset($data['clientid']) ? $data['clientid'] : 0;
+        $data['billable'] = isset($data['billable']) ? 1 : 0;
+        $data['create_invoice_billable'] = isset($data['create_invoice_billable']) ? 1 : 0;
+        $data['send_invoice_to_customer'] = isset($data['send_invoice_to_customer']) ? 1 : 0;
+
         if (isset($data['custom_fields'])) {
             $custom_fields = $data['custom_fields'];
             unset($data['custom_fields']);
-        }
-        if (isset($data['send_invoice_to_customer'])) {
-            $data['send_invoice_to_customer'] = 1;
-        } else {
-            $data['send_invoice_to_customer'] = 0;
         }
 
         if (isset($data['repeat_every']) && $data['repeat_every'] != '') {

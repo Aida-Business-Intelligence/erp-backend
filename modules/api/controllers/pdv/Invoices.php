@@ -58,23 +58,16 @@ class Invoices extends REST_Controller
             $total = 0;
 
             foreach ($_POST['items'] as $item) {
+                if (!isset($item['quantity']) || empty($item['quantity'])) {
+                    throw new Exception('Quantity is required for each item');
+                }
+
                 $this->db->where('id', $item['id']);
                 $this->db->where('warehouse_id', $warehouse_id);
                 $purchase_need = $this->db->get(db_prefix() . 'purchase_needs')->row();
 
                 if (!$purchase_need) {
                     throw new Exception('Purchase need not found with ID: ' . $item['id']);
-                }
-
-                $this->db->where('id', $purchase_need->id);
-                $this->db->update(db_prefix() . 'purchase_needs', [
-                    'status' => 1,
-                    'user_id' => $user_id,
-                    'date' => date('Y-m-d H:i:s')
-                ]);
-
-                if ($this->db->affected_rows() == 0) {
-                    throw new Exception('Failed to update purchase need');
                 }
 
                 $this->db->where('id', $purchase_need->item_id);
@@ -85,13 +78,34 @@ class Invoices extends REST_Controller
                     throw new Exception('Product not found for purchase need ID: ' . $item['id']);
                 }
 
-                $item_total = $product->cost * $purchase_need->qtde;
+                if ($item['quantity'] < $product->defaultPurchaseQuantity) {
+                    throw new Exception(sprintf(
+                        'Purchase quantity (%d) cannot be less than default purchase quantity (%d) for product: %s',
+                        $item['quantity'],
+                        $product->defaultPurchaseQuantity,
+                        $product->description
+                    ));
+                }
+
+                $this->db->where('id', $purchase_need->id);
+                $this->db->update(db_prefix() . 'purchase_needs', [
+                    'status' => 1,
+                    'user_id' => $user_id,
+                    'date' => date('Y-m-d H:i:s'),
+                    'qtde' => $item['quantity']
+                ]);
+
+                if ($this->db->affected_rows() == 0) {
+                    throw new Exception('Failed to update purchase need');
+                }
+
+                $item_total = $product->cost * $item['quantity'];
                 $total += $item_total;
 
                 $newitems[] = [
                     'description' => $product->description,
                     'long_description' => $product->long_description,
-                    'qty' => $purchase_need->qtde,
+                    'qty' => $item['quantity'],
                     'rate' => $product->cost,
                     'unit' => $product->unit,
                     'item_id' => $product->id,

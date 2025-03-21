@@ -397,7 +397,7 @@ class Expenses extends REST_Controller
       'date' => $input['date'],
       'warehouse_id' => $input['warehouse_id'],
       'note' => $input['note'] ?? '',
-      'clientid' => $input['clientid'] ?? null,
+      'clientid' => isset($input['clientid']) && !empty($input['clientid']) ? $input['clientid'] : 0,
       'paymentmode' => $input['paymentmode'] ?? null,
       'tax' => $input['tax'] ?? null,
       'tax2' => $input['tax2'] ?? null,

@@ -108,7 +108,33 @@ class Tickets extends REST_Controller
      */
 
 
+    public function create_post()
+    {
 
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        // Adiciona o warehouse_id ao array de entrada, se presente
+        $_input['warehouse_id'] = $_POST['warehouse_id'] ?? null;
+
+        $this->load->model('Tickets_model');
+        // $this->form_validation->set_rules('nome', 'nome', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Company'));
+        // if ($this->form_validation->run() == FALSE) {
+        //     // form validation error
+        //     $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
+        //     $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        // } else {
+
+        $output = $this->Tickets_model->add_ticket($_POST);
+
+        if ($output > 0 && !empty($output)) {
+            // success
+            $message = array('status' => TRUE, 'message' => 'Ticket added successful.', 'data' => $output);
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $this->response('Error', REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+        // }
+    }
 
     public function list_post($id = '')
     {
@@ -119,7 +145,7 @@ class Tickets extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: ''; // Alterado para this->post
         $sortField = $this->post('sortField') ?: 'date'; // Alterado para this->post
-        $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC'; // Alterado para this->post
+        $sortOrder = $this->post('sortOrder') === 'ASC' ? 'ASC' : 'DESC'; // Alterado para this->post
         $warehouse_id = $this->post('warehouse_id') ?: 0;
         // $franqueado_id = $this->post('franqueado_id') ?: 0;
 
@@ -308,6 +334,107 @@ class Tickets extends REST_Controller
             'message' => $success_count . 'Contract(s) deleted successfully',
             'failed_ids' => $failed_ids
         ], $success_count > 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_NOT_FOUND);
+    }
+
+    public function change_status_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids']) || !isset($_POST['status'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = $_POST['status']; // Status é passado dinamicamente
+
+        // Atualiza o status para os IDs fornecidos
+        $output = $this->Tickets_model->update_status($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Tickets Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Tickets.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function change_priority_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids']) || !isset($_POST['priority'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $priority = $_POST['priority']; // Prioridade é passada dinamicamente
+
+        // Atualiza a prioridade para os IDs fornecidos
+        $output = $this->Tickets_model->update_priority2($ids, $priority);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Tickets Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Tickets.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function assign_tickets_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids']) || !isset($_POST['assign'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $assigned_to = $_POST['assign']; // Responsável é passado dinamicamente
+
+        // Atualiza o responsável para os IDs fornecidos
+        $output = $this->Tickets_model->update_assigned_to($ids, $assigned_to);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Tickets Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Tickets.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function assigned_me_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        // Verifica se os dados foram fornecidos
+        if (empty($_POST) || !isset($_POST['ticketid']) || !isset($_POST['assigned'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ticketid = $_POST['ticketid'];
+        $assigned_to = $_POST['assigned']; // Responsável é passado dinamicamente
+
+        // Atualiza o responsável para o ticket fornecido
+        $output = $this->Tickets_model->update_assigned_to($ticketid, $assigned_to);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Ticket Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Ticket.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
     }
 
 

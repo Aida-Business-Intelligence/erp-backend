@@ -1727,6 +1727,42 @@ class Tickets_model extends App_Model
     }
 
 
+    public function add_ticket($data)
+    {
+        // Definir os campos permitidos para inserção
+        $allowed_fields = [
+            'name',
+            'message',
+            'email',
+            'subject',
+            'contactid',
+            'orderNumber',
+            'type',
+            'priority',
+        ];
+
+        // Filtrar apenas os campos válidos
+        $insert_data = array_intersect_key($data, array_flip($allowed_fields));
+
+        // Garantir que campos opcionais fiquem como NULL se não forem enviados
+        foreach ($allowed_fields as $field) {
+            if (!isset($insert_data[$field])) {
+                $insert_data[$field] = NULL;
+            }
+        }
+
+        // Garantir que 'tipo' tenha um valor válido
+        if (!in_array($insert_data['tipo'], ['terceiro', 'proprio'])) {
+            return false; // Falha na validação
+        }
+
+        // Inserir no banco de dados
+        $this->db->insert(db_prefix() . 'carriers', $insert_data);
+
+        // Retornar ID se a inserção for bem-sucedida
+        return ($this->db->affected_rows() > 0) ? $this->db->insert_id() : false;
+    }
+
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
     {
         if (!is_numeric($id)) {
@@ -1747,7 +1783,7 @@ class Tickets_model extends App_Model
             tbltickets_types.color AS type_color
         ');
             $this->db->from('tbltickets'); // Define a tabela principal como tbltickets
-            $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.userid', 'left'); // JOIN com tblstaff
+            $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.assigned', 'left'); // JOIN com tblstaff
             $this->db->join('tblcontacts', 'tblcontacts.id = tbltickets.contactid', 'left'); // JOIN com tblcontacts
             $this->db->join('tbltickets_priorities', 'tbltickets_priorities.priorityid = tbltickets.priority', 'left'); // JOIN com tbltickets_priorities
             $this->db->join('tbltickets_status', 'tbltickets_status.ticketstatusid = tbltickets.status', 'left'); // JOIN com tbltickets_status
@@ -1789,7 +1825,7 @@ class Tickets_model extends App_Model
             $this->db->reset_query();
             $this->db->select('tbltickets.*');
             $this->db->from('tbltickets'); // Define a tabela principal como tbltickets
-            $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.userid', 'left'); // JOIN com tblstaff
+            $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.assigned', 'left'); // JOIN com tblstaff
             $this->db->join('tblcontacts', 'tblcontacts.id = tbltickets.contactid', 'left'); // JOIN com tblcontacts
             $this->db->join('tbltickets_priorities', 'tbltickets_priorities.priorityid = tbltickets.priority', 'left'); // JOIN com tbltickets_priorities
             $this->db->join('tbltickets_status', 'tbltickets_status.ticketstatusid = tbltickets.status', 'left'); // JOIN com tbltickets_status
@@ -1839,7 +1875,7 @@ class Tickets_model extends App_Model
             tbltickets_types.color AS type_color
         ');
             $this->db->from('tbltickets'); // Define a tabela principal como tbltickets
-            $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.userid', 'left'); // JOIN com tblstaff
+            $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.assigned', 'left'); // JOIN com tblstaff
             $this->db->join('tblcontacts', 'tblcontacts.id = tbltickets.contactid', 'left'); // JOIN com tblcontacts
             $this->db->join('tbltickets_priorities', 'tbltickets_priorities.priorityid = tbltickets.priority', 'left'); // JOIN com tbltickets_priorities
             $this->db->join('tbltickets_status', 'tbltickets_status.ticketstatusid = tbltickets.status', 'left'); // JOIN com tbltickets_status
@@ -1982,6 +2018,27 @@ class Tickets_model extends App_Model
     {
         $this->db->where_in('ticketid', $ids);
         $this->db->set('status', $status);
+        return $this->db->update('tbltickets');
+    }
+
+    public function update_status($ids, $status)
+    {
+        $this->db->where_in('ticketid', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tbltickets');
+    }
+
+    public function update_priority2($ids, $priority)
+    {
+        $this->db->where_in('ticketid', $ids);
+        $this->db->set('priority', $priority);
+        return $this->db->update('tbltickets');
+    }
+
+    public function update_assigned_to($ids, $assigned_to)
+    {
+        $this->db->where_in('ticketid', $ids);
+        $this->db->set('assigned', $assigned_to);
         return $this->db->update('tbltickets');
     }
 

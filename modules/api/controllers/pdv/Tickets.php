@@ -256,6 +256,31 @@ class Tickets extends REST_Controller
         }
     }
 
+    public function resolved_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ticketid'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ticketid'];
+        $status = "10"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Tickets_model->update_resolved($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Tickets Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Tickets.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
 
     public function remove_post()
     {

@@ -1978,6 +1978,13 @@ class Tickets_model extends App_Model
         return ($this->db->affected_rows() > 0);
     }
 
+    public function update_resolved($ids, $status)
+    {
+        $this->db->where_in('ticketid', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tbltickets');
+    }
+
 
 
 }

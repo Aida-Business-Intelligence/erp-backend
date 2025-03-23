@@ -1729,35 +1729,9 @@ class Tickets_model extends App_Model
 
     public function add_ticket($data)
     {
-        // Definir os campos permitidos para inserção
-        $allowed_fields = [
-            'name',
-            'message',
-            'email',
-            'subject',
-            'contactid',
-            'orderNumber',
-            'type',
-            'priority',
-        ];
-
-        // Filtrar apenas os campos válidos
-        $insert_data = array_intersect_key($data, array_flip($allowed_fields));
-
-        // Garantir que campos opcionais fiquem como NULL se não forem enviados
-        foreach ($allowed_fields as $field) {
-            if (!isset($insert_data[$field])) {
-                $insert_data[$field] = NULL;
-            }
-        }
-
-        // Garantir que 'tipo' tenha um valor válido
-        if (!in_array($insert_data['tipo'], ['terceiro', 'proprio'])) {
-            return false; // Falha na validação
-        }
-
-        // Inserir no banco de dados
-        $this->db->insert(db_prefix() . 'carriers', $insert_data);
+        // Remover a lógica de filtragem de campos
+        // Inserir diretamente os dados recebidos no banco de dados
+        $this->db->insert(db_prefix() . 'tickets', $data);
 
         // Retornar ID se a inserção for bem-sucedida
         return ($this->db->affected_rows() > 0) ? $this->db->insert_id() : false;
@@ -1773,21 +1747,23 @@ class Tickets_model extends App_Model
             tblstaff.lastname AS lastname_user,
             tblstaff.email AS email_user,
             tblstaff.phonenumber AS phonenumber_user,
-            tblcontacts.firstname AS firstname_contact,
-            tblcontacts.email AS email_contact,
-            tblcontacts.phonenumber AS phonenumber_contact,
+            tblclients.company AS firstname_contact,
+            tblclients.email_default AS email_contact,
+            tblclients.phonenumber AS phonenumber_contact,
             tbltickets_priorities.name AS priority_name,
             tbltickets_status.name AS status_name,
             tbltickets_types.name AS type_name,
             tbltickets_types.description AS type_description,
-            tbltickets_types.color AS type_color
+            tbltickets_types.color AS type_color,
+            tbldepartments.name AS department_name,
         ');
             $this->db->from('tbltickets'); // Define a tabela principal como tbltickets
             $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.assigned', 'left'); // JOIN com tblstaff
-            $this->db->join('tblcontacts', 'tblcontacts.id = tbltickets.contactid', 'left'); // JOIN com tblcontacts
+            $this->db->join('tblclients', 'tblclients.userid = tbltickets.contactid', 'left'); // JOIN com tblclients
             $this->db->join('tbltickets_priorities', 'tbltickets_priorities.priorityid = tbltickets.priority', 'left'); // JOIN com tbltickets_priorities
             $this->db->join('tbltickets_status', 'tbltickets_status.ticketstatusid = tbltickets.status', 'left'); // JOIN com tbltickets_status
             $this->db->join('tbltickets_types', 'tbltickets_types.typeid = tbltickets.type', 'left'); // JOIN com tbltickets_types
+            $this->db->join('tbldepartments', 'tbldepartments.departmentid = tbltickets.department', 'left'); // JOIN com tbldepartments
             $this->db->where('tbltickets.warehouse_id', $warehouse_id);
 
             // Filtro de busca
@@ -1798,9 +1774,9 @@ class Tickets_model extends App_Model
                 $this->db->or_like('tblstaff.lastname', $search);
                 $this->db->or_like('tblstaff.email', $search);
                 $this->db->or_like('tblstaff.phonenumber', $search);
-                $this->db->or_like('tblcontacts.firstname', $search);
-                $this->db->or_like('tblcontacts.email', $search);
-                $this->db->or_like('tblcontacts.phonenumber', $search);
+                $this->db->or_like('tblclients.company', $search);
+                $this->db->or_like('tblclients.email_default', $search);
+                $this->db->or_like('tblclients.phonenumber', $search);
                 $this->db->or_like('tbltickets.email', $search);
                 $this->db->or_like('tbltickets.name', $search);
                 $this->db->or_like('tbltickets.service', $search);
@@ -1826,10 +1802,11 @@ class Tickets_model extends App_Model
             $this->db->select('tbltickets.*');
             $this->db->from('tbltickets'); // Define a tabela principal como tbltickets
             $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.assigned', 'left'); // JOIN com tblstaff
-            $this->db->join('tblcontacts', 'tblcontacts.id = tbltickets.contactid', 'left'); // JOIN com tblcontacts
+            $this->db->join('tblclients', 'tblclients.userid = tbltickets.contactid', 'left'); // JOIN com tblclients
             $this->db->join('tbltickets_priorities', 'tbltickets_priorities.priorityid = tbltickets.priority', 'left'); // JOIN com tbltickets_priorities
             $this->db->join('tbltickets_status', 'tbltickets_status.ticketstatusid = tbltickets.status', 'left'); // JOIN com tbltickets_status
             $this->db->join('tbltickets_types', 'tbltickets_types.typeid = tbltickets.type', 'left'); // JOIN com tbltickets_types
+            $this->db->join('tbldepartments', 'tbldepartments.departmentid = tbltickets.department', 'left'); // JOIN com tbldepartments
             $this->db->where('tbltickets.warehouse_id', $warehouse_id);
 
             // Filtro de busca na contagem
@@ -1840,9 +1817,9 @@ class Tickets_model extends App_Model
                 $this->db->or_like('tblstaff.lastname', $search);
                 $this->db->or_like('tblstaff.email', $search);
                 $this->db->or_like('tblstaff.phonenumber', $search);
-                $this->db->or_like('tblcontacts.firstname', $search);
-                $this->db->or_like('tblcontacts.email', $search);
-                $this->db->or_like('tblcontacts.phonenumber', $search);
+                $this->db->or_like('tblclients.company', $search);
+                $this->db->or_like('tblclients.email_default', $search);
+                $this->db->or_like('tblclients.phonenumber', $search);
                 $this->db->or_like('tbltickets.email', $search);
                 $this->db->or_like('tbltickets.name', $search);
                 $this->db->or_like('tbltickets.service', $search);
@@ -1865,21 +1842,23 @@ class Tickets_model extends App_Model
             tblstaff.lastname AS lastname_user,
             tblstaff.email AS email_user,
             tblstaff.phonenumber AS phonenumber_user,
-            tblcontacts.firstname AS firstname_contact,
-            tblcontacts.email AS email_contact,
-            tblcontacts.phonenumber AS phonenumber_contact,
+            tblclients.company AS firstname_contact,
+            tblclients.email_default AS email_contact,
+            tblclients.phonenumber AS phonenumber_contact,
             tbltickets_priorities.name AS priority_name,
             tbltickets_status.name AS status_name,
             tbltickets_types.name AS type_name,
             tbltickets_types.description AS type_description,
-            tbltickets_types.color AS type_color
+            tbltickets_types.color AS type_color,
+            tbldepartments.name AS department_name,
         ');
             $this->db->from('tbltickets'); // Define a tabela principal como tbltickets
             $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.assigned', 'left'); // JOIN com tblstaff
-            $this->db->join('tblcontacts', 'tblcontacts.id = tbltickets.contactid', 'left'); // JOIN com tblcontacts
+            $this->db->join('tblclients', 'tblclients.userid = tbltickets.contactid', 'left'); // JOIN com tblclients
             $this->db->join('tbltickets_priorities', 'tbltickets_priorities.priorityid = tbltickets.priority', 'left'); // JOIN com tbltickets_priorities
             $this->db->join('tbltickets_status', 'tbltickets_status.ticketstatusid = tbltickets.status', 'left'); // JOIN com tbltickets_status
             $this->db->join('tbltickets_types', 'tbltickets_types.typeid = tbltickets.type', 'left'); // JOIN com tbltickets_types
+            $this->db->join('tbldepartments', 'tbldepartments.departmentid = tbltickets.department', 'left'); // JOIN com tbldepartments
             $this->db->where('tbltickets.warehouse_id', $warehouse_id);
             $this->db->where('tbltickets.ticketid', $id); // Filtra pelo ID do ticket
 
@@ -1887,6 +1866,50 @@ class Tickets_model extends App_Model
             $total = $ticket ? 1 : 0;
 
             return ['data' => (array) $ticket, 'total' => $total];
+        }
+    }
+
+    public function get_ticket_departments_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'typeid', $sortOrder = 'ASC')
+    {
+        if (!is_numeric($id)) {
+            $this->db->select('*'); // Seleciona todos os campos
+            $this->db->from(db_prefix() . 'departments'); // Define a tabela
+
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like(db_prefix() . 'departments.name', $search);
+                $this->db->or_like(db_prefix() . 'departments.departmentid', $search);
+                $this->db->group_end();
+            }
+
+            $this->db->order_by($sortField, $sortOrder);
+            $this->db->limit($limit, ($page - 1) * $limit);
+
+            $clients = $this->db->get()->result_array();
+
+            // Contagem de total de registros
+            $this->db->reset_query();
+            $this->db->select('*'); // Seleciona todos os campos
+            $this->db->from(db_prefix() . 'departments'); // Define a tabela
+
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like(db_prefix() . 'departments.name', $search);
+                $this->db->or_like(db_prefix() . 'departments.departmentid', $search);
+                $this->db->group_end();
+            }
+
+            $total = $this->db->count_all_results(); // Contagem correta
+
+            return ['data' => $clients, 'total' => $total];
+        } else {
+            $this->db->select('*'); // Seleciona todos os campos
+            $this->db->from(db_prefix() . 'departments'); // Define a tabela
+
+            $client = $this->db->get()->row();
+            $total = $client ? 1 : 0;
+
+            return ['data' => (array) $client, 'total' => $total];
         }
     }
 

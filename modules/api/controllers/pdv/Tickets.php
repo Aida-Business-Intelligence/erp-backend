@@ -110,56 +110,92 @@ class Tickets extends REST_Controller
 
     public function create_post()
     {
-
+        // Decodificar o JSON recebido e limpar os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        // Adiciona o warehouse_id ao array de entrada, se presente
-        $_input['warehouse_id'] = $_POST['warehouse_id'] ?? null;
+        // Validar campos obrigatórios
+        if (empty($_POST['subject']) || empty($_POST['message']) || empty($_POST['priority'])) {
+            $message = array('status' => FALSE, 'message' => 'Subject, message, and priority are required.');
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
 
+        // Adicionar a data atual ao array de dados
+        $_POST['date'] = date('Y-m-d H:i:s'); // Formato MySQL para data e hora
+
+        // Carregar o model
         $this->load->model('Tickets_model');
-        // $this->form_validation->set_rules('nome', 'nome', 'trim|required|max_length[600]', array('is_unique' => 'This %s already exists please enter another Company'));
-        // if ($this->form_validation->run() == FALSE) {
-        //     // form validation error
-        //     $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
-        //     $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        // } else {
 
+        // Chamar o método do model para adicionar o ticket
         $output = $this->Tickets_model->add_ticket($_POST);
 
+        // Verificar se a inserção foi bem-sucedida
         if ($output > 0 && !empty($output)) {
-            // success
-            $message = array('status' => TRUE, 'message' => 'Ticket added successful.', 'data' => $output);
+            // Sucesso
+            $message = array('status' => TRUE, 'message' => 'Ticket added successfully.', 'data' => $output);
             $this->response($message, REST_Controller::HTTP_OK);
         } else {
-            $this->response('Error', REST_Controller::HTTP_NOT_ACCEPTABLE);
+            // Erro
+            $message = array('status' => FALSE, 'message' => 'Error adding ticket.');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
         }
-        // }
     }
 
     public function list_post($id = '')
     {
-
+        // Parâmetros de paginação e ordenação
         $page = $this->post('page') ? (int) $this->post('page') : 0;
-        $page = $page + 1;
-
+        $page = $page + 1; // Ajuste para paginação baseada em 1
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $search = $this->post('search') ?: ''; // Alterado para this->post
-        $sortField = $this->post('sortField') ?: 'date'; // Alterado para this->post
-        $sortOrder = $this->post('sortOrder') === 'ASC' ? 'ASC' : 'DESC'; // Alterado para this->post
-        $warehouse_id = $this->post('warehouse_id') ?: 0;
-        // $franqueado_id = $this->post('franqueado_id') ?: 0;
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'date';
+        $sortOrder = $this->post('sortOrder') === 'ASC' ? 'ASC' : 'DESC';
 
+        // Filtros
+        $start_date = $this->post('start_date');
+        $end_date = $this->post('end_date');
+        $status = $this->post('status');
+        $warehouse_id = $this->post('warehouse_id') ?: 0;
+
+        // Aplicar filtros
+        $this->db->start_cache(); // Inicia o cache de consulta
+
+        // Filtro de data inicial
+        if (!empty($start_date)) {
+            $this->db->where('DATE(date) >=', date('Y-m-d', strtotime($start_date)));
+        }
+
+        // Filtro de data final
+        if (!empty($end_date)) {
+            $this->db->where('DATE(date) <=', date('Y-m-d', strtotime($end_date)));
+        }
+
+        // Filtro de status
+        if (!empty($status)) {
+            if (is_array($status)) {
+                $this->db->where_in('status', $status); // Filtra múltiplos status
+            } else {
+                $this->db->where('status', $status); // Filtra um único status
+            }
+        }
+
+        // // Filtro de warehouse_id
+        // if (!empty($warehouse_id)) {
+        //     $this->db->where('warehouse_id', $warehouse_id);
+        // }
+
+        $this->db->stop_cache(); // Finaliza o cache de consulta
+
+        // Buscar dados
         $data = $this->Tickets_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
 
+        // Limpar cache de filtros
+        $this->db->flush_cache();
 
-        // var_dump($data);
-        // exit;
-
+        // Verificar se há dados
         if ($data['total'] == 0) {
-
             $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
         } else {
-
             if ($data) {
                 $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
             } else {
@@ -188,6 +224,32 @@ class Tickets extends REST_Controller
             $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
         } else {
 
+            if ($data) {
+                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+    }
+
+    public function list_departments_post($id = '')
+    {
+        $page = $this->post('page') ? (int) $this->post('page') : 0;
+        $page = $page + 1;
+
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: ''; // Alterado para this->post
+        $sortField = $this->post('sortField') ?: 'name'; // Alterado para this->post
+        $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC'; // Alterado para this->post
+        // $warehouse_id = $this->post('warehouse_id') ?: 0;
+        // $franqueado_id = $this->post('franqueado_id') ?: 0;
+
+        $data = $this->Tickets_model->get_ticket_departments_api($id, $page, $limit, $search, $sortField, $sortOrder);
+
+        if ($data['total'] == 0) {
+
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
             if ($data) {
                 $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
             } else {

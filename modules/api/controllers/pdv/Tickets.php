@@ -166,39 +166,39 @@ class Tickets extends REST_Controller
 
         // Filtro de data
         if (!empty($start_date)) {
-            $this->db->where('DATE(tickets.date) >=', date('Y-m-d', strtotime($start_date)));
+            $this->db->where('DATE(tbltickets.date) >=', date('Y-m-d', strtotime($start_date)));
         }
         if (!empty($end_date)) {
-            $this->db->where('DATE(tickets.date) <=', date('Y-m-d', strtotime($end_date)));
+            $this->db->where('DATE(tbltickets.date) <=', date('Y-m-d', strtotime($end_date)));
         }
 
         // Filtro de status
         if (!empty($status)) {
             if (is_array($status)) {
-                $this->db->where_in('tickets.status', $status);
+                $this->db->where_in('tbltickets.status', $status);
             } else {
-                $this->db->where('tickets.status', $status);
+                $this->db->where('tbltickets.status', $status);
             }
         }
 
         // Filtro de prioridade
         if (!empty($priority)) {
-            $this->db->where('tickets.priority', $priority);
+            $this->db->where('tbltickets.priority', $priority);
         }
 
         // Filtro de tipo
         if (!empty($type)) {
-            $this->db->where('tickets.type', $type);
+            $this->db->where('tbltickets.type', $type);
         }
 
         // Filtro de cliente
         if (!empty($client)) {
-            $this->db->where('tickets.contactid', $client);
+            $this->db->where('tbltickets.contactid', $client);
         }
 
         // Filtro de atribuído para
         if (!empty($assignedTo)) {
-            $this->db->where('tickets.assigned', $assignedTo);
+            $this->db->where('tbltickets.assigned', $assignedTo);
         }
 
         $this->db->stop_cache();

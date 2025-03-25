@@ -1781,6 +1781,7 @@ class Tickets_model extends App_Model
                 $this->db->or_like('tbltickets.name', $search);
                 $this->db->or_like('tbltickets.service', $search);
                 $this->db->or_like('tbltickets.subject', $search);
+                $this->db->or_like('tbltickets.ticketkey', $search);
                 $this->db->or_like('tbltickets.message', $search);
                 $this->db->or_like('tbltickets_priorities.name', $search); // Busca na prioridade
                 $this->db->or_like('tbltickets_status.name', $search); // Busca no status
@@ -1824,6 +1825,7 @@ class Tickets_model extends App_Model
                 $this->db->or_like('tbltickets.name', $search);
                 $this->db->or_like('tbltickets.service', $search);
                 $this->db->or_like('tbltickets.subject', $search);
+                $this->db->or_like('tbltickets.ticketkey', $search);
                 $this->db->or_like('tbltickets.message', $search);
                 $this->db->or_like('tbltickets_priorities.name', $search); // Busca na prioridade
                 $this->db->or_like('tbltickets_status.name', $search); // Busca no status

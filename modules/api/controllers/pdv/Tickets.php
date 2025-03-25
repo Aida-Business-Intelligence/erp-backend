@@ -149,58 +149,70 @@ class Tickets extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: '';
         $sortField = $this->post('sortField') ?: 'date';
-        $sortOrder = $this->post('sortOrder') === 'ASC' ? 'ASC' : 'DESC';
+        $sortOrder = $this->post('sortOrder') === 'asc' ? 'ASC' : 'DESC';
 
         // Filtros
         $start_date = $this->post('start_date');
         $end_date = $this->post('end_date');
         $status = $this->post('status');
+        $priority = $this->post('priority');
+        $type = $this->post('type');
+        $client = $this->post('contactid');
+        $assignedTo = $this->post('assigned');
         $warehouse_id = $this->post('warehouse_id') ?: 0;
 
         // Aplicar filtros
-        $this->db->start_cache(); // Inicia o cache de consulta
+        $this->db->start_cache();
 
-        // Filtro de data inicial
+        // Filtro de data
         if (!empty($start_date)) {
-            $this->db->where('DATE(date) >=', date('Y-m-d', strtotime($start_date)));
+            $this->db->where('DATE(tickets.date) >=', date('Y-m-d', strtotime($start_date)));
         }
-
-        // Filtro de data final
         if (!empty($end_date)) {
-            $this->db->where('DATE(date) <=', date('Y-m-d', strtotime($end_date)));
+            $this->db->where('DATE(tickets.date) <=', date('Y-m-d', strtotime($end_date)));
         }
 
         // Filtro de status
         if (!empty($status)) {
             if (is_array($status)) {
-                $this->db->where_in('status', $status); // Filtra múltiplos status
+                $this->db->where_in('tickets.status', $status);
             } else {
-                $this->db->where('status', $status); // Filtra um único status
+                $this->db->where('tickets.status', $status);
             }
         }
 
-        // // Filtro de warehouse_id
-        // if (!empty($warehouse_id)) {
-        //     $this->db->where('warehouse_id', $warehouse_id);
-        // }
+        // Filtro de prioridade
+        if (!empty($priority)) {
+            $this->db->where('tickets.priority', $priority);
+        }
 
-        $this->db->stop_cache(); // Finaliza o cache de consulta
+        // Filtro de tipo
+        if (!empty($type)) {
+            $this->db->where('tickets.type', $type);
+        }
+
+        // Filtro de cliente
+        if (!empty($client)) {
+            $this->db->where('tickets.contactid', $client);
+        }
+
+        // Filtro de atribuído para
+        if (!empty($assignedTo)) {
+            $this->db->where('tickets.assigned', $assignedTo);
+        }
+
+        $this->db->stop_cache();
 
         // Buscar dados
         $data = $this->Tickets_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
 
-        // Limpar cache de filtros
+        // Limpar cache
         $this->db->flush_cache();
 
-        // Verificar se há dados
         if ($data['total'] == 0) {
             $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
         } else {
-            if ($data) {
-                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
-            } else {
-                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-            }
+            $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
         }
     }
 

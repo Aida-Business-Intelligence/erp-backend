@@ -357,6 +357,8 @@ class Invoices extends REST_Controller
             i.status as invoice_status,
             i.datecreated,
             i.warehouse_id,
+            IF(i.status = 12, i.clientnote, NULL) as dispute_message,
+            IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
             c.company as supplier_name,
             c.vat as supplier_document,
             c.phonenumber as supplier_phone,
@@ -442,5 +444,77 @@ class Invoices extends REST_Controller
             'limit' => (int)$limit,
             'data' => $invoices
         ], REST_Controller::HTTP_OK);
+    }
+
+    public function dispute_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['invoice_id']) || empty($_POST['invoice_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invoice ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['dispute_type']) || empty($_POST['dispute_type'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Dispute type is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['clientnote']) || empty($_POST['clientnote'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Message is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $allowed_dispute_types = ['broken', 'malfunction', 'wrong_item', 'quality_issues', 'other'];
+        if (!in_array($_POST['dispute_type'], $allowed_dispute_types)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid dispute type. Allowed values: ' . implode(', ', $allowed_dispute_types)
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            $this->db->trans_start();
+
+            $this->db->where('id', $_POST['invoice_id']);
+            $this->db->update(db_prefix() . 'invoices', [
+                'status' => 12,
+                'clientnote' => $_POST['clientnote'],
+                'dispute_type' => $_POST['dispute_type']
+            ]);
+
+            if ($this->db->affected_rows() == 0) {
+                throw new Exception('Invoice not found or no changes made');
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Transaction failed');
+            }
+
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Invoice disputed successfully'
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }

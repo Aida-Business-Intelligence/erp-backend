@@ -1128,4 +1128,5 @@ class Staff_model extends App_Model
         $this->db->set('active', $active);
         return $this->db->update('tblstaff');
     }
+
 }

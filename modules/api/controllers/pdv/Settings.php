@@ -234,14 +234,14 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/reports"
                         ],
-                        [
-                            "value" => "Painel do Franqueado",
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:bar-chart-2",
-                            "width" => "",
-                            "path" => "/franchisees/dashboard"
-                        ],
+                        // [
+                        //     "value" => "Painel do Franqueado",
+                        //     "label" => "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:bar-chart-2",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/dashboard"
+                        // ],
                         [
                             "value" => "Gestão de Franquias",
                             "label" => "Franquias",
@@ -631,14 +631,14 @@ class Settings extends REST_Controller
                             "path" => "/financial-erp/contability"
                         ],
 
-                        [
-                            "value" => "Painel do Franqueado",
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:bar-chart-2",
-                            "width" => "",
-                            "path" => "/franchisees/dashboard"
-                        ],
+                        // [
+                        //     "value" => "Painel do Franqueado",
+                        //     "label" => "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:bar-chart-2",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/dashboard"
+                        // ],
                         [
                             "value" => "Gestão de Franquias",
                             "label" => "Franquias",

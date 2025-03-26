@@ -544,23 +544,6 @@ class Reports extends REST_Controller
     ], REST_Controller::HTTP_OK);
   }
 
-  public function cashiers_get($franchise_id = null)
-  {
-    $this->db->select('id, name, franchise_id');
-    $this->db->from(db_prefix() . 'cash_registers');
-    if ($franchise_id) {
-      $this->db->where('franchise_id', $franchise_id);
-    }
-    $this->db->order_by('name', 'ASC');
-
-    $query = $this->db->get();
-    $cashiers = $query->result_array();
-
-    $this->response([
-      'status' => true,
-      'data' => $cashiers
-    ], REST_Controller::HTTP_OK);
-  }
 
   public function stock_report_post()
   {
@@ -783,43 +766,57 @@ class Reports extends REST_Controller
 
   public function sales_report_post()
   {
-    $period = $this->post('period') ?: '6months';
-    $pdvBox = $this->post('pdvBox');
+    $warehouse_id = $this->post('warehouse_id');
+    
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $period = $this->post('period');
+    $cashier = $this->post('cashier');
     $status = $this->post('status');
-    $customStartDate = $this->post('customStartDate');
-    $customEndDate = $this->post('customEndDate');
+    $periodType = $this->post('periodType');
+    $customStartDate = $this->post('startDate');
+    $customEndDate = $this->post('endDate');
 
     $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
     $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
-    $warehouse_id = $this->post('warehouse_id') ?: 0;
 
-    $startDate = null;
-    $endDate = date('Y-m-d 23:59:59');
-
-    switch ($period) {
-      case '1month':
-        $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
-        break;
-      case '3months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
-        break;
-      case '6months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
-        break;
-      case 'thisMonth':
-        $startDate = date('Y-m-01 00:00:00');
-        $endDate = date('Y-m-t 23:59:59');
-        break;
-      case 'custom':
-        if ($customStartDate && $customEndDate) {
-          $startDate = date('Y-m-d 00:00:00', strtotime($customStartDate));
-          $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
-        }
-        break;
+    if ($customStartDate) {
+      $startDate = date('Y-m-d H:i:s', strtotime($customStartDate));
+    } else {
+      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
     }
 
-    if (!$startDate) {
-      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+    if ($customEndDate) {
+      $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
+    } else {
+      $endDate = date('Y-m-d 23:59:59');
+    }
+
+    if (!$customStartDate && !$customEndDate && $period) {
+      switch ($period) {
+        case '1month':
+          $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
+          break;
+        case '3months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
+          break;
+        case '6months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+          break;
+        case '12months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
+          break;
+        case 'thisMonth':
+          $startDate = date('Y-m-01 00:00:00');
+          $endDate = date('Y-m-t 23:59:59');
+          break;
+      }
     }
 
     $this->db->select('
@@ -835,11 +832,24 @@ class Reports extends REST_Controller
     $this->db->where('c.data <=', $endDate);
     $this->db->where('c.warehouse_id', $warehouse_id);
 
-    if ($pdvBox) {
-      $this->db->where('c.number', $pdvBox);
+    if ($cashier) {
+      $this->db->where('c.id', $cashier);
     }
     if ($status) {
       $this->db->where('c.status', $status);
+    }
+    if ($periodType) {
+      switch ($periodType) {
+        case 'manha':
+          $this->db->where('HOUR(c.data) BETWEEN 6 AND 11');
+          break;
+        case 'tarde':
+          $this->db->where('HOUR(c.data) BETWEEN 12 AND 17');
+          break;
+        case 'noite':
+          $this->db->where('(HOUR(c.data) >= 18 OR HOUR(c.data) < 6)');
+          break;
+      }
     }
 
     $this->db->group_by('month_year');
@@ -849,21 +859,36 @@ class Reports extends REST_Controller
     $this->db->select('
       c.id,
       c.data as date,
-      c.number as pdvBoxId,
-      CONCAT("Caixa ", c.number) as pdvBoxName,
+      c.id as cashier_id,
+      c.number,
+      CONCAT(s.firstname, " ", s.lastname) as operator_name,
       c.status,
       c.balance as total
     ');
     $this->db->from(db_prefix() . 'cashs c');
+    $this->db->join(db_prefix() . 'staff s', 's.staffid = c.user_id', 'left');
     $this->db->where('c.data >=', $startDate);
     $this->db->where('c.data <=', $endDate);
     $this->db->where('c.warehouse_id', $warehouse_id);
 
-    if ($pdvBox) {
-      $this->db->where('c.number', $pdvBox);
+    if ($cashier) {
+      $this->db->where('c.id', $cashier);
     }
     if ($status) {
       $this->db->where('c.status', $status);
+    }
+    if ($periodType) {
+      switch ($periodType) {
+        case 'manha':
+          $this->db->where('HOUR(c.data) BETWEEN 6 AND 11');
+          break;
+        case 'tarde':
+          $this->db->where('HOUR(c.data) BETWEEN 12 AND 17');
+          break;
+        case 'noite':
+          $this->db->where('(HOUR(c.data) >= 18 OR HOUR(c.data) < 6)');
+          break;
+      }
     }
 
     $total_count = $this->db->count_all_results('', false);
@@ -883,11 +908,24 @@ class Reports extends REST_Controller
     $this->db->where('c.data <=', $endDate);
     $this->db->where('c.warehouse_id', $warehouse_id);
 
-    if ($pdvBox) {
-      $this->db->where('c.number', $pdvBox);
+    if ($cashier) {
+      $this->db->where('c.id', $cashier);
     }
     if ($status) {
       $this->db->where('c.status', $status);
+    }
+    if ($periodType) {
+      switch ($periodType) {
+        case 'manha':
+          $this->db->where('HOUR(c.data) BETWEEN 6 AND 11');
+          break;
+        case 'tarde':
+          $this->db->where('HOUR(c.data) BETWEEN 12 AND 17');
+          break;
+        case 'noite':
+          $this->db->where('(HOUR(c.data) >= 18 OR HOUR(c.data) < 6)');
+          break;
+      }
     }
 
     $this->db->group_by('HOUR(c.data)');
@@ -934,11 +972,9 @@ class Reports extends REST_Controller
       }, $filled_hourly_data),
       'sales' => array_map(function ($sale) {
         return [
-          'id' => $sale['id'],
           'date' => $sale['date'],
-          'pdvBoxId' => $sale['pdvBoxId'],
-          'pdvBoxName' => $sale['pdvBoxName'],
-          'status' => $sale['status'],
+          'id' => $sale['id'],
+          'number' => $sale['number'],
           'total' => floatval($sale['total'])
         ];
       }, $sales),

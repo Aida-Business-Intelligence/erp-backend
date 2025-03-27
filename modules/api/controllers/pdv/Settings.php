@@ -30,7 +30,7 @@ class Settings extends REST_Controller
 
 
 
-    public function options_get2()
+    public function options_get()
     {
         $data = [
             [
@@ -40,42 +40,49 @@ class Settings extends REST_Controller
                     "menu" => [
                         [
                             "value" => "indice",
-                            "label" => "my_account",
+                            "label" => "home",
                             "color" => "",
                             "icon" => "lucide:home",
                             "width" => "",
                             "path" => "/home"
                         ],
+                        [
+                            "value" => "emails",
+                            "label" => "home",
+                            "color" => "",
+                            "icon" => "lucide:mail",
+                            "width" => "",
+                            "path" => "/emails"
+                        ],
 
                         [
                             "value" => "GPTW",
-                            "label" => "my_account",
+                            "label" => "home",
                             "color" => "",
                             "icon" => "lucide:heart",
                             "width" => "",
                             "path" => "/gptw"
                         ],
-
-                        [
-                            "value" => "Gestão GPTW ",
-                            "label" => "my_account",
-                            "color" => "",
-                            "icon" => "lucide:wrench",
-                            "width" => "",
-                            "path" => "/gptw-management"
-                        ],
                         [
                             "value" => "dashboard",
-                            "label" => "home",
+                            "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:chart-pie",
                             "width" => "",
                             "path" => "/dashboard"
                         ],
+                        [
+                            "value" => "Relatórios",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:file-text",
+                            "width" => "",
+                            "path" => "/reports"
+                        ],
 
                         [
                             "value" => "Catálogo",
-                            "label" => "home",
+                            "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:album",
                             "width" => "",
@@ -99,7 +106,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Ordens de Compras",
-                            "label" => "Transações",
+                            "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:shopping-cart",
                             "width" => "",
@@ -111,7 +118,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:shopping-bag",
                             "width" => "",
-                            "path" => "https:/buy-orders"
+                            "path" => "/buy-orders"
                         ],
                         [
                             "value" => "Vendas",
@@ -128,6 +135,30 @@ class Settings extends REST_Controller
                             "icon" => "lucide:book-user",
                             "width" => "",
                             "path" => "/client"
+                        ],
+                        [
+                            "value" => "Ecommerce",
+                            "label" => "Gerador de Pedidos",
+                            "color" => "",
+                            "icon" => "lucide:code",
+                            "width" => "",
+                            "path" => "/order-generator"
+                        ],
+                        [
+                            "value" => "Ecommerce para Franquias",
+                            "label" => "Gerador de Pedidos",
+                            "color" => "",
+                            "icon" => "lucide:code",
+                            "width" => "",
+                            "path" => "/franchisees-order-generator"
+                        ],
+                        [
+                            "value" => "Carteira Digital",
+                            "label" => "Gerador de Pedidos",
+                            "color" => "",
+                            "icon" => "lucide:wallet",
+                            "width" => "",
+                            "path" => "/digital-wallet-franchisees"
                         ],
                         [
                             "value" => "Representadas",
@@ -154,6 +185,14 @@ class Settings extends REST_Controller
                             "path" => "/suppliers"
                         ],
                         [
+                            "value" => "Clientes",
+                            "label" => "cadastros",
+                            "color" => "",
+                            "icon" => "lucide:users",
+                            "width" => "",
+                            "path" => "/client-erp"
+                        ],
+                        [
                             "value" => "Transportadoras",
                             "label" => "cadastros",
                             "color" => "",
@@ -161,12 +200,20 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/carriers"
                         ],
+                        [
+                            "value" => "Pedidos",
+                            "label" => "cadastros",
+                            "color" => "",
+                            "icon" => "lucide:file-text",
+                            "width" => "",
+                            "path" => "/orders-erp"
+                        ],
 
                         [
                             "value" => "product",
                             "label" => "pdv",
                             "color" => "",
-                            "icon" => "lucide:edit",
+                            "icon" => "lucide:package",
                             "width" => "",
                             "path" => "/produto"
                         ],
@@ -174,7 +221,7 @@ class Settings extends REST_Controller
                             "value" => "Categorias",
                             "label" => "pdv",
                             "color" => "",
-                            "icon" => "lucide:edit",
+                            "icon" => "lucide:tag",
                             "width" => "",
                             "path" => "/categories"
                         ],
@@ -182,15 +229,15 @@ class Settings extends REST_Controller
                             "value" => "Produto",
                             "label" => "cadastros",
                             "color" => "",
-                            "icon" => "lucide:edit",
+                            "icon" => "lucide:package",
                             "width" => "",
-                            "path" => "/produto"
+                            "path" => "/produto-erp"
                         ],
                         [
                             "value" => "Lojas",
-                            "label" => "cadastros",
+                            "label" => "pdv",
                             "color" => "",
-                            "icon" => "lucide:edit",
+                            "icon" => "lucide:store",
                             "width" => "",
                             "path" => "/warehouse"
                         ],
@@ -203,20 +250,44 @@ class Settings extends REST_Controller
                             "path" => "/financial"
                         ],
                         [
-                            "value" => "Contas a pagar",
+                            "value" => "Painel Geral",
                             "label" => "financial",
                             "color" => "",
                             "icon" => "lucide:credit-card",
                             "width" => "",
-                            "path" => "/financial"
+                            "path" => "/financial-erp/panel"
                         ],
                         [
-                            "value" => "Carteira de Títulos ",
+                            "value" => "Faturas",
+                            "label" => "financial",
+                            "color" => "",
+                            "icon" => "lucide:file-text",
+                            "width" => "",
+                            "path" => "/invoice-erp"
+                        ],
+                        // [
+                        //     "value" => "Contas a pagar",
+                        //     "label" => "financial",
+                        //     "color" => "",
+                        //     "icon" => "lucide:credit-card",
+                        //     "width" => "",
+                        //     "path" => "/financial"
+                        // ],
+                        // [
+                        //     "value" => "Carteira de Títulos ",
+                        //     "label" => "financial",
+                        //     "color" => "",
+                        //     "icon" => "lucide:wallet",
+                        //     "width" => "",
+                        //     "path" => "/financial-erp/titles"
+                        // ],
+                        [
+                            "value" => "Títulos ",
                             "label" => "financial",
                             "color" => "",
                             "icon" => "lucide:wallet",
                             "width" => "",
-                            "path" => "/financial-erp/titles"
+                            "path" => "/titles-erp"
                         ],
                         [
                             "value" => "Simulador de Encargos ",
@@ -226,14 +297,9 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/financial-erp/contability"
                         ],
-                        [
-                            "value" => "Relatórios",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:file-text",
-                            "width" => "",
-                            "path" => "/reports"
-                        ],
+                      
+                   
+                      
                         [
                             "value" => "Painel do Franqueado",
                             "label" => "Franquias",
@@ -252,7 +318,6 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Contratos",
-
                             "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:handshake",
@@ -265,7 +330,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
-                            "path" => "/franchisees/orders/list"
+                            "path" => "/franchisees/orders"
                         ],
                         [
                             "value" => "Suporte",
@@ -305,6 +370,15 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/admin/user/list"
                         ],
+                        [
+                            "value" => "Funções",
+                            "label" => "admin",
+                            "color" => "",
+                            "icon" => "lucide:fileCheck",
+                            "width" => "",
+                            "path" => "/admin/functions"
+                        ],
+                       
                         /*
                 [
                     "value" => "languages",
@@ -334,13 +408,14 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/admin/config"
                         ],
+                       
                         [
-                            "value" => "emails",
+                            "value" => "Gestão GPTW ",
                             "label" => "admin",
                             "color" => "",
-                            "icon" => "lucide:mail",
+                            "icon" => "lucide:wrench",
                             "width" => "",
-                            "path" => "/admin/emails"
+                            "path" => "/gptw-management"
                         ],
                         /*
                 [
@@ -410,7 +485,7 @@ class Settings extends REST_Controller
         $this->response($data, REST_Controller::HTTP_OK);
     }
 
-    public function options_get()
+    public function options_get2()
     {
         $data = [
             [
@@ -1047,6 +1122,10 @@ class Settings extends REST_Controller
                 'required' => false
             ],
             'pdv_senha_gerente_open_cash' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'purchase_needs_enabled' => [
                 'type' => 'boolean',
                 'required' => false
             ]

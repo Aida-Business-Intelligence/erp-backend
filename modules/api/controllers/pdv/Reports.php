@@ -15,7 +15,7 @@ class Reports extends REST_Controller
   public function product_sales_post()
   {
     $warehouse_id = $this->post('warehouse_id');
-    
+
     if (empty($warehouse_id)) {
       $this->response([
         'status' => FALSE,
@@ -280,7 +280,7 @@ class Reports extends REST_Controller
   public function cash_report_post()
   {
     $warehouse_id = $this->post('warehouse_id');
-    
+
     if (empty($warehouse_id)) {
       $this->response([
         'status' => FALSE,
@@ -297,7 +297,7 @@ class Reports extends REST_Controller
     $customEndDate = $this->post('endDate');
 
     // Convert status to integer for proper comparison and use it for active field
-    $active = ($status !== null && $status !== '') ? (int)$status : null;
+    $active = ($status !== null && $status !== '') ? (int) $status : null;
 
     $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
     $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
@@ -548,7 +548,7 @@ class Reports extends REST_Controller
   public function stock_report_post()
   {
     $warehouse_id = $this->post('warehouse_id');
-    
+
     if (empty($warehouse_id)) {
       $this->response([
         'status' => FALSE,
@@ -767,7 +767,7 @@ class Reports extends REST_Controller
   public function sales_report_post()
   {
     $warehouse_id = $this->post('warehouse_id');
-    
+
     if (empty($warehouse_id)) {
       $this->response([
         'status' => FALSE,
@@ -1046,12 +1046,7 @@ class Reports extends REST_Controller
       ? (($today_data['card_sales'] - $yesterday_data['card_sales']) / $yesterday_data['card_sales']) * 100
       : 0;
 
-    /**
-      PRECISA ALTERAR ESSE VALOR E PUXAR PELO
-      ID DA WAREHOUSE OU PELO ID DA FRANQUIA
-      POR ENQUANTO, O VALOR DE MONTLY GOAL ESTÁ
-      DEFINIDO DE FORMA ESTÁTICA
-     */
+
     $monthly_goal = 100000;
     $goal_progress = $current_month_data['total_sales'] > 0
       ? ($current_month_data['total_sales'] / $monthly_goal) * 100
@@ -1090,6 +1085,260 @@ class Reports extends REST_Controller
           'progress' => round($goal_progress, 1),
           'remaining' => max(0, $monthly_goal - $current_month_data['total_sales'])
         ]
+      ]
+    ];
+
+    $this->response($response, REST_Controller::HTTP_OK);
+  }
+
+  public function orders_report_post()
+  {
+    $warehouse_id = $this->post('warehouse_id');
+
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $period = $this->post('period');
+    $orderType = $this->post('orderType');
+    $status = $this->post('status');
+    $customStartDate = $this->post('startDate');
+    $customEndDate = $this->post('endDate');
+    $supplier_id = $this->post('supplier_id');
+
+    $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
+    $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
+
+    if ($customStartDate) {
+      $startDate = date('Y-m-d H:i:s', strtotime($customStartDate));
+    } else {
+      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+    }
+
+    if ($customEndDate) {
+      $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
+    } else {
+      $endDate = date('Y-m-d 23:59:59');
+    }
+
+    if (!$customStartDate && !$customEndDate && $period) {
+      switch ($period) {
+        case '1month':
+          $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
+          break;
+        case '3months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
+          break;
+        case '6months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+          break;
+        case '12months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
+          break;
+        case 'thisMonth':
+          $startDate = date('Y-m-01 00:00:00');
+          $endDate = date('Y-m-t 23:59:59');
+          break;
+      }
+    }
+
+    $this->db->select('
+        COUNT(' . db_prefix() . 'invoices.id) as total_orders,
+        SUM(' . db_prefix() . 'invoices.total) as total_value,
+        AVG(' . db_prefix() . 'invoices.total) as avg_order_value,
+        COUNT(CASE WHEN ' . db_prefix() . 'invoices.status = 2 THEN 1 ELSE NULL END) as completed_orders
+    ');
+    $this->db->from(db_prefix() . 'invoices');
+    $this->db->join(db_prefix() . 'purchase_needs', db_prefix() . 'purchase_needs.invoice_id = ' . db_prefix() . 'invoices.id', 'left');
+    $this->db->where(db_prefix() . 'invoices.warehouse_id', $warehouse_id);
+    $this->db->where(db_prefix() . 'invoices.datecreated >=', $startDate);
+    $this->db->where(db_prefix() . 'invoices.datecreated <=', $endDate);
+    $this->db->where(db_prefix() . 'purchase_needs.id IS NOT NULL');
+
+    if ($status) {
+      if (is_array($status)) {
+        $this->db->where_in(db_prefix() . 'invoices.status', $status);
+      } else {
+        $this->db->where(db_prefix() . 'invoices.status', $status);
+      }
+    }
+
+    if ($supplier_id) {
+      $this->db->where(db_prefix() . 'invoices.clientid', $supplier_id);
+    }
+
+    $statistics = $this->db->get()->row_array();
+
+    $this->db->select('
+        DATE_FORMAT(' . db_prefix() . 'invoices.datecreated, "%Y-%m") as month_year,
+        DATE_FORMAT(' . db_prefix() . 'invoices.datecreated, "%b") as month_name,
+        COUNT(' . db_prefix() . 'invoices.id) as total_orders,
+        SUM(' . db_prefix() . 'invoices.total) as total_value,
+        COUNT(CASE WHEN ' . db_prefix() . 'invoices.status = 2 THEN 1 ELSE NULL END) as completed_orders
+    ');
+    $this->db->from(db_prefix() . 'invoices');
+    $this->db->join(db_prefix() . 'purchase_needs', db_prefix() . 'purchase_needs.invoice_id = ' . db_prefix() . 'invoices.id', 'left');
+    $this->db->where(db_prefix() . 'invoices.warehouse_id', $warehouse_id);
+    $this->db->where(db_prefix() . 'invoices.datecreated >=', $startDate);
+    $this->db->where(db_prefix() . 'invoices.datecreated <=', $endDate);
+    $this->db->where(db_prefix() . 'purchase_needs.id IS NOT NULL');
+
+    if ($status) {
+      if (is_array($status)) {
+        $this->db->where_in(db_prefix() . 'invoices.status', $status);
+      } else {
+        $this->db->where(db_prefix() . 'invoices.status', $status);
+      }
+    }
+
+    if ($supplier_id) {
+      $this->db->where(db_prefix() . 'invoices.clientid', $supplier_id);
+    }
+
+    $this->db->group_by('month_year');
+    $this->db->order_by('month_year', 'ASC');
+
+    $monthly_data = $this->db->get()->result_array();
+
+    $this->db->select('
+        ' . db_prefix() . 'invoices.id,
+        ' . db_prefix() . 'invoices.number,
+        ' . db_prefix() . 'invoices.datecreated as date,
+        ' . db_prefix() . 'invoices.total,
+        ' . db_prefix() . 'invoices.status,
+        CASE 
+          WHEN ' . db_prefix() . 'invoices.status = 1 THEN \'Pendente\'
+          WHEN ' . db_prefix() . 'invoices.status = 2 THEN \'Enviado\' 
+          WHEN ' . db_prefix() . 'invoices.status = 3 THEN \'Cancelado\'
+          WHEN ' . db_prefix() . 'invoices.status = 12 THEN \'Disputa\'
+          ELSE \'Outro\'
+        END as status_text,
+        ' . db_prefix() . 'clients.company as supplier_name,
+        COUNT(' . db_prefix() . 'purchase_needs.id) as items_count,
+        IF(' . db_prefix() . 'invoices.dispute_type IS NOT NULL, ' . db_prefix() . 'invoices.dispute_type, NULL) as dispute_type,
+        IF(' . db_prefix() . 'invoices.clientnote IS NOT NULL AND ' . db_prefix() . 'invoices.status = 12, ' . db_prefix() . 'invoices.clientnote, NULL) as dispute_message
+    ');
+    $this->db->from(db_prefix() . 'invoices');
+    $this->db->join(db_prefix() . 'purchase_needs', db_prefix() . 'purchase_needs.invoice_id = ' . db_prefix() . 'invoices.id', 'left');
+    $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = ' . db_prefix() . 'invoices.clientid', 'left');
+    $this->db->where(db_prefix() . 'invoices.warehouse_id', $warehouse_id);
+    $this->db->where(db_prefix() . 'invoices.datecreated >=', $startDate);
+    $this->db->where(db_prefix() . 'invoices.datecreated <=', $endDate);
+    $this->db->where(db_prefix() . 'purchase_needs.id IS NOT NULL');
+
+    if ($status) {
+      if (is_array($status)) {
+        $this->db->where_in(db_prefix() . 'invoices.status', $status);
+      } else {
+        $this->db->where(db_prefix() . 'invoices.status', $status);
+      }
+    }
+
+    if ($supplier_id) {
+      $this->db->where(db_prefix() . 'invoices.clientid', $supplier_id);
+    }
+
+    $this->db->group_by(db_prefix() . 'invoices.id');
+
+    $total_count = $this->db->count_all_results('', false);
+
+    $this->db->order_by(db_prefix() . 'invoices.datecreated', 'DESC');
+    $this->db->limit($pageSize, $page * $pageSize);
+
+    $orders = $this->db->get()->result_array();
+
+    $orders_data = [];
+    foreach ($orders as $order) {
+      $priority = 'low';
+      if ($order['total'] > 5000) {
+        $priority = 'high';
+      } else if ($order['total'] > 1000) {
+        $priority = 'medium';
+      }
+
+      $this->db->select('
+          pn.id as purchase_need_id,
+          pn.item_id,
+          pn.warehouse_id,
+          pn.qtde,
+          pn.status as need_status,
+          pn.date as need_date,
+          pn.user_id as need_user_id,
+          i.description as product_name,
+          i.sku_code,
+          i.cost,
+          i.stock as current_stock,
+          i.minStock as min_stock
+      ');
+      $this->db->from(db_prefix() . 'purchase_needs pn');
+      $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id', 'left');
+      $this->db->where('pn.invoice_id', $order['id']);
+
+      $products = $this->db->get()->result_array();
+
+      $order_products = array_map(function ($product) {
+        $quantity = (int) $product['qtde'];
+        $unit_cost = floatval($product['cost']);
+
+        return [
+          'id' => $product['item_id'],
+          'name' => $product['product_name'],
+          'sku' => $product['sku_code'],
+          'quantity' => $quantity,
+          'unit_cost' => $unit_cost,
+          'total_cost' => round($unit_cost * $quantity, 2),
+          'current_stock' => (int) $product['current_stock'],
+          'min_stock' => (int) $product['min_stock'],
+          'need_id' => $product['purchase_need_id'],
+          'need_status' => (int) $product['need_status'],
+          'need_date' => $product['need_date']
+        ];
+      }, $products);
+
+      $orders_data[] = [
+        'id' => $order['id'],
+        'number' => $order['number'],
+        'date' => $order['date'],
+        'supplier_name' => $order['supplier_name'],
+        'total' => floatval($order['total']),
+        'items_count' => (int) $order['items_count'],
+        'status' => (int) $order['status'],
+        'status_text' => $order['status_text'],
+        'priority' => $priority,
+        'dispute_type' => $order['dispute_type'],
+        'dispute_message' => $order['dispute_message'],
+        'products' => $order_products
+      ];
+    }
+
+    $response = [
+      'status' => true,
+      'statistics' => [
+        'total_orders' => (int) $statistics['total_orders'],
+        'total_value' => floatval($statistics['total_value']),
+        'avg_order_value' => floatval($statistics['avg_order_value']),
+        'completion_rate' => $statistics['total_orders'] > 0 ?
+          ($statistics['completed_orders'] / $statistics['total_orders']) * 100 : 0
+      ],
+      'monthly_data' => array_map(function ($month) {
+        return [
+          'month' => $month['month_name'],
+          'total_orders' => (int) $month['total_orders'],
+          'total_value' => floatval($month['total_value']),
+          'completion_rate' => $month['total_orders'] > 0 ?
+            ($month['completed_orders'] / $month['total_orders']) * 100 : 0
+        ];
+      }, $monthly_data),
+      'orders' => $orders_data,
+      'pagination' => [
+        'total' => (int) $total_count,
+        'page' => $page + 1,
+        'pageSize' => $pageSize,
+        'totalPages' => ceil($total_count / $pageSize)
       ]
     ];
 

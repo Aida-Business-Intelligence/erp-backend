@@ -570,7 +570,7 @@ class Invoices extends REST_Controller
     }
 
     // Fatura o/os pedidos
-    public function put_fatura_post()
+    public function put_desativar_post()
     {
         // Recebe os dados enviados no corpo da requisição
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);

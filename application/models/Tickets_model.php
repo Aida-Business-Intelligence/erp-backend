@@ -1,6 +1,6 @@
 <?php
 
-use app\services\MergeTickets;
+// use app\services\MergeTickets;
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
@@ -51,8 +51,8 @@ class Tickets_model extends App_Model
         $data = hooks()->apply_filters('piped_ticket_data', $data);
 
         $this->piping = true;
-        $attachments  = $data['attachments'];
-        $subject      = $data['subject'];
+        $attachments = $data['attachments'];
+        $subject = $data['subject'];
         // Prevent insert ticket to database if mail delivery error happen
         // This will stop createing a thousand tickets
         $system_blocked_subjects = [
@@ -77,11 +77,11 @@ class Tickets_model extends App_Model
         }
 
         $message = $data['body'];
-        $name    = $data['fromname'];
+        $name = $data['fromname'];
 
-        $email   = $data['email'];
-        $to      = $data['to'];
-        $cc      = $data['cc'] ?? [];
+        $email = $data['email'];
+        $to = $data['to'];
+        $cc = $data['cc'] ?? [];
         $subject = $subject;
         $message = $message;
 
@@ -97,19 +97,19 @@ class Tickets_model extends App_Model
                 $tid = substr($tid, 0, strpos($tid, ']'));
                 $this->db->where('ticketid', $tid);
                 $data = $this->db->get(db_prefix() . 'tickets')->row();
-                $tid  = $data->ticketid;
+                $tid = $data->ticketid;
             }
-            $to            = trim($to);
-            $toemails      = explode(',', $to);
+            $to = trim($to);
+            $toemails = explode(',', $to);
             $department_id = false;
-            $userid        = false;
+            $userid = false;
             foreach ($toemails as $toemail) {
                 if (!$department_id) {
                     $this->db->where('email', trim($toemail));
                     $data = $this->db->get(db_prefix() . 'departments')->row();
                     if ($data) {
                         $department_id = $data->departmentid;
-                        $to            = $data->email;
+                        $to = $data->email;
                     }
                 }
             }
@@ -125,16 +125,16 @@ class Tickets_model extends App_Model
                     $result = $this->db->get(db_prefix() . 'staff')->row();
                     if ($result) {
                         if ($tid) {
-                            $data            = [];
+                            $data = [];
                             $data['message'] = $message;
-                            $data['status']  = get_option('default_ticket_reply_status');
+                            $data['status'] = get_option('default_ticket_reply_status');
 
                             if (!$data['status']) {
                                 $data['status'] = 3; // Answered
                             }
 
                             if ($userid == false) {
-                                $data['name']  = $name;
+                                $data['name'] = $name;
                                 $data['email'] = $email;
                             }
 
@@ -153,14 +153,14 @@ class Tickets_model extends App_Model
                         $this->db->where('email', $email);
                         $result = $this->db->get(db_prefix() . 'contacts')->row();
                         if ($result) {
-                            $userid    = $result->userid;
+                            $userid = $result->userid;
                             $contactid = $result->id;
                         }
                         if ($userid == false && get_option('email_piping_only_registered') == '1') {
                             $mailstatus = 'Unregistered Email Address';
                         } else {
                             $filterdate = date('Y-m-d H:i:s', strtotime('-15 minutes'));
-                            $query      = 'SELECT count(*) as total FROM ' . db_prefix() . 'tickets WHERE date > "' . $filterdate . '" AND (email="' . $this->db->escape($email) . '"';
+                            $query = 'SELECT count(*) as total FROM ' . db_prefix() . 'tickets WHERE date > "' . $filterdate . '" AND (email="' . $this->db->escape($email) . '"';
                             if ($userid) {
                                 $query .= ' OR userid=' . (int) $userid;
                             }
@@ -170,14 +170,14 @@ class Tickets_model extends App_Model
                                 $mailstatus = 'Exceeded Limit of 10 Tickets within 15 Minutes';
                             } else {
                                 if (isset($tid)) {
-                                    $data            = [];
+                                    $data = [];
                                     $data['message'] = $message;
-                                    $data['status']  = 1;
+                                    $data['status'] = 1;
                                     if ($userid == false) {
-                                        $data['name']  = $name;
+                                        $data['name'] = $name;
                                         $data['email'] = $email;
                                     } else {
-                                        $data['userid']    = $userid;
+                                        $data['userid'] = $userid;
                                         $data['contactid'] = $contactid;
 
                                         $this->db->where('ticketid', $tid);
@@ -211,14 +211,14 @@ class Tickets_model extends App_Model
                                         if (get_option('email_piping_only_replies') == '1') {
                                             $mailstatus = 'Only Replies Allowed by Email';
                                         } else {
-                                            $data               = [];
+                                            $data = [];
                                             $data['department'] = $department_id;
-                                            $data['subject']    = $subject;
-                                            $data['message']    = $message;
-                                            $data['contactid']  = $contactid;
-                                            $data['priority']   = get_option('email_piping_default_priority');
+                                            $data['subject'] = $subject;
+                                            $data['message'] = $message;
+                                            $data['contactid'] = $contactid;
+                                            $data['priority'] = get_option('email_piping_default_priority');
                                             if ($userid == false) {
-                                                $data['name']  = $name;
+                                                $data['name'] = $name;
                                                 $data['email'] = $email;
                                             } else {
                                                 $data['userid'] = $userid;
@@ -245,13 +245,13 @@ class Tickets_model extends App_Model
             $mailstatus = 'Ticket Import Failed';
         }
         $this->db->insert(db_prefix() . 'tickets_pipe_log', [
-            'date'     => date('Y-m-d H:i:s'),
+            'date' => date('Y-m-d H:i:s'),
             'email_to' => $to,
-            'name'     => $name ?: 'Unknown',
-            'email'    => $email ?: 'N/A',
-            'subject'  => $subject ?: 'N/A',
-            'message'  => $message,
-            'status'   => $mailstatus,
+            'name' => $name ?: 'Unknown',
+            'email' => $email ?: 'N/A',
+            'subject' => $subject ?: 'N/A',
+            'message' => $message,
+            'status' => $mailstatus,
         ]);
 
         return $mailstatus;
@@ -268,10 +268,10 @@ class Tickets_model extends App_Model
             $path = FCPATH . 'uploads/ticket_attachments' . '/' . $ticket_id . '/';
 
             foreach ($attachments as $attachment) {
-                $filename      = $attachment['filename'];
+                $filename = $attachment['filename'];
                 $filenameparts = explode('.', $filename);
-                $extension     = end($filenameparts);
-                $extension     = strtolower($extension);
+                $extension = end($filenameparts);
+                $extension = strtolower($extension);
                 if (in_array('.' . $extension, $allowed_extensions)) {
                     $filename = implode(array_slice($filenameparts, 0, 0 - 1));
                     $filename = trim(preg_replace('/[^a-zA-Z0-9-_ ]/', '', $filename));
@@ -291,7 +291,7 @@ class Tickets_model extends App_Model
 
                     array_push($ticket_attachments, [
                         'file_name' => $filename,
-                        'filetype'  => get_mime_by_extension($filename),
+                        'filetype' => get_mime_by_extension($filename),
                     ]);
                 }
             }
@@ -356,8 +356,8 @@ class Tickets_model extends App_Model
         $ticket = $this->db->get()->row();
         if ($ticket) {
             $ticket->submitter = $ticket->contactid != 0 ?
-            ($ticket->user_firstname . ' ' . $ticket->user_lastname) :
-            $ticket->from_name;
+                ($ticket->user_firstname . ' ' . $ticket->user_lastname) :
+                $ticket->from_name;
 
             if (!($ticket->admin == null || $ticket->admin == 0)) {
                 $ticket->opened_by = $ticket->staff_firstname . ' ' . $ticket->staff_lastname;
@@ -379,7 +379,7 @@ class Tickets_model extends App_Model
     public function insert_ticket_attachments_to_database($attachments, $ticketid, $replyid = false)
     {
         foreach ($attachments as $attachment) {
-            $attachment['ticketid']  = $ticketid;
+            $attachment['ticketid'] = $ticketid;
             $attachment['dateadded'] = date('Y-m-d H:i:s');
             if ($replyid !== false && is_int($replyid)) {
                 $attachment['replyid'] = $replyid;
@@ -438,7 +438,7 @@ class Tickets_model extends App_Model
 
         if ($admin !== null) {
             $data['admin'] = $admin;
-            $status        = $data['status'];
+            $status = $data['status'];
         } else {
             $status = 1;
         }
@@ -454,10 +454,10 @@ class Tickets_model extends App_Model
         }
 
         // if ticket is merged
-        $ticket           = $this->get($id);
+        $ticket = $this->get($id);
         $data['ticketid'] = ($ticket && $ticket->merged_ticket_id != null) ? $ticket->merged_ticket_id : $id;
-        $data['date']     = date('Y-m-d H:i:s');
-        $data['message']  = trim($data['message']);
+        $data['date'] = date('Y-m-d H:i:s');
+        $data['message'] = trim($data['message']);
 
         if ($this->piping == true) {
             // $data['message'] = preg_replace('/\v+/u', '<br>', $data['message']);
@@ -466,8 +466,9 @@ class Tickets_model extends App_Model
         $is_html_stripped = $this->piping === true;
 
         // admin can have html
-        if (!$is_html_stripped && 
-            $admin == null && 
+        if (
+            !$is_html_stripped &&
+            $admin == null &&
             hooks()->apply_filters('ticket_message_without_html_for_non_admin', true)
         ) {
             $data['message'] = _strip_tags($data['message']);
@@ -479,7 +480,7 @@ class Tickets_model extends App_Model
         }
 
         // $data['message'] = remove_emojis($data['message']);
-        $data            = hooks()->apply_filters('before_ticket_reply_add', $data, $id, $admin);
+        $data = hooks()->apply_filters('before_ticket_reply_add', $data, $id, $admin);
 
         $this->db->insert(db_prefix() . 'ticket_replies', $data);
 
@@ -524,24 +525,24 @@ class Tickets_model extends App_Model
 
             $this->db->where('ticketid', $id);
             $this->db->update(db_prefix() . 'tickets', [
-                'lastreply'  => date('Y-m-d H:i:s'),
-                'status'     => $newStatus,
-                'adminread'  => 0,
+                'lastreply' => date('Y-m-d H:i:s'),
+                'status' => $newStatus,
+                'adminread' => 0,
                 'clientread' => 0,
             ]);
 
             if ($old_ticket_status != $newStatus) {
                 hooks()->do_action('after_ticket_status_changed', [
-                    'id'     => $id,
+                    'id' => $id,
                     'status' => $newStatus,
                 ]);
             }
 
-            $ticket    = $this->get_ticket_by_id($id);
-            $userid    = $ticket->userid;
+            $ticket = $this->get_ticket_by_id($id);
+            $userid = $ticket->userid;
             $isContact = false;
             if ($ticket->userid != 0 && $ticket->contactid != 0) {
-                $email     = $this->clients_model->get_contact($ticket->contactid)->email;
+                $email = $this->clients_model->get_contact($ticket->contactid)->email;
                 $isContact = true;
             } else {
                 $email = $ticket->ticket_email;
@@ -551,16 +552,16 @@ class Tickets_model extends App_Model
                 $this->load->model('staff_model');
 
                 $notifiedUsers = [];
-                $staff         = $this->getStaffMembersForTicketNotification($ticket->department, $ticket->assigned);
+                $staff = $this->getStaffMembersForTicketNotification($ticket->department, $ticket->assigned);
                 foreach ($staff as $staff_key => $member) {
                     send_mail_template('ticket_new_reply_to_staff', $ticket, $member, $_attachments);
                     if (get_option('receive_notification_on_new_ticket_replies') == 1) {
                         $notified = add_notification([
-                            'description'     => 'not_new_ticket_reply',
-                            'touserid'        => $member['staffid'],
-                            'fromcompany'     => 1,
-                            'fromuserid'      => 0,
-                            'link'            => 'tickets/ticket/' . $id,
+                            'description' => 'not_new_ticket_reply',
+                            'touserid' => $member['staffid'],
+                            'fromcompany' => 1,
+                            'fromuserid' => 0,
+                            'link' => 'tickets/ticket/' . $id,
                             'additional_data' => serialize([
                                 $ticket->subject,
                             ]),
@@ -598,7 +599,7 @@ class Tickets_model extends App_Model
                 if (is_array($cc)) {
                     if ($ticket->cc) {
                         $currentCC = explode(',', $ticket->cc);
-                        $cc        = array_unique([$cc, $currentCC]);
+                        $cc = array_unique([$cc, $currentCC]);
                     }
                     $cc = implode(',', $cc);
                 }
@@ -606,9 +607,9 @@ class Tickets_model extends App_Model
                 $this->db->update('tickets', ['cc' => $cc]);
             }
             hooks()->do_action('after_ticket_reply_added', [
-                'data'    => $data,
-                'id'      => $id,
-                'admin'   => $admin,
+                'data' => $data,
+                'id' => $id,
+                'admin' => $admin,
                 'replyid' => $insert_id,
             ]);
 
@@ -702,7 +703,7 @@ class Tickets_model extends App_Model
         $this->db->where(db_prefix() . 'tickets.userid', $userid);
         $this->db->where(db_prefix() . 'tickets.ticketid !=', $id);
         $tickets = $this->db->get()->result_array();
-        $i       = 0;
+        $i = 0;
         foreach ($tickets as $ticket) {
             $tickets[$i]['submitter'] = $ticket['firstname'] . ' ' . $ticket['lastname'];
             unset($ticket['firstname']);
@@ -733,7 +734,7 @@ class Tickets_model extends App_Model
         $this->db->where('ticketid', $id);
         $this->db->order_by('date', $ticket_replies_order);
         $replies = $this->db->get()->result_array();
-        $i       = 0;
+        $i = 0;
         foreach ($replies as $reply) {
             if ($reply['admin'] !== null || $reply['admin'] != 0) {
                 // staff reply
@@ -778,12 +779,12 @@ class Tickets_model extends App_Model
 
         if ($admin == null) {
             if (isset($data['email'])) {
-                $data['userid']    = 0;
+                $data['userid'] = 0;
                 $data['contactid'] = 0;
             } else {
                 // Opened from customer portal otherwise is passed from pipe or admin area
                 if (!isset($data['userid']) && !isset($data['contactid'])) {
-                    $data['userid']    = get_client_user_id();
+                    $data['userid'] = get_client_user_id();
                     $data['contactid'] = get_contact_user_id();
                 }
             }
@@ -802,20 +803,21 @@ class Tickets_model extends App_Model
             unset($data['cc']);
         }
 
-        $data['date']      = date('Y-m-d H:i:s');
+        $data['date'] = date('Y-m-d H:i:s');
         $data['ticketkey'] = app_generate_hash();
-        $data['status']    = 1;
-        $data['message']   = trim($data['message']);
-        $data['subject']   = trim($data['subject']);
+        $data['status'] = 1;
+        $data['message'] = trim($data['message']);
+        $data['subject'] = trim($data['subject']);
         // if ($this->piping == true) {
         //     $data['message'] = preg_replace('/\v+/u', '<br>', $data['message']);
         // }
 
         $is_html_stripped = $this->piping === true;
-      
+
         // Admin can have html
-        if (!$is_html_stripped && 
-            $admin == null && 
+        if (
+            !$is_html_stripped &&
+            $admin == null &&
             hooks()->apply_filters('ticket_message_without_html_for_non_admin', true)
         ) {
             $data['message'] = _strip_tags($data['message']);
@@ -838,7 +840,7 @@ class Tickets_model extends App_Model
         }
 
         // $data['message'] = remove_emojis($data['message']);
-        $data            = hooks()->apply_filters('before_ticket_created', $data, $admin);
+        $data = hooks()->apply_filters('before_ticket_created', $data, $admin);
 
         $this->db->insert(db_prefix() . 'tickets', $data);
         $ticketid = $this->db->insert_id();
@@ -852,11 +854,11 @@ class Tickets_model extends App_Model
             if (isset($data['assigned']) && $data['assigned'] != 0) {
                 if ($data['assigned'] != get_staff_user_id()) {
                     $notified = add_notification([
-                        'description'     => 'not_ticket_assigned_to_you',
-                        'touserid'        => $data['assigned'],
-                        'fromcompany'     => 1,
-                        'fromuserid'      => 0,
-                        'link'            => 'tickets/ticket/' . $ticketid,
+                        'description' => 'not_ticket_assigned_to_you',
+                        'touserid' => $data['assigned'],
+                        'fromcompany' => 1,
+                        'fromuserid' => 0,
+                        'link' => 'tickets/ticket/' . $ticketid,
                         'additional_data' => serialize([
                             $data['subject'],
                         ]),
@@ -883,7 +885,7 @@ class Tickets_model extends App_Model
 
             $isContact = false;
             if (isset($data['userid']) && $data['userid'] != false) {
-                $email     = $this->clients_model->get_contact($data['contactid'])->email;
+                $email = $this->clients_model->get_contact($data['contactid'])->email;
                 $isContact = true;
             } else {
                 $email = $data['email'];
@@ -891,18 +893,18 @@ class Tickets_model extends App_Model
 
             $template = 'ticket_created_to_customer';
             if ($admin == null) {
-                $template      = 'ticket_autoresponse';
+                $template = 'ticket_autoresponse';
                 $notifiedUsers = [];
                 $staffToNotify = $this->getStaffMembersForTicketNotification($data['department'], $data['assigned'] ?? 0);
                 foreach ($staffToNotify as $member) {
                     send_mail_template('ticket_created_to_staff', $ticketid, $data['userid'], $data['contactid'], $member, $_attachments);
                     if (get_option('receive_notification_on_new_ticket') == 1) {
                         $notified = add_notification([
-                            'description'     => 'not_new_ticket_created',
-                            'touserid'        => $member['staffid'],
-                            'fromcompany'     => 1,
-                            'fromuserid'      => 0,
-                            'link'            => 'tickets/ticket/' . $ticketid,
+                            'description' => 'not_new_ticket_created',
+                            'touserid' => $member['staffid'],
+                            'fromcompany' => 1,
+                            'fromuserid' => 0,
+                            'link' => 'tickets/ticket/' . $ticketid,
                             'additional_data' => serialize([
                                 $data['subject'],
                             ]),
@@ -1048,7 +1050,7 @@ class Tickets_model extends App_Model
     public function update_single_ticket_settings($data)
     {
         $affectedRows = 0;
-        $data         = hooks()->apply_filters('before_ticket_settings_updated', $data);
+        $data = hooks()->apply_filters('before_ticket_settings_updated', $data);
 
         $ticketBeforeUpdate = $this->get_ticket_by_id($data['ticketid']);
 
@@ -1090,7 +1092,7 @@ class Tickets_model extends App_Model
         }
 
         if (isset($data['contactid']) && $data['contactid'] != '') {
-            $data['name']  = null;
+            $data['name'] = null;
             $data['email'] = null;
         }
 
@@ -1100,9 +1102,9 @@ class Tickets_model extends App_Model
             hooks()->do_action(
                 'ticket_settings_updated',
                 [
-                    'ticket_id'       => $data['ticketid'],
+                    'ticket_id' => $data['ticketid'],
                     'original_ticket' => $ticketBeforeUpdate,
-                    'data'            => $data,
+                    'data' => $data,
                 ]
             );
             $affectedRows++;
@@ -1115,12 +1117,12 @@ class Tickets_model extends App_Model
             if ($current_assigned != $data['assigned']) {
                 if ($data['assigned'] != 0 && $data['assigned'] != get_staff_user_id()) {
                     $sendAssignedEmail = true;
-                    $notified          = add_notification([
-                        'description'     => 'not_ticket_reassigned_to_you',
-                        'touserid'        => $data['assigned'],
-                        'fromcompany'     => 1,
-                        'fromuserid'      => 0,
-                        'link'            => 'tickets/ticket/' . $data['ticketid'],
+                    $notified = add_notification([
+                        'description' => 'not_ticket_reassigned_to_you',
+                        'touserid' => $data['assigned'],
+                        'fromcompany' => 1,
+                        'fromuserid' => 0,
+                        'link' => 'tickets/ticket/' . $data['ticketid'],
                         'additional_data' => serialize([
                             $data['subject'],
                         ]),
@@ -1133,12 +1135,12 @@ class Tickets_model extends App_Model
         } else {
             if ($data['assigned'] != 0 && $data['assigned'] != get_staff_user_id()) {
                 $sendAssignedEmail = true;
-                $notified          = add_notification([
-                    'description'     => 'not_ticket_assigned_to_you',
-                    'touserid'        => $data['assigned'],
-                    'fromcompany'     => 1,
-                    'fromuserid'      => 0,
-                    'link'            => 'tickets/ticket/' . $data['ticketid'],
+                $notified = add_notification([
+                    'description' => 'not_ticket_assigned_to_you',
+                    'touserid' => $data['assigned'],
+                    'fromcompany' => 1,
+                    'fromuserid' => 0,
+                    'link' => 'tickets/ticket/' . $data['ticketid'],
                     'additional_data' => serialize([
                         $data['subject'],
                     ]),
@@ -1176,19 +1178,19 @@ class Tickets_model extends App_Model
         $this->db->update(db_prefix() . 'tickets', [
             'status' => $status,
         ]);
-        $alert   = 'warning';
+        $alert = 'warning';
         $message = _l('ticket_status_changed_fail');
         if ($this->db->affected_rows() > 0) {
-            $alert   = 'success';
+            $alert = 'success';
             $message = _l('ticket_status_changed_successfully');
             hooks()->do_action('after_ticket_status_changed', [
-                'id'     => $id,
+                'id' => $id,
                 'status' => $status,
             ]);
         }
 
         return [
-            'alert'   => $alert,
+            'alert' => $alert,
             'message' => $message,
         ];
     }
@@ -1410,7 +1412,7 @@ class Tickets_model extends App_Model
             return [
                 'default' => true,
             ];
-        // Not default check if if used in table
+            // Not default check if if used in table
         } elseif (is_reference_in_table('status', db_prefix() . 'tickets', $id)) {
             return [
                 'referenced' => true,
@@ -1495,7 +1497,7 @@ class Tickets_model extends App_Model
             if (get_option('staff_access_only_assigned_departments') == 1) {
                 $this->load->model('departments_model');
                 $staff_deparments_ids = $this->departments_model->get_staff_departments(get_staff_user_id(), true);
-                $departments_ids      = [];
+                $departments_ids = [];
                 if (count($staff_deparments_ids) == 0) {
                     $departments = $this->departments_model->get();
                     foreach ($departments as $department) {
@@ -1508,15 +1510,15 @@ class Tickets_model extends App_Model
         }
 
         $chart = [
-            'labels'   => get_weekdays(),
+            'labels' => get_weekdays(),
             'datasets' => [
                 [
-                    'label'           => _l('home_weekend_ticket_opening_statistics'),
+                    'label' => _l('home_weekend_ticket_opening_statistics'),
                     'backgroundColor' => 'rgba(197, 61, 169, 0.5)',
-                    'borderColor'     => '#c53da9',
-                    'borderWidth'     => 1,
-                    'tension'         => false,
-                    'data'            => [
+                    'borderColor' => '#c53da9',
+                    'borderWidth' => 1,
+                    'tension' => false,
+                    'data' => [
                         0,
                         0,
                         0,
@@ -1578,9 +1580,9 @@ class Tickets_model extends App_Model
             ->where('email', $email);
 
         $this->db->update(db_prefix() . 'tickets', [
-            'email'     => null,
-            'name'      => null,
-            'userid'    => $customer_id,
+            'email' => null,
+            'name' => null,
+            'userid' => $customer_id,
             'contactid' => $contact_id,
         ]);
 
@@ -1590,9 +1592,9 @@ class Tickets_model extends App_Model
             ->where('email', $email);
 
         $this->db->update(db_prefix() . 'ticket_replies', [
-            'email'     => null,
-            'name'      => null,
-            'userid'    => $customer_id,
+            'email' => null,
+            'name' => null,
+            'userid' => $customer_id,
             'contactid' => $contact_id,
         ]);
 
@@ -1723,4 +1725,348 @@ class Tickets_model extends App_Model
 
         return $staffToNotify;
     }
+
+
+    public function add_ticket($data)
+    {
+        // Remover a lógica de filtragem de campos
+        // Inserir diretamente os dados recebidos no banco de dados
+        $this->db->insert(db_prefix() . 'tickets', $data);
+
+        // Retornar ID se a inserção for bem-sucedida
+        return ($this->db->affected_rows() > 0) ? $this->db->insert_id() : false;
+    }
+
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
+    {
+        if (!is_numeric($id)) {
+            // Seleciona os campos necessários das tabelas tbltickets, tblstaff, tblcontacts, tbltickets_priorities, tbltickets_status e tbltickets_types
+            $this->db->select('
+            tbltickets.*,
+            tblstaff.firstname AS firstname_user,
+            tblstaff.lastname AS lastname_user,
+            tblstaff.email AS email_user,
+            tblstaff.phonenumber AS phonenumber_user,
+            tblclients.company AS firstname_contact,
+            tblclients.email_default AS email_contact,
+            tblclients.phonenumber AS phonenumber_contact,
+            tbltickets_priorities.name AS priority_name,
+            tbltickets_status.name AS status_name,
+            tbltickets_types.name AS type_name,
+            tbltickets_types.description AS type_description,
+            tbltickets_types.color AS type_color,
+            tbldepartments.name AS department_name,
+        ');
+            $this->db->from('tbltickets'); // Define a tabela principal como tbltickets
+            $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.assigned', 'left'); // JOIN com tblstaff
+            $this->db->join('tblclients', 'tblclients.userid = tbltickets.contactid', 'left'); // JOIN com tblclients
+            $this->db->join('tbltickets_priorities', 'tbltickets_priorities.priorityid = tbltickets.priority', 'left'); // JOIN com tbltickets_priorities
+            $this->db->join('tbltickets_status', 'tbltickets_status.ticketstatusid = tbltickets.status', 'left'); // JOIN com tbltickets_status
+            $this->db->join('tbltickets_types', 'tbltickets_types.typeid = tbltickets.type', 'left'); // JOIN com tbltickets_types
+            $this->db->join('tbldepartments', 'tbldepartments.departmentid = tbltickets.department', 'left'); // JOIN com tbldepartments
+            $this->db->where('tbltickets.warehouse_id', $warehouse_id);
+
+            // Filtro de busca
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('tbltickets.adminreplying', $search);
+                $this->db->or_like('tblstaff.firstname', $search);
+                $this->db->or_like('tblstaff.lastname', $search);
+                $this->db->or_like('tblstaff.email', $search);
+                $this->db->or_like('tblstaff.phonenumber', $search);
+                $this->db->or_like('tblclients.company', $search);
+                $this->db->or_like('tblclients.email_default', $search);
+                $this->db->or_like('tblclients.phonenumber', $search);
+                $this->db->or_like('tbltickets.email', $search);
+                $this->db->or_like('tbltickets.name', $search);
+                $this->db->or_like('tbltickets.service', $search);
+                $this->db->or_like('tbltickets.subject', $search);
+                $this->db->or_like('tbltickets.ticketkey', $search);
+                $this->db->or_like('tbltickets.message', $search);
+                $this->db->or_like('tbltickets_priorities.name', $search); // Busca na prioridade
+                $this->db->or_like('tbltickets_status.name', $search); // Busca no status
+                $this->db->or_like('tbltickets_types.name', $search); // Busca no tipo
+                $this->db->group_end();
+            }
+
+            // Ordenação
+            $this->db->order_by($sortField, $sortOrder);
+
+            // Paginação
+            $this->db->limit($limit, ($page - 1) * $limit);
+
+            // Executa a query e obtém os resultados
+            $tickets = $this->db->get()->result_array();
+
+            // Contagem total de registros (para paginação)
+            $this->db->reset_query();
+            $this->db->select('tbltickets.*');
+            $this->db->from('tbltickets'); // Define a tabela principal como tbltickets
+            $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.assigned', 'left'); // JOIN com tblstaff
+            $this->db->join('tblclients', 'tblclients.userid = tbltickets.contactid', 'left'); // JOIN com tblclients
+            $this->db->join('tbltickets_priorities', 'tbltickets_priorities.priorityid = tbltickets.priority', 'left'); // JOIN com tbltickets_priorities
+            $this->db->join('tbltickets_status', 'tbltickets_status.ticketstatusid = tbltickets.status', 'left'); // JOIN com tbltickets_status
+            $this->db->join('tbltickets_types', 'tbltickets_types.typeid = tbltickets.type', 'left'); // JOIN com tbltickets_types
+            $this->db->join('tbldepartments', 'tbldepartments.departmentid = tbltickets.department', 'left'); // JOIN com tbldepartments
+            $this->db->where('tbltickets.warehouse_id', $warehouse_id);
+
+            // Filtro de busca na contagem
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('tbltickets.adminreplying', $search);
+                $this->db->or_like('tblstaff.firstname', $search);
+                $this->db->or_like('tblstaff.lastname', $search);
+                $this->db->or_like('tblstaff.email', $search);
+                $this->db->or_like('tblstaff.phonenumber', $search);
+                $this->db->or_like('tblclients.company', $search);
+                $this->db->or_like('tblclients.email_default', $search);
+                $this->db->or_like('tblclients.phonenumber', $search);
+                $this->db->or_like('tbltickets.email', $search);
+                $this->db->or_like('tbltickets.name', $search);
+                $this->db->or_like('tbltickets.service', $search);
+                $this->db->or_like('tbltickets.subject', $search);
+                $this->db->or_like('tbltickets.ticketkey', $search);
+                $this->db->or_like('tbltickets.message', $search);
+                $this->db->or_like('tbltickets_priorities.name', $search); // Busca na prioridade
+                $this->db->or_like('tbltickets_status.name', $search); // Busca no status
+                $this->db->or_like('tbltickets_types.name', $search); // Busca no tipo
+                $this->db->group_end();
+            }
+
+            $total = $this->db->count_all_results(); // Contagem correta
+
+            return ['data' => $tickets, 'total' => $total];
+        } else {
+            // Busca um ticket específico pelo ID
+            $this->db->select('
+            tbltickets.*,
+            tblstaff.firstname AS firstname_user,
+            tblstaff.lastname AS lastname_user,
+            tblstaff.email AS email_user,
+            tblstaff.phonenumber AS phonenumber_user,
+            tblclients.company AS firstname_contact,
+            tblclients.email_default AS email_contact,
+            tblclients.phonenumber AS phonenumber_contact,
+            tbltickets_priorities.name AS priority_name,
+            tbltickets_status.name AS status_name,
+            tbltickets_types.name AS type_name,
+            tbltickets_types.description AS type_description,
+            tbltickets_types.color AS type_color,
+            tbldepartments.name AS department_name,
+        ');
+            $this->db->from('tbltickets'); // Define a tabela principal como tbltickets
+            $this->db->join('tblstaff', 'tblstaff.staffid = tbltickets.assigned', 'left'); // JOIN com tblstaff
+            $this->db->join('tblclients', 'tblclients.userid = tbltickets.contactid', 'left'); // JOIN com tblclients
+            $this->db->join('tbltickets_priorities', 'tbltickets_priorities.priorityid = tbltickets.priority', 'left'); // JOIN com tbltickets_priorities
+            $this->db->join('tbltickets_status', 'tbltickets_status.ticketstatusid = tbltickets.status', 'left'); // JOIN com tbltickets_status
+            $this->db->join('tbltickets_types', 'tbltickets_types.typeid = tbltickets.type', 'left'); // JOIN com tbltickets_types
+            $this->db->join('tbldepartments', 'tbldepartments.departmentid = tbltickets.department', 'left'); // JOIN com tbldepartments
+            $this->db->where('tbltickets.warehouse_id', $warehouse_id);
+            $this->db->where('tbltickets.ticketid', $id); // Filtra pelo ID do ticket
+
+            $ticket = $this->db->get()->row();
+            $total = $ticket ? 1 : 0;
+
+            return ['data' => (array) $ticket, 'total' => $total];
+        }
+    }
+
+    public function get_ticket_departments_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'typeid', $sortOrder = 'ASC')
+    {
+        if (!is_numeric($id)) {
+            $this->db->select('*'); // Seleciona todos os campos
+            $this->db->from(db_prefix() . 'departments'); // Define a tabela
+
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like(db_prefix() . 'departments.name', $search);
+                $this->db->or_like(db_prefix() . 'departments.departmentid', $search);
+                $this->db->group_end();
+            }
+
+            $this->db->order_by($sortField, $sortOrder);
+            $this->db->limit($limit, ($page - 1) * $limit);
+
+            $clients = $this->db->get()->result_array();
+
+            // Contagem de total de registros
+            $this->db->reset_query();
+            $this->db->select('*'); // Seleciona todos os campos
+            $this->db->from(db_prefix() . 'departments'); // Define a tabela
+
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like(db_prefix() . 'departments.name', $search);
+                $this->db->or_like(db_prefix() . 'departments.departmentid', $search);
+                $this->db->group_end();
+            }
+
+            $total = $this->db->count_all_results(); // Contagem correta
+
+            return ['data' => $clients, 'total' => $total];
+        } else {
+            $this->db->select('*'); // Seleciona todos os campos
+            $this->db->from(db_prefix() . 'departments'); // Define a tabela
+
+            $client = $this->db->get()->row();
+            $total = $client ? 1 : 0;
+
+            return ['data' => (array) $client, 'total' => $total];
+        }
+    }
+
+    public function get_ticket_types_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'typeid', $sortOrder = 'ASC')
+    {
+        if (!is_numeric($id)) {
+            $this->db->select('*'); // Seleciona todos os campos
+            $this->db->from(db_prefix() . 'tickets_types'); // Define a tabela
+
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like(db_prefix() . 'tickets_types.name', $search);
+                $this->db->or_like(db_prefix() . 'tickets_types.description', $search);
+                $this->db->group_end();
+            }
+
+            $this->db->order_by($sortField, $sortOrder);
+            $this->db->limit($limit, ($page - 1) * $limit);
+
+            $clients = $this->db->get()->result_array();
+
+            // Contagem de total de registros
+            $this->db->reset_query();
+            $this->db->select('*'); // Seleciona todos os campos
+            $this->db->from(db_prefix() . 'tickets_types'); // Define a tabela
+
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like(db_prefix() . 'tickets_types.name', $search);
+                $this->db->or_like(db_prefix() . 'tickets_types.description', $search);
+                $this->db->group_end();
+            }
+
+            $total = $this->db->count_all_results(); // Contagem correta
+
+            return ['data' => $clients, 'total' => $total];
+        } else {
+            $this->db->select('*'); // Seleciona todos os campos
+            $this->db->from(db_prefix() . 'tickets_types'); // Define a tabela
+
+            $client = $this->db->get()->row();
+            $total = $client ? 1 : 0;
+
+            return ['data' => (array) $client, 'total' => $total];
+        }
+    }
+
+    public function add_type($data)
+    {
+        // Definir os campos permitidos para inserção
+        $allowed_fields = [
+            'name',
+            'description',
+            'color',
+            'type',
+        ];
+
+        // Filtrar apenas os campos válidos
+        $insert_data = array_intersect_key($data, array_flip($allowed_fields));
+
+        // Garantir que campos opcionais fiquem como NULL se não forem enviados
+        foreach ($allowed_fields as $field) {
+            if (!isset($insert_data[$field])) {
+                $insert_data[$field] = NULL;
+            }
+        }
+
+        // Garantir que 'tipo' tenha um valor válido
+        if (!in_array($insert_data['type'], [1, 2])) {
+            return false; // Falha na validação
+        }
+
+        // Inserir no banco de dados
+        $this->db->insert(db_prefix() . 'tickets_types', $insert_data);
+
+        // Retornar ID se a inserção for bem-sucedida
+        return ($this->db->affected_rows() > 0) ? $this->db->insert_id() : false;
+    }
+
+    public function update_type($data, $id)
+    {
+        // Definir os campos permitidos para atualização
+        $allowed_fields = [
+            'name',
+            'description',
+            'color',
+            'type',
+        ];
+
+        // Filtrar apenas os campos válidos
+        $insert_data = array_intersect_key($data, array_flip($allowed_fields));
+
+        // Garantir que campos opcionais fiquem como NULL se não forem enviados
+        foreach ($allowed_fields as $field) {
+            if (!isset($insert_data[$field])) {
+                $insert_data[$field] = NULL;
+            }
+        }
+
+        // Verificar se há algo para atualizar
+        if (empty($insert_data)) {
+            return false;
+        }
+
+        // Atualizar os dados na tabela
+        $this->db->where('typeid', $id); // Use 'typeid' como chave primária
+        $this->db->update(db_prefix() . 'tickets_types', $insert_data);
+
+        // Retornar true se a atualização foi bem-sucedida
+        return ($this->db->affected_rows() > 0);
+    }
+
+    public function delete_type($id)
+    {
+        // Verificar se o ID é válido
+        if (empty($id) || !is_numeric($id)) {
+            return false;
+        }
+
+        // Excluir o tipo de ticket
+        $this->db->where('typeid', $id); // Use 'typeid' como chave primária
+        $this->db->delete(db_prefix() . 'tickets_types');
+
+        // Retornar true se a exclusão foi bem-sucedida
+        return ($this->db->affected_rows() > 0);
+    }
+
+    public function update_resolved($ids, $status)
+    {
+        $this->db->where_in('ticketid', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tbltickets');
+    }
+
+    public function update_status($ids, $status)
+    {
+        $this->db->where_in('ticketid', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tbltickets');
+    }
+
+    public function update_priority2($ids, $priority)
+    {
+        $this->db->where_in('ticketid', $ids);
+        $this->db->set('priority', $priority);
+        return $this->db->update('tbltickets');
+    }
+
+    public function update_assigned_to($ids, $assigned_to)
+    {
+        $this->db->where_in('ticketid', $ids);
+        $this->db->set('assigned', $assigned_to);
+        return $this->db->update('tbltickets');
+    }
+
+
+
 }

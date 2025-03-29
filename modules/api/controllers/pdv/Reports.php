@@ -14,14 +14,7 @@ class Reports extends REST_Controller
 
   public function product_sales_post()
   {
-    $period = $this->post('period') ?: '6months';
-    $category = $this->post('category');
     $warehouse_id = $this->post('warehouse_id');
-    $stockStatus = $this->post('stockStatus');
-    $topProductsLimit = $this->post('topProductsLimit') ?: 10;
-    $orderBy = $this->post('orderBy') ?: 'quantidade';
-    $customStartDate = $this->post('customStartDate');
-    $customEndDate = $this->post('customEndDate');
 
     if (empty($warehouse_id)) {
       $this->response([
@@ -31,39 +24,48 @@ class Reports extends REST_Controller
       return;
     }
 
+    $period = $this->post('period');
+    $category = $this->post('category');
+    $stockStatus = $this->post('stockStatus');
+    $topProductsLimit = $this->post('topProductsLimit') ?: 10;
+    $orderBy = $this->post('orderBy') ?: 'quantidade';
+    $customStartDate = $this->post('startDate');
+    $customEndDate = $this->post('endDate');
+
     $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
     $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
 
-    $startDate = null;
-    $endDate = date('Y-m-d 23:59:59');
-
-    switch ($period) {
-      case '1month':
-        $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
-        break;
-      case '3months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
-        break;
-      case '6months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
-        break;
-      case '12months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
-        break;
-      case 'thisMonth':
-        $startDate = date('Y-m-01 00:00:00');
-        $endDate = date('Y-m-t 23:59:59');
-        break;
-      case 'custom':
-        if ($customStartDate && $customEndDate) {
-          $startDate = date('Y-m-d 00:00:00', strtotime($customStartDate));
-          $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
-        }
-        break;
+    if ($customStartDate) {
+      $startDate = date('Y-m-d H:i:s', strtotime($customStartDate));
+    } else {
+      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
     }
 
-    if (!$startDate) {
-      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+    if ($customEndDate) {
+      $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
+    } else {
+      $endDate = date('Y-m-d 23:59:59');
+    }
+
+    if (!$customStartDate && !$customEndDate && $period) {
+      switch ($period) {
+        case '1month':
+          $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
+          break;
+        case '3months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
+          break;
+        case '6months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+          break;
+        case '12months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
+          break;
+        case 'thisMonth':
+          $startDate = date('Y-m-01 00:00:00');
+          $endDate = date('Y-m-t 23:59:59');
+          break;
+      }
     }
 
     $this->db->select('
@@ -89,7 +91,7 @@ class Reports extends REST_Controller
     $this->db->join(db_prefix() . 'cashs c', 'c.id = ic.cash_id', 'left');
     $this->db->where('i.warehouse_id', $warehouse_id);
     $this->db->where('i.active', 1);
-    $this->db->where('c.status', 1); 
+    $this->db->where('c.status', 1);
     $this->db->where('ic.data >=', $startDate);
     $this->db->where('ic.data <=', $endDate);
 
@@ -112,7 +114,7 @@ class Reports extends REST_Controller
     }
 
     $this->db->group_by('i.id, month_year');
-    $this->db->having('total_qty > 0');  
+    $this->db->having('total_qty > 0');
     $this->db->order_by('total_qty', 'DESC');
     $this->db->limit(10);
 
@@ -154,7 +156,7 @@ class Reports extends REST_Controller
     $this->db->join(db_prefix() . 'cashs c', 'c.id = ic.cash_id', 'left');
     $this->db->where('i.warehouse_id', $warehouse_id);
     $this->db->where('i.active', 1);
-    $this->db->where('c.status', 1); 
+    $this->db->where('c.status', 1);
     $this->db->where('ic.data >=', $startDate);
     $this->db->where('ic.data <=', $endDate);
 
@@ -177,7 +179,7 @@ class Reports extends REST_Controller
     }
 
     $this->db->group_by('i.id');
-    $this->db->having('SUM(COALESCE(ic.qty, 0)) > 0');  
+    $this->db->having('SUM(COALESCE(ic.qty, 0)) > 0');
     $count_result = $this->db->get()->row();
     $total_items = $count_result ? $count_result->total_count : 0;
 
@@ -224,7 +226,7 @@ class Reports extends REST_Controller
     }
 
     $this->db->group_by('i.id');
-    $this->db->having('total_qty > 0');  
+    $this->db->having('total_qty > 0');
 
     switch ($orderBy) {
       case 'quantidade':
@@ -277,43 +279,60 @@ class Reports extends REST_Controller
 
   public function cash_report_post()
   {
-    $period = $this->post('period') ?: '6months';
-    $franchise = $this->post('franchise');
+    $warehouse_id = $this->post('warehouse_id');
+
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $period = $this->post('period');
     $cashier = $this->post('cashier');
     $status = $this->post('status');
     $paymentMethod = $this->post('paymentMethod');
     $customStartDate = $this->post('startDate');
     $customEndDate = $this->post('endDate');
 
+    // Convert status to integer for proper comparison and use it for active field
+    $active = ($status !== null && $status !== '') ? (int) $status : null;
+
     $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
     $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
 
-    $startDate = null;
-    $endDate = date('Y-m-d 23:59:59');
+    if ($customStartDate) {
+      $startDate = date('Y-m-d H:i:s', strtotime($customStartDate));
+    } else {
+      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+    }
 
-    switch ($period) {
-      case '1month':
-        $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
-        break;
-      case '3months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
-        break;
-      case '6months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
-        break;
-      case '12months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
-        break;
-      case 'thisMonth':
-        $startDate = date('Y-m-01 00:00:00');
-        $endDate = date('Y-m-t 23:59:59');
-        break;
-      case 'custom':
-        if ($customStartDate && $customEndDate) {
-          $startDate = date('Y-m-d 00:00:00', strtotime($customStartDate));
-          $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
-        }
-        break;
+    if ($customEndDate) {
+      $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
+    } else {
+      $endDate = date('Y-m-d 23:59:59');
+    }
+
+    if (!$customStartDate && !$customEndDate && $period) {
+      switch ($period) {
+        case '1month':
+          $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
+          break;
+        case '3months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
+          break;
+        case '6months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+          break;
+        case '12months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
+          break;
+        case 'thisMonth':
+          $startDate = date('Y-m-01 00:00:00');
+          $endDate = date('Y-m-t 23:59:59');
+          break;
+      }
     }
 
     $this->db->select('
@@ -325,24 +344,23 @@ class Reports extends REST_Controller
         c.close_cash,
         c.balance,
         c.balance_dinheiro,
-        c.number as cash_number,
+        c.number,
         c.sangria,
         c.observation,
+        c.active,
         CONCAT(s.firstname, " ", s.lastname) as operator_name,
         TIMESTAMPDIFF(SECOND, c.data, NOW()) as processing_time
     ');
     $this->db->from(db_prefix() . 'cashs c');
     $this->db->join(db_prefix() . 'staff s', 's.staffid = c.user_id', 'left');
     $this->db->where('c.data BETWEEN "' . $startDate . '" AND "' . $endDate . '"');
+    $this->db->where('c.warehouse_id', $warehouse_id);
 
-    if ($franchise) {
-      $this->db->where('c.franchise_id', $franchise);
-    }
     if ($cashier) {
-      $this->db->where('c.number', $cashier);
+      $this->db->where('c.id', $cashier);
     }
-    if ($status) {
-      $this->db->where('c.status', $status);
+    if ($active !== null) {
+      $this->db->where('c.active', $active);
     }
 
     $total_count = $this->db->count_all_results('', false);
@@ -356,14 +374,12 @@ class Reports extends REST_Controller
     $this->db->from(db_prefix() . 'cashs ch');
     $this->db->join(db_prefix() . 'staff sh', 'sh.staffid = ch.user_id', 'left');
     $this->db->where('ch.data BETWEEN "' . $startDate . '" AND "' . $endDate . '"');
-    if ($franchise) {
-      $this->db->where('ch.franchise_id', $franchise);
-    }
+    $this->db->where('ch.warehouse_id', $warehouse_id);
     if ($cashier) {
-      $this->db->where('ch.number', $cashier);
+      $this->db->where('ch.id', $cashier);
     }
-    if ($status) {
-      $this->db->where('ch.status', $status);
+    if ($active !== null) {
+      $this->db->where('ch.active', $active);
     }
     $this->db->group_by('HOUR(ch.data)');
     $this->db->order_by('HOUR(ch.data)', 'ASC');
@@ -371,7 +387,7 @@ class Reports extends REST_Controller
     $this->db->reset_query();
 
     $this->db->select('
-        cc.number as cash_id,
+        cc.id as cash_id,
         COUNT(*) as transactions,
         SUM(cc.balance) as total_value,
         AVG(cc.balance) as avg_value
@@ -379,16 +395,14 @@ class Reports extends REST_Controller
     $this->db->from(db_prefix() . 'cashs cc');
     $this->db->join(db_prefix() . 'staff sc', 'sc.staffid = cc.user_id', 'left');
     $this->db->where('cc.data BETWEEN "' . $startDate . '" AND "' . $endDate . '"');
-    if ($franchise) {
-      $this->db->where('cc.franchise_id', $franchise);
-    }
+    $this->db->where('cc.warehouse_id', $warehouse_id);
     if ($cashier) {
-      $this->db->where('cc.number', $cashier);
+      $this->db->where('cc.id', $cashier);
     }
-    if ($status) {
-      $this->db->where('cc.status', $status);
+    if ($active !== null) {
+      $this->db->where('cc.active', $active);
     }
-    $this->db->group_by('cc.number');
+    $this->db->group_by('cc.id');
     $cashier_query = $this->db->get_compiled_select();
     $this->db->reset_query();
 
@@ -401,23 +415,22 @@ class Reports extends REST_Controller
         c.close_cash,
         c.balance,
         c.balance_dinheiro,
-        c.number as cash_number,
+        c.number,
         c.sangria,
         c.observation,
+        c.active,
         CONCAT(s.firstname, " ", s.lastname) as operator_name
     ');
     $this->db->from(db_prefix() . 'cashs c');
     $this->db->join(db_prefix() . 'staff s', 's.staffid = c.user_id', 'left');
     $this->db->where('c.data BETWEEN "' . $startDate . '" AND "' . $endDate . '"');
+    $this->db->where('c.warehouse_id', $warehouse_id);
 
-    if ($franchise) {
-      $this->db->where('c.franchise_id', $franchise);
-    }
     if ($cashier) {
-      $this->db->where('c.number', $cashier);
+      $this->db->where('c.id', $cashier);
     }
-    if ($status) {
-      $this->db->where('c.status', $status);
+    if ($active !== null) {
+      $this->db->where('c.active', $active);
     }
 
     $this->db->order_by('c.data', 'DESC');
@@ -432,14 +445,12 @@ class Reports extends REST_Controller
     ');
     $this->db->from(db_prefix() . 'cashs c');
     $this->db->where('c.data BETWEEN "' . $startDate . '" AND "' . $endDate . '"');
-    if ($franchise) {
-      $this->db->where('c.franchise_id', $franchise);
-    }
+    $this->db->where('c.warehouse_id', $warehouse_id);
     if ($cashier) {
-      $this->db->where('c.number', $cashier);
+      $this->db->where('c.id', $cashier);
     }
-    if ($status) {
-      $this->db->where('c.status', $status);
+    if ($active !== null) {
+      $this->db->where('c.active', $active);
     }
     $metrics = $this->db->get()->row_array();
 
@@ -474,8 +485,7 @@ class Reports extends REST_Controller
         return [
           'id' => $transaction['id'],
           'date' => $transaction['data'],
-          'cashier_id' => $transaction['cash_number'],
-          'status' => $transaction['status'],
+          'cash_number' => $transaction['number'],
           'operator_name' => $transaction['operator_name'],
           'open_amount' => floatval($transaction['open_cash']),
           'close_amount' => floatval($transaction['close_cash']),
@@ -510,11 +520,20 @@ class Reports extends REST_Controller
     return $peak['hour'];
   }
 
-  public function franchises_get()
+  public function franchises_get($franqueado_id = null)
   {
-    $this->db->select('id, name');
-    $this->db->from(db_prefix() . 'franchises');
-    $this->db->order_by('name', 'ASC');
+    if (!$franqueado_id) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'franqueado_id is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $this->db->select('warehouse_id, warehouse_name');
+    $this->db->from(db_prefix() . 'warehouse');
+    $this->db->where('franqueado_id', $franqueado_id);
+    $this->db->order_by('warehouse_name', 'ASC');
 
     $query = $this->db->get();
     $franchises = $query->result_array();
@@ -525,69 +544,61 @@ class Reports extends REST_Controller
     ], REST_Controller::HTTP_OK);
   }
 
-  public function cashiers_get($franchise_id = null)
-  {
-    $this->db->select('id, name, franchise_id');
-    $this->db->from(db_prefix() . 'cash_registers');
-    if ($franchise_id) {
-      $this->db->where('franchise_id', $franchise_id);
-    }
-    $this->db->order_by('name', 'ASC');
-
-    $query = $this->db->get();
-    $cashiers = $query->result_array();
-
-    $this->response([
-      'status' => true,
-      'data' => $cashiers
-    ], REST_Controller::HTTP_OK);
-  }
 
   public function stock_report_post()
   {
-    $period = $this->post('period') ?: '6months';
-    $franchise = $this->post('franchise');
+    $warehouse_id = $this->post('warehouse_id');
+
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $period = $this->post('period');
     $category = $this->post('category');
     $stockStatus = $this->post('stockStatus');
     $performanceFilter = $this->post('performanceFilter');
     $customStartDate = $this->post('startDate');
     $customEndDate = $this->post('endDate');
     $orderBy = $this->post('orderBy') ?: 'depletion';
-    // $warehouse_id = $this->post('warehouse_id') ?: 0;
 
     $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
     $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
 
-    $startDate = null;
-    $endDate = date('Y-m-d 23:59:59');
-
-    switch ($period) {
-      case '1month':
-        $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
-        break;
-      case '3months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
-        break;
-      case '6months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
-        break;
-      case '12months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
-        break;
-      case 'thisMonth':
-        $startDate = date('Y-m-01 00:00:00');
-        $endDate = date('Y-m-t 23:59:59');
-        break;
-      case 'custom':
-        if ($customStartDate && $customEndDate) {
-          $startDate = date('Y-m-d 00:00:00', strtotime($customStartDate));
-          $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
-        }
-        break;
+    if ($customStartDate) {
+      $startDate = date('Y-m-d H:i:s', strtotime($customStartDate));
+    } else {
+      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
     }
 
-    if (!$startDate) {
-      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+    if ($customEndDate) {
+      $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
+    } else {
+      $endDate = date('Y-m-d 23:59:59');
+    }
+
+    if (!$customStartDate && !$customEndDate && $period) {
+      switch ($period) {
+        case '1month':
+          $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
+          break;
+        case '3months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
+          break;
+        case '6months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+          break;
+        case '12months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
+          break;
+        case 'thisMonth':
+          $startDate = date('Y-m-01 00:00:00');
+          $endDate = date('Y-m-t 23:59:59');
+          break;
+      }
     }
 
     $this->db->select(
@@ -609,19 +620,9 @@ class Reports extends REST_Controller
     $this->db->join(db_prefix() . 'items_groups', db_prefix() . 'items_groups.id = ' . db_prefix() . 'items.group_id', 'left');
     $this->db->join(db_prefix() . 'itemcash', db_prefix() . 'itemcash.item_id = ' . db_prefix() . 'items.id', 'left');
 
+    $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
     $this->db->where(db_prefix() . 'itemcash.data >=', $startDate);
     $this->db->where(db_prefix() . 'itemcash.data <=', $endDate);
-
-    // // Adicionando a condição do warehouse_id
-    // if ($warehouse_id) {
-    //   $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
-    // }
-
-
-    if ($franchise) {
-      $this->db->join(db_prefix() . 'cashs', db_prefix() . 'cashs.id = ' . db_prefix() . 'itemcash.cash_id');
-      $this->db->where(db_prefix() . 'cashs.franchise_id', $franchise);
-    }
 
     if ($category) {
       $this->db->where(db_prefix() . 'items.group_id', $category);
@@ -711,13 +712,13 @@ class Reports extends REST_Controller
       if ($days_to_depletion < 30 && $turnover_rate > 30 && $profit_margin > 0.3) {
         $suggestion = [
           'action' => 'increase',
-          'suggestion' => 'Aumentar estoque em 50%. Produto com alta rotatividade e boa margem de lucro.',
+          'suggestion' => 'Considerar aumentar o estoque. Produto com alta rotatividade e boa margem de lucro.',
           'priority' => 'high'
         ];
       } elseif ($days_to_depletion > 90 && $turnover_rate < 10) {
         $suggestion = [
           'action' => 'decrease',
-          'suggestion' => 'Reduzir estoque em 30%. Baixa rotatividade e capital parado.',
+          'suggestion' => 'Considerar reduzir o estoque. Baixa rotatividade.',
           'priority' => 'medium'
         ];
       } else {
@@ -765,43 +766,57 @@ class Reports extends REST_Controller
 
   public function sales_report_post()
   {
-    $period = $this->post('period') ?: '6months';
-    $pdvBox = $this->post('pdvBox');
+    $warehouse_id = $this->post('warehouse_id');
+
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $period = $this->post('period');
+    $cashier = $this->post('cashier');
     $status = $this->post('status');
-    $customStartDate = $this->post('customStartDate');
-    $customEndDate = $this->post('customEndDate');
+    $periodType = $this->post('periodType');
+    $customStartDate = $this->post('startDate');
+    $customEndDate = $this->post('endDate');
 
     $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
     $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
-    $warehouse_id = $this->post('warehouse_id') ?: 0;
 
-    $startDate = null;
-    $endDate = date('Y-m-d 23:59:59');
-
-    switch ($period) {
-      case '1month':
-        $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
-        break;
-      case '3months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
-        break;
-      case '6months':
-        $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
-        break;
-      case 'thisMonth':
-        $startDate = date('Y-m-01 00:00:00');
-        $endDate = date('Y-m-t 23:59:59');
-        break;
-      case 'custom':
-        if ($customStartDate && $customEndDate) {
-          $startDate = date('Y-m-d 00:00:00', strtotime($customStartDate));
-          $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
-        }
-        break;
+    if ($customStartDate) {
+      $startDate = date('Y-m-d H:i:s', strtotime($customStartDate));
+    } else {
+      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
     }
 
-    if (!$startDate) {
-      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+    if ($customEndDate) {
+      $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
+    } else {
+      $endDate = date('Y-m-d 23:59:59');
+    }
+
+    if (!$customStartDate && !$customEndDate && $period) {
+      switch ($period) {
+        case '1month':
+          $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
+          break;
+        case '3months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
+          break;
+        case '6months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+          break;
+        case '12months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
+          break;
+        case 'thisMonth':
+          $startDate = date('Y-m-01 00:00:00');
+          $endDate = date('Y-m-t 23:59:59');
+          break;
+      }
     }
 
     $this->db->select('
@@ -817,11 +832,24 @@ class Reports extends REST_Controller
     $this->db->where('c.data <=', $endDate);
     $this->db->where('c.warehouse_id', $warehouse_id);
 
-    if ($pdvBox) {
-      $this->db->where('c.number', $pdvBox);
+    if ($cashier) {
+      $this->db->where('c.id', $cashier);
     }
     if ($status) {
       $this->db->where('c.status', $status);
+    }
+    if ($periodType) {
+      switch ($periodType) {
+        case 'manha':
+          $this->db->where('HOUR(c.data) BETWEEN 6 AND 11');
+          break;
+        case 'tarde':
+          $this->db->where('HOUR(c.data) BETWEEN 12 AND 17');
+          break;
+        case 'noite':
+          $this->db->where('(HOUR(c.data) >= 18 OR HOUR(c.data) < 6)');
+          break;
+      }
     }
 
     $this->db->group_by('month_year');
@@ -831,21 +859,36 @@ class Reports extends REST_Controller
     $this->db->select('
       c.id,
       c.data as date,
-      c.number as pdvBoxId,
-      CONCAT("Caixa ", c.number) as pdvBoxName,
+      c.id as cashier_id,
+      c.number,
+      CONCAT(s.firstname, " ", s.lastname) as operator_name,
       c.status,
       c.balance as total
     ');
     $this->db->from(db_prefix() . 'cashs c');
+    $this->db->join(db_prefix() . 'staff s', 's.staffid = c.user_id', 'left');
     $this->db->where('c.data >=', $startDate);
     $this->db->where('c.data <=', $endDate);
     $this->db->where('c.warehouse_id', $warehouse_id);
 
-    if ($pdvBox) {
-      $this->db->where('c.number', $pdvBox);
+    if ($cashier) {
+      $this->db->where('c.id', $cashier);
     }
     if ($status) {
       $this->db->where('c.status', $status);
+    }
+    if ($periodType) {
+      switch ($periodType) {
+        case 'manha':
+          $this->db->where('HOUR(c.data) BETWEEN 6 AND 11');
+          break;
+        case 'tarde':
+          $this->db->where('HOUR(c.data) BETWEEN 12 AND 17');
+          break;
+        case 'noite':
+          $this->db->where('(HOUR(c.data) >= 18 OR HOUR(c.data) < 6)');
+          break;
+      }
     }
 
     $total_count = $this->db->count_all_results('', false);
@@ -865,11 +908,24 @@ class Reports extends REST_Controller
     $this->db->where('c.data <=', $endDate);
     $this->db->where('c.warehouse_id', $warehouse_id);
 
-    if ($pdvBox) {
-      $this->db->where('c.number', $pdvBox);
+    if ($cashier) {
+      $this->db->where('c.id', $cashier);
     }
     if ($status) {
       $this->db->where('c.status', $status);
+    }
+    if ($periodType) {
+      switch ($periodType) {
+        case 'manha':
+          $this->db->where('HOUR(c.data) BETWEEN 6 AND 11');
+          break;
+        case 'tarde':
+          $this->db->where('HOUR(c.data) BETWEEN 12 AND 17');
+          break;
+        case 'noite':
+          $this->db->where('(HOUR(c.data) >= 18 OR HOUR(c.data) < 6)');
+          break;
+      }
     }
 
     $this->db->group_by('HOUR(c.data)');
@@ -916,11 +972,9 @@ class Reports extends REST_Controller
       }, $filled_hourly_data),
       'sales' => array_map(function ($sale) {
         return [
-          'id' => $sale['id'],
           'date' => $sale['date'],
-          'pdvBoxId' => $sale['pdvBoxId'],
-          'pdvBoxName' => $sale['pdvBoxName'],
-          'status' => $sale['status'],
+          'id' => $sale['id'],
+          'number' => $sale['number'],
           'total' => floatval($sale['total'])
         ];
       }, $sales),
@@ -992,12 +1046,7 @@ class Reports extends REST_Controller
       ? (($today_data['card_sales'] - $yesterday_data['card_sales']) / $yesterday_data['card_sales']) * 100
       : 0;
 
-    /**
-      PRECISA ALTERAR ESSE VALOR E PUXAR PELO
-      ID DA WAREHOUSE OU PELO ID DA FRANQUIA
-      POR ENQUANTO, O VALOR DE MONTLY GOAL ESTÁ
-      DEFINIDO DE FORMA ESTÁTICA
-     */
+
     $monthly_goal = 100000;
     $goal_progress = $current_month_data['total_sales'] > 0
       ? ($current_month_data['total_sales'] / $monthly_goal) * 100
@@ -1036,6 +1085,260 @@ class Reports extends REST_Controller
           'progress' => round($goal_progress, 1),
           'remaining' => max(0, $monthly_goal - $current_month_data['total_sales'])
         ]
+      ]
+    ];
+
+    $this->response($response, REST_Controller::HTTP_OK);
+  }
+
+  public function orders_report_post()
+  {
+    $warehouse_id = $this->post('warehouse_id');
+
+    if (empty($warehouse_id)) {
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Warehouse ID is required'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+      return;
+    }
+
+    $period = $this->post('period');
+    $orderType = $this->post('orderType');
+    $status = $this->post('status');
+    $customStartDate = $this->post('startDate');
+    $customEndDate = $this->post('endDate');
+    $supplier_id = $this->post('supplier_id');
+
+    $page = max(0, $this->post('page') ? (int) $this->post('page') - 1 : 0);
+    $pageSize = max(1, $this->post('pageSize') ? (int) $this->post('pageSize') : 10);
+
+    if ($customStartDate) {
+      $startDate = date('Y-m-d H:i:s', strtotime($customStartDate));
+    } else {
+      $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+    }
+
+    if ($customEndDate) {
+      $endDate = date('Y-m-d 23:59:59', strtotime($customEndDate));
+    } else {
+      $endDate = date('Y-m-d 23:59:59');
+    }
+
+    if (!$customStartDate && !$customEndDate && $period) {
+      switch ($period) {
+        case '1month':
+          $startDate = date('Y-m-d H:i:s', strtotime('-1 month'));
+          break;
+        case '3months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-3 months'));
+          break;
+        case '6months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-6 months'));
+          break;
+        case '12months':
+          $startDate = date('Y-m-d H:i:s', strtotime('-12 months'));
+          break;
+        case 'thisMonth':
+          $startDate = date('Y-m-01 00:00:00');
+          $endDate = date('Y-m-t 23:59:59');
+          break;
+      }
+    }
+
+    $this->db->select('
+        COUNT(' . db_prefix() . 'invoices.id) as total_orders,
+        SUM(' . db_prefix() . 'invoices.total) as total_value,
+        AVG(' . db_prefix() . 'invoices.total) as avg_order_value,
+        COUNT(CASE WHEN ' . db_prefix() . 'invoices.status = 2 THEN 1 ELSE NULL END) as completed_orders
+    ');
+    $this->db->from(db_prefix() . 'invoices');
+    $this->db->join(db_prefix() . 'purchase_needs', db_prefix() . 'purchase_needs.invoice_id = ' . db_prefix() . 'invoices.id', 'left');
+    $this->db->where(db_prefix() . 'invoices.warehouse_id', $warehouse_id);
+    $this->db->where(db_prefix() . 'invoices.datecreated >=', $startDate);
+    $this->db->where(db_prefix() . 'invoices.datecreated <=', $endDate);
+    $this->db->where(db_prefix() . 'purchase_needs.id IS NOT NULL');
+
+    if ($status) {
+      if (is_array($status)) {
+        $this->db->where_in(db_prefix() . 'invoices.status', $status);
+      } else {
+        $this->db->where(db_prefix() . 'invoices.status', $status);
+      }
+    }
+
+    if ($supplier_id) {
+      $this->db->where(db_prefix() . 'invoices.clientid', $supplier_id);
+    }
+
+    $statistics = $this->db->get()->row_array();
+
+    $this->db->select('
+        DATE_FORMAT(' . db_prefix() . 'invoices.datecreated, "%Y-%m") as month_year,
+        DATE_FORMAT(' . db_prefix() . 'invoices.datecreated, "%b") as month_name,
+        COUNT(' . db_prefix() . 'invoices.id) as total_orders,
+        SUM(' . db_prefix() . 'invoices.total) as total_value,
+        COUNT(CASE WHEN ' . db_prefix() . 'invoices.status = 2 THEN 1 ELSE NULL END) as completed_orders
+    ');
+    $this->db->from(db_prefix() . 'invoices');
+    $this->db->join(db_prefix() . 'purchase_needs', db_prefix() . 'purchase_needs.invoice_id = ' . db_prefix() . 'invoices.id', 'left');
+    $this->db->where(db_prefix() . 'invoices.warehouse_id', $warehouse_id);
+    $this->db->where(db_prefix() . 'invoices.datecreated >=', $startDate);
+    $this->db->where(db_prefix() . 'invoices.datecreated <=', $endDate);
+    $this->db->where(db_prefix() . 'purchase_needs.id IS NOT NULL');
+
+    if ($status) {
+      if (is_array($status)) {
+        $this->db->where_in(db_prefix() . 'invoices.status', $status);
+      } else {
+        $this->db->where(db_prefix() . 'invoices.status', $status);
+      }
+    }
+
+    if ($supplier_id) {
+      $this->db->where(db_prefix() . 'invoices.clientid', $supplier_id);
+    }
+
+    $this->db->group_by('month_year');
+    $this->db->order_by('month_year', 'ASC');
+
+    $monthly_data = $this->db->get()->result_array();
+
+    $this->db->select('
+        ' . db_prefix() . 'invoices.id,
+        ' . db_prefix() . 'invoices.number,
+        ' . db_prefix() . 'invoices.datecreated as date,
+        ' . db_prefix() . 'invoices.total,
+        ' . db_prefix() . 'invoices.status,
+        CASE 
+          WHEN ' . db_prefix() . 'invoices.status = 1 THEN \'Pendente\'
+          WHEN ' . db_prefix() . 'invoices.status = 2 THEN \'Enviado\' 
+          WHEN ' . db_prefix() . 'invoices.status = 3 THEN \'Cancelado\'
+          WHEN ' . db_prefix() . 'invoices.status = 12 THEN \'Disputa\'
+          ELSE \'Outro\'
+        END as status_text,
+        ' . db_prefix() . 'clients.company as supplier_name,
+        COUNT(' . db_prefix() . 'purchase_needs.id) as items_count,
+        IF(' . db_prefix() . 'invoices.dispute_type IS NOT NULL, ' . db_prefix() . 'invoices.dispute_type, NULL) as dispute_type,
+        IF(' . db_prefix() . 'invoices.clientnote IS NOT NULL AND ' . db_prefix() . 'invoices.status = 12, ' . db_prefix() . 'invoices.clientnote, NULL) as dispute_message
+    ');
+    $this->db->from(db_prefix() . 'invoices');
+    $this->db->join(db_prefix() . 'purchase_needs', db_prefix() . 'purchase_needs.invoice_id = ' . db_prefix() . 'invoices.id', 'left');
+    $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = ' . db_prefix() . 'invoices.clientid', 'left');
+    $this->db->where(db_prefix() . 'invoices.warehouse_id', $warehouse_id);
+    $this->db->where(db_prefix() . 'invoices.datecreated >=', $startDate);
+    $this->db->where(db_prefix() . 'invoices.datecreated <=', $endDate);
+    $this->db->where(db_prefix() . 'purchase_needs.id IS NOT NULL');
+
+    if ($status) {
+      if (is_array($status)) {
+        $this->db->where_in(db_prefix() . 'invoices.status', $status);
+      } else {
+        $this->db->where(db_prefix() . 'invoices.status', $status);
+      }
+    }
+
+    if ($supplier_id) {
+      $this->db->where(db_prefix() . 'invoices.clientid', $supplier_id);
+    }
+
+    $this->db->group_by(db_prefix() . 'invoices.id');
+
+    $total_count = $this->db->count_all_results('', false);
+
+    $this->db->order_by(db_prefix() . 'invoices.datecreated', 'DESC');
+    $this->db->limit($pageSize, $page * $pageSize);
+
+    $orders = $this->db->get()->result_array();
+
+    $orders_data = [];
+    foreach ($orders as $order) {
+      $priority = 'low';
+      if ($order['total'] > 5000) {
+        $priority = 'high';
+      } else if ($order['total'] > 1000) {
+        $priority = 'medium';
+      }
+
+      $this->db->select('
+          pn.id as purchase_need_id,
+          pn.item_id,
+          pn.warehouse_id,
+          pn.qtde,
+          pn.status as need_status,
+          pn.date as need_date,
+          pn.user_id as need_user_id,
+          i.description as product_name,
+          i.sku_code,
+          i.cost,
+          i.stock as current_stock,
+          i.minStock as min_stock
+      ');
+      $this->db->from(db_prefix() . 'purchase_needs pn');
+      $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id', 'left');
+      $this->db->where('pn.invoice_id', $order['id']);
+
+      $products = $this->db->get()->result_array();
+
+      $order_products = array_map(function ($product) {
+        $quantity = (int) $product['qtde'];
+        $unit_cost = floatval($product['cost']);
+
+        return [
+          'id' => $product['item_id'],
+          'name' => $product['product_name'],
+          'sku' => $product['sku_code'],
+          'quantity' => $quantity,
+          'unit_cost' => $unit_cost,
+          'total_cost' => round($unit_cost * $quantity, 2),
+          'current_stock' => (int) $product['current_stock'],
+          'min_stock' => (int) $product['min_stock'],
+          'need_id' => $product['purchase_need_id'],
+          'need_status' => (int) $product['need_status'],
+          'need_date' => $product['need_date']
+        ];
+      }, $products);
+
+      $orders_data[] = [
+        'id' => $order['id'],
+        'number' => $order['number'],
+        'date' => $order['date'],
+        'supplier_name' => $order['supplier_name'],
+        'total' => floatval($order['total']),
+        'items_count' => (int) $order['items_count'],
+        'status' => (int) $order['status'],
+        'status_text' => $order['status_text'],
+        'priority' => $priority,
+        'dispute_type' => $order['dispute_type'],
+        'dispute_message' => $order['dispute_message'],
+        'products' => $order_products
+      ];
+    }
+
+    $response = [
+      'status' => true,
+      'statistics' => [
+        'total_orders' => (int) $statistics['total_orders'],
+        'total_value' => floatval($statistics['total_value']),
+        'avg_order_value' => floatval($statistics['avg_order_value']),
+        'completion_rate' => $statistics['total_orders'] > 0 ?
+          ($statistics['completed_orders'] / $statistics['total_orders']) * 100 : 0
+      ],
+      'monthly_data' => array_map(function ($month) {
+        return [
+          'month' => $month['month_name'],
+          'total_orders' => (int) $month['total_orders'],
+          'total_value' => floatval($month['total_value']),
+          'completion_rate' => $month['total_orders'] > 0 ?
+            ($month['completed_orders'] / $month['total_orders']) * 100 : 0
+        ];
+      }, $monthly_data),
+      'orders' => $orders_data,
+      'pagination' => [
+        'total' => (int) $total_count,
+        'page' => $page + 1,
+        'pageSize' => $pageSize,
+        'totalPages' => ceil($total_count / $pageSize)
       ]
     ];
 

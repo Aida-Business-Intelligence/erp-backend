@@ -297,6 +297,7 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/financial-erp/contability"
                         ],
+
                       
                    
                       
@@ -308,6 +309,7 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/franchisees/dashboard"
                         ],
+
                         [
                             "value" => "Gestão de Franquias",
                             "label" => "Franquias",
@@ -338,7 +340,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:message-circle",
                             "width" => "",
-                            "path" => "/franchisees/support"
+                            "path" => "/franchisees/support/list"
                         ],
 
                         // [
@@ -706,14 +708,14 @@ class Settings extends REST_Controller
                             "path" => "/financial-erp/contability"
                         ],
 
-                        [
-                            "value" => "Painel do Franqueado",
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:bar-chart-2",
-                            "width" => "",
-                            "path" => "/franchisees/dashboard"
-                        ],
+                        // [
+                        //     "value" => "Painel do Franqueado",
+                        //     "label" => "Franquias",
+                        //     "color" => "",
+                        //     "icon" => "lucide:bar-chart-2",
+                        //     "width" => "",
+                        //     "path" => "/franchisees/dashboard"
+                        // ],
                         [
                             "value" => "Gestão de Franquias",
                             "label" => "Franquias",
@@ -762,7 +764,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:message-circle",
                             "width" => "",
-                            "path" => "/franchisees/support"
+                            "path" => "/franchisees/support/list"
                         ],
 
                         [

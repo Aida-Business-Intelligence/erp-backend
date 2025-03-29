@@ -382,4 +382,476 @@ class Contracts extends REST_Controller
         ], $success_count > 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_NOT_FOUND);
     }
 
+    public function upload_contract_post()
+    {
+        try {
+            // Verifica se há dados POST
+            if (empty($_POST) && empty($_FILES)) {
+                throw new Exception("Nenhum dado recebido");
+            }
+
+            // Obtém dados do formulário
+            $staff_id = $this->input->post('staff_id');
+            $warehouse_id = $this->input->post('warehouse_id');
+            $royalties = $this->input->post('royalties');
+            $contract_start_date = $this->input->post('datestart');
+            $contract_duration = $this->input->post('duration_years');
+            $preview_contract_link = $this->input->post('preview_contract');
+
+            // Validações dos novos campos
+            if (!is_numeric($royalties) || $royalties < 0 || $royalties > 100) {
+                throw new Exception("Royalties deve ser um valor entre 0 e 100");
+            }
+
+            if (!strtotime($contract_start_date)) {
+                throw new Exception("Data de início inválida");
+            }
+
+            if (!is_numeric($contract_duration) || $contract_duration <= 0) {
+                throw new Exception("Duração do contrato inválida");
+            }
+
+            // Verifica se o arquivo foi enviado
+            if (empty($_FILES['contract_file'])) {
+                throw new Exception("Nenhum arquivo de contrato recebido");
+            }
+
+            $file = $_FILES['contract_file'];
+
+            // Validações básicas
+            if (!$staff_id || !is_numeric($staff_id)) {
+                throw new Exception("ID do franqueado inválido");
+            }
+
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                throw new Exception("Erro no upload do arquivo: " . $file['error']);
+            }
+
+            // Verifica tipo do arquivo
+            $filename = $file['name'];
+            $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            $allowed_types = ['pdf', 'doc', 'docx'];
+
+            if (!in_array($extension, $allowed_types)) {
+                throw new Exception("Tipo de arquivo não permitido. Apenas PDF, DOC e DOCX são aceitos");
+            }
+
+            // Cria diretório se não existir
+            $upload_dir = FCPATH . 'uploads/contracts/franquias/' . $staff_id . '/';
+            if (!file_exists($upload_dir)) {
+                if (!mkdir($upload_dir, 0777, true)) {
+                    throw new Exception("Falha ao criar diretório de upload");
+                }
+                // Adiciona arquivo de segurança
+                file_put_contents($upload_dir . 'index.html', '<!-- Directory listing disabled -->');
+            }
+
+            // Gera nome único para o arquivo
+            $unique_filename = uniqid() . '.' . $extension;
+            $upload_path = $upload_dir . $unique_filename;
+
+            // Move o arquivo para o diretório de upload
+            if (!move_uploaded_file($file['tmp_name'], $upload_path)) {
+                throw new Exception("Falha ao salvar arquivo no servidor");
+            }
+
+            // Calcula datas do contrato
+            $datestart = date('Y-m-d', strtotime($contract_start_date));
+            $dateend = date('Y-m-d', strtotime("+$contract_duration years", strtotime($datestart)));
+
+            // Remove o caminho absoluto para salvar apenas o caminho relativo
+            $relative_path = 'uploads/contracts/franquias/' . $staff_id . '/' . $unique_filename;
+
+            // Remove qualquer dupla barra na URL
+            $base_url = rtrim(base_url(), '/');
+            $full_url = $base_url . '/' . ltrim($relative_path, '/');
+
+            // Prepara dados para inserção na tabela contracts
+            $contract_data = [
+                'subject' => 'Contrato Franquia #' . $staff_id,
+                'description' => 'Contrato de franquia digital',
+                'contract_url' => $full_url, // Salva o caminho relativo no banco
+                'contract_name' => $filename,
+                'preview_contract' => $preview_contract_link,
+                'staffid' => $staff_id,
+                'warehouse_id' => $warehouse_id,
+                'royalties' => $royalties,
+                'addedfrom' => get_staff_user_id(),
+                'dateadded' => date('Y-m-d H:i:s'),
+                'datestart' => $datestart,
+                'dateend' => $dateend,
+                'contract_value' => 0,
+                'hash' => app_generate_hash(),
+                'signed' => 0,
+                'trash' => 0,
+                'not_visible_to_client' => 1
+            ];
+
+            // Insere na tabela contracts
+            $this->db->insert(db_prefix() . 'contracts', $contract_data);
+            $contract_id = $this->db->insert_id();
+
+            if (!$contract_id) {
+                @unlink($upload_path);
+                throw new Exception("Falha ao registrar contrato no banco de dados");
+            }
+
+            // Atualiza franqueado com o ID do contrato
+            $this->db->where('staffid', $staff_id);
+            $this->db->update(db_prefix() . 'staff', ['contractid' => $contract_id]);
+
+            $this->response([
+                'status' => true,
+                'message' => 'Contrato cadastrado com sucesso',
+                'file_url' => $full_url, // Retorna a URL completa para o frontend
+                'preview_url' => $preview_url,
+                'contract_id' => $contract_id
+            ]);
+
+        } catch (Exception $e) {
+            $this->response([
+                'status' => false,
+                'message' => $e->getMessage(),
+                'debug' => [
+                    'php_user' => get_current_user(),
+                    'upload_dir' => $upload_dir ?? null,
+                    'dir_exists' => isset($upload_dir) ? file_exists($upload_dir) : null,
+                    'dir_writable' => isset($upload_dir) ? is_writable($upload_dir) : null,
+                    'parent_writable' => isset($upload_dir) ? is_writable(dirname($upload_dir)) : null,
+                    'free_space' => isset($upload_dir) ? round(disk_free_space(dirname($upload_dir)) / (1024 * 1024)) . 'MB' : null
+                ]
+            ], 500);
+        }
+    }
+
+    // public function view_contract_post($contract_id)
+    // {
+    //     try {
+    //         // Primeiro obtemos o contrato
+    //         $this->db->where('id', $contract_id);
+    //         $contract = $this->db->get(db_prefix() . 'contracts')->row();
+
+    //         if (!$contract) {
+    //             throw new Exception("Contrato não encontrado");
+    //         }
+
+    //         // Verifica se o arquivo existe
+    //         $file_path = str_replace(base_url(), FCPATH, $contract->contract_url);
+
+    //         if (!file_exists($file_path)) {
+    //             throw new Exception("Arquivo do contrato não encontrado");
+    //         }
+
+    //         // Obtém o tipo MIME do arquivo
+    //         $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    //         $mime_type = finfo_file($finfo, $file_path);
+    //         finfo_close($finfo);
+
+    //         header('Content-Type: ' . $mime_type);
+    //         header('Content-Disposition: inline; filename="' . basename($contract->contract_name) . '"');
+    //         readfile($file_path);
+    //         exit;
+
+    //     } catch (Exception $e) {
+    //         $this->response([
+    //             'status' => false,
+    //             'message' => $e->getMessage()
+    //         ], 404);
+    //     }
+    // }
+
+    public function get_contract_get($contract_id)
+    {
+        try {
+            $this->db->where('id', $contract_id);
+            $contract = $this->db->get(db_prefix() . 'contracts')->row();
+
+            if (!$contract) {
+                throw new Exception("Contrato não encontrado");
+            }
+
+            $this->response([
+                'status' => true,
+                'data' => $contract
+            ], 200);
+
+        } catch (Exception $e) {
+            $this->response([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 404);
+        }
+    }
+
+    public function view_contract_get($contract_id)
+    {
+        try {
+            $this->db->where('id', $contract_id);
+            $contract = $this->db->get(db_prefix() . 'contracts')->row();
+
+            if (!$contract) {
+                throw new Exception("Contrato não encontrado");
+            }
+
+            $file_path = str_replace(base_url(), FCPATH, $contract->contract_url);
+
+            if (!file_exists($file_path)) {
+                throw new Exception("Arquivo do contrato não encontrado");
+            }
+
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime_type = finfo_file($finfo, $file_path);
+            finfo_close($finfo);
+
+            header('Content-Type: ' . $mime_type);
+            header('Content-Disposition: inline; filename="' . basename($contract->contract_name) . '"');
+            readfile($file_path);
+            exit;
+
+        } catch (Exception $e) {
+            show_error($e->getMessage(), 404);
+        }
+    }
+
+
+
+
+    public function update_contract_post()
+    {
+        try {
+            // Verifica se há dados POST
+            if (empty($this->input->post()) && empty($_FILES)) {
+                throw new Exception("Nenhum dado recebido");
+            }
+
+            // Obtém dados do formulário
+            $staff_id = $this->input->post('staff_id');
+            $contract_id = $this->input->post('contract_id');
+            $warehouse_id = $this->input->post('warehouse_id');
+            $royalties = $this->input->post('royalties');
+            $contract_start_date = $this->input->post('datestart');
+            $contract_duration = $this->input->post('duration_years');
+            $preview_contract_link = $this->input->post('preview_contract');
+
+            // Validações básicas
+            if (!$staff_id || !is_numeric($staff_id)) {
+                throw new Exception("ID do franqueado inválido");
+            }
+
+            $file = $_FILES['contract_file'] ?? null;
+            $filename = null;
+            $extension = null;
+            $upload_path = null;
+            $relative_path = null;
+            $full_url = null;
+
+            // Processamento do arquivo apenas se foi enviado
+            if ($file && isset($file['error']) && $file['error'] !== UPLOAD_ERR_NO_FILE) {
+                $filename = $file['name'];
+                $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                $allowed_types = ['pdf', 'doc', 'docx'];
+
+                if (!in_array($extension, $allowed_types)) {
+                    throw new Exception("Tipo de arquivo não permitido. Apenas PDF, DOC e DOCX são aceitos");
+                }
+
+                // Cria diretório se não existir
+                $upload_dir = FCPATH . 'uploads/contracts/franquias/' . $staff_id . '/';
+                if (!file_exists($upload_dir)) {
+                    if (!mkdir($upload_dir, 0777, true)) {
+                        throw new Exception("Falha ao criar diretório de upload");
+                    }
+                    file_put_contents($upload_dir . 'index.html', '<!-- Directory listing disabled -->');
+                }
+
+                // Gera nome único para o arquivo
+                $unique_filename = uniqid() . '.' . $extension;
+                $upload_path = $upload_dir . $unique_filename;
+
+                // Move o arquivo para o diretório de upload
+                if (!move_uploaded_file($file['tmp_name'], $upload_path)) {
+                    throw new Exception("Falha ao salvar arquivo no servidor");
+                }
+
+                $relative_path = 'uploads/contracts/franquias/' . $staff_id . '/' . $unique_filename;
+                $full_url = rtrim(base_url(), '/') . '/' . ltrim($relative_path, '/');
+            }
+
+            // Calcula datas do contrato
+            $datestart = date('Y-m-d', strtotime($contract_start_date));
+            $dateend = date('Y-m-d', strtotime("+$contract_duration years", strtotime($datestart)));
+
+            // Prepara dados para inserção/atualização
+            $contract_data = [
+                'staffid' => $staff_id,
+                'royalties' => $royalties,
+                'datestart' => $datestart,
+                'dateend' => $dateend,
+                'warehouse_id' => $warehouse_id,
+                'dateupdated' => date('Y-m-d H:i:s')
+            ];
+
+            // Adiciona dados do arquivo apenas se foi enviado
+            if ($filename && $full_url) {
+                $contract_data['contract_url'] = $full_url;
+                $contract_data['contract_name'] = $filename;
+                $contract_data['preview_contract'] = $preview_contract_link;
+            }
+
+            // Se tem contract_id, tenta atualizar
+            if ($contract_id && is_numeric($contract_id)) {
+                $this->db->where('id', $contract_id);
+                $this->db->update(db_prefix() . 'contracts', $contract_data);
+
+                // Se não afetou nenhuma linha, o contrato não existe mais - cria novo
+                if ($this->db->affected_rows() === 0) {
+                    $contract_id = null;
+                }
+            }
+
+            // Se não tem contract_id válido, cria novo contrato
+            if (!$contract_id) {
+                $this->db->insert(db_prefix() . 'contracts', $contract_data);
+                $contract_id = $this->db->insert_id();
+            }
+
+            // Atualiza o franqueado com o ID do contrato
+            $this->db->where('staffid', $staff_id);
+            $this->db->update(db_prefix() . 'staff', ['contractid' => $contract_id]);
+
+            $this->response([
+                'status' => true,
+                'message' => 'Contrato salvo com sucesso',
+                'file_url' => $full_url,
+                'contract_id' => $contract_id
+            ]);
+
+        } catch (Exception $e) {
+            $this->response([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function remove_contract_delete($contract_id)
+    {
+        try {
+            $this->db->where('id', $contract_id);
+            $contract = $this->db->get(db_prefix() . 'contracts')->row();
+
+            if (!$contract) {
+                throw new Exception("Contrato não encontrado");
+            }
+
+            // Remove o arquivo físico
+            $file_path = str_replace(base_url(), FCPATH, $contract->contract_url);
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
+
+            // Remove do banco de dados
+            $this->db->where('id', $contract_id);
+            $this->db->delete(db_prefix() . 'contracts');
+
+            // Atualiza o franqueado para remover a referência ao contrato
+            $this->db->where('contractid', $contract_id);
+            $this->db->update(db_prefix() . 'staff', ['contractid' => null]);
+
+            $this->response([
+                'status' => true,
+                'message' => 'Contrato removido com sucesso'
+            ], 200);
+
+        } catch (Exception $e) {
+            $this->response([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    // Endpoint para remover contrato
+    // public function remove_contract_post($staff_id)
+    // {
+    //     try {
+    //         $this->db->where('staffid', $staff_id);
+    //         $staff = $this->db->get(db_prefix() . 'staff')->row();
+
+    //         if (!$staff) {
+    //             throw new Exception("Franqueado não encontrado");
+    //         }
+
+    //         // Remove o arquivo físico
+    //         if (!empty($staff->contract_url)) {
+    //             $file_path = FCPATH . $staff->contract_url;
+    //             if (file_exists($file_path)) {
+    //                 unlink($file_path);
+    //             }
+    //         }
+
+    //         // Atualiza o banco de dados
+    //         $this->db->where('staffid', $staff_id);
+    //         $this->db->update(db_prefix() . 'staff', [
+    //             'contract_url' => null,
+    //             'contractid' => null
+    //         ]);
+
+    //         $this->response([
+    //             'status' => true,
+    //             'message' => 'Contrato removido com sucesso'
+    //         ]);
+
+    //     } catch (Exception $e) {
+    //         $this->response([
+    //             'status' => false,
+    //             'message' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+    // public function remove_contract_post($contract_id)
+    // {
+    //     try {
+    //         if (!$contract_id || !is_numeric($contract_id)) {
+    //             throw new Exception("ID do contrato inválido");
+    //         }
+
+    //         // Busca o contrato
+    //         $this->db->where('id', $contract_id);
+    //         $contract = $this->db->get(db_prefix() . 'contracts')->row();
+
+    //         if (!$contract) {
+    //             throw new Exception("Contrato não encontrado");
+    //         }
+
+    //         // Remove o arquivo físico se existir
+    //         if (!empty($contract->contract_url)) {
+    //             $file_path = str_replace(base_url(), FCPATH, $contract->contract_url);
+    //             if (file_exists($file_path)) {
+    //                 unlink($file_path);
+    //             }
+    //         }
+
+    //         // Remove o registro do banco de dados
+    //         $this->db->where('id', $contract_id);
+    //         $this->db->delete(db_prefix() . 'contracts');
+
+    //         // Atualiza o franqueado para remover a referência ao contrato
+    //         $this->db->where('contractid', $contract_id);
+    //         $this->db->update(db_prefix() . 'staff', ['contractid' => 0]);
+
+    //         $this->response([
+    //             'status' => true,
+    //             'message' => 'Contrato removido com sucesso'
+    //         ]);
+
+    //     } catch (Exception $e) {
+    //         $this->response([
+    //             'status' => false,
+    //             'message' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
 }

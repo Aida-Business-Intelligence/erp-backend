@@ -30,7 +30,7 @@ class Settings extends REST_Controller
 
 
 
-    public function options_get()
+    public function options_get_old()
     {
         $data = [
             [
@@ -1246,4 +1246,121 @@ class Settings extends REST_Controller
             'data' => $result
         ], REST_Controller::HTTP_OK);
     }
+
+    public function create_menu_post()
+    {
+
+        ini_set('display_errors', 1);
+		ini_set('display_startup_erros', 1);
+		error_reporting(E_ALL);
+
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+
+        $this->load->library('form_validation');
+        $this->form_validation->set_data($_POST);
+        $this->form_validation->set_rules('value', 'Value', 'trim|required|max_length[255]');
+
+        if ($this->form_validation->run() == FALSE) {
+            $message = ['status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors()];
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            
+            $tbmmenu = $this->Settings_model;
+
+            if ($tbmmenu->save_menu($_POST)) {
+                $message = ['status' => TRUE, 'message' => 'Menu item added successfully.', 'data' => $tbmmenu];
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $this->response('Error', REST_Controller::HTTP_NOT_ACCEPTABLE);
+            }
+        }
+    }
+
+    public function update_menu_patch($id = '')
+    {
+       
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST)) {
+            $message = ['status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided'];
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $this->form_validation->set_data($_POST);
+        if (empty($id) || !is_numeric($id)) {
+            $message = ['status' => FALSE, 'message' => 'Invalid Menu ID'];
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $tbmmenu = $this->Settings_model->update_menu($id, $_POST);
+
+            if ($tbmmenu) {
+                $message = ['status' => TRUE, 'message' => 'Menu update successful.', 'data' => $tbmmenu];
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $message = ['status' => FALSE, 'message' => 'Menu update failed.'];
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+    }
+
+    public function delete_menu_delete($id)
+    {
+        
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST)) {
+            $message = ['status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided'];
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+       
+            $tbmmenu = $this->Settings_model->delete_menu($id);
+
+            if ($tbmmenu) {
+                $message = ['status' => TRUE, 'message' => 'Menu deleted successful.', 'data' => $tbmmenu];
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $message = ['status' => FALSE, 'message' => 'Menu deleted failed.'];
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        
+    }
+
+    public function options_get()
+    {
+        // Fetch all items from the tbmmenu table using the model
+        $menus = $this->Settings_model->get_menus();
+    
+        if (empty($menus)) {
+            $this->response(['status' => FALSE, 'message' => 'No menu items found.'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $formattedMenus = array_map(function($menu) {
+                return [
+                    'id' => $menu['id'],
+                    'value' => $menu['value'],
+                    'label' => $menu['label'],
+                    'color' => $menu['color'],
+                    'icon' => $menu['icon'],
+                    'width' => $menu['width'],
+                    'path' => $menu['path'],
+                ];
+            }, $menus);
+    
+            // Encapsulate the formatted menu items into the desired structure
+            $responseData = [
+                [
+                    'type' => 'menu',
+                    'category' => 'system',
+                    'list' => [
+                        'menu' => $formattedMenus
+                    ]
+                ]
+            ];
+    
+            $this->response($responseData, REST_Controller::HTTP_OK);
+        }
+    }
 }
+

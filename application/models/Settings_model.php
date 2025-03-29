@@ -231,4 +231,44 @@ class Settings_model extends App_Model
         }
         return false; // Retorna falso em caso de falha
     }
+
+    public function save_menu($data) {
+   
+        $this->db->insert(db_prefix() . 'menu', $data);
+        if ($this->db->affected_rows() > 0) {
+            return $this->db->insert_id(); // Retorna o ID do registro inserido
+        }
+        return false; // Retorna falso em caso de falha
+    }
+
+    public function get_menus()
+	{
+	
+        $this->db->select('*');
+       // $this->db->where('type', 'pdv');
+        return $this->db->get(db_prefix() . 'menu')->result_array();
+      
+    
+    }
+
+    public function update_menu($id, $data)
+	{
+	
+
+        $this->db->where('id', $id);
+        $this->db->update(db_prefix() . 'menu', $data);
+        return $this->db->affected_rows();
+      
+    
+    }
+
+    public function delete_menu($id)
+	{
+	
+        $this->db->where('id', $id);
+        $this->db->delete(db_prefix() . 'menu');
+        return $this->db->affected_rows();
+      
+    
+    }
 }

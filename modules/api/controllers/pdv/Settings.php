@@ -30,7 +30,7 @@ class Settings extends REST_Controller
 
 
 
-    public function options_get2()
+    public function options_get_old()
     {
         $data = [
             [
@@ -40,42 +40,49 @@ class Settings extends REST_Controller
                     "menu" => [
                         [
                             "value" => "indice",
-                            "label" => "my_account",
+                            "label" => "home",
                             "color" => "",
                             "icon" => "lucide:home",
                             "width" => "",
                             "path" => "/home"
                         ],
+                        [
+                            "value" => "emails",
+                            "label" => "home",
+                            "color" => "",
+                            "icon" => "lucide:mail",
+                            "width" => "",
+                            "path" => "/emails"
+                        ],
 
                         [
                             "value" => "GPTW",
-                            "label" => "my_account",
+                            "label" => "home",
                             "color" => "",
                             "icon" => "lucide:heart",
                             "width" => "",
                             "path" => "/gptw"
                         ],
-
-                        [
-                            "value" => "Gestão GPTW ",
-                            "label" => "my_account",
-                            "color" => "",
-                            "icon" => "lucide:wrench",
-                            "width" => "",
-                            "path" => "/gptw-management"
-                        ],
                         [
                             "value" => "dashboard",
-                            "label" => "home",
+                            "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:chart-pie",
                             "width" => "",
                             "path" => "/dashboard"
                         ],
+                        [
+                            "value" => "Relatórios",
+                            "label" => "pdv",
+                            "color" => "",
+                            "icon" => "lucide:file-text",
+                            "width" => "",
+                            "path" => "/reports"
+                        ],
 
                         [
                             "value" => "Catálogo",
-                            "label" => "home",
+                            "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:album",
                             "width" => "",
@@ -99,7 +106,7 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Ordens de Compras",
-                            "label" => "Transações",
+                            "label" => "pdv",
                             "color" => "",
                             "icon" => "lucide:shopping-cart",
                             "width" => "",
@@ -111,7 +118,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:shopping-bag",
                             "width" => "",
-                            "path" => "https:/buy-orders"
+                            "path" => "/buy-orders"
                         ],
                         [
                             "value" => "Vendas",
@@ -128,6 +135,30 @@ class Settings extends REST_Controller
                             "icon" => "lucide:book-user",
                             "width" => "",
                             "path" => "/client"
+                        ],
+                        [
+                            "value" => "Ecommerce",
+                            "label" => "Gerador de Pedidos",
+                            "color" => "",
+                            "icon" => "lucide:code",
+                            "width" => "",
+                            "path" => "/order-generator"
+                        ],
+                        [
+                            "value" => "Ecommerce para Franquias",
+                            "label" => "Gerador de Pedidos",
+                            "color" => "",
+                            "icon" => "lucide:code",
+                            "width" => "",
+                            "path" => "/franchisees-order-generator"
+                        ],
+                        [
+                            "value" => "Carteira Digital",
+                            "label" => "Gerador de Pedidos",
+                            "color" => "",
+                            "icon" => "lucide:wallet",
+                            "width" => "",
+                            "path" => "/digital-wallet-franchisees"
                         ],
                         [
                             "value" => "Representadas",
@@ -154,6 +185,14 @@ class Settings extends REST_Controller
                             "path" => "/suppliers"
                         ],
                         [
+                            "value" => "Clientes",
+                            "label" => "cadastros",
+                            "color" => "",
+                            "icon" => "lucide:users",
+                            "width" => "",
+                            "path" => "/client-erp"
+                        ],
+                        [
                             "value" => "Transportadoras",
                             "label" => "cadastros",
                             "color" => "",
@@ -161,12 +200,20 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/carriers"
                         ],
+                        [
+                            "value" => "Pedidos",
+                            "label" => "cadastros",
+                            "color" => "",
+                            "icon" => "lucide:file-text",
+                            "width" => "",
+                            "path" => "/orders-erp"
+                        ],
 
                         [
                             "value" => "product",
                             "label" => "pdv",
                             "color" => "",
-                            "icon" => "lucide:edit",
+                            "icon" => "lucide:package",
                             "width" => "",
                             "path" => "/produto"
                         ],
@@ -174,7 +221,7 @@ class Settings extends REST_Controller
                             "value" => "Categorias",
                             "label" => "pdv",
                             "color" => "",
-                            "icon" => "lucide:edit",
+                            "icon" => "lucide:tag",
                             "width" => "",
                             "path" => "/categories"
                         ],
@@ -182,15 +229,15 @@ class Settings extends REST_Controller
                             "value" => "Produto",
                             "label" => "cadastros",
                             "color" => "",
-                            "icon" => "lucide:edit",
+                            "icon" => "lucide:package",
                             "width" => "",
-                            "path" => "/produto"
+                            "path" => "/produto-erp"
                         ],
                         [
                             "value" => "Lojas",
-                            "label" => "cadastros",
+                            "label" => "pdv",
                             "color" => "",
-                            "icon" => "lucide:edit",
+                            "icon" => "lucide:store",
                             "width" => "",
                             "path" => "/warehouse"
                         ],
@@ -203,20 +250,44 @@ class Settings extends REST_Controller
                             "path" => "/financial"
                         ],
                         [
-                            "value" => "Contas a pagar",
+                            "value" => "Painel Geral",
                             "label" => "financial",
                             "color" => "",
                             "icon" => "lucide:credit-card",
                             "width" => "",
-                            "path" => "/financial"
+                            "path" => "/financial-erp/panel"
                         ],
                         [
-                            "value" => "Carteira de Títulos ",
+                            "value" => "Faturas",
+                            "label" => "financial",
+                            "color" => "",
+                            "icon" => "lucide:file-text",
+                            "width" => "",
+                            "path" => "/invoice-erp"
+                        ],
+                        // [
+                        //     "value" => "Contas a pagar",
+                        //     "label" => "financial",
+                        //     "color" => "",
+                        //     "icon" => "lucide:credit-card",
+                        //     "width" => "",
+                        //     "path" => "/financial"
+                        // ],
+                        // [
+                        //     "value" => "Carteira de Títulos ",
+                        //     "label" => "financial",
+                        //     "color" => "",
+                        //     "icon" => "lucide:wallet",
+                        //     "width" => "",
+                        //     "path" => "/financial-erp/titles"
+                        // ],
+                        [
+                            "value" => "Títulos ",
                             "label" => "financial",
                             "color" => "",
                             "icon" => "lucide:wallet",
                             "width" => "",
-                            "path" => "/financial-erp/titles"
+                            "path" => "/titles-erp"
                         ],
                         [
                             "value" => "Simulador de Encargos ",
@@ -226,22 +297,19 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/financial-erp/contability"
                         ],
+
+                      
+                   
+                      
                         [
-                            "value" => "Relatórios",
-                            "label" => "home",
+                            "value" => "Painel do Franqueado",
+                            "label" => "Franquias",
                             "color" => "",
-                            "icon" => "lucide:file-text",
+                            "icon" => "lucide:bar-chart-2",
                             "width" => "",
-                            "path" => "/reports"
+                            "path" => "/franchisees/dashboard"
                         ],
-                        // [
-                        //     "value" => "Painel do Franqueado",
-                        //     "label" => "Franquias",
-                        //     "color" => "",
-                        //     "icon" => "lucide:bar-chart-2",
-                        //     "width" => "",
-                        //     "path" => "/franchisees/dashboard"
-                        // ],
+
                         [
                             "value" => "Gestão de Franquias",
                             "label" => "Franquias",
@@ -252,7 +320,6 @@ class Settings extends REST_Controller
                         ],
                         [
                             "value" => "Contratos",
-
                             "label" => "Franquias",
                             "color" => "",
                             "icon" => "lucide:handshake",
@@ -265,7 +332,7 @@ class Settings extends REST_Controller
                             "color" => "",
                             "icon" => "lucide:file-text",
                             "width" => "",
-                            "path" => "/franchisees/orders/list"
+                            "path" => "/franchisees/orders"
                         ],
                         [
                             "value" => "Suporte",
@@ -305,6 +372,15 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/admin/user/list"
                         ],
+                        [
+                            "value" => "Funções",
+                            "label" => "admin",
+                            "color" => "",
+                            "icon" => "lucide:fileCheck",
+                            "width" => "",
+                            "path" => "/admin/functions"
+                        ],
+                       
                         /*
                 [
                     "value" => "languages",
@@ -334,13 +410,14 @@ class Settings extends REST_Controller
                             "width" => "",
                             "path" => "/admin/config"
                         ],
+                       
                         [
-                            "value" => "emails",
+                            "value" => "Gestão GPTW ",
                             "label" => "admin",
                             "color" => "",
-                            "icon" => "lucide:mail",
+                            "icon" => "lucide:wrench",
                             "width" => "",
-                            "path" => "/admin/emails"
+                            "path" => "/gptw-management"
                         ],
                         /*
                 [
@@ -410,7 +487,7 @@ class Settings extends REST_Controller
         $this->response($data, REST_Controller::HTTP_OK);
     }
 
-    public function options_get()
+    public function options_get2()
     {
         $data = [
             [
@@ -1049,6 +1126,10 @@ class Settings extends REST_Controller
             'pdv_senha_gerente_open_cash' => [
                 'type' => 'boolean',
                 'required' => false
+            ],
+            'purchase_needs_enabled' => [
+                'type' => 'boolean',
+                'required' => false
             ]
         ];
 
@@ -1165,4 +1246,121 @@ class Settings extends REST_Controller
             'data' => $result
         ], REST_Controller::HTTP_OK);
     }
+
+    public function create_menu_post()
+    {
+
+        ini_set('display_errors', 1);
+		ini_set('display_startup_erros', 1);
+		error_reporting(E_ALL);
+
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+
+        $this->load->library('form_validation');
+        $this->form_validation->set_data($_POST);
+        $this->form_validation->set_rules('value', 'Value', 'trim|required|max_length[255]');
+
+        if ($this->form_validation->run() == FALSE) {
+            $message = ['status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors()];
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            
+            $tbmmenu = $this->Settings_model;
+
+            if ($tbmmenu->save_menu($_POST)) {
+                $message = ['status' => TRUE, 'message' => 'Menu item added successfully.', 'data' => $tbmmenu];
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $this->response('Error', REST_Controller::HTTP_NOT_ACCEPTABLE);
+            }
+        }
+    }
+
+    public function update_menu_patch($id = '')
+    {
+       
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST)) {
+            $message = ['status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided'];
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $this->form_validation->set_data($_POST);
+        if (empty($id) || !is_numeric($id)) {
+            $message = ['status' => FALSE, 'message' => 'Invalid Menu ID'];
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $tbmmenu = $this->Settings_model->update_menu($id, $_POST);
+
+            if ($tbmmenu) {
+                $message = ['status' => TRUE, 'message' => 'Menu update successful.', 'data' => $tbmmenu];
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $message = ['status' => FALSE, 'message' => 'Menu update failed.'];
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+    }
+
+    public function delete_menu_delete($id)
+    {
+        
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST)) {
+            $message = ['status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided'];
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+       
+            $tbmmenu = $this->Settings_model->delete_menu($id);
+
+            if ($tbmmenu) {
+                $message = ['status' => TRUE, 'message' => 'Menu deleted successful.', 'data' => $tbmmenu];
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $message = ['status' => FALSE, 'message' => 'Menu deleted failed.'];
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        
+    }
+
+    public function options_get()
+    {
+        // Fetch all items from the tbmmenu table using the model
+        $menus = $this->Settings_model->get_menus();
+    
+        if (empty($menus)) {
+            $this->response(['status' => FALSE, 'message' => 'No menu items found.'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $formattedMenus = array_map(function($menu) {
+                return [
+                    'id' => $menu['id'],
+                    'value' => $menu['value'],
+                    'label' => $menu['label'],
+                    'color' => $menu['color'],
+                    'icon' => $menu['icon'],
+                    'width' => $menu['width'],
+                    'path' => $menu['path'],
+                ];
+            }, $menus);
+    
+            // Encapsulate the formatted menu items into the desired structure
+            $responseData = [
+                [
+                    'type' => 'menu',
+                    'category' => 'system',
+                    'list' => [
+                        'menu' => $formattedMenus
+                    ]
+                ]
+            ];
+    
+            $this->response($responseData, REST_Controller::HTTP_OK);
+        }
+    }
 }
+

@@ -524,6 +524,7 @@ class Staffs extends REST_Controller
 
         $client = $this->Staff_model->get($id);
 
+
         if ($client) {
             $this->response([
                 'status' => TRUE,
@@ -544,22 +545,28 @@ class Staffs extends REST_Controller
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
         }
+
+        // Remover campos do contrato antes de processar
+        unset($_POST['royalties']);
+        unset($_POST['datestart']);
+        unset($_POST['duration_years']);
+        unset($_POST['contract_file']);
+
         $this->form_validation->set_data($_POST);
+
         if (empty($id) && !is_numeric($id)) {
             $message = array('status' => FALSE, 'message' => 'Invalid users ID');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
             $update_data = $this->input->post();
-            // update data
             $this->load->model('Staff_model');
             $output = $this->Staff_model->update($update_data, $update_data['staffid']);
+
             if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Users Update Successful.', 'data' => $this->Staff_model->get($id));
+                $message = array('status' => TRUE, 'message' => 'franchisees Update Successful.', 'data' => $this->Staff_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Users Update Fail.');
+                $message = array('status' => FALSE, 'message' => 'franchisees Update Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
         }

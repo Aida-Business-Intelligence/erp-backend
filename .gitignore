@@ -43,7 +43,6 @@ system/
 application/cache/
 application/logs/
 application/third_party/
-application/config/app-config.php
 .htaccess
 robots.txt
 ngproject/

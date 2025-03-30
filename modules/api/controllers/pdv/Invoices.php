@@ -10,6 +10,7 @@ class Invoices extends REST_Controller
         parent::__construct();
         $this->load->model('Invoices_model');
 
+        /*
         $decodedToken = $this->authservice->decodeToken($this->token_jwt);
         if (!$decodedToken['status']) {
             $this->response([
@@ -17,6 +18,7 @@ class Invoices extends REST_Controller
                 'message' => 'Usuario nao autenticado'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
+            */
     }
 
     public function create_purchase_order_post()
@@ -58,23 +60,16 @@ class Invoices extends REST_Controller
             $total = 0;
 
             foreach ($_POST['items'] as $item) {
+                if (!isset($item['quantity']) || empty($item['quantity'])) {
+                    throw new Exception('Quantity is required for each item');
+                }
+
                 $this->db->where('id', $item['id']);
                 $this->db->where('warehouse_id', $warehouse_id);
                 $purchase_need = $this->db->get(db_prefix() . 'purchase_needs')->row();
 
                 if (!$purchase_need) {
                     throw new Exception('Purchase need not found with ID: ' . $item['id']);
-                }
-
-                $this->db->where('id', $purchase_need->id);
-                $this->db->update(db_prefix() . 'purchase_needs', [
-                    'status' => 1,
-                    'user_id' => $user_id,
-                    'date' => date('Y-m-d H:i:s')
-                ]);
-
-                if ($this->db->affected_rows() == 0) {
-                    throw new Exception('Failed to update purchase need');
                 }
 
                 $this->db->where('id', $purchase_need->item_id);
@@ -85,13 +80,34 @@ class Invoices extends REST_Controller
                     throw new Exception('Product not found for purchase need ID: ' . $item['id']);
                 }
 
-                $item_total = $product->cost * $purchase_need->qtde;
+                if ($item['quantity'] < $product->defaultPurchaseQuantity) {
+                    throw new Exception(sprintf(
+                        'Purchase quantity (%d) cannot be less than default purchase quantity (%d) for product: %s',
+                        $item['quantity'],
+                        $product->defaultPurchaseQuantity,
+                        $product->description
+                    ));
+                }
+
+                $this->db->where('id', $purchase_need->id);
+                $this->db->update(db_prefix() . 'purchase_needs', [
+                    'status' => 1,
+                    'user_id' => $user_id,
+                    'date' => date('Y-m-d H:i:s'),
+                    'qtde' => $item['quantity']
+                ]);
+
+                if ($this->db->affected_rows() == 0) {
+                    throw new Exception('Failed to update purchase need');
+                }
+
+                $item_total = $product->cost * $item['quantity'];
                 $total += $item_total;
 
                 $newitems[] = [
                     'description' => $product->description,
                     'long_description' => $product->long_description,
-                    'qty' => $purchase_need->qtde,
+                    'qty' => $item['quantity'],
                     'rate' => $product->cost,
                     'unit' => $product->unit,
                     'item_id' => $product->id,
@@ -318,6 +334,9 @@ class Invoices extends REST_Controller
 
     public function list_post()
     {
+
+   
+
         $warehouse_id = $this->post('warehouse_id');
         if (empty($warehouse_id)) {
             $this->response([
@@ -327,8 +346,8 @@ class Invoices extends REST_Controller
             return;
         }
 
-        $page = $this->post('page') ? (int)$this->post('page') : 1;
-        $limit = $this->post('limit') ? (int)$this->post('limit') : 10;
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('limit') ? (int) $this->post('limit') : 10;
         $search = $this->post('search') ?: '';
         $sortField = $this->post('sortField') ?: 'datecreated';
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
@@ -343,6 +362,8 @@ class Invoices extends REST_Controller
             i.status as invoice_status,
             i.datecreated,
             i.warehouse_id,
+            IF(i.status = 12, i.clientnote, NULL) as dispute_message,
+            IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
             c.company as supplier_name,
             c.vat as supplier_document,
             c.phonenumber as supplier_phone,
@@ -423,10 +444,163 @@ class Invoices extends REST_Controller
 
         $this->response([
             'status' => TRUE,
-            'total' => (int)$total,
-            'page' => (int)$page,
-            'limit' => (int)$limit,
+            'total' => (int) $total,
+            'page' => (int) $page,
+            'limit' => (int) $limit,
             'data' => $invoices
         ], REST_Controller::HTTP_OK);
+    }
+
+
+    public function dispute_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['invoice_id']) || empty($_POST['invoice_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invoice ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['dispute_type']) || empty($_POST['dispute_type'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Dispute type is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['clientnote']) || empty($_POST['clientnote'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Message is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $allowed_dispute_types = ['broken', 'malfunction', 'wrong_item', 'quality_issues', 'other'];
+        if (!in_array($_POST['dispute_type'], $allowed_dispute_types)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid dispute type. Allowed values: ' . implode(', ', $allowed_dispute_types)
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            $this->db->trans_start();
+
+            $this->db->where('id', $_POST['invoice_id']);
+            $this->db->update(db_prefix() . 'invoices', [
+                'status' => 12,
+                'clientnote' => $_POST['clientnote'],
+                'dispute_type' => $_POST['dispute_type']
+            ]);
+
+            if ($this->db->affected_rows() == 0) {
+                throw new Exception('Invoice not found or no changes made');
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Transaction failed');
+            }
+
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Invoice disputed successfully'
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+
+}
+    }
+
+    // Rejeita o/os pedidos
+    public function put_canceled_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "5"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Invoices_model->update_reject($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    // Aprova/Transmite o/os pedidos
+    public function put_aprove_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "2"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Invoices_model->update_aprove($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    // Fatura o/os pedidos
+    public function put_desativar_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "7"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Invoices_model->update_faturar($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+
+        }
     }
 }

@@ -336,7 +336,15 @@ class Staff_model extends App_Model
     {
         $select_str = '*,CONCAT(firstname,\' \',lastname) as full_name';
 
-        // Used to prevent multiple queries on logged in staff to check the total unread notifications in core/AdminController.php
+        // Adiciona campos do contrato se for uma consulta por ID
+        if (is_numeric($id)) {
+            $select_str .= ',(SELECT royalties FROM ' . db_prefix() . 'contracts WHERE id = ' . db_prefix() . 'staff.contractid) as royalties';
+            $select_str .= ',(SELECT datestart FROM ' . db_prefix() . 'contracts WHERE id = ' . db_prefix() . 'staff.contractid) as datestart';
+            $select_str .= ',(SELECT dateend FROM ' . db_prefix() . 'contracts WHERE id = ' . db_prefix() . 'staff.contractid) as dateend';
+            // $select_str .= ',(SELECT duration_years FROM ' . db_prefix() . 'contracts WHERE id = ' . db_prefix() . 'staff.contractid) as duration_years';
+        }
+
+        // Código existente para notificações
         if (is_staff_logged_in() && $id != '' && $id == get_staff_user_id()) {
             $select_str .= ',(SELECT COUNT(*) FROM ' . db_prefix() . 'notifications WHERE touserid=' . get_staff_user_id() . ' and isread=0) as total_unread_notifications, (SELECT COUNT(*) FROM ' . db_prefix() . 'todos WHERE finished=0 AND staffid=' . get_staff_user_id() . ') as total_unfinished_todos';
         }
@@ -354,12 +362,10 @@ class Staff_model extends App_Model
 
             return $staff;
         }
-        $this->db->order_by('firstname', 'desc');
 
+        $this->db->order_by('firstname', 'desc');
         return $this->db->get(db_prefix() . 'staff')->result_array();
     }
-
-
 
 
     /**
@@ -1056,9 +1062,14 @@ class Staff_model extends App_Model
             // Obter os dados com paginação
             $this->db->select([
                 db_prefix() . 'staff.*',
+                db_prefix() . 'contracts.id as contract_id',
                 db_prefix() . 'contracts.contract_name',
                 db_prefix() . 'contracts.contract_url',
                 db_prefix() . 'contracts.preview_contract',
+                db_prefix() . 'contracts.royalties',
+                db_prefix() . 'contracts.datestart',
+                db_prefix() . 'contracts.datestart',
+                db_prefix() . 'contracts.dateend',
                 db_prefix() . 'roles.name as role_name'
             ]);
 
@@ -1108,9 +1119,14 @@ class Staff_model extends App_Model
             // Caso seja busca por ID único
             $this->db->select([
                 db_prefix() . 'staff.*',
+                db_prefix() . 'contracts.id as contract_id',
                 db_prefix() . 'contracts.contract_name',
                 db_prefix() . 'contracts.contract_url',
-                db_prefix() . 'contracts.preview_contract'
+                db_prefix() . 'contracts.preview_contract',
+                db_prefix() . 'contracts.royalties',
+                db_prefix() . 'contracts.datestart',
+                db_prefix() . 'contracts.datestart',
+                db_prefix() . 'contracts.dateend',
             ]);
             $this->db->from(db_prefix() . 'staff');
             $this->db->join(db_prefix() . 'contracts', db_prefix() . 'contracts.id = ' . db_prefix() . 'staff.contractid', 'left');
@@ -1219,8 +1235,7 @@ class Staff_model extends App_Model
             (SELECT datestart FROM ' . db_prefix() . 'contracts WHERE staffid = ' . db_prefix() . 'staff.staffid LIMIT 1) as datestart,
             (SELECT dateend FROM ' . db_prefix() . 'contracts WHERE staffid = ' . db_prefix() . 'staff.staffid LIMIT 1) as dateend,
             (SELECT royalties FROM ' . db_prefix() . 'contracts WHERE staffid = ' . db_prefix() . 'staff.staffid LIMIT 1) as royalties,
-            (SELECT contract_value FROM ' . db_prefix() . 'contracts WHERE staffid = ' . db_prefix() . 'staff.staffid LIMIT 1) as contract_value,
-            (SELECT duration_years FROM ' . db_prefix() . 'contracts WHERE staffid = ' . db_prefix() . 'staff.staffid LIMIT 1) as duration_years
+            (SELECT contract_value FROM ' . db_prefix() . 'contracts WHERE staffid = ' . db_prefix() . 'staff.staffid LIMIT 1) as contract_value
         ');
         $this->db->where('staffid', $id);
         return $this->db->get(db_prefix() . 'staff')->row();

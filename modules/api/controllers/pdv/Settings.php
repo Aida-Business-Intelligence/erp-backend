@@ -29,789 +29,6 @@ class Settings extends REST_Controller
 
 
 
-
-    public function options_get2()
-    {
-        $data = [
-            [
-                "type" => "menu",
-                "category" => "system",
-                "list" => [
-                    "menu" => [
-                        [
-                            "value" => "indice",
-                            "label" => "my_account",
-                            "color" => "",
-                            "icon" => "lucide:home",
-                            "width" => "",
-                            "path" => "/home"
-                        ],
-
-                        [
-                            "value" => "GPTW",
-                            "label" => "my_account",
-                            "color" => "",
-                            "icon" => "lucide:heart",
-                            "width" => "",
-                            "path" => "/gptw"
-                        ],
-
-                        [
-                            "value" => "Gestão GPTW ",
-                            "label" => "my_account",
-                            "color" => "",
-                            "icon" => "lucide:wrench",
-                            "width" => "",
-                            "path" => "/gptw-management"
-                        ],
-                        [
-                            "value" => "dashboard",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:chart-pie",
-                            "width" => "",
-                            "path" => "/dashboard"
-                        ],
-
-                        [
-                            "value" => "Catálogo",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:album",
-                            "width" => "",
-                            "path" => "/products"
-                        ],
-                        [
-                            "value" => "cash",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:calculator",
-                            "width" => "",
-                            "path" => "/cash"
-                        ],
-                        [
-                            "value" => "POS",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:monitor",
-                            "width" => "",
-                            "path" => "/pdv"
-                        ],
-                        [
-                            "value" => "Ordens de Compras",
-                            "label" => "Transações",
-                            "color" => "",
-                            "icon" => "lucide:shopping-cart",
-                            "width" => "",
-                            "path" => "/sales-orders"
-                        ],
-                        [
-                            "value" => "Orçamentos",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:shopping-bag",
-                            "width" => "",
-                            "path" => "https:/buy-orders"
-                        ],
-                        [
-                            "value" => "Vendas",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:receipt",
-                            "width" => "",
-                            "path" => "/transactions"
-                        ],
-                        [
-                            "value" => "clients",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:book-user",
-                            "width" => "",
-                            "path" => "/client"
-                        ],
-                        [
-                            "value" => "Representadas",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:folder",
-                            "width" => "",
-                            "path" => "/representatives"
-                        ],
-                        [
-                            "value" => "Representantes",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:user",
-                            "width" => "",
-                            "path" => "/sales-reps"
-                        ],
-                        [
-                            "value" => "Fornecedores",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:building",
-                            "width" => "",
-                            "path" => "/suppliers"
-                        ],
-                        [
-                            "value" => "Transportadoras",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:truck",
-                            "width" => "",
-                            "path" => "/carriers"
-                        ],
-
-                        [
-                            "value" => "product",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/produto"
-                        ],
-                        [
-                            "value" => "Categorias",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/categories"
-                        ],
-                        [
-                            "value" => "Produto",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/produto"
-                        ],
-                        [
-                            "value" => "Lojas",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/warehouse"
-                        ],
-                        [
-                            "value" => "Contas a pagar",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:credit-card",
-                            "width" => "",
-                            "path" => "/financial"
-                        ],
-                        [
-                            "value" => "Contas a pagar",
-                            "label" => "financial",
-                            "color" => "",
-                            "icon" => "lucide:credit-card",
-                            "width" => "",
-                            "path" => "/financial"
-                        ],
-                        [
-                            "value" => "Carteira de Títulos ",
-                            "label" => "financial",
-                            "color" => "",
-                            "icon" => "lucide:wallet",
-                            "width" => "",
-                            "path" => "/financial-erp/titles"
-                        ],
-                        [
-                            "value" => "Simulador de Encargos ",
-                            "label" => "financial",
-                            "color" => "",
-                            "icon" => "lucide:book",
-                            "width" => "",
-                            "path" => "/financial-erp/contability"
-                        ],
-                        [
-                            "value" => "Relatórios",
-                            "label" => "home",
-                            "color" => "",
-                            "icon" => "lucide:file-text",
-                            "width" => "",
-                            "path" => "/reports"
-                        ],
-                        // [
-                        //     "value" => "Painel do Franqueado",
-                        //     "label" => "Franquias",
-                        //     "color" => "",
-                        //     "icon" => "lucide:bar-chart-2",
-                        //     "width" => "",
-                        //     "path" => "/franchisees/dashboard"
-                        // ],
-                        [
-                            "value" => "Gestão de Franquias",
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:store",
-                            "width" => "",
-                            "path" => "/franchisees/management/list"
-                        ],
-                        [
-                            "value" => "Contratos",
-
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:handshake",
-                            "width" => "",
-                            "path" => "/franchisees/contracts/list"
-                        ],
-                        [
-                            "value" => "Gestão de Pedidos",
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:file-text",
-                            "width" => "",
-                            "path" => "/franchisees/orders/list"
-                        ],
-                        [
-                            "value" => "Suporte",
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:message-circle",
-                            "width" => "",
-                            "path" => "/franchisees/support/list"
-                        ],
-
-                        // [
-                        //     "value" => "Treinamentos",
-                        //     "label" => "Franquias",
-                        //     "color" => "",
-                        //     "icon" => "lucide:graduation-cap",
-                        //     "width" => "",
-                        //     "path" => "/franchisees/training"
-                        // ],
-                        // [
-                        //     "value" => "Gestão de Treinamentos",
-                        //     "label" => "Franquias",
-                        //     "color" => "",
-                        //     "icon" => "lucide:book-open",
-                        //     "width" => "",
-                        //     "path" => "/Franquias/training/management"
-                        // ],
-                        /*
-                         * 
-                         */
-
-
-                        [
-                            "value" => "users",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:users",
-                            "width" => "",
-                            "path" => "/admin/user/list"
-                        ],
-                        /*
-                [
-                    "value" => "languages",
-                    "label" => "admin",
-                    "color" => "",
-                    "icon" => "lucide:globe-2",
-                    "width" => "",
-                    "path" => "/admin/languages"
-                ],
-                 * 
-                
-                [
-                    "value" => "options",
-                    "label" => "admin",
-                    "color" => "",
-                    "icon" => "lucide:sliders-horizontal",
-                    "width" => "",
-                    "path" => "/admin/options"
-                ],
-                 * 
-                 */
-                        [
-                            "value" => "config",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:settings",
-                            "width" => "",
-                            "path" => "/admin/config"
-                        ],
-                        [
-                            "value" => "emails",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:mail",
-                            "width" => "",
-                            "path" => "/admin/emails"
-                        ],
-                        /*
-                [
-                    "value" => "apis",
-                    "label" => "admin",
-                    "color" => "",
-                    "icon" => "lucide:unlock-keyhole",
-                    "width" => "",
-                    "path" => "/admin/apis"
-                ],
-                 * 
-                 */
-                        [
-                            "value" => "Limpar",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:trash",
-                            "width" => "",
-                            "path" => "/auth/clean"
-                        ]
-                    ]
-                ]
-            ],
-            [
-                "type" => "status",
-                "category" => "system",
-                "list" => [
-                    "status" => [
-                        [
-                            "value" => "active",
-                            "label" => "Active",
-                            "color" => "success",
-                            "icon" => "solar:check-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "inactive",
-                            "label" => "Pending",
-                            "color" => "warning",
-                            "icon" => "solar:clock-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "banned",
-                            "label" => "Banned",
-                            "color" => "error",
-                            "icon" => "solar:ban-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "rejected",
-                            "label" => "Rejected",
-                            "color" => "default",
-                            "icon" => "solar:close-circle-bold",
-                            "width" => "",
-                            "path" => ""
-                        ]
-                    ]
-                ]
-            ]
-        ];
-
-
-        $this->response($data, REST_Controller::HTTP_OK);
-    }
-
-    public function options_get()
-    {
-        $data = [
-            [
-                "type" => "menu",
-                "category" => "system",
-                "list" => [
-                    "menu" => [
-                        [
-                            "value" => "indice",
-                            "label" => "Início",
-                            "color" => "",
-                            "icon" => "lucide:home",
-                            "width" => "",
-                            "path" => "/home"
-                        ],
-                        [
-                            "value" => "emails",
-                            "label" => "Início",
-                            "color" => "",
-                            "icon" => "lucide:mail",
-                            "width" => "",
-                            "path" => "/emails"
-                        ],
-
-
-                        // [
-                        //     "value" => "GPTW",
-                        //     "label" =>  "home",
-                        //     "color" => "",
-                        //     "icon" => "lucide:heart",
-                        //     "width" => "",
-                        //     "path" => "/gptw"
-                        // ],
-
-
-                        [
-                            "value" => "dashboard",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:chart-pie",
-                            "width" => "",
-                            "path" => "/dashboard"
-                        ],
-                        [
-                            "value" => "Relatórios",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:file-text",
-                            "width" => "",
-                            "path" => "/reports"
-                        ],
-
-                        [
-                            "value" => "Catálogo",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:album",
-                            "width" => "",
-                            "path" => "/products"
-                        ],
-
-                        [
-                            "value" => "Categorias",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/categories"
-                        ],
-                        [
-                            "value" => "product",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/produto"
-                        ],
-                        [
-                            "value" => "clients",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:book-user",
-                            "width" => "",
-                            "path" => "/client"
-                        ],
-                        [
-                            "value" => "cash",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:calculator",
-                            "width" => "",
-                            "path" => "/cash"
-                        ],
-                        [
-                            "value" => "POS",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:monitor",
-                            "width" => "",
-                            "path" => "/pdv"
-                        ],
-
-                        [
-                            "value" => "Orçamentos",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:shopping-bag",
-                            "width" => "",
-                            "path" => "/buy-orders"
-                        ],
-                        [
-                            "value" => "Vendas",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:receipt",
-                            "width" => "",
-                            "path" => "/transactions"
-                        ],
-
-                        [
-                            "value" => "Ordens de Compras",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:shopping-cart",
-                            "width" => "",
-                            "path" => "/sales-orders"
-                        ],
-                        [
-                            "value" => "Representadas",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:folder",
-                            "width" => "",
-                            "path" => "/representatives"
-                        ],
-                        [
-                            "value" => "Representantes",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:user",
-                            "width" => "",
-                            "path" => "/sales-reps"
-                        ],
-                        [
-                            "value" => "Fornecedores",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:building",
-                            "width" => "",
-                            "path" => "/suppliers"
-                        ],
-                        [
-                            "value" => "Transportadoras",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:truck",
-                            "width" => "",
-                            "path" => "/carriers"
-                        ],
-
-
-
-                        [
-                            "value" => "Produto",
-                            "label" => "cadastros",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/produto"
-                        ],
-
-                        [
-                            "value" => "Contas a pagar ",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:credit-card",
-                            "width" => "",
-                            "path" => "/financial"
-                        ],
-                        [
-                            "value" => "Painel Geral ",
-                            "label" => "financial",
-                            "color" => "",
-                            "icon" => "lucide:wallet",
-                            "width" => "",
-                            "path" => "/financial-erp/panel"
-                        ],
-                        [
-                            "value" => "Conciliação Bancária ",
-                            "label" => "financial",
-                            "color" => "",
-                            "icon" => "lucide:landmark",
-                            "width" => "",
-                            "path" => "/financial-erp/bank-reconciliation"
-                        ],
-                        // [
-                        //     "value" => "Contas a pagar ",
-                        //     "label" => "financial",
-                        //     "color" => "",
-                        //     "icon" => "lucide:credit-card",
-                        //     "width" => "",
-                        //     "path" => "/financial"
-                        // ],
-                        // [
-                        //     "value" => "Carteira de Títulos ",
-                        //     "label" => "financial",
-                        //     "color" => "",
-                        //     "icon" => "lucide:wallet",
-                        //     "width" => "",
-                        //     "path" => "/financial-erp/titles"
-                        // ],
-                        [
-                            "value" => "Simulador de Encargos ",
-                            "label" => "financial",
-                            "color" => "",
-                            "icon" => "lucide:book",
-                            "width" => "",
-                            "path" => "/financial-erp/contability"
-                        ],
-
-                        // [
-                        //     "value" => "Painel do Franqueado",
-                        //     "label" => "Franquias",
-                        //     "color" => "",
-                        //     "icon" => "lucide:bar-chart-2",
-                        //     "width" => "",
-                        //     "path" => "/franchisees/dashboard"
-                        // ],
-                        [
-                            "value" => "Gestão de Franquias",
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:store",
-                            "width" => "",
-                            "path" => "/franchisees/management/list"
-                        ],
-                        [
-                            "value" => "Contratos",
-
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:handshake",
-                            "width" => "",
-                            "path" => "/franchisees/contracts/list"
-                        ],
-                        // [
-                        //     "value" => "Treinamentos",
-                        //     "label" =>  "Franquias",
-                        //     "color" => "",
-                        //     "icon" => "lucide:graduation-cap",
-                        //     "width" => "",
-                        //     "path" => "/franchisees/training"
-                        // ],
-                        // [
-                        //     "value" => "Gestão de Treinamentos",
-                        //     "label" =>  "Franquias",
-                        //     "color" => "",
-                        //     "icon" => "lucide:book-open",
-                        //     "width" => "",
-                        //     "path" => "/franchisees/training/management"
-                        // ],
-                        [
-                            "value" => "Gestão de Pedidos",
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:file-text",
-                            "width" => "",
-                            "path" => "/franchisees/orders/list"
-                        ],
-
-                        [
-                            "value" => "Suporte",
-                            "label" => "Franquias",
-                            "color" => "",
-                            "icon" => "lucide:message-circle",
-                            "width" => "",
-                            "path" => "/franchisees/support/list"
-                        ],
-
-                        [
-                            "value" => "users",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:users",
-                            "width" => "",
-                            "path" => "/admin/user/list"
-                        ],
-                        [
-                            "value" => "Lojas",
-                            "label" => "pdv",
-                            "color" => "",
-                            "icon" => "lucide:edit",
-                            "width" => "",
-                            "path" => "/warehouse"
-                        ],
-                        [
-                            "value" => "Gestão GPTW ",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:wrench",
-                            "width" => "",
-                            "path" => "/gptw-management"
-                        ],
-                        /*
-                [
-                    "value" => "languages",
-                    "label" => "admin",
-                    "color" => "",
-                    "icon" => "lucide:globe-2",
-                    "width" => "",
-                    "path" => "/admin/languages"
-                ],
-                 * 
-                
-                [
-                    "value" => "options",
-                    "label" => "admin",
-                    "color" => "",
-                    "icon" => "lucide:sliders-horizontal",
-                    "width" => "",
-                    "path" => "/admin/options"
-                ],
-                 * 
-                 */
-                        [
-                            "value" => "config",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:settings",
-                            "width" => "",
-                            "path" => "/admin/config"
-                        ],
-
-                        /*
-                [
-                    "value" => "apis",
-                    "label" => "admin",
-                    "color" => "",
-                    "icon" => "lucide:unlock-keyhole",
-                    "width" => "",
-                    "path" => "/admin/apis"
-                ],
-                 * 
-                 */
-                        [
-                            "value" => "Limpar",
-                            "label" => "admin",
-                            "color" => "",
-                            "icon" => "lucide:trash",
-                            "width" => "",
-                            "path" => "/auth/clean"
-                        ]
-                    ]
-                ]
-            ],
-            [
-                "type" => "status",
-                "category" => "system",
-                "list" => [
-                    "status" => [
-                        [
-                            "value" => "active",
-                            "label" => "Active",
-                            "color" => "success",
-                            "icon" => "solar:check-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "inactive",
-                            "label" => "Pending",
-                            "color" => "warning",
-                            "icon" => "solar:clock-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "banned",
-                            "label" => "Banned",
-                            "color" => "error",
-                            "icon" => "solar:ban-bold",
-                            "width" => "",
-                            "path" => ""
-                        ],
-                        [
-                            "value" => "rejected",
-                            "label" => "Rejected",
-                            "color" => "default",
-                            "icon" => "solar:close-circle-bold",
-                            "width" => "",
-                            "path" => ""
-                        ]
-                    ]
-                ]
-            ]
-        ];
-
-
-        $this->response($data, REST_Controller::HTTP_OK);
-    }
-
     public function create_post()
     {
 
@@ -1049,6 +266,10 @@ class Settings extends REST_Controller
             'pdv_senha_gerente_open_cash' => [
                 'type' => 'boolean',
                 'required' => false
+            ],
+            'purchase_needs_enabled' => [
+                'type' => 'boolean',
+                'required' => false
             ]
         ];
 
@@ -1165,4 +386,172 @@ class Settings extends REST_Controller
             'data' => $result
         ], REST_Controller::HTTP_OK);
     }
+
+    public function create_menu_post()
+    {
+
+        ini_set('display_errors', 1);
+		ini_set('display_startup_erros', 1);
+		error_reporting(E_ALL);
+
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+
+        $this->load->library('form_validation');
+        $this->form_validation->set_data($_POST);
+        $this->form_validation->set_rules('value', 'Value', 'trim|required|max_length[255]');
+
+        if ($this->form_validation->run() == FALSE) {
+            $message = ['status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors()];
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            
+            $tbmmenu = $this->Settings_model;
+
+            if ($tbmmenu->save_menu($_POST)) {
+                $message = ['status' => TRUE, 'message' => 'Menu item added successfully.', 'data' => $tbmmenu];
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $this->response('Error', REST_Controller::HTTP_NOT_ACCEPTABLE);
+            }
+        }
+    }
+
+    public function update_menu_patch($id = '')
+    {
+       
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST)) {
+            $message = ['status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided'];
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $this->form_validation->set_data($_POST);
+        if (empty($id) || !is_numeric($id)) {
+            $message = ['status' => FALSE, 'message' => 'Invalid Menu ID'];
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $tbmmenu = $this->Settings_model->update_menu($id, $_POST);
+
+     
+
+
+            if ($tbmmenu) {
+                $message = ['status' => TRUE, 'message' => 'Menu update successful.', 'data' => $tbmmenu];
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $message = ['status' => FALSE, 'message' => 'Menu update failed.'];
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+    }
+
+    public function delete_menu_delete($id)
+    {
+        
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST)) {
+            $message = ['status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided'];
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+       
+            $tbmmenu = $this->Settings_model->delete_menu($id);
+
+            if ($tbmmenu) {
+                $message = ['status' => TRUE, 'message' => 'Menu deleted successful.', 'data' => $tbmmenu];
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $message = ['status' => FALSE, 'message' => 'Menu deleted failed.'];
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        
+    }
+
+    public function options_get()
+    {
+        // Fetch all items from the tbmmenu table using the model
+        $menus = $this->Settings_model->get_menus();
+    
+        if (empty($menus)) {
+            $this->response(['status' => FALSE, 'message' => 'No menu items found.'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            // Sort menus by 'ordem', 'label', and 'value' as secondary and tertiary criteria
+            usort($menus, function($a, $b) {
+                if ($a['ordem'] == $b['ordem']) {
+                    if ($a['label'] == $b['label']) {
+                        return $a['value'] <=> $b['value'];
+                    }
+                    return $a['label'] <=> $b['label'];
+                }
+                return $a['ordem'] <=> $b['ordem'];
+            });
+    
+            // Format the sorted menu items
+            $formattedMenus = array_map(function($menu) {
+                return [
+                    'id' => $menu['id'],
+                    'value' => $menu['value'],
+                    'label' => $menu['label'],
+                    'color' => $menu['color'],
+                    'icon' => $menu['icon'],
+                    'width' => $menu['width'],
+                    'path' => $menu['path'],
+                    'ordem' => $menu['ordem'],
+                ];
+            }, $menus);
+    
+            // Encapsulate the formatted menu items into the desired structure
+            $responseData = [
+                [
+                    'type' => 'menu',
+                    'category' => 'system',
+                    'list' => [
+                        'menu' => $formattedMenus
+                    ]
+                ]
+            ];
+    
+            $this->response($responseData, REST_Controller::HTTP_OK);
+        }
+    }
+    public function update_menus_patch()
+    {
+        // Retrieve and clean the input data
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    
+        if (empty($_POST) || !is_array($_POST)) {
+            $message = ['status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided'];
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+            return;
+        }
+    
+        // Iterate through the list of menu items to update each one
+        $results = [];
+        foreach ($_POST as $menu_item) {
+            if (isset($menu_item['id']) && is_numeric($menu_item['id'])) {
+                $id = $menu_item['id']; // Store ID before unsetting it
+                unset($menu_item['id']); // Remove ID from the data to be updated
+    
+                // Attempt to update the menu
+                $result = $this->Settings_model->update_menu($id, $menu_item);
+
+                if ($result > 0) {
+                    $results[] = ['id' => $id, 'status' => TRUE, 'message' => 'Menu updated successfully.'];
+                } else {
+                    $results[] = ['id' => $id, 'status' => FALSE, 'message' => 'Menu update failed.'];
+                }
+            } else {
+                $results[] = ['status' => FALSE, 'message' => 'Invalid Menu ID'];
+            }
+        }
+    
+        // Respond with the results of each update operation
+        $message = ['status' => TRUE, 'message' => 'Bulk update processed.', 'results' => $results];
+        $this->response($message, REST_Controller::HTTP_OK);
+    }
 }
+

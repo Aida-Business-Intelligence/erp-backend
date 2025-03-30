@@ -10,6 +10,7 @@ class Invoices extends REST_Controller
         parent::__construct();
         $this->load->model('Invoices_model');
 
+        /*
         $decodedToken = $this->authservice->decodeToken($this->token_jwt);
         if (!$decodedToken['status']) {
             $this->response([
@@ -17,6 +18,7 @@ class Invoices extends REST_Controller
                 'message' => 'Usuario nao autenticado'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
+            */
     }
 
     public function create_purchase_order_post()
@@ -332,6 +334,9 @@ class Invoices extends REST_Controller
 
     public function list_post()
     {
+
+   
+
         $warehouse_id = $this->post('warehouse_id');
         if (empty($warehouse_id)) {
             $this->response([
@@ -516,6 +521,9 @@ class Invoices extends REST_Controller
                 'status' => FALSE,
                 'message' => 'Error: ' . $e->getMessage()
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+
+}
+    }
 
     // Rejeita o/os pedidos
     public function put_canceled_post()

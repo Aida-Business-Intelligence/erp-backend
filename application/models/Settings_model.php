@@ -255,6 +255,8 @@ class Settings_model extends App_Model
 	{
 	
 
+
+      
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'menu', $data);
         return $this->db->affected_rows();
@@ -267,6 +269,7 @@ class Settings_model extends App_Model
 	
         $this->db->where('id', $id);
         $this->db->delete(db_prefix() . 'menu');
+        
         return $this->db->affected_rows();
       
     

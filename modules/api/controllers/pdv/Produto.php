@@ -1120,4 +1120,158 @@ class Produto extends REST_Controller
         }
         
     }
+
+
+
+    public function units_post()
+    {
+        $warehouse_id = $this->post('warehouse_id');
+
+        if (empty($warehouse_id)) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'order';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+
+        $this->db->select('
+            unit_type_id,
+            unit_code,
+            unit_name,
+            unit_symbol,
+            `order`,
+            display,
+            note
+        ');
+        $this->db->from(db_prefix() . 'ware_unit_type');
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('unit_code', $search);
+            $this->db->or_like('unit_name', $search);
+            $this->db->or_like('unit_symbol', $search);
+            $this->db->or_like('note', $search);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results('', false);
+
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $units = $this->db->get()->result_array();
+
+        $units = array_map(function ($unit) {
+            $unit['display'] = (bool)$unit['display'];
+            return $unit;
+        }, $units);
+
+        $this->response([
+            'status' => TRUE,
+            'total' => $total,
+            'data' => $units
+        ], REST_Controller::HTTP_OK);
+    }
+    public function category_get($id = '')
+    {
+        if (empty($id) || !is_numeric($id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid Category ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $warehouse_id = $this->get('warehouse_id');
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $this->db->select('g.*, 
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'wh_sub_group WHERE group_id = g.id AND warehouse_id = ' . $this->db->escape($warehouse_id) . ') as subcategories_count,
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'items WHERE group_id = g.id AND warehouse_id = ' . $this->db->escape($warehouse_id) . ') as total_products
+        ');
+        $this->db->from(db_prefix() . 'items_groups g');
+        $this->db->where('g.id', $id);
+        $this->db->where('g.warehouse_id', $warehouse_id);
+
+        $category = $this->db->get()->row_array();
+
+        if ($category) {
+            $this->response([
+                'status' => TRUE,
+                'data' => $category
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Category not found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function category_subcategories_get($category_id = '')
+    {
+        if (empty($category_id) || !is_numeric($category_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid Category ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $warehouse_id = $this->get('warehouse_id');
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $this->db->where('id', $category_id);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $category = $this->db->get(db_prefix() . 'items_groups')->row();
+
+        if (!$category) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Category not found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        // Get subcategories
+        $this->db->select('sg.*, 
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'items 
+            WHERE group_id = ' . $this->db->escape($category_id) . ' 
+            AND warehouse_id = ' . $this->db->escape($warehouse_id) . '
+            AND sub_group = sg.id) as products_count'
+        );
+        $this->db->from(db_prefix() . 'wh_sub_group sg');
+        $this->db->where('sg.group_id', $category_id);
+        $this->db->where('sg.warehouse_id', $warehouse_id);
+        $this->db->order_by('sg.sub_group_name', 'ASC');
+
+        $subcategories = $this->db->get()->result_array();
+
+        $this->response([
+            'status' => TRUE,
+            'data' => [
+                'category' => $category,
+                'subcategories' => $subcategories
+            ]
+        ], REST_Controller::HTTP_OK);
+    }
 }

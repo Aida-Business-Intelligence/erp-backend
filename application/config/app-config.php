@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') or exit('No direct script access allowed');
 /*
  * --------------------------------------------------------------------------
@@ -16,7 +17,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * environments.
  *
  */
-define('APP_BASE_URL', 'http://localhost/');
+define('APP_BASE_URL', 'http://localhost/aida/erp-backend/');
 
 /*
  * --------------------------------------------------------------------------
@@ -32,20 +33,21 @@ define('APP_BASE_URL', 'http://localhost/');
  * Auto added on install
  */
 define('APP_ENC_KEY', '6a88fa70f0c078521d59ed904a0fe44b');
+
 /**
  * Database Credentials
  * The hostname of your database server
  */
-// define('APP_DB_HOSTNAME', '77.37.40.128');
 define('APP_DB_HOSTNAME', 'localhost');
+
 /**
  * The username used to connect to the database
  */
-define('APP_DB_USERNAME', 'dev');
+define('APP_DB_USERNAME', 'root');
 /**
  * The password used to connect to the database
  */
-define('APP_DB_PASSWORD', 'c6m8n4d2d3');
+define('APP_DB_PASSWORD', '');
 /**
  * The name of the database you want to connect to
  */

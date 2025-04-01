@@ -204,12 +204,13 @@ class Cashs_model extends App_Model
             $this->db->group_start();
             $this->db->like('c.type', $search);
             $this->db->or_like('clients.company', $search);
+            $this->db->or_like('clients.vat', $search);
             $this->db->or_like('c.doc', $search);
             $this->db->or_like('c.total', $search);
             $this->db->or_like('c.nota', $search);
             $this->db->or_like('c.operacao', $search);
             $this->db->or_like('items.description', $search);
-            $this->db->or_like('items.long_description', $search);
+            // $this->db->or_like('items.long_description', $search);
             $this->db->group_end();
         }
 
@@ -278,12 +279,12 @@ class Cashs_model extends App_Model
             $this->db->group_start();
             $this->db->like('c.type', $search);
             $this->db->or_like('clients.company', $search);
+            $this->db->or_like('clients.vat', $search);
             $this->db->or_like('c.doc', $search);
             $this->db->or_like('c.total', $search);
             $this->db->or_like('c.nota', $search);
             $this->db->or_like('c.operacao', $search);
             $this->db->or_like('items.description', $search);
-            $this->db->or_like('items.long_description', $search);
             $this->db->group_end();
         }
 

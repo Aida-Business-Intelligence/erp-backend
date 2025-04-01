@@ -164,7 +164,6 @@ class Warehouse extends REST_Controller
         $this->form_validation->set_data($_input);
         $this->form_validation->set_rules('warehouse_name', 'Warehouse Name', 'trim|required|max_length[255]');
         $this->form_validation->set_rules('endereco', 'Endereco', 'trim|required|max_length[255]');
-        $this->form_validation->set_rules('order', 'Order', 'trim|required|numeric');
         $this->form_validation->set_rules('display', 'Display', 'trim|required|in_list[0,1]');
         $this->form_validation->set_rules('cidade', 'Cidade', 'trim|required|max_length[100]');
         $this->form_validation->set_rules('estado', 'Estado', 'trim|required|max_length[100]');

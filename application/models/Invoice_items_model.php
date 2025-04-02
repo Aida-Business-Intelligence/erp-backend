@@ -131,7 +131,7 @@ class Invoice_items_model extends App_Model
             
             $this->db->from($items_table)
                 ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group_id", 'left')
+                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
                 ->where("$items_table.id", $id);
 
             if ($warehouse_id) {
@@ -182,7 +182,7 @@ class Invoice_items_model extends App_Model
             ->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left')
             ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
             ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group_id", 'left');
+            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left');
 
         if ($warehouse_id) {
             $this->db->where("$items_table.warehouse_id", $warehouse_id);

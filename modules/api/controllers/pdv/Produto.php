@@ -123,6 +123,9 @@ class Produto extends REST_Controller
             'tax2' => $_POST['taxid_2'] ?? null,
             'unit' => $_POST['unit'] ?? null,
             'group_id' => $_POST['group_id'] ?? 0,
+            'sub_group' => $_POST['sub_group'] ?? null,
+            'userid' => $_POST['userid'] ?? null,
+            'code' => $_POST['code'] ?? null,
             'sku_code' => $_POST['sku_code'] ?? null,
             'barcode' => $_POST['barcode'] ?? null,
             'status' => $_POST['status'] ?? 'pending',
@@ -1122,7 +1125,6 @@ class Produto extends REST_Controller
     }
 
 
-
     public function units_post()
     {
         $warehouse_id = $this->post('warehouse_id');
@@ -1274,4 +1276,5 @@ class Produto extends REST_Controller
             ]
         ], REST_Controller::HTTP_OK);
     }
+
 }

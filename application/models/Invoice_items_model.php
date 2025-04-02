@@ -115,13 +115,21 @@ class Invoice_items_model extends App_Model
     /**
      * Get items with API formatting
      */
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'DESC', $statusFilter = null, $startDate = null, $endDate = null, $category = null, $subcategory = null, $warehouse_id = null)
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'DESC', $statusFilter = null,
+     $startDate = null, $endDate = null, $category = null, $subcategory = null, $warehouse_id = null, $send = null)
     {
+
+
         $items_table = db_prefix() . 'items';
         $groups_table = db_prefix() . 'items_groups';
         $subgroups_table = db_prefix() . 'wh_sub_group';
 
-        if (is_numeric($id)) {
+    
+
+        if ($id != '') {
+
+          
+
             $this->db->select([
                 "$items_table.*",
                 "$groups_table.name as group_name",
@@ -131,17 +139,37 @@ class Invoice_items_model extends App_Model
             
             $this->db->from($items_table)
                 ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group_id", 'left')
-                ->where("$items_table.id", $id);
+                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group_id", 'left');
+                
+
+               
+
 
             if ($warehouse_id) {
                 $this->db->where("$items_table.warehouse_id", $warehouse_id);
             }
 
-            $item = $this->db->get()->row_array();
+            if($send == 'pdv'){
+                $this->db->where("$items_table.id", $id);
+                $this->db->or_where("$items_table.commodity_barcode", $id)->limit(1);
+                $item = $this->db->get()->row();
+                }else{
+                   
+                $this->db->or_where("$items_table.commodity_barcode", $id);
+                $item = $this->db->get()->row_array();
+                }
+
+     
+
             
             if ($item) {
-                return ['data' => [$item], 'total' => 1];
+
+                if($send == 'pdv'){
+                return ['data' => $item, 'total' => 1];
+                }else{
+                    return ['data' => [$item], 'total' => 1];
+                }
+
             }
             return ['data' => [], 'total' => 0];
         }
@@ -204,7 +232,7 @@ class Invoice_items_model extends App_Model
         }
 
         if (!empty($subcategory)) {
-            $this->db->where("$items_table.sub_group_id", $subcategory);
+            $this->db->where("$items_table.sub_group", $subcategory);
         }
 
         if (!empty($search)) {

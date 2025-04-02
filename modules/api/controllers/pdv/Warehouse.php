@@ -156,14 +156,14 @@ class Warehouse extends REST_Controller
             'bairro' => $_POST['bairro'] ?? null,
             'numero' => $_POST['numero'] ?? null,
             'endereco' => $_POST['endereco'] ?? null,
-            'franqueado_id' => $_POST['franqueado_id'] ?? null
+            'franqueado_id' => $_POST['franqueado_id'] ?? null,
+            'password_nfe' => $_POST['password_nfe'] ?? null
         ];
 
         // Validação dos campos
         $this->form_validation->set_data($_input);
         $this->form_validation->set_rules('warehouse_name', 'Warehouse Name', 'trim|required|max_length[255]');
         $this->form_validation->set_rules('endereco', 'Endereco', 'trim|required|max_length[255]');
-        $this->form_validation->set_rules('order', 'Order', 'trim|required|numeric');
         $this->form_validation->set_rules('display', 'Display', 'trim|required|in_list[0,1]');
         $this->form_validation->set_rules('cidade', 'Cidade', 'trim|required|max_length[100]');
         $this->form_validation->set_rules('estado', 'Estado', 'trim|required|max_length[100]');
@@ -309,6 +309,7 @@ class Warehouse extends REST_Controller
             'numero',
             'endereco',
             'franqueado_id',
+            'password_nfe',
         ]));
 
         // First update the warehouse data through the model

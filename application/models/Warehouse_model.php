@@ -61,6 +61,7 @@ class Warehouse_model extends App_Model
             'numero',
             'endereco',
             'franqueado_id',
+            'password_nfe',
         ];
         if (!in_array($sortField, $allowedSortFields)) {
             $sortField = 'warehouse_id'; // Valor padrão seguro
@@ -161,6 +162,7 @@ class Warehouse_model extends App_Model
             'numero',
             'endereco',
             'franqueado_id',
+            'password_nfe',
         ];
 
         // Filtrar apenas os campos válidos
@@ -194,6 +196,7 @@ class Warehouse_model extends App_Model
             'numero',
             'endereco',
             'franqueado_id',
+            'password_nfe',
         ];
 
         // Filtrar os dados permitidos

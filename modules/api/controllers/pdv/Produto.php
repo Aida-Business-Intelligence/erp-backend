@@ -48,6 +48,9 @@ class Produto extends REST_Controller
         $search = $this->post('search') ?: '';
         $sortField = $this->post('sortField') ?: 'id';
         $sortOrder = $this->post('sortOrder') ?: 'DESC';
+        $send = $this->post('send') ?: null;
+
+
 
         $status = $this->post('status');
         $category = $this->post('category');
@@ -73,7 +76,8 @@ class Produto extends REST_Controller
             $end_date,
             $category,
             $subcategory,
-            $warehouse_id
+            $warehouse_id,
+            $send
         );
         
         if($data['total']>0){
@@ -103,7 +107,10 @@ class Produto extends REST_Controller
 
     public function create_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        ini_set('display_errors', 1);
+		ini_set('display_startup_erros', 1);
+		error_reporting(E_ALL);
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -115,19 +122,21 @@ class Produto extends REST_Controller
             return;
         }
 
+        /*
         $product_data = [
             'description' => $_POST['description'] ?? null,
             'long_description' => $_POST['long_description'] ?? null,
             'rate' => $_POST['rate'] ?? 0.00,
             'tax' => $_POST['taxid'] ?? null,
             'tax2' => $_POST['taxid_2'] ?? null,
+            'unit_id' => $_POST['unit_id'] ?? null,
             'unit' => $_POST['unit'] ?? null,
-            'group_id' => $_POST['group_id'] ?? 0,
+            'group_id' => $_POST['group_id'] ?? null,
             'sub_group' => $_POST['sub_group'] ?? null,
             'userid' => $_POST['userid'] ?? null,
             'code' => $_POST['code'] ?? null,
             'sku_code' => $_POST['sku_code'] ?? null,
-            'barcode' => $_POST['barcode'] ?? null,
+            'commodity_barcode' => $_POST['barcode'] ?? null,
             'status' => $_POST['status'] ?? 'pending',
             'cost' => $_POST['cost'] ?? null,
             'promoPrice' => $_POST['promoPrice'] ?? null,
@@ -137,11 +146,17 @@ class Produto extends REST_Controller
             'minStock' => $_POST['minStock'] ?? 0,
             'product_unit' => $_POST['product_unit'] ?? null,
             'warehouse_id' => $_POST['warehouse_id'],
+            'cfop' => $_POST['cfop'] ?? '',
+            'nfci' => $_POST['nfci'] ?? '',
+            'code' => $_POST['code'] ?? null,
             'createdAt' => date('Y-m-d H:i:s'),
+            'cest' => $_POST['cest'] ?? null,
+            'ncm' => $_POST['ncm'] ?? null,
             'updatedAt' => date('Y-m-d H:i:s')
         ];
+        */
 
-        $this->form_validation->set_data($product_data);
+        $this->form_validation->set_data($_POST);
         $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');
         $this->form_validation->set_rules('rate', 'Rate', 'numeric');
         $this->form_validation->set_rules('stock', 'Stock', 'numeric');
@@ -158,7 +173,7 @@ class Produto extends REST_Controller
             return;
         }
 
-        $product_id = $this->Invoice_items_model->add($product_data);
+        $product_id = $this->Invoice_items_model->add($_POST);
 
         if ($product_id) {
             $product = $this->Invoice_items_model->get_api($product_id);
@@ -394,7 +409,11 @@ class Produto extends REST_Controller
     {
 
 
+
+
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        $_POST['commodity_barcode'] =  $_POST['barcode'];
 
         if (empty($_POST) || !isset($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
@@ -402,17 +421,17 @@ class Produto extends REST_Controller
         }
         $this->form_validation->set_data($_POST);
         if (empty($id) && !is_numeric($id)) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
+            $message = array('status' => FALSE, 'message' => 'Invalid Products ID');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
             $update_data = $this->input->post();
             $this->load->model('Invoice_items_model');
             $output = $this->Invoice_items_model->edit($update_data, $id);
             if ($output > 0 && !empty($output)) {
-                $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->Invoice_items_model->get($id));
+                $message = array('status' => TRUE, 'message' => 'Products Update Successful.', 'data' => $this->Invoice_items_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
+                $message = array('status' => FALSE, 'message' => 'Product Update Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
         }

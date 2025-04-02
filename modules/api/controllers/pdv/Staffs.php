@@ -378,7 +378,7 @@ class Staffs extends REST_Controller
         }
     }
 
-    //-----> REPRESENTATIVES - IMPLEMENTACAO
+    //-----> FRANQUIAS/REPRESENTATIVE - IMPLEMENTACAO
 
     public function list_post($id = '')
     {
@@ -524,6 +524,7 @@ class Staffs extends REST_Controller
 
         $client = $this->Staff_model->get($id);
 
+
         if ($client) {
             $this->response([
                 'status' => TRUE,
@@ -538,32 +539,86 @@ class Staffs extends REST_Controller
     }
     public function update_post($id = '')
     {
-
-
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST) || !isset($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
         }
+
+        // Remover campos do contrato antes de processar
+        unset($_POST['royalties']);
+        unset($_POST['datestart']);
+        unset($_POST['duration_years']);
+        unset($_POST['contract_file']);
+
         $this->form_validation->set_data($_POST);
+
         if (empty($id) && !is_numeric($id)) {
             $message = array('status' => FALSE, 'message' => 'Invalid users ID');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
             $update_data = $this->input->post();
-            // update data
             $this->load->model('Staff_model');
             $output = $this->Staff_model->update($update_data, $update_data['staffid']);
+
             if ($output > 0 && !empty($output)) {
-                // success
-                $message = array('status' => TRUE, 'message' => 'Users Update Successful.', 'data' => $this->Staff_model->get($id));
+                $message = array('status' => TRUE, 'message' => 'franchisees Update Successful.', 'data' => $this->Staff_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                // error
-                $message = array('status' => FALSE, 'message' => 'Users Update Fail.');
+                $message = array('status' => FALSE, 'message' => 'franchisees Update Fail.');
                 $this->response($message, REST_Controller::HTTP_NOT_FOUND);
             }
+        }
+    }
+
+    public function put_desativar_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $active = "0"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Staff_model->update_active($ids, $active);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Franchisee Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Franchisee.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function put_ativar_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $active = "1"; // Define o campo 'active' como "1" (ativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Staff_model->update_active($ids, $active);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Franchisee Activated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Activate Franchisee.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }
 }

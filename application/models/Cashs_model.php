@@ -505,8 +505,12 @@ class Cashs_model extends App_Model
 
         if ($query->num_rows() > 0) {
             $row = $query->row();
-            $currentQuantity = $row->qtde;
+
+        
+            $currentQuantity = $row->stock;
             $updatedQuantity = $currentQuantity - $qtde;
+
+
 
             // Update the quantity in the database
             $this->db->where('id', $item_id);
@@ -633,6 +637,7 @@ class Cashs_model extends App_Model
         $insert_id = $this->db->insert_id();
 
 
+        $this->db->insert(db_prefix() . 'cashextracts', $data);
 
 
         if ($insert_id) {

@@ -99,11 +99,11 @@ class Warehouse extends REST_Controller
             ], REST_Controller::HTTP_OK);
         }
     }
-    public function list_get($id = '')
+    public function list_get($franqueado_id = '', $id = '')
     {
 
         // Chamada ao modelo
-        $data = $this->Warehouse_model->get('', array('franqueado_id' => $id));
+        $data = $this->Warehouse_model->get($id, array('franqueado_id' => $franqueado_id));
 
         // Verifica se encontrou dados
         if (empty($data)) {
@@ -144,7 +144,7 @@ class Warehouse extends REST_Controller
             'warehouse_code' => $_POST['warehouse_code'] ?? null,
             'warehouse_name' => $_POST['warehouse_name'] ?? null,
             'cnpj' => $_POST['cnpj'] ?? null,
-            'order' => $_POST['order'] ?? null,
+            // 'order' => $_POST['order'] ?? null,
             'display' => $_POST['display'] ?? null,
             'note' => $_POST['note'] ?? null,
             'cidade' => $_POST['cidade'] ?? null,
@@ -296,7 +296,7 @@ class Warehouse extends REST_Controller
             'warehouse_code',
             'warehouse_name',
             'cnpj',
-            'order',
+            // 'order',
             'display',
             'note',
             'cidade',

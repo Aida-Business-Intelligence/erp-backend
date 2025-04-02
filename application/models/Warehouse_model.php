@@ -48,7 +48,7 @@ class Warehouse_model extends App_Model
             'warehouse_code',
             'warehouse_name',
             'cnpj',
-            'order',
+            // 'order',
             'display',
             'note',
             'cidade',
@@ -77,7 +77,7 @@ class Warehouse_model extends App_Model
                 $this->db->like(db_prefix() . 'warehouse.warehouse_code', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.warehouse_name', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.cnpj', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.order', $search);
+                // $this->db->or_like(db_prefix() . 'warehouse.order', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.display', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.note', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.cidade', $search);
@@ -108,7 +108,7 @@ class Warehouse_model extends App_Model
                 $this->db->like(db_prefix() . 'warehouse.warehouse_code', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.warehouse_name', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.cnpj', $search);
-                $this->db->or_like(db_prefix() . 'warehouse.order', $search);
+                // $this->db->or_like(db_prefix() . 'warehouse.order', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.display', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.note', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.cidade', $search);
@@ -149,7 +149,7 @@ class Warehouse_model extends App_Model
             'warehouse_code',
             'warehouse_name',
             'cnpj',
-            'order',
+            // 'order',
             'display',
             'note',
             'cidade',
@@ -183,7 +183,7 @@ class Warehouse_model extends App_Model
             'warehouse_code',
             'warehouse_name',
             'cnpj',
-            'order',
+            // 'order',
             'display',
             'note',
             'cidade',

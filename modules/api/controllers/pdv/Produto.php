@@ -409,8 +409,6 @@ class Produto extends REST_Controller
     {
 
 
-
-
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         $_POST['commodity_barcode'] =  $_POST['barcode'];
@@ -428,11 +426,16 @@ class Produto extends REST_Controller
             $this->load->model('Invoice_items_model');
             $output = $this->Invoice_items_model->edit($update_data, $id);
             if ($output > 0 && !empty($output)) {
+
+
+                 log_activity('Produto atualizado com [Name: Teste]', 1);
+                 
+
                 $message = array('status' => TRUE, 'message' => 'Products Update Successful.', 'data' => $this->Invoice_items_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
-                $message = array('status' => FALSE, 'message' => 'Product Update Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+                $message = array('status' => FALSE, 'message' => 'Item Atualizado.');
+                $this->response($message, REST_Controller::HTTP_OK);
             }
         }
     }
@@ -867,7 +870,7 @@ class Produto extends REST_Controller
         $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.item_id = i.id');
         $this->db->join(db_prefix() . 'clients c', 'c.userid = pn.user_id');
         $this->db->where('pn.status', 0);
-      //  $this->db->where('c.is_supplier', 1);
+        $this->db->where('c.is_supplier', 1);
         $this->db->where('i.warehouse_id', $warehouse_id);
         $this->db->group_by('c.userid');
         $this->db->having('COUNT(DISTINCT pn.id) > 0');

@@ -204,12 +204,13 @@ class Cashs_model extends App_Model
             $this->db->group_start();
             $this->db->like('c.type', $search);
             $this->db->or_like('clients.company', $search);
+            $this->db->or_like('clients.vat', $search);
             $this->db->or_like('c.doc', $search);
             $this->db->or_like('c.total', $search);
             $this->db->or_like('c.nota', $search);
             $this->db->or_like('c.operacao', $search);
             $this->db->or_like('items.description', $search);
-            $this->db->or_like('items.long_description', $search);
+            // $this->db->or_like('items.long_description', $search);
             $this->db->group_end();
         }
 
@@ -278,12 +279,12 @@ class Cashs_model extends App_Model
             $this->db->group_start();
             $this->db->like('c.type', $search);
             $this->db->or_like('clients.company', $search);
+            $this->db->or_like('clients.vat', $search);
             $this->db->or_like('c.doc', $search);
             $this->db->or_like('c.total', $search);
             $this->db->or_like('c.nota', $search);
             $this->db->or_like('c.operacao', $search);
             $this->db->or_like('items.description', $search);
-            $this->db->or_like('items.long_description', $search);
             $this->db->group_end();
         }
 
@@ -505,8 +506,12 @@ class Cashs_model extends App_Model
 
         if ($query->num_rows() > 0) {
             $row = $query->row();
-            $currentQuantity = $row->qtde;
+
+        
+            $currentQuantity = $row->stock;
             $updatedQuantity = $currentQuantity - $qtde;
+
+
 
             // Update the quantity in the database
             $this->db->where('id', $item_id);
@@ -633,6 +638,7 @@ class Cashs_model extends App_Model
         $insert_id = $this->db->insert_id();
 
 
+        $this->db->insert(db_prefix() . 'cashextracts', $data);
 
 
         if ($insert_id) {

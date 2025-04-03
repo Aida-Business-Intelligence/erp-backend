@@ -99,11 +99,11 @@ class Warehouse extends REST_Controller
             ], REST_Controller::HTTP_OK);
         }
     }
-    public function list_get($id = '')
+    public function list_get($franqueado_id = '', $id = '')
     {
 
         // Chamada ao modelo
-        $data = $this->Warehouse_model->get('', array('franqueado_id' => $id));
+        $data = $this->Warehouse_model->get($id, array('franqueado_id' => $franqueado_id));
 
         // Verifica se encontrou dados
         if (empty($data)) {
@@ -144,7 +144,7 @@ class Warehouse extends REST_Controller
             'warehouse_code' => $_POST['warehouse_code'] ?? null,
             'warehouse_name' => $_POST['warehouse_name'] ?? null,
             'cnpj' => $_POST['cnpj'] ?? null,
-            'order' => $_POST['order'] ?? null,
+            // 'order' => $_POST['order'] ?? null,
             'display' => $_POST['display'] ?? null,
             'note' => $_POST['note'] ?? null,
             'cidade' => $_POST['cidade'] ?? null,
@@ -156,14 +156,14 @@ class Warehouse extends REST_Controller
             'bairro' => $_POST['bairro'] ?? null,
             'numero' => $_POST['numero'] ?? null,
             'endereco' => $_POST['endereco'] ?? null,
-            'franqueado_id' => $_POST['franqueado_id'] ?? null
+            'franqueado_id' => $_POST['franqueado_id'] ?? null,
+            'password_nfe' => $_POST['password_nfe'] ?? null
         ];
 
         // Validação dos campos
         $this->form_validation->set_data($_input);
         $this->form_validation->set_rules('warehouse_name', 'Warehouse Name', 'trim|required|max_length[255]');
         $this->form_validation->set_rules('endereco', 'Endereco', 'trim|required|max_length[255]');
-        $this->form_validation->set_rules('order', 'Order', 'trim|required|numeric');
         $this->form_validation->set_rules('display', 'Display', 'trim|required|in_list[0,1]');
         $this->form_validation->set_rules('cidade', 'Cidade', 'trim|required|max_length[100]');
         $this->form_validation->set_rules('estado', 'Estado', 'trim|required|max_length[100]');
@@ -296,7 +296,7 @@ class Warehouse extends REST_Controller
             'warehouse_code',
             'warehouse_name',
             'cnpj',
-            'order',
+            // 'order',
             'display',
             'note',
             'cidade',
@@ -309,6 +309,7 @@ class Warehouse extends REST_Controller
             'numero',
             'endereco',
             'franqueado_id',
+            'password_nfe',
         ]));
 
         // First update the warehouse data through the model

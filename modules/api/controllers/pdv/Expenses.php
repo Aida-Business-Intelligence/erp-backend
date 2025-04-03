@@ -132,8 +132,7 @@ class Expenses extends REST_Controller
     if (!empty($search) && $search !== 'null') {
       $this->db->group_start();
       $this->db->like('e.note', $search);
-      $this->db->or_like('e.expense_name', $search);
-      $this->db->or_like('e.reference_no', $search);
+      $this->db->or_like('e.amount', $search);
       $this->db->group_end();
     }
 
@@ -233,8 +232,7 @@ class Expenses extends REST_Controller
     if (!empty($search)) {
       $this->db->group_start();
       $this->db->like('expenses.note', $search);
-      $this->db->or_like('clients.company', $search);
-      $this->db->or_like('expenses_categories.name', $search);
+      $this->db->or_like('expenses.amount', $search);
       $this->db->group_end();
     }
 
@@ -425,7 +423,6 @@ class Expenses extends REST_Controller
       }
     }
 
-    log_activity('Creating expense with data: ' . json_encode($data));
 
     $expense_id = $this->Expenses_model->add($data);
 
@@ -654,7 +651,7 @@ class Expenses extends REST_Controller
       'status' => TRUE,
       'data' => [
         'total_amount' => $result ? floatval($result->total_amount) : 0,
-        'total_expenses' => $result ? (int)$result->total_expenses : 0,
+        'total_expenses' => $result ? (int) $result->total_expenses : 0,
         'period' => [
           'start' => $start_date ?? 'all',
           'end' => $end_date ?? 'all'
@@ -988,7 +985,7 @@ class Expenses extends REST_Controller
       }
 
       if ($expense->recurring == 1) {
-        $new_cycles = (int)$expense->cycles + 1;
+        $new_cycles = (int) $expense->cycles + 1;
         $data['cycles'] = $new_cycles;
 
         if ($expense->total_cycles > 0 && $new_cycles >= $expense->total_cycles) {
@@ -1174,17 +1171,17 @@ class Expenses extends REST_Controller
           'current' => floatval($today_data['total_expenses']),
           'previous' => floatval($yesterday_data['total_expenses']),
           'change_percent' => round($total_change_percent, 1),
-          'transaction_count' => (int)$today_data['transaction_count']
+          'transaction_count' => (int) $today_data['transaction_count']
         ]
       ],
       'monthly_performance' => [
         'current_month' => [
           'total_expenses' => floatval($current_month_data['total_expenses']),
-          'transaction_count' => (int)$current_month_data['transaction_count']
+          'transaction_count' => (int) $current_month_data['transaction_count']
         ],
         'previous_month' => [
           'total_expenses' => floatval($previous_month_data['total_expenses']),
-          'transaction_count' => (int)$previous_month_data['transaction_count']
+          'transaction_count' => (int) $previous_month_data['transaction_count']
         ]
       ]
     ];
@@ -1283,7 +1280,7 @@ class Expenses extends REST_Controller
 
     foreach ($results as $row) {
       $date = $row['expense_date'];
-      $day = (int)date('d', strtotime($date));
+      $day = (int) date('d', strtotime($date));
 
       if (!isset($calendar_days[$day])) {
         $calendar_days[$day] = [
@@ -1310,8 +1307,8 @@ class Expenses extends REST_Controller
     $this->response([
       'status' => TRUE,
       'data' => [
-        'year' => (int)$year,
-        'month' => (int)$month,
+        'year' => (int) $year,
+        'month' => (int) $month,
         'days' => $calendar_days
       ]
     ], REST_Controller::HTTP_OK);

@@ -457,7 +457,7 @@ class Client extends REST_Controller
      *       "message": "Customer Update Fail."
      *     }
      */
-    public function update_post($id = '')
+    public function update_put($id = '')
     {
 
 

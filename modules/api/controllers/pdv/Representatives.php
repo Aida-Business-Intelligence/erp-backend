@@ -79,46 +79,82 @@ class Representatives extends REST_Controller
     public function create_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
+
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        // Mapeando os dados de entrada diretamente para o array $input
+        // Mapeando os dados de entrada
         $input = [
-            'role' => $_POST['role'] ?? null,
-            'password' => $_POST['password'] ?? null,
-            'profile_image' => $_POST['profile_image'] ?? null,
-            'email' => $_POST['email'] ?? null,
-            'phonenumber' => $_POST['phonenumber'] ?? null,
+            'type' => 'representative',
             'firstname' => $_POST['firstname'] ?? null,
             'lastname' => $_POST['lastname'] ?? null,
-            'facebook' => $_POST['facebook'] ?? null,
-            'type' => $_POST['type'] ?? null,
-            'linkedin' => $_POST['linkedin'] ?? null,
+            'email' => $_POST['email'] ?? null,
+            'phonenumber' => $_POST['phonenumber'] ?? null,
+            'active' => $_POST['active'] ?? '1',
             'documentType' => $_POST['documentType'] ?? null,
-            'warehouse_id' => $_POST['warehouse_id'] ?? null,
-            // 'franqueado_id' => $_POST['franqueado_id'] ?? null,
             'vat' => $_POST['vat'] ?? null,
+            'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
+            'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
+            'endereco' => $_POST['endereco'] ?? null,
+            'cidade' => $_POST['cidade'] ?? null,
+            'estado' => $_POST['estado'] ?? null,
+            'cep' => $_POST['cep'] ?? null,
+            'tipo_pessoa' => $_POST['tipo_pessoa'] ?? null,
+            'tipo_empresa' => $_POST['tipo_empresa'] ?? null,
+            'segmento' => $_POST['segmento'] ?? null,
+            'porte_empresa' => $_POST['porte_empresa'] ?? null,
+            'observacoes' => $_POST['observacoes'] ?? null,
+            'tipo_comissao_representante' => $_POST['tipo_comissao_representante'] ?? null,
+            'percentual_base_representante' => $_POST['percentual_base_representante'] ?? null,
+            'forma_pagamento_representante' => $_POST['forma_pagamento_representante'] ?? null,
+            'dia_vencimento_representante' => $_POST['dia_vencimento_representante'] ?? null,
+            'sistema_emissao_nf' => $_POST['sistema_emissao_nf'] ?? null,
+            'warehouse_id' => $_POST['warehouse_id'] ?? null,
+            'is_not_staff' => 1,
+            'datecreated' => date('Y-m-d H:i:s'),
+            'password' => app_hash_password('temp_' . time()),
+            // Dados bancários
+            'cod_banco' => $_POST['cod_banco'] ?? null,
+            'tipo_conta' => $_POST['tipo_conta'] ?? null,
+            'agencia_bank' => $_POST['agencia_bank'] ?? null,
+            'num_conta_bank' => $_POST['num_conta_bank'] ?? null,
+            'conta_titular' => $_POST['conta_titular'] ?? null,
+            'conta_document' => $_POST['conta_document'] ?? null,
+            'vat_titular' => $_POST['vat_titular'] ?? null,
+            'tipo_pix' => $_POST['tipo_pix'] ?? null,
+            'chave_pix' => $_POST['chave_pix'] ?? null,
         ];
 
-        // Validação do email, para garantir que o email seja único
-        $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
+        // Validação básica
+        $this->form_validation->set_rules('email', 'Email', 'trim|required|valid_email|max_length[100]|is_unique[' . db_prefix() . 'staff.email]');
+        $this->form_validation->set_rules('firstname', 'Razão Social', 'trim|required|max_length[50]');
+        $this->form_validation->set_rules('vat', 'CNPJ/CPF', 'trim|required|max_length[20]');
+        $this->form_validation->set_rules('documentType', 'Tipo de Documento', 'trim|required|in_list[CPF,CNPJ]');
 
         if ($this->form_validation->run() == FALSE) {
-            // Se a validação falhar
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
         } else {
-            // Chama o método do modelo para adicionar o novo usuário
-            $output = $this->Representatives_model->add($input);
+            try {
+                // Chama o método do modelo para adicionar o novo representante
+                $staffId = $this->Representatives_model->add($input);
 
-            if ($output > 0 && !empty($output)) {
-                // Sucesso: usuário foi adicionado com sucesso
-                $message = array('status' => 'success', 'message' => 'success', 'data' => $this->Representatives_model->get($output));
-                $this->response($message, REST_Controller::HTTP_OK);
-            } else {
-                // Erro: falha ao adicionar o usuário
-                $message = array('status' => FALSE, 'message' => 'Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+                if ($staffId) {
+                    // Sucesso: representante foi adicionado com sucesso
+                    $message = array(
+                        'status' => 'success',
+                        'message' => 'Representante criado com sucesso',
+                        'data' => $this->Representatives_model->get($staffId)
+                    );
+                    $this->response($message, REST_Controller::HTTP_OK);
+                } else {
+                    // Erro: falha ao adicionar o representante
+                    $message = array('status' => FALSE, 'message' => 'Falha ao criar representante');
+                    $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            } catch (Exception $e) {
+                $message = array('status' => FALSE, 'message' => $e->getMessage());
+                $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
     }

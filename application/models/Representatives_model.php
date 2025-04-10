@@ -396,6 +396,92 @@ class Representatives_model extends App_Model
      * Add new staff member
      * @param array $data staff $_POST data
      */
+    // public function add($data)
+    // {
+    //     // Remover campos temporários se existirem
+    //     if (isset($data['fakeusernameremembered'])) {
+    //         unset($data['fakeusernameremembered']);
+    //     }
+    //     if (isset($data['fakepasswordremembered'])) {
+    //         unset($data['fakepasswordremembered']);
+    //     }
+
+    //     // Aplicar filtros antes da criação
+    //     $data = hooks()->apply_filters('before_create_staff_member', $data);
+
+    //     // Verificar se email já existe
+    //     $this->db->where('email', $data['email']);
+    //     $email = $this->db->get(db_prefix() . 'staff')->row();
+    //     if ($email) {
+    //         return false; // Email já existe
+    //     }
+
+    //     // Configurações padrão para franqueados
+    //     $data['admin'] = 0;
+    //     $data['is_not_staff'] = 1; // Importante para franqueados
+    //     $data['active'] = 1;
+    //     $data['datecreated'] = date('Y-m-d H:i:s');
+
+    //     // Tratar senha (se não for fornecida, cria uma temporária)
+    //     if (!isset($data['password']) || empty($data['password'])) {
+    //         $data['password'] = app_hash_password('temp_' . time());
+    //     } else {
+    //         $data['password'] = app_hash_password($data['password']);
+    //     }
+
+    //     // Salvar departamentos e permissões separadamente se existirem
+    //     $departments = $data['departments'] ?? null;
+    //     $permissions = $data['permissions'] ?? null;
+    //     $custom_fields = $data['custom_fields'] ?? null;
+
+    //     unset($data['departments'], $data['permissions'], $data['custom_fields']);
+
+    //     // Inserir no banco de dados
+    //     $this->db->insert(db_prefix() . 'staff', $data);
+    //     $staffid = $this->db->insert_id();
+
+    //     if (!$staffid) {
+    //         return false;
+    //     }
+
+    //     // Criar slug para o usuário
+    //     $slug = trim($data['firstname'] . ' ' . $data['lastname']);
+    //     if (empty($slug)) {
+    //         $slug = 'franqueado-' . $staffid;
+    //     }
+
+    //     $this->db->where('staffid', $staffid);
+    //     $this->db->update(db_prefix() . 'staff', [
+    //         'media_path_slug' => slug_it($slug)
+    //     ]);
+
+    //     // Processar departamentos
+    //     if ($departments && is_array($departments)) {
+    //         foreach ($departments as $department) {
+    //             $this->db->insert(db_prefix() . 'staff_departments', [
+    //                 'staffid' => $staffid,
+    //                 'departmentid' => $department,
+    //             ]);
+    //         }
+    //     }
+
+    //     // Processar permissões
+    //     $this->update_permissions($permissions ?? [], $staffid);
+
+    //     // Processar campos customizados
+    //     if ($custom_fields) {
+    //         handle_custom_fields_post($staffid, $custom_fields);
+    //     }
+
+    //     // Registrar atividade
+    //     log_activity('Novo Franqueado Adicionado [ID: ' . $staffid . ', ' . $data['firstname'] . ' ' . $data['lastname'] . ']');
+
+    //     // Disparar evento de criação
+    //     hooks()->do_action('staff_member_created', $staffid);
+
+    //     return $staffid; // Retorna o ID numérico do novo registro
+    // }
+
     public function add($data)
     {
         // Remover campos temporários se existirem
@@ -416,11 +502,49 @@ class Representatives_model extends App_Model
             return false; // Email já existe
         }
 
-        // Configurações padrão para franqueados
+        // Configurações padrão para representantes
         $data['admin'] = 0;
-        $data['is_not_staff'] = 1; // Importante para franqueados
-        $data['active'] = 1;
+        $data['is_not_staff'] = 1;
         $data['datecreated'] = date('Y-m-d H:i:s');
+
+        // Tratar campos numéricos
+        $numericFields = [
+            'percentual_base_representante',
+            'dia_vencimento_representante',
+            'percentual_base_preposto',
+            'dia_vencimento_preposto',
+            'warehouse_id'
+        ];
+
+        foreach ($numericFields as $field) {
+            if (isset($data[$field]) && $data[$field] !== '') {
+                $data[$field] = is_numeric($data[$field]) ? $data[$field] : null;
+            } else {
+                $data[$field] = null;
+            }
+        }
+
+        // Tratar campos de texto vazios
+        $textFields = [
+            'cod_banco',
+            'tipo_conta',
+            'agencia_bank',
+            'num_conta_bank',
+            'conta_titular',
+            'conta_document',
+            'vat_titular',
+            'tipo_pix',
+            'chave_pix',
+            'inscricao_estadual',
+            'inscricao_municipal',
+            'observacoes'
+        ];
+
+        foreach ($textFields as $field) {
+            if (isset($data[$field]) && $data[$field] === '') {
+                $data[$field] = null;
+            }
+        }
 
         // Tratar senha (se não for fornecida, cria uma temporária)
         if (!isset($data['password']) || empty($data['password'])) {
@@ -447,7 +571,7 @@ class Representatives_model extends App_Model
         // Criar slug para o usuário
         $slug = trim($data['firstname'] . ' ' . $data['lastname']);
         if (empty($slug)) {
-            $slug = 'franqueado-' . $staffid;
+            $slug = 'representante-' . $staffid;
         }
 
         $this->db->where('staffid', $staffid);
@@ -474,12 +598,12 @@ class Representatives_model extends App_Model
         }
 
         // Registrar atividade
-        log_activity('Novo Franqueado Adicionado [ID: ' . $staffid . ', ' . $data['firstname'] . ' ' . $data['lastname'] . ']');
+        log_activity('Novo Representante Adicionado [ID: ' . $staffid . ', ' . $data['firstname'] . ' ' . $data['lastname'] . ']');
 
         // Disparar evento de criação
         hooks()->do_action('staff_member_created', $staffid);
 
-        return $staffid; // Retorna o ID numérico do novo registro
+        return $staffid;
     }
 
     /**

@@ -87,7 +87,7 @@ class Representatives extends REST_Controller
         $input = [
             'type' => 'representative',
             'firstname' => $_POST['firstname'] ?? null,
-            'lastname' => $_POST['lastname'] ?? null,
+            // 'lastname' => $_POST['lastname'] ?? null,
             'email' => $_POST['email'] ?? null,
             'phonenumber' => $_POST['phonenumber'] ?? null,
             'active' => $_POST['active'] ?? '1',
@@ -243,10 +243,10 @@ class Representatives extends REST_Controller
         }
 
         // Remover campos do contrato antes de processar
-        unset($_POST['royalties']);
-        unset($_POST['datestart']);
-        unset($_POST['duration_years']);
-        unset($_POST['contract_file']);
+        // unset($_POST['royalties']);
+        // unset($_POST['datestart']);
+        // unset($_POST['duration_years']);
+        // unset($_POST['contract_file']);
 
         $this->form_validation->set_data($_POST);
 
@@ -255,7 +255,7 @@ class Representatives extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
             $update_data = $this->input->post();
-            $this->load->model('Represent_model');
+            $this->load->model('Representatives_model');
             $output = $this->Representatives_model->update($update_data, $update_data['staffid']);
 
             if ($output > 0 && !empty($output)) {

@@ -511,8 +511,8 @@ class Representatives_model extends App_Model
         $numericFields = [
             'percentual_base_representante',
             'dia_vencimento_representante',
-            'percentual_base_preposto',
-            'dia_vencimento_preposto',
+            // 'percentual_base_preposto',
+            // 'dia_vencimento_preposto',
             'warehouse_id'
         ];
 

@@ -147,10 +147,11 @@ class Users extends REST_Controller
             );
         }
     }
-
+  
 
     public function create_post()
     {
+
         \modules\api\core\Apiinit::the_da_vinci_code('api');
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);

@@ -79,29 +79,106 @@ class Produto extends REST_Controller
             $warehouse_id,
             $send
         );
-        
-        if($data['total']>0){
 
-        $this->response(
-            [
-                'status' => true,
-                'total' => $data['total'] ?? 0,
-                'data' => $data['data'] ?? []
-            ],
-            REST_Controller::HTTP_OK
-        );
-        }else{
+        if ($data['total'] > 0) {
+
             $this->response(
-            [
-                'status' => false,
-                'message' => 'Produto não encontrado',
-                'total' => $data['total'] ?? 0,
-                'data' => $data['data'] ?? []
-            ],
-            REST_Controller::HTTP_NOT_FOUND
+                [
+                    'status' => true,
+                    'total' => $data['total'] ?? 0,
+                    'data' => $data['data'] ?? []
+                ],
+                REST_Controller::HTTP_OK
+            );
+        } else {
+            $this->response(
+                [
+                    'status' => false,
+                    'message' => 'Produto não encontrado',
+                    'total' => $data['total'] ?? 0,
+                    'data' => $data['data'] ?? []
+                ],
+                REST_Controller::HTTP_NOT_FOUND
+            );
+
+
+        }
+    }
+
+    public function list_ecommerce_post($id = '')
+    {
+        $warehouse_id = $this->post('warehouse_id');
+
+        if (empty($warehouse_id)) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
+        $page = $this->post('page') ? (int) $this->post('page') : 0;
+        $page = $page + 1;
+
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'id';
+        $sortOrder = $this->post('sortOrder') ?: 'DESC';
+        $send = $this->post('send') ?: null;
+
+
+
+        $status = $this->post('status');
+        $category = $this->post('category');
+        $subcategory = $this->post('subcategory');
+
+        $statusFilter = null;
+        if (is_array($status) && !empty($status)) {
+            $statusFilter = $status;
+        }
+
+        $start_date = $this->post('startDate') ?: '';
+        $end_date = $this->post('endDate') ?: '';
+
+        $data = $this->Invoice_items_model->get_api2(
+            $id,
+            $page,
+            $limit,
+            // $search,
+            // $sortField,
+            // $sortOrder,
+            // $statusFilter,
+            // $start_date,
+            // $end_date,
+            // $category,
+            // $subcategory,
+            // $send,
+            $warehouse_id,
+
         );
-            
-            
+
+        if ($data['total'] > 0) {
+
+            $this->response(
+                [
+                    'status' => true,
+                    'total' => $data['total'] ?? 0,
+                    'data' => $data['data'] ?? []
+                ],
+                REST_Controller::HTTP_OK
+            );
+        } else {
+            $this->response(
+                [
+                    'status' => false,
+                    'message' => 'Produto não encontrado',
+                    'total' => $data['total'] ?? 0,
+                    'data' => $data['data'] ?? []
+                ],
+                REST_Controller::HTTP_NOT_FOUND
+            );
+
+
         }
     }
 
@@ -109,8 +186,8 @@ class Produto extends REST_Controller
     {
 
         ini_set('display_errors', 1);
-		ini_set('display_startup_erros', 1);
-		error_reporting(E_ALL);
+        ini_set('display_startup_erros', 1);
+        error_reporting(E_ALL);
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -356,6 +433,51 @@ class Produto extends REST_Controller
         }
     }
 
+    public function get_ecommerce_get($id = '')
+    {
+        if (empty($id) || !is_numeric($id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid Product ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $product = $this->Invoice_items_model->get_item($id);
+
+        if ($product) {
+
+            if (!empty($product->group_id)) {
+                $this->db->select('name as category_name');
+                $this->db->where('id', $product->group_id);
+                $category = $this->db->get(db_prefix() . 'items_groups')->row();
+                $product->category_name = $category ? $category->category_name : null;
+            } else {
+                $product->category_name = null;
+            }
+
+            // Get subcategory name
+            if (!empty($product->sub_group)) {
+                $this->db->select('sub_group_name');
+                $this->db->where('id', $product->sub_group);
+                $subcategory = $this->db->get(db_prefix() . 'wh_sub_group')->row();
+                $product->subcategory_name = $subcategory ? $subcategory->sub_group_name : null;
+            } else {
+                $product->subcategory_name = null;
+            }
+
+            $this->response([
+                'status' => TRUE,
+                'data' => $product
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No data were found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
     public function remove_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -411,7 +533,7 @@ class Produto extends REST_Controller
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $_POST['commodity_barcode'] =  $_POST['barcode'];
+        $_POST['commodity_barcode'] = $_POST['barcode'];
 
         if (empty($_POST) || !isset($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
@@ -428,8 +550,8 @@ class Produto extends REST_Controller
             if ($output > 0 && !empty($output)) {
 
 
-                 log_activity('Produto atualizado com [Name: Teste]', 1);
-                 
+                log_activity('Produto atualizado com [Name: Teste]', 1);
+
 
                 $message = array('status' => TRUE, 'message' => 'Products Update Successful.', 'data' => $this->Invoice_items_model->get($id));
                 $this->response($message, REST_Controller::HTTP_OK);
@@ -564,7 +686,7 @@ class Produto extends REST_Controller
         }
 
         $estimate_number = format_estimate_number($estimate->id);
-        $companyname     = get_option('invoice_company_name');
+        $companyname = get_option('invoice_company_name');
         if ($companyname != '') {
             $estimate_number .= '-' . mb_strtoupper(slug_it($companyname), 'UTF-8');
         }
@@ -684,7 +806,7 @@ class Produto extends REST_Controller
             );
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
-            $_POST['warehouse_id'] = (int)$_POST['warehouse_id'];
+            $_POST['warehouse_id'] = (int) $_POST['warehouse_id'];
             $output = $this->Invoice_items_model->add_group($_POST);
             if ($output > 0 && !empty($output)) {
                 $message = array('status' => 'success', 'message' => 'Group added successfully');
@@ -876,10 +998,10 @@ class Produto extends REST_Controller
         $this->db->having('COUNT(DISTINCT pn.id) > 0');
 
         $suppliers = $this->db->get()->result_array();
-        
-    //  $last_query = $this->db->last_query();
-        
-    //    echo $last_query;
+
+        //  $last_query = $this->db->last_query();
+
+        //    echo $last_query;
 
         $this->response([
             'status' => TRUE,
@@ -933,15 +1055,15 @@ class Produto extends REST_Controller
         $this->db->where('pn.status', 0);
         $this->db->where('pn.user_id', $supplier_id);
         $this->db->where('i.warehouse_id', $warehouse_id);
-      //  $this->db->where('c.is_supplier', 1);
-        
-        
+        //  $this->db->where('c.is_supplier', 1);
+
+
 
         $products = $this->db->get()->result_array();
-        
-   // $last_query = $this->db->last_query();
-        
-    //  echo $last_query;
+
+        // $last_query = $this->db->last_query();
+
+        //  echo $last_query;
 
         $total_cost = 0;
         $purchase_needs = [];
@@ -958,12 +1080,12 @@ class Produto extends REST_Controller
                     'sku' => $product['sku_code']
                 ],
                 'warehouse_id' => $product['warehouse_id'],
-                'currentStock' => (int)$product['stock'],
-                'minimumStock' => (int)$product['minStock'],
-                'quantity' => (int)$product['qtde'],
-                'cost' => (float)$product['cost'],
+                'currentStock' => (int) $product['stock'],
+                'minimumStock' => (int) $product['minStock'],
+                'quantity' => (int) $product['qtde'],
+                'cost' => (float) $product['cost'],
                 'total' => $item_total,
-                'defaultPurchaseQuantity' => (int)$product['defaultPurchaseQuantity'],
+                'defaultPurchaseQuantity' => (int) $product['defaultPurchaseQuantity'],
                 'status' => $product['purchase_status'],
                 'user_id' => $product['user_id'],
                 'date' => $product['date'],
@@ -1143,7 +1265,7 @@ class Produto extends REST_Controller
                 'errors' => $errors
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
-        
+
     }
 
 
@@ -1193,7 +1315,7 @@ class Produto extends REST_Controller
         $units = $this->db->get()->result_array();
 
         $units = array_map(function ($unit) {
-            $unit['display'] = (bool)$unit['display'];
+            $unit['display'] = (bool) $unit['display'];
             return $unit;
         }, $units);
 

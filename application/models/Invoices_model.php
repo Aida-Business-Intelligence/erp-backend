@@ -2035,28 +2035,42 @@ class Invoices_model extends App_Model
     }
 
     // Rejeita o/os pedidos
-    public function update_reject($ids, $status)
+    public function update_rejeita($ids, $status)
     {
         $this->db->where_in('id', $ids);
         $this->db->set('status', $status);
         return $this->db->update('tblinvoices');
     }
 
-    // Aprova/Transmite o/os pedidos
-    public function update_aprove($ids, $status)
+    // Transmite o/os pedidos
+    public function update_transmite($ids, $status)
     {
         $this->db->where_in('id', $ids);
         $this->db->set('status', $status);
         return $this->db->update('tblinvoices');
     }
 
-       // Fatura o/os pedidos
-       public function update_faturar($ids, $status)
-       {
-           $this->db->where_in('id', $ids);
-           $this->db->set('status', $status);
-           return $this->db->update('tblinvoices');
-       }
+    // Envia o/os pedidos
+    public function update_envia($ids, $status)
+    {
+        $this->db->where_in('id', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tblinvoices');
+    }
 
+    // Fatura o/os pedidos
+    public function update_fatura($ids, $status)
+    {
+        $this->db->where_in('id', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tblinvoices');
+    }
 
+    // Fatura o/os pedidos
+    public function update_cancela($ids, $status)
+    {
+        $this->db->where_in('id', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tblinvoices');
+    }
 }

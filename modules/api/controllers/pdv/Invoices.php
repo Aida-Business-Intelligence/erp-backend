@@ -334,9 +334,6 @@ class Invoices extends REST_Controller
 
     public function list_post()
     {
-
-   
-
         $warehouse_id = $this->post('warehouse_id');
         if (empty($warehouse_id)) {
             $this->response([
@@ -451,6 +448,124 @@ class Invoices extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
+    public function list_transmitidos_post()
+    {
+        $warehouse_id = $this->post('warehouse_id');
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('limit') ? (int) $this->post('limit') : 10;
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'datecreated';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+        $start_date = $this->post('start_date');
+        $end_date = $this->post('end_date');
+        $status = $this->post('status');
+        $supplier_id = $this->post('supplier_id');
+
+        $select = '
+        i.id,
+        i.total,
+        i.status as invoice_status,
+        i.datecreated,
+        i.warehouse_id,
+        IF(i.status = 12, i.clientnote, NULL) as dispute_message,
+        IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
+        c.company as supplier_name,
+        c.vat as supplier_document,
+        c.phonenumber as supplier_phone,
+        GROUP_CONCAT(DISTINCT itm.description) as products,
+        COUNT(DISTINCT pn.id) as total_items,
+        SUM(pn.qtde) as total_quantity
+    ';
+
+        $this->db->select($select);
+        $this->db->from(db_prefix() . 'invoices i');
+        $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.invoice_id = i.id', 'left');
+        $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.clientid', 'left');
+
+        $this->db->where('pn.id IS NOT NULL');
+        $this->db->where('i.warehouse_id', $warehouse_id);
+        // Filtro para trazer apenas itens com status = 2, 3 e 4
+        $this->db->where_in('i.status', [2, 3, 4]);
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('i.id', $search);
+            $this->db->or_like('c.company', $search);
+            $this->db->or_like('c.vat', $search);
+            $this->db->or_like('itm.description', $search);
+            $this->db->group_end();
+        }
+
+        if (!empty($start_date)) {
+            $this->db->where('DATE(i.datecreated) >=', date('Y-m-d', strtotime($start_date)));
+        }
+
+        if (!empty($end_date)) {
+            $this->db->where('DATE(i.datecreated) <=', date('Y-m-d', strtotime($end_date)));
+        }
+
+        if (!empty($status)) {
+            if (is_array($status)) {
+                $this->db->where_in('i.status', $status);
+            } else {
+                $this->db->where('i.status', $status);
+            }
+        }
+
+        if (!empty($supplier_id)) {
+            $this->db->where('i.clientid', $supplier_id);
+        }
+
+        $this->db->group_by('i.id');
+
+        $countQuery = clone $this->db;
+        $total = $countQuery->get()->num_rows();
+
+        if ($sortField === 'datecreated') {
+            $this->db->order_by('i.' . $sortField, $sortOrder);
+        } else {
+            $this->db->order_by($sortField, $sortOrder);
+        }
+
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $invoices = $this->db->get()->result_array();
+
+        foreach ($invoices as &$invoice) {
+            $this->db->select('
+            pn.id as purchase_need_id,
+            pn.qtde,
+            pn.status as purchase_status,
+            itm.description as product_name,
+            itm.sku_code,
+            itm.cost as unit_cost
+        ');
+            $this->db->from(db_prefix() . 'purchase_needs pn');
+            $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+            $this->db->where('pn.invoice_id', $invoice['id']);
+            $this->db->where('pn.warehouse_id', $warehouse_id);
+
+            $invoice['items'] = $this->db->get()->result_array();
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'total' => (int) $total,
+            'page' => (int) $page,
+            'limit' => (int) $limit,
+            'data' => $invoices
+        ], REST_Controller::HTTP_OK);
+    }
+
 
     public function dispute_post()
     {
@@ -522,11 +637,11 @@ class Invoices extends REST_Controller
                 'message' => 'Error: ' . $e->getMessage()
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
 
-}
+        }
     }
 
     // Rejeita o/os pedidos
-    public function put_canceled_post()
+    public function put_rejeitar_post()
     {
         // Recebe os dados enviados no corpo da requisição
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -537,10 +652,10 @@ class Invoices extends REST_Controller
         }
 
         $ids = $_POST['ids'];
-        $status = "5"; // Define o campo 'active' como "0" (inativo)
+        $status = "0"; // Define o campo 'active' como "0" (inativo)
 
         // Atualiza o campo 'active' para os IDs fornecidos
-        $output = $this->Invoices_model->update_reject($ids, $status);
+        $output = $this->Invoices_model->update_rejeita($ids, $status);
 
         if ($output) {
             $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
@@ -551,8 +666,9 @@ class Invoices extends REST_Controller
         }
     }
 
-    // Aprova/Transmite o/os pedidos
-    public function put_aprove_post()
+
+    // Transmite o/os pedidos
+    public function put_transmitir_post()
     {
         // Recebe os dados enviados no corpo da requisição
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -566,7 +682,33 @@ class Invoices extends REST_Controller
         $status = "2"; // Define o campo 'active' como "0" (inativo)
 
         // Atualiza o campo 'active' para os IDs fornecidos
-        $output = $this->Invoices_model->update_aprove($ids, $status);
+        $output = $this->Invoices_model->update_transmite($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    // Envia/Exporta o/os pedidos
+    public function put_enviar_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "3"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Invoices_model->update_envia($ids, $status);
 
         if ($output) {
             $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
@@ -578,7 +720,7 @@ class Invoices extends REST_Controller
     }
 
     // Fatura o/os pedidos
-    public function put_desativar_post()
+    public function put_faturar_post()
     {
         // Recebe os dados enviados no corpo da requisição
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -589,10 +731,36 @@ class Invoices extends REST_Controller
         }
 
         $ids = $_POST['ids'];
-        $status = "7"; // Define o campo 'active' como "0" (inativo)
+        $status = "4"; // Define o campo 'active' como "0" (inativo)
 
         // Atualiza o campo 'active' para os IDs fornecidos
-        $output = $this->Invoices_model->update_faturar($ids, $status);
+        $output = $this->Invoices_model->update_fatura($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    // Cancela o/os pedidos
+    public function put_cancelar_post()
+    {
+        // Recebe os dados enviados no corpo da requisição
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "5"; // Define o campo 'active' como "0" (inativo)
+
+        // Atualiza o campo 'active' para os IDs fornecidos
+        $output = $this->Invoices_model->update_cancela($ids, $status);
 
         if ($output) {
             $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
@@ -603,4 +771,5 @@ class Invoices extends REST_Controller
 
         }
     }
+
 }

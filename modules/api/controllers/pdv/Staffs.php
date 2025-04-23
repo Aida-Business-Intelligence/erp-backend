@@ -378,7 +378,7 @@ class Staffs extends REST_Controller
         }
     }
 
-    //-----> FRANQUIAS/REPRESENTATIVE - IMPLEMENTACAO
+    //-----> FRANQUIAS/franchisees - IMPLEMENTACAO
 
     public function list_post($id = '')
     {
@@ -392,7 +392,7 @@ class Staffs extends REST_Controller
         $warehouse_id = $this->post('warehouse_id') ?: 0;
 
         // Garantir que a pesquisa seja aplicada corretamente na consulta
-        $data = $this->Staff_model->get_api2($id, $page, $limit, $search, $sortField, $sortOrder, 'representative', $warehouse_id);
+        $data = $this->Staff_model->get_api2($id, $page, $limit, $search, $sortField, $sortOrder, 'franchisees', $warehouse_id);
 
         // Verificando se há dados após o filtro
         if (empty($data['data'])) {

@@ -2,7 +2,7 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Staff_model extends App_Model
+class Representatives_model extends App_Model
 {
     public function delete($id, $transfer_data_to)
     {
@@ -396,6 +396,92 @@ class Staff_model extends App_Model
      * Add new staff member
      * @param array $data staff $_POST data
      */
+    // public function add($data)
+    // {
+    //     // Remover campos temporários se existirem
+    //     if (isset($data['fakeusernameremembered'])) {
+    //         unset($data['fakeusernameremembered']);
+    //     }
+    //     if (isset($data['fakepasswordremembered'])) {
+    //         unset($data['fakepasswordremembered']);
+    //     }
+
+    //     // Aplicar filtros antes da criação
+    //     $data = hooks()->apply_filters('before_create_staff_member', $data);
+
+    //     // Verificar se email já existe
+    //     $this->db->where('email', $data['email']);
+    //     $email = $this->db->get(db_prefix() . 'staff')->row();
+    //     if ($email) {
+    //         return false; // Email já existe
+    //     }
+
+    //     // Configurações padrão para franqueados
+    //     $data['admin'] = 0;
+    //     $data['is_not_staff'] = 1; // Importante para franqueados
+    //     $data['active'] = 1;
+    //     $data['datecreated'] = date('Y-m-d H:i:s');
+
+    //     // Tratar senha (se não for fornecida, cria uma temporária)
+    //     if (!isset($data['password']) || empty($data['password'])) {
+    //         $data['password'] = app_hash_password('temp_' . time());
+    //     } else {
+    //         $data['password'] = app_hash_password($data['password']);
+    //     }
+
+    //     // Salvar departamentos e permissões separadamente se existirem
+    //     $departments = $data['departments'] ?? null;
+    //     $permissions = $data['permissions'] ?? null;
+    //     $custom_fields = $data['custom_fields'] ?? null;
+
+    //     unset($data['departments'], $data['permissions'], $data['custom_fields']);
+
+    //     // Inserir no banco de dados
+    //     $this->db->insert(db_prefix() . 'staff', $data);
+    //     $staffid = $this->db->insert_id();
+
+    //     if (!$staffid) {
+    //         return false;
+    //     }
+
+    //     // Criar slug para o usuário
+    //     $slug = trim($data['firstname'] . ' ' . $data['lastname']);
+    //     if (empty($slug)) {
+    //         $slug = 'franqueado-' . $staffid;
+    //     }
+
+    //     $this->db->where('staffid', $staffid);
+    //     $this->db->update(db_prefix() . 'staff', [
+    //         'media_path_slug' => slug_it($slug)
+    //     ]);
+
+    //     // Processar departamentos
+    //     if ($departments && is_array($departments)) {
+    //         foreach ($departments as $department) {
+    //             $this->db->insert(db_prefix() . 'staff_departments', [
+    //                 'staffid' => $staffid,
+    //                 'departmentid' => $department,
+    //             ]);
+    //         }
+    //     }
+
+    //     // Processar permissões
+    //     $this->update_permissions($permissions ?? [], $staffid);
+
+    //     // Processar campos customizados
+    //     if ($custom_fields) {
+    //         handle_custom_fields_post($staffid, $custom_fields);
+    //     }
+
+    //     // Registrar atividade
+    //     log_activity('Novo Franqueado Adicionado [ID: ' . $staffid . ', ' . $data['firstname'] . ' ' . $data['lastname'] . ']');
+
+    //     // Disparar evento de criação
+    //     hooks()->do_action('staff_member_created', $staffid);
+
+    //     return $staffid; // Retorna o ID numérico do novo registro
+    // }
+
     public function add($data)
     {
         // Remover campos temporários se existirem
@@ -416,11 +502,49 @@ class Staff_model extends App_Model
             return false; // Email já existe
         }
 
-        // Configurações padrão para franqueados
+        // Configurações padrão para representantes
         $data['admin'] = 0;
-        $data['is_not_staff'] = 1; // Importante para franqueados
-        $data['active'] = 1;
+        $data['is_not_staff'] = 1;
         $data['datecreated'] = date('Y-m-d H:i:s');
+
+        // Tratar campos numéricos
+        $numericFields = [
+            'percentual_base_representante',
+            'dia_vencimento_representante',
+            // 'percentual_base_preposto',
+            // 'dia_vencimento_preposto',
+            'warehouse_id'
+        ];
+
+        foreach ($numericFields as $field) {
+            if (isset($data[$field]) && $data[$field] !== '') {
+                $data[$field] = is_numeric($data[$field]) ? $data[$field] : null;
+            } else {
+                $data[$field] = null;
+            }
+        }
+
+        // Tratar campos de texto vazios
+        $textFields = [
+            'cod_banco',
+            'tipo_conta',
+            'agencia_bank',
+            'num_conta_bank',
+            'conta_titular',
+            'conta_document',
+            'vat_titular',
+            'tipo_pix',
+            'chave_pix',
+            'inscricao_estadual',
+            'inscricao_municipal',
+            'observacoes'
+        ];
+
+        foreach ($textFields as $field) {
+            if (isset($data[$field]) && $data[$field] === '') {
+                $data[$field] = null;
+            }
+        }
 
         // Tratar senha (se não for fornecida, cria uma temporária)
         if (!isset($data['password']) || empty($data['password'])) {
@@ -447,7 +571,7 @@ class Staff_model extends App_Model
         // Criar slug para o usuário
         $slug = trim($data['firstname'] . ' ' . $data['lastname']);
         if (empty($slug)) {
-            $slug = 'franqueado-' . $staffid;
+            $slug = 'representante-' . $staffid;
         }
 
         $this->db->where('staffid', $staffid);
@@ -474,12 +598,12 @@ class Staff_model extends App_Model
         }
 
         // Registrar atividade
-        log_activity('Novo Franqueado Adicionado [ID: ' . $staffid . ', ' . $data['firstname'] . ' ' . $data['lastname'] . ']');
+        log_activity('Novo Representante Adicionado [ID: ' . $staffid . ', ' . $data['firstname'] . ' ' . $data['lastname'] . ']');
 
         // Disparar evento de criação
         hooks()->do_action('staff_member_created', $staffid);
 
-        return $staffid; // Retorna o ID numérico do novo registro
+        return $staffid;
     }
 
     /**
@@ -925,7 +1049,7 @@ class Staff_model extends App_Model
     }
 
 
-    // public function get_api2($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'franchisees', $warehouse_id = 0, $franqueado_id = 0)
+    // public function get_api2($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'representative', $warehouse_id = 0, $franqueado_id = 0)
     // {
     //     $this->load->model("roles_model");
 
@@ -1028,7 +1152,199 @@ class Staff_model extends App_Model
     //     }
     // }
 
-    public function get_api2($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'franchisees', $warehouse_id = 0)
+    // public function get_api2($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'representative', $warehouse_id = 0)
+    // {
+    //     $this->load->model("roles_model");
+
+    //     if (!is_numeric($id)) {
+    //         // Contagem total de registros sem paginação
+    //         $this->db->from(db_prefix() . 'staff');
+
+    //         // Aplicar filtro pelo tipo
+    //         if (!empty($type)) {
+    //             $this->db->where('type', $type);
+    //         }
+
+    //         // Aplicar filtro pelo warehouse_id
+    //         if (!empty($warehouse_id)) {
+    //             $this->db->where('warehouse_id', $warehouse_id);
+    //         }
+
+    //         // Adicionar condições de busca
+    //         if (!empty($search)) {
+    //             $this->db->group_start();
+    //             $this->db->like('firstname', $search);
+    //             $this->db->or_like('lastname', $search);
+    //             $this->db->or_like('email', $search);
+    //             $this->db->or_like('phonenumber', $search);
+    //             $this->db->or_like('vat', $search);
+    //             $this->db->group_end();
+    //         }
+
+    //         $total = $this->db->count_all_results();
+
+    //         // Obter os dados com paginação
+    //         $this->db->select([
+    //             db_prefix() . 'staff.*',
+    //             db_prefix() . 'contracts.id as contract_id',
+    //             db_prefix() . 'contracts.contract_name',
+    //             db_prefix() . 'contracts.contract_url',
+    //             db_prefix() . 'contracts.preview_contract',
+    //             db_prefix() . 'contracts.royalties',
+    //             db_prefix() . 'contracts.datestart',
+    //             db_prefix() . 'contracts.datestart',
+    //             db_prefix() . 'contracts.dateend',
+    //             db_prefix() . 'roles.name as role_name'
+    //         ]);
+
+    //         $this->db->from(db_prefix() . 'staff');
+
+    //         // JOIN com tblcontracts (LEFT JOIN pois nem todo staff pode ter contrato)
+    //         $this->db->join(db_prefix() . 'contracts', db_prefix() . 'contracts.id = ' . db_prefix() . 'staff.contractid', 'left');
+
+    //         // JOIN com tblroles
+    //         $this->db->join(db_prefix() . 'roles', db_prefix() . 'roles.roleid = ' . db_prefix() . 'staff.role', 'left');
+
+    //         // Aplicar filtros novamente
+    //         if (!empty($type)) {
+    //             $this->db->where(db_prefix() . 'staff.type', $type);
+    //         }
+
+    //         // if (!empty($warehouse_id)) {
+    //         //     $this->db->where('warehouse_id', $warehouse_id);
+    //         // }
+
+    //         if (!empty($search)) {
+    //             $this->db->group_start();
+    //             $this->db->like('firstname', $search);
+    //             $this->db->or_like('lastname', $search);
+    //             $this->db->or_like('email', $search);
+    //             $this->db->or_like('phonenumber', $search);
+    //             $this->db->or_like('vat', $search);
+    //             $this->db->group_end();
+    //         }
+
+    //         // Aplica a ordenação
+    //         if ($sortField === 'firstname') {
+    //             $this->db->order_by("CASE WHEN " . db_prefix() . "staff.firstname IS NULL OR " . db_prefix() . "staff.firstname = '' THEN 1 ELSE 0 END, " . db_prefix() . "staff.firstname", $sortOrder);
+    //         } elseif ($sortField === 'role_name') {
+    //             $this->db->order_by(db_prefix() . 'roles.name', $sortOrder);
+    //         } else {
+    //             $this->db->order_by(db_prefix() . 'staff.' . $sortField, $sortOrder);
+    //         }
+
+    //         $offset = ($page - 1) * $limit;
+    //         $this->db->limit($limit, $offset);
+
+    //         $data = $this->db->get()->result_array();
+
+    //         return ['data' => $data, 'total' => $total];
+    //     } else {
+    //         // Caso seja busca por ID único
+    //         $this->db->select([
+    //             db_prefix() . 'staff.*',
+    //             db_prefix() . 'contracts.id as contract_id',
+    //             db_prefix() . 'contracts.contract_name',
+    //             db_prefix() . 'contracts.contract_url',
+    //             db_prefix() . 'contracts.preview_contract',
+    //             db_prefix() . 'contracts.royalties',
+    //             db_prefix() . 'contracts.datestart',
+    //             db_prefix() . 'contracts.datestart',
+    //             db_prefix() . 'contracts.dateend',
+    //         ]);
+    //         $this->db->from(db_prefix() . 'staff');
+    //         $this->db->join(db_prefix() . 'contracts', db_prefix() . 'contracts.id = ' . db_prefix() . 'staff.contractid', 'left');
+    //         $this->db->where(db_prefix() . 'staff.staffid', $id);
+
+    //         $staff = $this->db->get()->row();
+
+    //         if ($staff && $staff->role > 0) {
+    //             $role = $this->roles_model->get($staff->role);
+    //             $staff->role_name = $role->name;
+    //         }
+
+    //         return ['data' => (array) $staff, 'total' => 1];
+    //     }
+    // }
+
+    // public function get_api3($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'pdv')
+    // {
+    //     $this->load->model("roles_model");
+
+    //     if (!is_numeric($id)) {
+    //         // Aplicar filtro pelo tipo
+    //         if (!empty($type)) {
+    //             $this->db->where('type', $type); // Filtra por type = "pdv"
+    //         }
+
+    //         // Filtro para pegar apenas os registros com active = 1
+    //         $this->db->where('active', 1);
+
+    //         // Adicionar condições de busca
+    //         if (!empty($search)) {
+    //             $this->db->group_start();
+    //             $this->db->like('firstname', $search);
+    //             $this->db->or_like('lastname', $search);
+    //             $this->db->or_like('email', $search);
+    //             $this->db->or_like('phonenumber', $search);
+    //             $this->db->group_end();
+    //         }
+
+    //         // JOIN com a tabela tblroles para obter o nome do cargo
+    //         $this->db->join(db_prefix() . 'roles', db_prefix() . 'roles.roleid = ' . db_prefix() . 'staff.role', 'left');
+
+    //         // Contagem total de registros sem paginação
+    //         $total = $this->db->count_all_results(db_prefix() . 'staff');
+
+    //         // Obter os dados com paginação e ordenação
+    //         $this->db->reset_query();
+    //         $this->db->where('active', 1);
+    //         if (!empty($type)) {
+    //             $this->db->where('type', $type); // Filtra por type = "pdv"
+    //         }
+    //         if (!empty($search)) {
+    //             $this->db->group_start();
+    //             $this->db->like('firstname', $search);
+    //             $this->db->or_like('lastname', $search);
+    //             $this->db->or_like('email', $search);
+    //             $this->db->or_like('phonenumber', $search);
+    //             $this->db->group_end();
+    //         }
+
+    //         // JOIN com a tabela tblroles para obter o nome do cargo
+    //         $this->db->join(db_prefix() . 'roles', db_prefix() . 'roles.roleid = ' . db_prefix() . 'staff.role', 'left');
+
+    //         // Aplica a ordenação
+    //         if ($sortField === 'firstname') {
+    //             // Ordenação por firstname, tratando valores nulos ou vazios
+    //             $this->db->order_by("CASE WHEN firstname IS NULL OR firstname = '' THEN 1 ELSE 0 END, firstname", $sortOrder);
+    //         } elseif ($sortField === 'role_name') {
+    //             // Ordenação pelo nome do cargo (tblroles.name)
+    //             $this->db->order_by(db_prefix() . 'roles.name', $sortOrder);
+    //         } else {
+    //             // Ordenação padrão
+    //             $this->db->order_by($sortField, $sortOrder);
+    //         }
+
+    //         $offset = ($page - 1) * $limit;
+    //         $this->db->limit($limit, $offset);
+    //         $data = $this->db->get(db_prefix() . 'staff')->result_array();
+
+    //         // Adicionar o nome do cargo (role) de cada staff
+    //         foreach ($data as $key => $staff) {
+    //             if ($staff['role'] > 0) {
+    //                 $role = $this->roles_model->get($staff['role']);
+    //                 $data[$key]['role_name'] = $role->name;
+    //             }
+    //         }
+
+    //         return ['data' => $data, 'total' => $total];
+    //     } else {
+    //         return ['data' => (array) $this->get($id), 'total' => 1];
+    //     }
+    // }
+
+    public function get_api2($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'representative', $warehouse_id = 0)
     {
         $this->load->model("roles_model");
 
@@ -1139,83 +1455,6 @@ class Staff_model extends App_Model
             }
 
             return ['data' => (array) $staff, 'total' => 1];
-        }
-    }
-
-    public function get_api3($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'staffid', $sortOrder = 'ASC', $type = 'pdv')
-    {
-        $this->load->model("roles_model");
-
-        if (!is_numeric($id)) {
-            // Aplicar filtro pelo tipo
-            if (!empty($type)) {
-                $this->db->where('type', $type); // Filtra por type = "pdv"
-            }
-
-            // Filtro para pegar apenas os registros com active = 1
-            $this->db->where('active', 1);
-
-            // Adicionar condições de busca
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('firstname', $search);
-                $this->db->or_like('lastname', $search);
-                $this->db->or_like('email', $search);
-                $this->db->or_like('phonenumber', $search);
-                $this->db->group_end();
-            }
-
-            // JOIN com a tabela tblroles para obter o nome do cargo
-            $this->db->join(db_prefix() . 'roles', db_prefix() . 'roles.roleid = ' . db_prefix() . 'staff.role', 'left');
-
-            // Contagem total de registros sem paginação
-            $total = $this->db->count_all_results(db_prefix() . 'staff');
-
-            // Obter os dados com paginação e ordenação
-            $this->db->reset_query();
-            $this->db->where('active', 1);
-            if (!empty($type)) {
-                $this->db->where('type', $type); // Filtra por type = "pdv"
-            }
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('firstname', $search);
-                $this->db->or_like('lastname', $search);
-                $this->db->or_like('email', $search);
-                $this->db->or_like('phonenumber', $search);
-                $this->db->group_end();
-            }
-
-            // JOIN com a tabela tblroles para obter o nome do cargo
-            $this->db->join(db_prefix() . 'roles', db_prefix() . 'roles.roleid = ' . db_prefix() . 'staff.role', 'left');
-
-            // Aplica a ordenação
-            if ($sortField === 'firstname') {
-                // Ordenação por firstname, tratando valores nulos ou vazios
-                $this->db->order_by("CASE WHEN firstname IS NULL OR firstname = '' THEN 1 ELSE 0 END, firstname", $sortOrder);
-            } elseif ($sortField === 'role_name') {
-                // Ordenação pelo nome do cargo (tblroles.name)
-                $this->db->order_by(db_prefix() . 'roles.name', $sortOrder);
-            } else {
-                // Ordenação padrão
-                $this->db->order_by($sortField, $sortOrder);
-            }
-
-            $offset = ($page - 1) * $limit;
-            $this->db->limit($limit, $offset);
-            $data = $this->db->get(db_prefix() . 'staff')->result_array();
-
-            // Adicionar o nome do cargo (role) de cada staff
-            foreach ($data as $key => $staff) {
-                if ($staff['role'] > 0) {
-                    $role = $this->roles_model->get($staff['role']);
-                    $data[$key]['role_name'] = $role->name;
-                }
-            }
-
-            return ['data' => $data, 'total' => $total];
-        } else {
-            return ['data' => (array) $this->get($id), 'total' => 1];
         }
     }
 

@@ -272,8 +272,8 @@ class Invoice_items_model extends App_Model
         $page = 1,
         $limit = 10,
         // $search = '',
-        // $sortField = 'id',
-        // $sortOrder = 'DESC',
+        $sortField = 'id',
+        $sortOrder = 'DESC',
         // $statusFilter = null,
         // $startDate = null,
         // $endDate = null,
@@ -291,9 +291,6 @@ class Invoice_items_model extends App_Model
 
 
         if ($id != '') {
-
-
-
             $this->db->select([
                 "$items_table.*",
                 "$groups_table.name as group_name",

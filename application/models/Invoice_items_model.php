@@ -357,6 +357,7 @@ class Invoice_items_model extends App_Model
             "$items_table.promoPrice",
             "$items_table.promoStart",
             "$items_table.promoEnd",
+            "$items_table.userid",
             "$items_table.stock",
             "$items_table.minStock",
             "$items_table.product_unit",

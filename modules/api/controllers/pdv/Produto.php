@@ -144,17 +144,16 @@ class Produto extends REST_Controller
             $id,
             $page,
             $limit,
-            // $search,
+            $search,
             $sortField,
             $sortOrder,
-            // $statusFilter,
-            // $start_date,
-            // $end_date,
-            // $category,
-            // $subcategory,
-            // $send,
+            $statusFilter,
+            $start_date,
+            $end_date,
+            $category,
+            $subcategory,
             $warehouse_id,
-
+            $send
         );
 
         if ($data['total'] > 0) {
@@ -181,6 +180,81 @@ class Produto extends REST_Controller
 
         }
     }
+    // {
+    //     $warehouse_id = $this->post('warehouse_id');
+
+    //     if (empty($warehouse_id)) {
+    //         $this->response(
+    //             ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+    //             REST_Controller::HTTP_BAD_REQUEST
+    //         );
+    //         return;
+    //     }
+
+    //     $page = $this->post('page') ? (int) $this->post('page') : 0;
+    //     $page = $page + 1;
+
+    //     $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+    //     $search = $this->post('search') ?: '';
+    //     $sortField = $this->post('sortField') ?: 'id';
+    //     $sortOrder = $this->post('sortOrder') ?: 'DESC';
+    //     $send = $this->post('send') ?: null;
+
+
+
+    //     $status = $this->post('status');
+    //     $category = $this->post('category');
+    //     $subcategory = $this->post('subcategory');
+
+    //     $statusFilter = null;
+    //     if (is_array($status) && !empty($status)) {
+    //         $statusFilter = $status;
+    //     }
+
+    //     $start_date = $this->post('startDate') ?: '';
+    //     $end_date = $this->post('endDate') ?: '';
+
+    //     $data = $this->Invoice_items_model->get_api2(
+    //         $id,
+    //         $page,
+    //         $limit,
+    //         // $search,
+    //         $sortField,
+    //         $sortOrder,
+    //         // $statusFilter,
+    //         // $start_date,
+    //         // $end_date,
+    //         // $category,
+    //         // $subcategory,
+    //         // $send,
+    //         $warehouse_id,
+
+    //     );
+
+    //     if ($data['total'] > 0) {
+
+    //         $this->response(
+    //             [
+    //                 'status' => true,
+    //                 'total' => $data['total'] ?? 0,
+    //                 'data' => $data['data'] ?? []
+    //             ],
+    //             REST_Controller::HTTP_OK
+    //         );
+    //     } else {
+    //         $this->response(
+    //             [
+    //                 'status' => false,
+    //                 'message' => 'Produto não encontrado',
+    //                 'total' => $data['total'] ?? 0,
+    //                 'data' => $data['data'] ?? []
+    //             ],
+    //             REST_Controller::HTTP_NOT_FOUND
+    //         );
+
+
+    //     }
+    // }
 
     public function create_post()
     {

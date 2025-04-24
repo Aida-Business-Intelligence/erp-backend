@@ -267,20 +267,21 @@ class Invoice_items_model extends App_Model
         return ['data' => $items, 'total' => $total];
     }
 
+
     public function get_api2(
         $id = '',
         $page = 1,
         $limit = 10,
-        // $search = '',
+        $search = '',
         $sortField = 'id',
         $sortOrder = 'DESC',
-        // $statusFilter = null,
-        // $startDate = null,
-        // $endDate = null,
-        // $category = null,
-        // $subcategory = null,
-        // $send = null,
-        $warehouse_id = null
+        $statusFilter = null,
+        $startDate = null,
+        $endDate = null,
+        $category = null,
+        $subcategory = null,
+        $warehouse_id = null,
+        $send = null
     ) {
 
 
@@ -291,6 +292,9 @@ class Invoice_items_model extends App_Model
 
 
         if ($id != '') {
+
+
+
             $this->db->select([
                 "$items_table.*",
                 "$groups_table.name as group_name",
@@ -415,6 +419,155 @@ class Invoice_items_model extends App_Model
 
         return ['data' => $items, 'total' => $total];
     }
+
+    // public function get_api2(
+    //     $id = '',
+    //     $page = 1,
+    //     $limit = 10,
+    //     // $search = '',
+    //     $sortField = 'id',
+    //     $sortOrder = 'DESC',
+    //     // $statusFilter = null,
+    //     // $startDate = null,
+    //     // $endDate = null,
+    //     // $category = null,
+    //     // $subcategory = null,
+    //     // $send = null,
+    //     $warehouse_id = null
+    // ) {
+
+
+    //     $items_table = db_prefix() . 'items';
+    //     $groups_table = db_prefix() . 'items_groups';
+    //     $subgroups_table = db_prefix() . 'wh_sub_group';
+
+
+
+    //     if ($id != '') {
+    //         $this->db->select([
+    //             "$items_table.*",
+    //             "$groups_table.name as group_name",
+    //             "$subgroups_table.sub_group_name",
+    //             "$subgroups_table.id as sub_group_id"
+    //         ]);
+
+    //         $this->db->from($items_table)
+    //             ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
+    //             ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left');
+
+    //         if ($warehouse_id) {
+    //             $this->db->where("$items_table.warehouse_id", $warehouse_id);
+    //         }
+
+    //         if ($send == 'pdv') {
+    //             $this->db->where("$items_table.id", $id);
+    //             $this->db->or_where("$items_table.commodity_barcode", $id)->limit(1);
+    //             $item = $this->db->get()->row();
+    //         } else {
+
+    //             $this->db->or_where("$items_table.commodity_barcode", $id);
+    //             $item = $this->db->get()->row_array();
+    //         }
+
+
+
+
+    //         if ($item) {
+
+    //             if ($send == 'pdv') {
+    //                 return ['data' => $item, 'total' => 1];
+    //             } else {
+    //                 return ['data' => [$item], 'total' => 1];
+    //             }
+
+    //         }
+    //         return ['data' => [], 'total' => 0];
+    //     }
+
+    //     $this->db->select([
+    //         "$items_table.id as id",
+    //         "$items_table.rate",
+    //         't1.taxrate as taxrate',
+    //         't1.id as taxid',
+    //         't1.name as taxname',
+    //         't2.taxrate as taxrate_2',
+    //         't2.id as taxid_2',
+    //         't2.name as taxname_2',
+    //         "$items_table.description",
+    //         "$items_table.long_description",
+    //         "$items_table.group_id",
+    //         "$groups_table.name as group_name",
+    //         "$items_table.unit",
+    //         "$items_table.sku_code",
+    //         "$items_table.image",
+    //         "$items_table.commodity_barcode",
+    //         "$items_table.status",
+    //         "$items_table.cost",
+    //         "$items_table.promoPrice",
+    //         "$items_table.promoStart",
+    //         "$items_table.promoEnd",
+    //         "$items_table.stock",
+    //         "$items_table.minStock",
+    //         "$items_table.product_unit",
+    //         "$items_table.createdAt",
+    //         "$items_table.updatedAt",
+    //         "$subgroups_table.sub_group_name",
+    //         "$subgroups_table.id as sub_group_id",
+    //         "$items_table.warehouse_id as warehouse_id"
+    //     ]);
+
+    //     $this->db->from($items_table)
+    //         ->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left')
+    //         ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
+    //         ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
+    //         ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left');
+
+    //     if ($warehouse_id) {
+    //         $this->db->where("$items_table.warehouse_id", $warehouse_id);
+    //     }
+
+    //     if (!empty($statusFilter) && is_array($statusFilter)) {
+    //         $this->db->where_in("$items_table.status", $statusFilter);
+    //     }
+
+    //     if (!empty($startDate)) {
+    //         $this->db->where("DATE($items_table.createdAt) >=", (new DateTime($startDate))->format('Y-m-d'));
+    //     }
+    //     if (!empty($endDate)) {
+    //         $this->db->where("DATE($items_table.createdAt) <=", (new DateTime($endDate))->format('Y-m-d'));
+    //     }
+
+    //     if (!empty($category)) {
+    //         $this->db->where("$items_table.group_id", $category);
+    //     }
+
+    //     if (!empty($subcategory)) {
+    //         $this->db->where("$items_table.sub_group", $subcategory);
+    //     }
+
+    //     if (!empty($search)) {
+    //         $this->db->group_start()
+    //             ->like("$items_table.description", $search)
+    //             ->or_like("$items_table.long_description", $search)
+    //             ->or_like("$items_table.rate", $search)
+    //             ->or_like("$items_table.sku_code", $search)
+    //             ->or_like("$items_table.commodity_barcode", $search)
+    //             ->or_like("$items_table.id", $search)
+    //             ->group_end();
+    //     }
+
+    //     $total = $this->db->count_all_results('', false);
+
+    //     $allowedSortFields = ['id', 'description', 'rate', 'sku_code', 'createdAt', 'updatedAt'];
+    //     $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'id';
+
+    //     $this->db->order_by("$items_table.$sortField", $sortOrder);
+    //     $this->db->limit($limit, ($page - 1) * $limit);
+
+    //     $items = $this->db->get()->result_array();
+
+    //     return ['data' => $items, 'total' => $total];
+    // }
 
     public function get_grouped()
     {

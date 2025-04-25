@@ -283,28 +283,26 @@ class Invoice_items_model extends App_Model
         $warehouse_id = null,
         $send = null
     ) {
-
-
         $items_table = db_prefix() . 'items';
         $groups_table = db_prefix() . 'items_groups';
         $subgroups_table = db_prefix() . 'wh_sub_group';
-
-
+        $suppliers_table = db_prefix() . 'clients';
 
         if ($id != '') {
-
-
 
             $this->db->select([
                 "$items_table.*",
                 "$groups_table.name as group_name",
                 "$subgroups_table.sub_group_name",
-                "$subgroups_table.id as sub_group_id"
+                "$subgroups_table.id as sub_group_id",
+                "$suppliers_table.userid",
+                "$suppliers_table.company"
             ]);
 
             $this->db->from($items_table)
                 ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left');
+                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+                ->join($suppliers_table, "$suppliers_table.userid = $items_table.userid", 'left');
 
             if ($warehouse_id) {
                 $this->db->where("$items_table.warehouse_id", $warehouse_id);
@@ -349,6 +347,17 @@ class Invoice_items_model extends App_Model
             "$items_table.group_id",
             "$groups_table.name as group_name",
             "$items_table.unit",
+            "$items_table.ncm",
+            "$items_table.nfci",
+            "$items_table.cest",
+            "$items_table.origin",
+            "$items_table.cfop",
+            "$items_table.length",
+            "$items_table.width",
+            "$items_table.height",
+            "$items_table.cubage",
+            "$items_table.maxDiscount",
+            "$items_table.product_unit",
             "$items_table.sku_code",
             "$items_table.image",
             "$items_table.commodity_barcode",
@@ -365,30 +374,30 @@ class Invoice_items_model extends App_Model
             "$items_table.updatedAt",
             "$subgroups_table.sub_group_name",
             "$subgroups_table.id as sub_group_id",
-            "$items_table.warehouse_id as warehouse_id"
+            "$items_table.warehouse_id as warehouse_id",
+            "$suppliers_table.userid",
+            "$suppliers_table.company"
         ]);
 
         $this->db->from($items_table)
             ->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left')
             ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
             ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left');
+            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+            ->join($suppliers_table, "$suppliers_table.userid = $items_table.userid", 'left');
 
         if ($warehouse_id) {
             $this->db->where("$items_table.warehouse_id", $warehouse_id);
         }
-
         if (!empty($statusFilter) && is_array($statusFilter)) {
             $this->db->where_in("$items_table.status", $statusFilter);
         }
-
         if (!empty($startDate)) {
             $this->db->where("DATE($items_table.createdAt) >=", (new DateTime($startDate))->format('Y-m-d'));
         }
         if (!empty($endDate)) {
             $this->db->where("DATE($items_table.createdAt) <=", (new DateTime($endDate))->format('Y-m-d'));
         }
-
         if (!empty($category)) {
             $this->db->where("$items_table.group_id", $category);
         }
@@ -401,10 +410,10 @@ class Invoice_items_model extends App_Model
             $this->db->group_start()
                 ->like("$items_table.description", $search)
                 ->or_like("$items_table.long_description", $search)
-                ->or_like("$items_table.rate", $search)
-                ->or_like("$items_table.sku_code", $search)
+                // ->or_like("$items_table.rate", $search)
+                // ->or_like("$items_table.sku_code", $search)
                 ->or_like("$items_table.commodity_barcode", $search)
-                ->or_like("$items_table.id", $search)
+                // ->or_like("$items_table.id", $search)
                 ->group_end();
         }
 

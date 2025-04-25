@@ -358,6 +358,7 @@ class Invoices extends REST_Controller
             i.total,
             i.status as invoice_status,
             i.datecreated,
+
             i.warehouse_id,
             IF(i.status = 12, i.clientnote, NULL) as dispute_message,
             IF(i.status = 12, i.dispute_type, NULL) as dispute_type,

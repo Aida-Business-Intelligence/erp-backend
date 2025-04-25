@@ -126,8 +126,6 @@ class Produto extends REST_Controller
         $sortOrder = $this->post('sortOrder') ?: 'DESC';
         $send = $this->post('send') ?: null;
 
-
-
         $status = $this->post('status');
         $category = $this->post('category');
         $subcategory = $this->post('subcategory');

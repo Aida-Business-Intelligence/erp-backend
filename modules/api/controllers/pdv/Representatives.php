@@ -1,6 +1,7 @@
 <?php
 
 defined('BASEPATH') or exit('No direct script access allowed');
+
 require __DIR__ . '/../REST_Controller.php';
 
 class Representatives extends REST_Controller
@@ -1023,3 +1024,4 @@ class Representatives extends REST_Controller
     ], REST_Controller::HTTP_OK);
   }
 }
+

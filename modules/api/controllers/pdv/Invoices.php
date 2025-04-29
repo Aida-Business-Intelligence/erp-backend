@@ -736,6 +736,7 @@ class Invoices extends REST_Controller
         }
     }
 
+
     public function put_entregue_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -851,4 +852,5 @@ class Invoices extends REST_Controller
             'data' => $invoice
         ], REST_Controller::HTTP_OK);
     }
+
 }

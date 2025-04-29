@@ -637,10 +637,6 @@ class Cashs_model extends App_Model
         $this->db->insert(db_prefix() . 'cashextracts', $data);
         $insert_id = $this->db->insert_id();
 
-
-        $this->db->insert(db_prefix() . 'cashextracts', $data);
-
-
         if ($insert_id) {
             $update_data = [
                 'balance' => $detalhes_caixa->balance,

@@ -700,6 +700,7 @@ class Invoices extends REST_Controller
         SUM(pn.qtde) as total_quantity
     ';
 
+
         $this->db->select($select);
         $this->db->from(db_prefix() . 'invoices i');
         $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.invoice_id = i.id', 'left');
@@ -812,7 +813,6 @@ class Invoices extends REST_Controller
         c.company as supplier_name,
         c.vat as supplier_document,
         c.phonenumber as supplier_phone,
-        GROUP_CONCAT(DISTINCT itm.description) as products,
         COUNT(DISTINCT pn.id) as total_items,
         SUM(pn.qtde) as total_quantity
     ';
@@ -870,6 +870,7 @@ class Invoices extends REST_Controller
         $this->db->limit($limit, ($page - 1) * $limit);
 
         $invoices = $this->db->get()->result_array();
+
 
         foreach ($invoices as &$invoice) {
             $this->db->select('
@@ -1102,6 +1103,123 @@ class Invoices extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
 
         }
+    }
+
+
+    public function put_entregue_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['ids'])) {
+            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $ids = $_POST['ids'];
+        $status = "11";
+
+        $output = $this->Invoices_model->update_entregue($ids, $status);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function get_details_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['invoice_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invoice ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $invoice_id = $_POST['invoice_id'];
+
+        $this->db->select('
+            i.id,
+            i.total,
+            i.status as invoice_status,
+            i.datecreated,
+            i.warehouse_id,
+            IF(i.status = 12, i.clientnote, NULL) as dispute_message,
+            IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
+            c.company as supplier_name,
+            c.vat as supplier_document,
+            c.phonenumber as supplier_phone
+        ');
+        $this->db->from(db_prefix() . 'invoices i');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.clientid', 'left');
+        $this->db->where('i.id', $invoice_id);
+
+        $invoice = $this->db->get()->row_array();
+
+        if (!$invoice) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invoice not found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        // Busca os itens da fatura
+        $this->db->select('
+            pn.id as purchase_need_id,
+            pn.qtde,
+            pn.status as purchase_status,
+            itm.description as product_name,
+            itm.sku_code,
+            itm.cost as unit_cost,
+            (itm.cost * pn.qtde) as total_cost
+        ');
+        $this->db->from(db_prefix() . 'purchase_needs pn');
+        $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+        $this->db->where('pn.invoice_id', $invoice_id);
+
+        $items = $this->db->get()->result_array();
+
+        $invoice['formatted_date'] = date('d/m/Y H:i', strtotime($invoice['datecreated']));
+
+        $status_map = [
+            '0' => 'Rejeitado',
+            '1' => 'Pendente',
+            '2' => 'Transmitido',
+            '3' => 'Enviado',
+            '4' => 'Faturado',
+            '5' => 'Cancelado',
+            '11' => 'Entregue',
+            '12' => 'Em contestação'
+        ];
+
+        $invoice['status_text'] = isset($status_map[$invoice['invoice_status']]) ? $status_map[$invoice['invoice_status']] : 'Desconhecido';
+
+        $dispute_type_map = [
+            'broken' => 'Quebrado',
+            'malfunction' => 'Mal funcionamento',
+            'wrong_item' => 'Item errado',
+            'quality_issues' => 'Problemas de qualidade',
+            'other' => 'Outro'
+        ];
+
+        if ($invoice['dispute_type']) {
+            $invoice['dispute_type_text'] = isset($dispute_type_map[$invoice['dispute_type']]) ? $dispute_type_map[$invoice['dispute_type']] : 'Desconhecido';
+        }
+
+        $invoice['formatted_total'] = 'R$ ' . number_format($invoice['total'], 2, ',', '.');
+
+        $invoice['items'] = $items;
+
+        $this->response([
+            'status' => TRUE,
+            'data' => $invoice
+        ], REST_Controller::HTTP_OK);
     }
 
 }

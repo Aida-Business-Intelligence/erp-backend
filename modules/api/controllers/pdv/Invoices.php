@@ -332,6 +332,337 @@ class Invoices extends REST_Controller
         }
     }
 
+    public function create_ecommerce_purchase_order_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['items']) || empty($_POST['items'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No items provided'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['warehouse_id']) || empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            $this->db->trans_start();
+
+            $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+            if (!$decodedToken['status']) {
+                throw new Exception('User not authenticated');
+            }
+
+            $user_id = $decodedToken['data']->user->staffid;
+            $warehouse_id = $_POST['warehouse_id'];
+            $clientid = $_POST['clientid'] ?? 0;
+            $supplier_id = $_POST['supplier_id'] ?? 0;
+
+            if (empty($user_id)) {
+                throw new Exception('User ID not found in token');
+            }
+
+            $newitems = [];
+            $total = 0;
+            $purchase_need_ids = [];
+
+            foreach ($_POST['items'] as $item) {
+                // Verificar se o produto existe
+                $this->db->where('id', $item['id']);
+                $product = $this->db->get(db_prefix() . 'items')->row();
+
+                if (!$product) {
+                    throw new Exception('Product not found with ID: ' . $item['id']);
+                }
+
+                // Usar o preço enviado ou o preço padrão do produto
+                $item_price = $item['price'] ?? $product->rate;
+
+                // Criar purchase need
+                $this->db->insert(db_prefix() . 'purchase_needs', [
+                    'item_id' => $product->id,
+                    'warehouse_id' => $warehouse_id,
+                    'qtde' => $item['quantity'],
+                    'status' => 0,
+                    'date' => date('Y-m-d H:i:s'),
+                    'user_id' => $user_id,
+                    // 'unit_price' => $item_price
+                ]);
+
+                $purchase_need_id = $this->db->insert_id();
+                $purchase_need_ids[] = $purchase_need_id;
+
+                // Preparar items para a invoice
+                $item_total = $item_price * $item['quantity']; // Usar o preço recebido
+                $total += $item_total;
+
+                $newitems[] = [
+                    'description' => $product->description,
+                    'long_description' => $product->long_description,
+                    'qty' => $item['quantity'],
+                    'rate' => $item_price, // Usar o preço recebido
+                    'unit' => $product->unit,
+                    'item_id' => $product->id,
+                    'order' => count($newitems) + 1
+                ];
+            }
+
+            // 2. Criar a invoice
+            $invoice_data = [
+                'clientid' => $clientid,
+                'supplier_id' => $supplier_id,
+                'number' => get_option('next_invoice_number'),
+                'date' => date('Y-m-d'),
+                'duedate' => date('Y-m-d', strtotime('+30 days')),
+                'subtotal' => $total,
+                'total' => $total,
+                'status' => 1,
+                'clientnote' => '',
+                'adminnote' => '',
+                'currency' => get_base_currency()->id,
+                'billing_street' => '',
+                'billing_city' => '',
+                'billing_state' => '',
+                'billing_zip' => '',
+                'billing_country' => '',
+                'shipping_street' => '',
+                'shipping_city' => '',
+                'shipping_state' => '',
+                'shipping_zip' => '',
+                'shipping_country' => '',
+                'include_shipping' => 0,
+                'show_shipping_on_invoice' => 0,
+                'show_quantity_as' => 1,
+                'newitems' => $newitems,
+                'cancel_overdue_reminders' => 1,
+                'allowed_payment_modes' => serialize([]),
+                'prefix' => get_option('invoice_prefix'),
+                'number_format' => get_option('invoice_number_format'),
+                'datecreated' => date('Y-m-d H:i:s'),
+                'addedfrom' => $user_id,
+                'warehouse_id' => $warehouse_id
+            ];
+
+            $invoice_id = $this->Invoices_model->add($invoice_data);
+
+            if (!$invoice_id) {
+                throw new Exception('Failed to create invoice');
+            }
+
+            // 3. Atualizar purchase needs com o invoice_id
+            foreach ($purchase_need_ids as $need_id) {
+                $this->db->where('id', $need_id);
+                $this->db->update(db_prefix() . 'purchase_needs', [
+                    'invoice_id' => $invoice_id,
+                    'status' => 1
+                ]);
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Transaction failed');
+            }
+
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Purchase order created successfully',
+                'invoice_id' => $invoice_id,
+                'purchase_need_ids' => $purchase_need_ids
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function create_bulk_ecommerce_orders_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['orders']) || empty($_POST['orders'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No orders provided'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['warehouse_id']) || empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            $this->db->trans_start();
+
+            $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+            if (!$decodedToken['status']) {
+                throw new Exception('User not authenticated');
+            }
+
+            $user_id = $decodedToken['data']->user->staffid;
+            $warehouse_id = $_POST['warehouse_id'];
+
+            if (empty($user_id)) {
+                throw new Exception('User ID not found in token');
+            }
+
+            $results = [];
+            $errors = [];
+
+            foreach ($_POST['orders'] as $order) {
+                try {
+                    $newitems = [];
+                    $total = 0;
+                    $purchase_need_ids = [];
+                    $clientid = $order['clientid'] ?? 0; // Corrigido: estava usando $order fora do loop
+                    $supplier_id = $order['supplier_id'] ?? 0; // Corrigido: estava usando $order fora do loop
+
+                    // 1. Criar purchase needs para cada item
+                    foreach ($order['items'] as $item) {
+                        $this->db->where('id', $item['id']);
+                        $product = $this->db->get(db_prefix() . 'items')->row();
+
+                        if (!$product) {
+                            throw new Exception('Product not found with ID: ' . $item['id']);
+                        }
+
+                        // Usar o preço enviado ou o preço padrão do produto
+                        $item_price = $item['price'] ?? $product->rate; // Alterado de cost para rate
+
+                        // Criar purchase need
+                        $this->db->insert(db_prefix() . 'purchase_needs', [
+                            'item_id' => $product->id,
+                            'warehouse_id' => $warehouse_id,
+                            'qtde' => $item['quantity'],
+                            'status' => 0,
+                            'date' => date('Y-m-d H:i:s'),
+                            'user_id' => $user_id,
+                            // 'unit_price' => $item_price
+                        ]);
+
+                        $purchase_need_id = $this->db->insert_id();
+                        $purchase_need_ids[] = $purchase_need_id;
+
+                        // Preparar items para a invoice
+                        $item_total = $item_price * $item['quantity']; // Usar o preço recebido
+                        $total += $item_total;
+
+                        $newitems[] = [
+                            'description' => $product->description,
+                            'long_description' => $product->long_description,
+                            'qty' => $item['quantity'],
+                            'rate' => $item_price, // Usar o preço recebido
+                            'unit' => $product->unit,
+                            'item_id' => $product->id,
+                            'order' => count($newitems) + 1
+                        ];
+                    }
+
+                    // 2. Criar a invoice
+                    $invoice_data = [
+                        'clientid' => $clientid,
+                        'supplier_id' => $supplier_id,
+                        'number' => get_option('next_invoice_number'),
+                        'date' => date('Y-m-d'),
+                        'duedate' => date('Y-m-d', strtotime('+30 days')),
+                        'subtotal' => $total,
+                        'total' => $total,
+                        'status' => 1,
+                        'clientnote' => '',
+                        'adminnote' => '',
+                        'currency' => get_base_currency()->id,
+                        'billing_street' => '',
+                        'billing_city' => '',
+                        'billing_state' => '',
+                        'billing_zip' => '',
+                        'billing_country' => '',
+                        'shipping_street' => '',
+                        'shipping_city' => '',
+                        'shipping_state' => '',
+                        'shipping_zip' => '',
+                        'shipping_country' => '',
+                        'include_shipping' => 0,
+                        'show_shipping_on_invoice' => 0,
+                        'show_quantity_as' => 1,
+                        'newitems' => $newitems,
+                        'cancel_overdue_reminders' => 1,
+                        'allowed_payment_modes' => serialize([]),
+                        'prefix' => get_option('invoice_prefix'),
+                        'number_format' => get_option('invoice_number_format'),
+                        'datecreated' => date('Y-m-d H:i:s'),
+                        'addedfrom' => $user_id,
+                        'warehouse_id' => $warehouse_id
+                    ];
+
+                    $invoice_id = $this->Invoices_model->add($invoice_data);
+
+                    if (!$invoice_id) {
+                        throw new Exception('Failed to create invoice');
+                    }
+
+                    // 3. Atualizar purchase needs com o invoice_id
+                    foreach ($purchase_need_ids as $need_id) {
+                        $this->db->where('id', $need_id);
+                        $this->db->update(db_prefix() . 'purchase_needs', [
+                            'invoice_id' => $invoice_id,
+                            'status' => 1
+                        ]);
+                    }
+
+                    $results[] = [
+                        'order_index' => $order['index'],
+                        'invoice_id' => $invoice_id,
+                        'purchase_need_ids' => $purchase_need_ids
+                    ];
+
+                } catch (Exception $e) {
+                    $errors[] = [
+                        'order_index' => $order['index'],
+                        'message' => $e->getMessage()
+                    ];
+                }
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Transaction failed');
+            }
+
+            $this->response([
+                'status' => TRUE,
+                'message' => 'Bulk orders processed',
+                'results' => $results,
+                'errors' => $errors
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
+
     public function list_post()
     {
         $warehouse_id = $this->post('warehouse_id');
@@ -354,19 +685,21 @@ class Invoices extends REST_Controller
         $supplier_id = $this->post('supplier_id');
 
         $select = '
-            i.id,
-            i.total,
-            i.status as invoice_status,
-            i.datecreated,
-            i.warehouse_id,
-            IF(i.status = 12, i.clientnote, NULL) as dispute_message,
-            IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
-            c.company as supplier_name,
-            c.vat as supplier_document,
-            c.phonenumber as supplier_phone,
-            COUNT(DISTINCT pn.id) as total_items,
-            SUM(pn.qtde) as total_quantity
-        ';
+        i.id,
+        i.total,
+        i.status as invoice_status,
+        i.datecreated,
+        i.warehouse_id,
+        IF(i.status = 12, i.clientnote, NULL) as dispute_message,
+        IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
+        c.company as supplier_name,
+        c.vat as supplier_document,
+        c.phonenumber as supplier_phone,
+        GROUP_CONCAT(DISTINCT itm.description) as products,
+        COUNT(DISTINCT pn.id) as total_items,
+        SUM(pn.qtde) as total_quantity
+    ';
+
 
         $this->db->select($select);
         $this->db->from(db_prefix() . 'invoices i');
@@ -420,6 +753,24 @@ class Invoices extends REST_Controller
         $this->db->limit($limit, ($page - 1) * $limit);
 
         $invoices = $this->db->get()->result_array();
+
+        foreach ($invoices as &$invoice) {
+            $this->db->select('
+            pn.id as purchase_need_id,
+            pn.qtde,
+            pn.status as purchase_status,
+            itm.description as product_name,
+            itm.sku_code,
+            itm.rate as unit_price,  -- Alterado de cost para rate
+            (pn.qtde * itm.rate) as total_price  -- Adicionado cálculo do total
+        ');
+            $this->db->from(db_prefix() . 'purchase_needs pn');
+            $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+            $this->db->where('pn.invoice_id', $invoice['id']);
+            $this->db->where('pn.warehouse_id', $warehouse_id);
+
+            $invoice['items'] = $this->db->get()->result_array();
+        }
 
         $this->response([
             'status' => TRUE,
@@ -474,7 +825,6 @@ class Invoices extends REST_Controller
 
         $this->db->where('pn.id IS NOT NULL');
         $this->db->where('i.warehouse_id', $warehouse_id);
-        // Filtro para trazer apenas itens com status = 2, 3 e 4
         $this->db->where_in('i.status', [2, 3, 4]);
 
         if (!empty($search)) {
@@ -520,6 +870,25 @@ class Invoices extends REST_Controller
         $this->db->limit($limit, ($page - 1) * $limit);
 
         $invoices = $this->db->get()->result_array();
+
+
+        foreach ($invoices as &$invoice) {
+            $this->db->select('
+            pn.id as purchase_need_id,
+            pn.qtde,
+            pn.status as purchase_status,
+            itm.description as product_name,
+            itm.sku_code,
+            itm.rate as unit_price,  -- Alterado de cost para rate
+            (pn.qtde * itm.rate) as total_price  -- Adicionado cálculo do total
+        ');
+            $this->db->from(db_prefix() . 'purchase_needs pn');
+            $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+            $this->db->where('pn.invoice_id', $invoice['id']);
+            $this->db->where('pn.warehouse_id', $warehouse_id);
+
+            $invoice['items'] = $this->db->get()->result_array();
+        }
 
         $this->response([
             'status' => TRUE,

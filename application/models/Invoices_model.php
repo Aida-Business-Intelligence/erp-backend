@@ -2073,6 +2073,4 @@ class Invoices_model extends App_Model
         $this->db->set('status', $status);
         return $this->db->update('tblinvoices');
     }
-
-
 }

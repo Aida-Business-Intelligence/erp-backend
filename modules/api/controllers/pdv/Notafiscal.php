@@ -62,6 +62,31 @@ class Notafiscal extends REST_Controller
         }
     }
 
+    public function get_get($id = '')
+    {
+        if (empty($id) || !is_numeric($id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid NF ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $list_nf = $this->Notafiscal_model->get($id);
+
+        if ($list_nf) {
+            $this->response([
+                'status' => TRUE,
+                'data' => $list_nf
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No data were found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
     public function create_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');

@@ -48,7 +48,8 @@ class Warehouse_model extends App_Model
             'warehouse_code',
             'warehouse_name',
             'cnpj',
-            // 'order',
+            'type',
+            'razao_social',
             'display',
             'note',
             'cidade',
@@ -149,6 +150,9 @@ class Warehouse_model extends App_Model
             'warehouse_code',
             'warehouse_name',
             'cnpj',
+            'razao_social',
+            'type',
+            'display',
             // 'order',
             'display',
             'note',
@@ -183,6 +187,8 @@ class Warehouse_model extends App_Model
             'warehouse_code',
             'warehouse_name',
             'cnpj',
+            'razao_social',
+            'type',
             // 'order',
             'display',
             'note',
@@ -198,7 +204,8 @@ class Warehouse_model extends App_Model
             'franqueado_id',
             'password_nfe',
         ];
-
+        
+          
         // Filtrar os dados permitidos
         $update_data = array_intersect_key($data, array_flip($allowed_fields));
 
@@ -206,6 +213,8 @@ class Warehouse_model extends App_Model
         if (empty($update_data)) {
             return false;
         }
+        
+  
 
         // Atualizar os dados na tabela
         $this->db->where('warehouse_id', $id);

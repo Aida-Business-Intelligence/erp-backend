@@ -26,6 +26,8 @@ class Produto extends REST_Controller
         parent::__construct();
         $this->load->model('Invoice_items_model');
         $this->load->library('upload');
+                $this->load->model('Settings_model');
+
     }
 
 
@@ -79,8 +81,34 @@ class Produto extends REST_Controller
             $warehouse_id,
             $send
         );
+        
+        $output = $this->Settings_model->get_options($warehouse_id);
+    
 
         if ($data['total'] > 0) {
+
+            $output = $this->Settings_model->get_options($warehouse_id);
+            
+            
+            $pdv_desconto_produto = 0;
+
+            foreach ($output as $item) {
+                if ($item["name"] === "pdv_desconto_produto") {
+                    $pdv_desconto_produto = $item["value"];
+                    break; // Para sair do loop assim que encontrar
+                }
+            }
+            
+            
+            // Adiciona 'pdv_desconto_produto' a cada elemento do array $data['data']
+            foreach ($data['data'] as &$dataItem) {
+  
+                if((int)$dataItem['maxDiscount'] >= $dataItem['pdv_desconto_produto'] ){
+                    $dataItem['pdv_desconto_produto'] = $dataItem['maxDiscount'];
+                }else{
+                $dataItem['pdv_desconto_produto'] = $pdv_desconto_produto;
+                }
+            }
 
             $this->response(
                 [

@@ -55,7 +55,19 @@ class Settings extends REST_Controller
 
     public function config_get()
     {
-        $output = $this->Settings_model->get_options();
+        
+        $warehouse_id = $_GET['warehouse_id'];
+        
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+        
+    
+        $output = $this->Settings_model->get_options($warehouse_id);
 
         $warehouses = $this->Settings_model->get_warehouses();
 
@@ -270,14 +282,32 @@ class Settings extends REST_Controller
             'purchase_needs_enabled' => [
                 'type' => 'boolean',
                 'required' => false
-            ]
+            ],
+            'pdv_porcentagem' => [
+                'type' => 'string',
+                'required' => false,
+                'max_length' => 100
+            ],
         ];
 
         $updates = [];
         $errors = [];
+        
+          unset($_POST['pdv_limite_itens']);
+            unset($_POST['pdv_limite_itens_quantidade']);
+            unset($_POST['pdv_tempo_carrinho']);
+            unset($_POST['pdv_tempo_carrinho_minutos']);
+            unset($_POST['pdv_reserva_itens']);
+            unset($_POST['pdv_reserva_itens_minutos']);
+            unset($_POST['pdv_tags']);
+            unset($_POST['pdv_categorias']);
+            unset($_POST['pdv_subcategorias']);
+
 
         foreach ($_POST as $key => $value) {
-
+            
+          
+            
             if (!isset($allowed_configs[$key])) {
                 $errors[] = "Configuration key '{$key}' is not allowed";
                 continue;

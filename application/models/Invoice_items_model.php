@@ -130,6 +130,8 @@ class Invoice_items_model extends App_Model
         $warehouse_id = null,
         $send = null
     ) {
+        
+       
 
 
         $items_table = db_prefix() . 'items';
@@ -169,7 +171,6 @@ class Invoice_items_model extends App_Model
 
 
 
-
             if ($item) {
 
                 if ($send == 'pdv') {
@@ -201,6 +202,7 @@ class Invoice_items_model extends App_Model
             "$items_table.commodity_barcode",
             "$items_table.status",
             "$items_table.cost",
+               "$items_table.maxDiscount",
             "$items_table.promoPrice",
             "$items_table.promoStart",
             "$items_table.promoEnd",
@@ -262,7 +264,14 @@ class Invoice_items_model extends App_Model
         $this->db->order_by("$items_table.$sortField", $sortOrder);
         $this->db->limit($limit, ($page - 1) * $limit);
 
+        
+          
+
+        
         $items = $this->db->get()->result_array();
+        
+        
+        
 
         return ['data' => $items, 'total' => $total];
     }
@@ -424,7 +433,8 @@ class Invoice_items_model extends App_Model
 
         $this->db->order_by("$items_table.$sortField", $sortOrder);
         $this->db->limit($limit, ($page - 1) * $limit);
-
+        
+    
         $items = $this->db->get()->result_array();
 
         return ['data' => $items, 'total' => $total];

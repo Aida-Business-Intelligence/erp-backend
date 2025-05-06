@@ -26,10 +26,11 @@ class Settings_model extends App_Model
          * 
          */
     }
-    public function get_options(){
+    public function get_options($warehouse_id){
         
            $this->db->select('name,value');
             $this->db->where('type', 'pdv');
+            $this->db->where('warehouse_id', $warehouse_id);
             return $this->db->get(db_prefix() . 'options')->result_array();
                     
         

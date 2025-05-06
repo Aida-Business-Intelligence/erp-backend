@@ -20,7 +20,7 @@ class Notafiscal extends REST_Controller
         $sortField = $this->post('sortField') ?: 'id';
         $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC';
         $warehouse_id = $this->post('warehouse_id') ? (int) $this->post('warehouse_id') : 0;
-        $status = $this->post('status') ?: null;
+        $status = $this->post('invoice_status') ?: null;
         $start_date = $this->post('start_date') ?: null;
         $end_date = $this->post('end_date') ?: null;
         $invoice_id = $this->post('invoice_id') ?: '';
@@ -51,7 +51,7 @@ class Notafiscal extends REST_Controller
         if (empty($data['data'])) {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Nenhuma nota fiscal encontrada para este armazém'
+                'message' => 'Nenhuma nota fiscal encontrada para esta Fatura'
             ], REST_Controller::HTTP_NOT_FOUND);
         } else {
             $this->response([

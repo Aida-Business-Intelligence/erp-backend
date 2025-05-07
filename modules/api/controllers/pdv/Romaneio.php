@@ -447,16 +447,11 @@ class Romaneio extends REST_Controller {
     /**
      * Delete a romaneio
      */
-    public function delete_post() {
+    public function delete_patch() {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        if (empty($_POST['warehouse_id'])) {
-            $this->response(
-                    ['status' => FALSE, 'message' => 'Warehouse ID is required'],
-                    REST_Controller::HTTP_BAD_REQUEST
-            );
-            return;
-        }
+      $_POST['ids'] = array((int)$_POST['romaneio_id']);
+ 
 
         if (!isset($_POST['ids']) || !is_array($_POST['ids']) || empty($_POST['ids'])) {
             $this->response([
@@ -467,12 +462,17 @@ class Romaneio extends REST_Controller {
         }
 
         $ids = $_POST['ids'];
+        
+   
+        
         $success_count = 0;
         $failed_ids = [];
 
         $this->db->trans_start();
 
         foreach ($ids as $id) {
+            
+         
             $id = $this->security->xss_clean($id);
 
             if (empty($id) || !is_numeric($id)) {
@@ -481,7 +481,7 @@ class Romaneio extends REST_Controller {
             }
 
             $this->db->where('id', $id);
-            $this->db->where('warehouse_id', $_POST['warehouse_id']);
+            //$this->db->where('warehouse_id', $_POST['warehouse_id']);
             $romaneio = $this->db->get(db_prefix() . 'romaneios')->row_array();
 
             if (!$romaneio) {
@@ -536,6 +536,88 @@ class Romaneio extends REST_Controller {
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }
+    
+    public function delete_order_patch() {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+      $_POST['ids'] = array((int)$_POST['order_id']);
+ 
+
+        if (!isset($_POST['ids']) || !is_array($_POST['ids']) || empty($_POST['ids'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid request: ids array is required'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $ids = $_POST['ids'];
+        
+   
+        
+        $success_count = 0;
+        $failed_ids = [];
+
+        $this->db->trans_start();
+
+        foreach ($ids as $id) {
+            
+         
+            $id = $this->security->xss_clean($id);
+
+            if (empty($id) || !is_numeric($id)) {
+                $failed_ids[] = $id;
+                continue;
+            }
+
+            $this->db->where('id', $id);
+            $orders = $this->db->get(db_prefix() . 'romaneio_orders')->result_array();
+
+            foreach ($orders as $order) {
+                $this->db->where('order_id', $order['id']);
+                $this->db->delete(db_prefix() . 'romaneio_order_items');
+            }
+
+            $this->db->where('id', $id);
+            $this->db->delete(db_prefix() . 'romaneio_orders');
+
+          
+
+            $success_count++;
+        }
+
+        $this->db->trans_complete();
+
+        if ($this->db->trans_status() === FALSE) {
+            $this->db->trans_rollback();
+            $message = [
+                'status' => FALSE,
+                'message' => 'Transaction failed',
+                'failed_ids' => $failed_ids
+            ];
+            $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        if ($success_count > 0) {
+            $message = [
+                'status' => TRUE,
+                'message' => $success_count . ' romaneio(s) deleted successfully'
+            ];
+            if (!empty($failed_ids)) {
+                $message['failed_ids'] = $failed_ids;
+            }
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = [
+                'status' => FALSE,
+                'message' => 'Failed to delete romaneios',
+                'failed_ids' => $failed_ids
+            ];
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+    
 
     /**
      * Get all suppliers for selection in romaneio
@@ -626,7 +708,7 @@ class Romaneio extends REST_Controller {
         $search = $this->get('search') ?: '';
         $limit = $this->get('limit') ? (int) $this->get('limit') : 50;
         $page = $this->get('page') ? (int) $this->get('page') : 1;
-$this->db->select('staffid as id, CONCAT(firstname, lastname) as name, vat as document');
+        $this->db->select('staffid as id, CONCAT(firstname, lastname) as name, vat as document');
         $this->db->from(db_prefix() . 'staff');
         $this->db->where('active', 1);
 
@@ -663,98 +745,15 @@ $this->db->select('staffid as id, CONCAT(firstname, lastname) as name, vat as do
             'data' => $combined
                 ], REST_Controller::HTTP_OK);
     }
-    
+
     public function supplier_products_get($supplier_id) {
-    $warehouse_id = $this->get('warehouse_id');
-    
-     if ('WAR' == substr($supplier_id, 0, 3)) {
-             $warehouse_id = substr($supplier_id, 4);
-         }
-         
-    
-
-    if (empty($warehouse_id)) {
-        $this->response(
-            ['status' => FALSE, 'message' => 'Warehouse ID is required'],
-            REST_Controller::HTTP_BAD_REQUEST
-        );
-        return;
-    }
-
-    $search = $this->get('search');
-    
-    if (empty($search)) {
-        $this->response(
-            ['status' => FALSE, 'message' => 'Search parameter is required'],
-            REST_Controller::HTTP_BAD_REQUEST
-        );
-        return;
-    }
-
-    $page = $this->get('page') ? (int) $this->get('page') : 1;
-    $limit = $this->get('limit') ? (int) $this->get('limit') : 50;
-    $offset = ($page - 1) * $limit;
-
-    $this->db->select('id');
-    $this->db->from(db_prefix() . 'items');
-    if ('WAR' != substr($supplier_id, 0, 3)) {
-        $this->db->where('userid', $supplier_id);
-    }
-    $this->db->where('warehouse_id', $warehouse_id);
-    $this->db->where('active', 1);
-
-    $this->db->group_start();
-    $this->db->like('code', $search);
-    $this->db->or_like('description', $search);
-    $this->db->group_end();
-
-    $total_query = $this->db->get_compiled_select();
-    $total = $this->db->query("SELECT COUNT(*) as count FROM ($total_query) as subquery")->row()->count;
-
-    $this->db->select('id, code, description, cost, rate as price');
-    $this->db->from(db_prefix() . 'items');
-    if ('WAR' != substr($supplier_id, 0, 3)) {
-        $this->db->where('userid', $supplier_id);
-    }
-    $this->db->where('warehouse_id', $warehouse_id);
-    $this->db->where('active', 1);
-
-    $this->db->group_start();
-    $this->db->like('code', $search);
-    $this->db->or_like('description', $search);
-    $this->db->group_end();
-
-    $this->db->order_by('description', 'ASC');
-    $this->db->limit($limit, $offset);
-
-    $products = $this->db->get()->result_array();
-
-    foreach ($products as &$product) {
-        $cost = (float)$product['cost'];
-        $price = (float) $product['price'];
-        $product['cost'] = $cost;
-        $product['margin'] = $cost > 0 ? number_format((($price - $cost) / $cost * 100), 2) : '0.00';
-    }
-
-    $this->response([
-        'status' => TRUE,
-        'total' => (int) $total,
-        'page' => $page,
-        'limit' => $limit,
-        'data' => $products
-    ], REST_Controller::HTTP_OK);
-}
-
-    /**
-     * Get products by supplier for selection in romaneio
-     */
-    public function supplier_products1_get($supplier_id) {
         $warehouse_id = $this->get('warehouse_id');
-        
-        
-        
-        
-        
+
+        if ('WAR' == substr($supplier_id, 0, 3)) {
+            $warehouse_id = substr($supplier_id, 4);
+        }
+
+
 
         if (empty($warehouse_id)) {
             $this->response(
@@ -763,20 +762,98 @@ $this->db->select('staffid as id, CONCAT(firstname, lastname) as name, vat as do
             );
             return;
         }
-  
-        
 
-        /*
-        if (empty($supplier_id) || !is_numeric($supplier_id)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Invalid supplier ID'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
+        $search = $this->get('search');
+
+        if (empty($search)) {
+            $this->response(
+                    ['status' => FALSE, 'message' => 'Search parameter is required'],
+                    REST_Controller::HTTP_BAD_REQUEST
+            );
             return;
         }
+
+        $page = $this->get('page') ? (int) $this->get('page') : 1;
+        $limit = $this->get('limit') ? (int) $this->get('limit') : 50;
+        $offset = ($page - 1) * $limit;
+
+        $this->db->select('id');
+        $this->db->from(db_prefix() . 'items');
+        if ('WAR' != substr($supplier_id, 0, 3)) {
+            $this->db->where('userid', $supplier_id);
+        }
+        $this->db->where('warehouse_id', $warehouse_id);
+        $this->db->where('active', 1);
+
+        $this->db->group_start();
+        $this->db->like('code', $search);
+        $this->db->or_like('description', $search);
+        $this->db->group_end();
+
+        $total_query = $this->db->get_compiled_select();
+        $total = $this->db->query("SELECT COUNT(*) as count FROM ($total_query) as subquery")->row()->count;
+
+        $this->db->select('id, code, description, cost, rate as price');
+        $this->db->from(db_prefix() . 'items');
+        if ('WAR' != substr($supplier_id, 0, 3)) {
+            $this->db->where('userid', $supplier_id);
+        }
+        $this->db->where('warehouse_id', $warehouse_id);
+        $this->db->where('active', 1);
+
+        $this->db->group_start();
+        $this->db->like('code', $search);
+        $this->db->or_like('description', $search);
+        $this->db->group_end();
+
+        $this->db->order_by('description', 'ASC');
+        $this->db->limit($limit, $offset);
+
+        $products = $this->db->get()->result_array();
+
+        foreach ($products as &$product) {
+            $cost = (float) $product['cost'];
+            $price = (float) $product['price'];
+            $product['cost'] = $cost;
+            $product['margin'] = $cost > 0 ? number_format((($price - $cost) / $cost * 100), 2) : '0.00';
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'total' => (int) $total,
+            'page' => $page,
+            'limit' => $limit,
+            'data' => $products
+                ], REST_Controller::HTTP_OK);
+    }
+
+    /**
+     * Get products by supplier for selection in romaneio
+     */
+    public function supplier_products1_get($supplier_id) {
+        $warehouse_id = $this->get('warehouse_id');
+
+        if (empty($warehouse_id)) {
+            $this->response(
+                    ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                    REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
+
+
+        /*
+          if (empty($supplier_id) || !is_numeric($supplier_id)) {
+          $this->response([
+          'status' => FALSE,
+          'message' => 'Invalid supplier ID'
+          ], REST_Controller::HTTP_BAD_REQUEST);
+          return;
+          }
          * 
          */
-      
+
 
         $search = $this->get('search') ?: '';
         $page = $this->get('page') ? (int) $this->get('page') : 1;
@@ -785,8 +862,8 @@ $this->db->select('staffid as id, CONCAT(firstname, lastname) as name, vat as do
 
         $this->db->select('id');
         $this->db->from(db_prefix() . 'items');
-        if('WAR' != substr($supplier_id, 0, 3)){
-        $this->db->where('userid', $supplier_id);
+        if ('WAR' != substr($supplier_id, 0, 3)) {
+            $this->db->where('userid', $supplier_id);
         }
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('active', 1);
@@ -803,8 +880,8 @@ $this->db->select('staffid as id, CONCAT(firstname, lastname) as name, vat as do
 
         $this->db->select('id, code, description, cost, rate as price');
         $this->db->from(db_prefix() . 'items');
-         if('WAR' != substr($supplier_id, 0, 3)){
-        $this->db->where('userid', $supplier_id);
+        if ('WAR' != substr($supplier_id, 0, 3)) {
+            $this->db->where('userid', $supplier_id);
         }
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('active', 1);

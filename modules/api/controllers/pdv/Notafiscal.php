@@ -209,6 +209,146 @@ class Notafiscal extends REST_Controller
         }
     }
 
+    public function manualcreate_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        // Verificar Content-Type e processar payload
+        $content_type = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
+
+        if (strpos($content_type, 'application/json') !== false) {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $this->response(['status' => false, 'message' => 'Invalid JSON'], 400);
+                return;
+            }
+            $_POST = $input;
+        }
+
+        // Validação mínima
+        $required_fields = [
+            'warehouse_id',
+            'invoice_number',
+            'invoice_type',
+            'invoice_date',
+            'total_value',
+            'items'
+        ];
+
+        foreach ($required_fields as $field) {
+            if (empty($_POST[$field])) {
+                $this->response(['status' => false, 'message' => "Campo obrigatório faltando: $field"], 400);
+                return;
+            }
+        }
+
+        // Converter datas para formato MySQL
+        $date_fields = ['invoice_date', 'invoice_issuance_date', 'invoice_departure_date', 'due_date'];
+        foreach ($date_fields as $field) {
+            if (!empty($_POST[$field])) {
+                $_POST[$field] = date('Y-m-d H:i:s', strtotime($_POST[$field]));
+            }
+        }
+
+        // Validar e formatar itens
+        if (!empty($_POST['items']) && is_array($_POST['items'])) {
+            $_POST['items'] = json_encode($_POST['items']);
+        } else {
+            $_POST['items'] = json_encode([]);
+        }
+
+        // Validar e formatar parcelas
+        if (!empty($_POST['installments']) && is_array($_POST['installments'])) {
+            $_POST['installments'] = json_encode($_POST['installments']);
+        } else {
+            $_POST['installments'] = json_encode([]);
+        }
+
+        // Preparar dados para inserção
+        $insert_data = [
+            'warehouse_id' => $_POST['warehouse_id'],
+            'invoice_number' => $_POST['invoice_number'],
+            'invoice_key' => $_POST['invoice_key'] ?? null,
+            'invoice_type' => $_POST['invoice_type'] ?? 'entrada', // Definir padrão
+            'invoice_status' => $_POST['invoice_status'] ?? '0',
+            'invoice_date' => $_POST['invoice_date'],
+            'invoice_operation' => $_POST['invoice_operation'] ?? null,
+            'invoice_series' => $_POST['invoice_series'] ?? null,
+            'invoice_issuance_date' => $_POST['invoice_issuance_date'] ?? null,
+            'invoice_departure_date' => $_POST['invoice_departure_date'] ?? null,
+            'due_date' => $_POST['due_date'] ?? null,
+
+            // Dados do fornecedor (removido supplier_fantasy_name)
+            'supplier_id' => $_POST['supplier_id'] ?? null,
+            'supplier_name' => $_POST['supplier_name'] ?? null,
+            'supplier_document' => $_POST['supplier_document'] ?? null,
+            'supplier_ie' => $_POST['supplier_ie'] ?? null,
+            'supplier_address' => $_POST['supplier_address'] ?? null,
+            'supplier_address_number' => $_POST['supplier_address_number'] ?? null,
+            'supplier_district' => $_POST['supplier_district'] ?? null,
+            'supplier_city' => $_POST['supplier_city'] ?? null,
+            'supplier_state' => $_POST['supplier_state'] ?? null,
+            'supplier_zip_code' => $_POST['supplier_zip_code'] ?? null,
+            'supplier_phone' => $_POST['supplier_phone'] ?? null,
+
+            // Dados do cliente
+            'client_id' => $_POST['client_id'] ?? null,
+            'client_name' => $_POST['client_name'] ?? null,
+            'client_document' => $_POST['client_document'] ?? null,
+            'client_ie' => $_POST['client_ie'] ?? null,
+            'client_address' => $_POST['client_address'] ?? null,
+            'client_address_number' => $_POST['client_address_number'] ?? null,
+            'client_district' => $_POST['client_district'] ?? null,
+            'client_city' => $_POST['client_city'] ?? null,
+            'client_state' => $_POST['client_state'] ?? null,
+            'client_zip_code' => $_POST['client_zip_code'] ?? null,
+
+            // Valores
+            'subtotal' => $_POST['subtotal'] ?? 0,
+            'taxes' => $_POST['taxes'] ?? 0,
+            'total_value' => $_POST['total_value'] ?? 0,
+            'payment_type' => $_POST['payment_type'] ?? null,
+
+            // Impostos
+            'icms_base' => $_POST['icms_base'] ?? 0,
+            'icms_value' => $_POST['icms_value'] ?? 0,
+            'icms_st_base' => $_POST['icms_st_base'] ?? 0,
+            'icms_st_value' => $_POST['icms_st_value'] ?? 0,
+            'ipi_value' => $_POST['ipi_value'] ?? 0,
+            'pis_value' => $_POST['pis_value'] ?? 0,
+            'cofins_value' => $_POST['cofins_value'] ?? 0,
+
+            // Pedidos e itens (verificar se já são strings JSON)
+            'orders_id' => is_string($_POST['orders_id'] ?? null) ? $_POST['orders_id'] : json_encode($_POST['orders_id'] ?? []),
+            'items' => is_string($_POST['items'] ?? null) ? $_POST['items'] : json_encode($_POST['items'] ?? []),
+            'installments' => is_string($_POST['installments'] ?? null) ? $_POST['installments'] : json_encode($_POST['installments'] ?? []),
+
+            // Usuário
+            'created_by' => $_POST['created_by'] ?? ($this->session->userdata('staff_user_id') ?? 0),
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+
+        try {
+            $this->db->insert(db_prefix() . 'nota_fiscal', $insert_data);
+            $invoice_id = $this->db->insert_id();
+
+            if ($invoice_id) {
+                $this->response([
+                    'status' => true,
+                    'message' => 'Nota fiscal criada com sucesso',
+                    'data' => ['id' => $invoice_id]
+                ], 200);
+            } else {
+                throw new Exception('Falha ao inserir no banco de dados');
+            }
+        } catch (Exception $e) {
+            $this->response([
+                'status' => false,
+                'message' => 'Erro ao criar nota fiscal: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function update_post($id = '')
     {
         $content_type = isset($this->input->request_headers()['Content-Type'])

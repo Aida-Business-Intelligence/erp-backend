@@ -285,9 +285,7 @@ class Produto extends REST_Controller
     public function create_post()
     {
 
-        ini_set('display_errors', 1);
-        ini_set('display_startup_erros', 1);
-        error_reporting(E_ALL);
+       
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -298,40 +296,6 @@ class Produto extends REST_Controller
             );
             return;
         }
-
-        /*
-        $product_data = [
-            'description' => $_POST['description'] ?? null,
-            'long_description' => $_POST['long_description'] ?? null,
-            'rate' => $_POST['rate'] ?? 0.00,
-            'tax' => $_POST['taxid'] ?? null,
-            'tax2' => $_POST['taxid_2'] ?? null,
-            'unit_id' => $_POST['unit_id'] ?? null,
-            'unit' => $_POST['unit'] ?? null,
-            'group_id' => $_POST['group_id'] ?? null,
-            'sub_group' => $_POST['sub_group'] ?? null,
-            'userid' => $_POST['userid'] ?? null,
-            'code' => $_POST['code'] ?? null,
-            'sku_code' => $_POST['sku_code'] ?? null,
-            'commodity_barcode' => $_POST['barcode'] ?? null,
-            'status' => $_POST['status'] ?? 'pending',
-            'cost' => $_POST['cost'] ?? null,
-            'promoPrice' => $_POST['promoPrice'] ?? null,
-            'promoStart' => $_POST['promoStart'] ?? null,
-            'promoEnd' => $_POST['promoEnd'] ?? null,
-            'stock' => $_POST['stock'] ?? 0,
-            'minStock' => $_POST['minStock'] ?? 0,
-            'product_unit' => $_POST['product_unit'] ?? null,
-            'warehouse_id' => $_POST['warehouse_id'],
-            'cfop' => $_POST['cfop'] ?? '',
-            'nfci' => $_POST['nfci'] ?? '',
-            'code' => $_POST['code'] ?? null,
-            'createdAt' => date('Y-m-d H:i:s'),
-            'cest' => $_POST['cest'] ?? null,
-            'ncm' => $_POST['ncm'] ?? null,
-            'updatedAt' => date('Y-m-d H:i:s')
-        ];
-        */
 
         $this->form_validation->set_data($_POST);
         $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');

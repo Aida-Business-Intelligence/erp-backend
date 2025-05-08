@@ -786,14 +786,15 @@ class Romaneio extends REST_Controller {
         $this->db->where('active', 1);
 
         $this->db->group_start();
-        $this->db->like('code', $search);
+       // $this->db->like('code', $search);
+        $this->db->or_like('sku_code', $search);
         $this->db->or_like('description', $search);
         $this->db->group_end();
 
         $total_query = $this->db->get_compiled_select();
         $total = $this->db->query("SELECT COUNT(*) as count FROM ($total_query) as subquery")->row()->count;
 
-        $this->db->select('id, code, description, cost, rate as price');
+        $this->db->select('id, sku_code as code, description, cost, rate as price');
         $this->db->from(db_prefix() . 'items');
         if ('WAR' != substr($supplier_id, 0, 3)) {
             $this->db->where('userid', $supplier_id);
@@ -802,7 +803,8 @@ class Romaneio extends REST_Controller {
         $this->db->where('active', 1);
 
         $this->db->group_start();
-        $this->db->like('code', $search);
+       // $this->db->like('code', $search);
+        $this->db->or_like('sku_code', $search);
         $this->db->or_like('description', $search);
         $this->db->group_end();
 
@@ -827,92 +829,7 @@ class Romaneio extends REST_Controller {
                 ], REST_Controller::HTTP_OK);
     }
 
-    /**
-     * Get products by supplier for selection in romaneio
-     */
-    public function supplier_products1_get($supplier_id) {
-        $warehouse_id = $this->get('warehouse_id');
-
-        if (empty($warehouse_id)) {
-            $this->response(
-                    ['status' => FALSE, 'message' => 'Warehouse ID is required'],
-                    REST_Controller::HTTP_BAD_REQUEST
-            );
-            return;
-        }
-
-
-
-        /*
-          if (empty($supplier_id) || !is_numeric($supplier_id)) {
-          $this->response([
-          'status' => FALSE,
-          'message' => 'Invalid supplier ID'
-          ], REST_Controller::HTTP_BAD_REQUEST);
-          return;
-          }
-         * 
-         */
-
-
-        $search = $this->get('search') ?: '';
-        $page = $this->get('page') ? (int) $this->get('page') : 1;
-        $limit = $this->get('limit') ? (int) $this->get('limit') : 50;
-        $offset = ($page - 1) * $limit;
-
-        $this->db->select('id');
-        $this->db->from(db_prefix() . 'items');
-        if ('WAR' != substr($supplier_id, 0, 3)) {
-            $this->db->where('userid', $supplier_id);
-        }
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('active', 1);
-
-        if (!empty($search)) {
-            $this->db->group_start();
-            $this->db->like('code', $search);
-            $this->db->or_like('description', $search);
-            $this->db->group_end();
-        }
-
-        $total_query = $this->db->get_compiled_select();
-        $total = $this->db->query("SELECT COUNT(*) as count FROM ($total_query) as subquery")->row()->count;
-
-        $this->db->select('id, code, description, cost, rate as price');
-        $this->db->from(db_prefix() . 'items');
-        if ('WAR' != substr($supplier_id, 0, 3)) {
-            $this->db->where('userid', $supplier_id);
-        }
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('active', 1);
-
-        if (!empty($search)) {
-            $this->db->group_start();
-            $this->db->like('code', $search);
-            $this->db->or_like('description', $search);
-            $this->db->group_end();
-        }
-
-        $this->db->order_by('description', 'ASC');
-        $this->db->limit($limit, $offset);
-
-        $products = $this->db->get()->result_array();
-
-        foreach ($products as &$product) {
-            $cost = (float) $product['cost'];
-            $price = (float) $product['price'];
-            $product['margin'] = $cost > 0 ? number_format((($price - $cost) / $cost * 100), 2) : '0.00';
-        }
-
-        $this->response([
-            'status' => TRUE,
-            'total' => (int) $total,
-            'page' => $page,
-            'limit' => $limit,
-            'data' => $products
-                ], REST_Controller::HTTP_OK);
-    }
-
+    
     public function status_put() {
         $_PUT = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 

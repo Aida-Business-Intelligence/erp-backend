@@ -323,6 +323,11 @@ class Notafiscal extends REST_Controller
             'items' => is_string($_POST['items'] ?? null) ? $_POST['items'] : json_encode($_POST['items'] ?? []),
             'installments' => is_string($_POST['installments'] ?? null) ? $_POST['installments'] : json_encode($_POST['installments'] ?? []),
 
+            // XML
+            'xml_content' => $_POST['xml_content'] ?? null,
+            'xml_source' => $_POST['xml_source'] ?? null,
+            'xml_imported_at' => $_POST['xml_imported_at'] ?? null,
+
             // Usuário
             'created_by' => $_POST['created_by'] ?? ($this->session->userdata('staff_user_id') ?? 0),
             'created_at' => date('Y-m-d H:i:s')

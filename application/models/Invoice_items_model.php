@@ -207,6 +207,7 @@ class Invoice_items_model extends App_Model
             return ['data' => [], 'total' => 0];
         }
 
+        
         $this->db->select([
             "$items_table.id as id",
             "$supplier_table.company as supplier",

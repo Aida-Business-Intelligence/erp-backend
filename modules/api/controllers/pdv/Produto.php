@@ -25,6 +25,7 @@ class Produto extends REST_Controller
         // Construct the parent class
         parent::__construct();
         $this->load->model('Invoice_items_model');
+        $this->load->model('warehouse_model');
         $this->load->library('upload');
                 $this->load->model('Settings_model');
 
@@ -628,6 +629,7 @@ class Produto extends REST_Controller
 
     public function groups_post()
     {
+        
         $warehouse_id = $this->post('warehouse_id');
 
         if (empty($warehouse_id)) {
@@ -639,16 +641,16 @@ class Produto extends REST_Controller
         }
 
         $page = $this->post('page') ? (int) $this->post('page') : 1;
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 30;
         $search = $this->post('search') ?: '';
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
         $this->db->select('g.*, 
-            (SELECT COUNT(*) FROM ' . db_prefix() . 'wh_sub_group WHERE group_id = g.id AND warehouse_id = ' . $this->db->escape($warehouse_id) . ') as subcategories_count,
-            (SELECT COUNT(*) FROM ' . db_prefix() . 'items WHERE group_id = g.id AND warehouse_id = ' . $this->db->escape($warehouse_id) . ') as total_products
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'wh_sub_group WHERE group_id = g.id ) as subcategories_count,
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'items WHERE group_id = g.id ) as total_products
         ');
         $this->db->from(db_prefix() . 'items_groups g');
-        $this->db->where('g.warehouse_id', $warehouse_id);
+      //  $this->db->where('g.warehouse_id', $warehouse_id);
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -693,7 +695,7 @@ class Produto extends REST_Controller
 
         // First verify if the group belongs to this warehouse
         $this->db->where('id', $group_id);
-        $this->db->where('warehouse_id', $warehouse_id);
+       // $this->db->where('warehouse_id', $warehouse_id);
         $group = $this->db->get(db_prefix() . 'items_groups')->row();
 
         if (!$group) {
@@ -707,7 +709,7 @@ class Produto extends REST_Controller
 
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 30;
         $search = $this->post('search') ?: '';
         $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
 
@@ -716,7 +718,7 @@ class Produto extends REST_Controller
             AND warehouse_id = ' . $this->db->escape($warehouse_id) . ') as total_products');
         $this->db->from(db_prefix() . 'wh_sub_group sg');
         $this->db->where('sg.group_id', $group_id);
-        $this->db->where('sg.warehouse_id', $warehouse_id);
+      //  $this->db->where('sg.warehouse_id', $warehouse_id);
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -912,7 +914,7 @@ class Produto extends REST_Controller
 
         // Verify if the group belongs to this warehouse
         $this->db->where('id', $_POST['group_id']);
-        $this->db->where('warehouse_id', $_POST['warehouse_id']);
+      //  $this->db->where('warehouse_id', $_POST['warehouse_id']);
         $group = $this->db->get(db_prefix() . 'items_groups')->row();
 
         if (!$group) {
@@ -1175,6 +1177,9 @@ class Produto extends REST_Controller
 
     public function import_post()
     {
+        ini_set('max_execution_time', 1200); // 300 segundos = 5 minutos
+
+        
         if (empty($_POST['warehouse_id'])) {
             $this->response([
                 'status' => FALSE,
@@ -1182,7 +1187,20 @@ class Produto extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
-
+        
+        $produtos_existentes =  $this->Invoice_items_model->totalItens($_POST['warehouse_id']);
+       
+       
+        if ($produtos_existentes > 0) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Ja existe produtos cadastrados'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+        
+     
+       
         if (!isset($_FILES['file']) || empty($_FILES['file'])) {
             $this->response([
                 'status' => FALSE,
@@ -1259,13 +1277,30 @@ class Produto extends REST_Controller
                 $rows[] = $row;
             }
         }
+        
+      
 
         try {
             $this->db->trans_start();
+            
+            $warehouse = $this->warehouse_model->get($_POST['warehouse_id']);
+            
+            
+            
+            if($warehouse->type == 'distribuidor'){
+              
+                $warehouses = $this->warehouse_model->get("", "(type = 'filial' OR type = 'franquia')");
 
+            }else{
+                
+                $warehouses[0] = (array)$warehouse;
+            }
+            foreach($warehouses as $wr){
+                
+            
             foreach ($rows as $index => $row) {
                 $current_row = $index + 2;
-                $product_data = ['warehouse_id' => $_POST['warehouse_id']];
+                $product_data = ['warehouse_id' => $wr['warehouse_id']];
 
                 foreach ($mapping as $field => $csv_column) {
                     $column_index = array_search($csv_column, $headers);
@@ -1273,9 +1308,50 @@ class Produto extends REST_Controller
                         $value = trim($row[$column_index]);
                         if (!empty($value)) {
                             $product_data[$field] = $value;
+                            
+                            if($field ==  'group_name'){
+                                
+                                 $category = $this->Invoice_items_model->get_category_id_by_name($value);
+                                 if($category){
+                                   $product_data['group_id'] =  $category->id;       
+                                 }
+                                 unset($product_data['group_name']);
+                                
+                            }
+                            
+                            if($field ==  'rate'){
+                                
+                                $product_data['price_cliente_final'] =  $value; 
+                                
+                                
+                            }
+                            
+                            if($field ==  'sku_code'){
+                                
+                                  $product_data['commodity_barcode'] =  $value;     
+                                  $product_data['commodity_code'] =  $value;     
+                                  $product_data['code'] =  $value;     
+                                
+                            }
+                            
+                            
+                            
+                            if($field ==  'unit_name'){
+                                
+                                 $unit= $this->Invoice_items_model->get_unit_id_by_name($value);
+                                 if($unit){
+                                   $product_data['unit_id'] =  $unit->id;       
+                                 }
+                                 unset($product_data['unit_name']);
+                                
+                            }
+                            
+                            
+                            
                         }
                     }
                 }
+          
 
                 if (!isset($product_data['description']) || empty($product_data['description'])) {
                     $errors[] = "Row {$current_row}: Description is required";
@@ -1293,6 +1369,7 @@ class Produto extends REST_Controller
                 } else {
                     $errors[] = "Row {$current_row}: Failed to insert product";
                 }
+            }
             }
 
             $this->db->trans_complete();

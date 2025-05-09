@@ -787,8 +787,13 @@ class Romaneio extends REST_Controller {
 
         $this->db->group_start();
        // $this->db->like('code', $search);
-        $this->db->or_like('sku_code', $search);
-        $this->db->or_like('description', $search);
+        
+        if(is_numeric($search)){
+        $this->db->where('sku_code', $search);
+        }else{
+        
+        $this->db->like('description', $search);
+        }
         $this->db->group_end();
 
         $total_query = $this->db->get_compiled_select();
@@ -804,8 +809,17 @@ class Romaneio extends REST_Controller {
 
         $this->db->group_start();
        // $this->db->like('code', $search);
+        /*
         $this->db->or_like('sku_code', $search);
         $this->db->or_like('description', $search);
+         * 
+         */
+        if(is_numeric($search)){
+        $this->db->where('sku_code', $search);
+        }else{
+        
+        $this->db->like('description', $search);
+        }
         $this->db->group_end();
 
         $this->db->order_by('description', 'ASC');

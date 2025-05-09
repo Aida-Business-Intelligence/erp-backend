@@ -111,6 +111,27 @@ class Invoice_items_model extends App_Model
 
         return $this->db->get()->row();
     }
+    
+    public function get_category_id_by_name($name){
+        
+        $this->db->select('id ');
+        $this->db->from(db_prefix() . 'items_groups');
+        $this->db->where('name', $name);
+        return $this->db->get()->row();
+        
+    }
+    
+     public function get_unit_id_by_name($name){
+        
+        
+        $this->db->select('unit_type_id as id');
+        $this->db->from(db_prefix() . 'ware_unit_type');
+        $this->db->where('unit_code', $name);
+
+           return $this->db->get()->row();
+        
+    }
+    
 
     /**
      * Get items with API formatting
@@ -137,6 +158,7 @@ class Invoice_items_model extends App_Model
         $items_table = db_prefix() . 'items';
         $groups_table = db_prefix() . 'items_groups';
         $subgroups_table = db_prefix() . 'wh_sub_group';
+        $supplier_table = db_prefix() . 'clients';
 
 
 
@@ -146,6 +168,7 @@ class Invoice_items_model extends App_Model
 
             $this->db->select([
                 "$items_table.*",
+                "$supplier_table.company as supplier",
                 "$groups_table.name as group_name",
                 "$subgroups_table.sub_group_name",
                 "$subgroups_table.id as sub_group_id"
@@ -153,7 +176,8 @@ class Invoice_items_model extends App_Model
 
             $this->db->from($items_table)
                 ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left');
+                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+                ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
 
             if ($warehouse_id) {
                 $this->db->where("$items_table.warehouse_id", $warehouse_id);
@@ -183,8 +207,10 @@ class Invoice_items_model extends App_Model
             return ['data' => [], 'total' => 0];
         }
 
+        
         $this->db->select([
             "$items_table.id as id",
+            "$supplier_table.company as supplier",
             "$items_table.rate",
             't1.taxrate as taxrate',
             't1.id as taxid',
@@ -220,7 +246,9 @@ class Invoice_items_model extends App_Model
             ->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left')
             ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
             ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left');
+            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+                        ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
+
 
         if ($warehouse_id) {
             $this->db->where("$items_table.warehouse_id", $warehouse_id);
@@ -274,6 +302,15 @@ class Invoice_items_model extends App_Model
         
 
         return ['data' => $items, 'total' => $total];
+    }
+    
+    public function totalItens($warehouse_id) {
+        
+                $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
+                $this->db->from(db_prefix() . 'items');
+                return $this->db->count_all_results('', true);
+
+        
     }
 
 

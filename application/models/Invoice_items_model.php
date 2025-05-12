@@ -88,6 +88,35 @@ class Invoice_items_model extends App_Model
             t1.taxrate as taxrate,t1.id as taxid,t1.name as taxname,
             t2.taxrate as taxrate_2,t2.id as taxid_2,t2.name as taxname_2,
             description,long_description,group_id,' . db_prefix() . 'items_groups.name as group_name,unit');
+        
+        $items_table = db_prefix() . 'items';
+        
+             $this->db->select([
+            "$items_table.id as id",
+            "$items_table.rate",
+            "$items_table.description",
+            "$items_table.long_description",
+            "$items_table.group_id",
+            "$items_table.unit",
+            "$items_table.sku_code",
+            "$items_table.image",
+            "$items_table.commodity_barcode",
+            "$items_table.status",
+            "$items_table.cost",
+            "$items_table.maxDiscount",
+            "$items_table.promoPrice",
+            "$items_table.promoStart",
+            "$items_table.promoEnd",
+            "$items_table.stock",
+            "$items_table.minStock",
+            "$items_table.product_unit",
+            "$items_table.createdAt",
+            "$items_table.updatedAt",
+            "$items_table.warehouse_id as warehouse_id"
+        ]);
+        
+        
+        
         $this->db->from(db_prefix() . 'items');
         $this->db->join('' . db_prefix() . 'taxes t1', 't1.id = ' . db_prefix() . 'items.tax', 'left');
         $this->db->join('' . db_prefix() . 'taxes t2', 't2.id = ' . db_prefix() . 'items.tax2', 'left');
@@ -236,7 +265,7 @@ class Invoice_items_model extends App_Model
             "$items_table.commodity_barcode",
             "$items_table.status",
             "$items_table.cost",
-               "$items_table.maxDiscount",
+            "$items_table.maxDiscount",
             "$items_table.promoPrice",
             "$items_table.promoStart",
             "$items_table.promoEnd",
@@ -893,28 +922,34 @@ class Invoice_items_model extends App_Model
         return false;
     }
     
-        /**
-     * Delete invoice item
-     * @param  mixed $id
-     * @return boolean
-     */
-    public function delete_by_sku($id)
+     public function delete_by_sku($sku)
     {
-        $this->db->where('sku_code', $id);
+        // Deleta todos os itens com o SKU fornecido
+        $this->db->where('sku_code', $sku);
         $this->db->delete(db_prefix() . 'items');
+        
+      
+
+        /*
+        // Verifica se alguma linha foi afetada (ou seja, deletada)
         if ($this->db->affected_rows() > 0) {
-            $this->db->where('relid', $id);
+            // Deleta registros associados na tabela de valores de campos personalizados
+            $this->db->where('relid', $sku);
             $this->db->where('fieldto', 'items_pr');
             $this->db->delete(db_prefix() . 'customfieldsvalues');
 
-            log_activity('Invoice Item Deleted [ID: ' . $id . ']');
+            // Loga a atividade
+            log_activity('Itens com SKU: ' . $sku . ' foram deletados.');
 
-            hooks()->do_action('item_deleted', $id);
+            // Aciona evento hook
+            hooks()->do_action('items_deleted', $sku);
 
             return true;
         }
+         * 
+         */
 
-        return false;
+        return true;
     }
 
     public function get_groups($page = 1, $limit = 10, $search = '', $sortOrder = 'ASC')

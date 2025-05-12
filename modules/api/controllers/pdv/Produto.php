@@ -516,22 +516,19 @@ class Produto extends REST_Controller {
                 $failed_ids[] = $id;
                 continue;
             }
-            
-            
-             if (count($warehouses) > 1) {
+            if (count($warehouses) > 1) {
 
-                if ($_POST['sku_code'] != "") {
-                    
-                    $item = $this->Invoice_items_model->get($_POST['id']);
+                    $item = $this->Invoice_items_model->get($id);
                     $sku = $item->sku_code;
-                    $output =$this->Invoice_items_model->delete_by_sku($sku);
+                    if($sku!=""){
+                    
+                        $output =$this->Invoice_items_model->delete_by_sku($sku);
+                    }else{
+                   
+                        $output = $this->Invoice_items_model->delete($id);
+
+                    }
             
-                  
-                } else {
-
-                    $output = $this->Invoice_items_model->delete($id);
-                }
-
             } else {
 
                 $output = $this->Invoice_items_model->delete($id);
@@ -597,6 +594,7 @@ class Produto extends REST_Controller {
 
                 if ($_POST['sku_code'] != "") {
                     $item = $this->Invoice_items_model->get($id);
+                 
                     $sku = $item->sku_code;
                     
                    foreach ($warehouses as $warehouse) {

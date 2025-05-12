@@ -112,6 +112,14 @@ class Invoice_items_model extends App_Model
         return $this->db->get()->row();
     }
     
+     public function get_by_sku($id = '')
+    {
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where(db_prefix() . 'items.sku_code', $id);
+        
+        return $this->db->get()->row();
+    }
+    
     public function get_category_id_by_name($name){
         
         $this->db->select('id ');
@@ -776,6 +784,74 @@ class Invoice_items_model extends App_Model
 
         return $updated;
     }
+    
+    /**
+     * Update invoiec item
+     * @param  array $data Invoice data to update
+     * @return boolean
+     */
+    public function edit_by_sku($data, $id, $warehouse_id)
+    {
+        $itemid = $id;
+
+        if (isset($data['group_id']) && $data['group_id'] == '') {
+            $data['group_id'] = 0;
+        }
+
+        if (isset($data['tax']) && $data['tax'] == '') {
+            $data['tax'] = null;
+        }
+
+        if (isset($data['tax2']) && $data['tax2'] == '') {
+            $data['tax2'] = null;
+        }
+
+        $columns = $this->db->list_fields(db_prefix() . 'items');
+        $this->load->dbforge();
+
+        foreach ($data as $column => $itemData) {
+            if (!in_array($column, $columns) && strpos($column, 'rate_currency_') !== false) {
+                $field = [
+                    $column => [
+                        'type' => 'decimal(15,' . get_decimal_places() . ')',
+                        'null' => true,
+                    ],
+                ];
+                $this->dbforge->add_column('items', $field);
+            }
+        }
+
+        $updated = false;
+        $data = hooks()->apply_filters('before_update_item', $data, $itemid);
+        $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
+
+        $this->db->where('sku_code', $itemid);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $this->db->update('items', $data);
+
+        if ($this->db->affected_rows() > 0) {
+            $updated = true;
+        }
+
+        if (handle_custom_fields_post($itemid, $custom_fields, true)) {
+            $updated = true;
+        }
+
+        do_action_deprecated('item_updated', [$itemid], '2.9.4', 'after_item_updated');
+
+        hooks()->do_action('after_item_updated', [
+            'id' => $itemid,
+            'data' => $data,
+            'custom_fields' => $custom_fields,
+            'updated' => &$updated,
+        ]);
+
+        if ($updated) {
+            log_activity('Invoice Item Updated [ID: ' . $itemid . ', ' . $data['description'] . ']');
+        }
+
+        return $updated;
+    }
 
     public function search($q)
     {
@@ -801,6 +877,30 @@ class Invoice_items_model extends App_Model
     public function delete($id)
     {
         $this->db->where('id', $id);
+        $this->db->delete(db_prefix() . 'items');
+        if ($this->db->affected_rows() > 0) {
+            $this->db->where('relid', $id);
+            $this->db->where('fieldto', 'items_pr');
+            $this->db->delete(db_prefix() . 'customfieldsvalues');
+
+            log_activity('Invoice Item Deleted [ID: ' . $id . ']');
+
+            hooks()->do_action('item_deleted', $id);
+
+            return true;
+        }
+
+        return false;
+    }
+    
+        /**
+     * Delete invoice item
+     * @param  mixed $id
+     * @return boolean
+     */
+    public function delete_by_sku($id)
+    {
+        $this->db->where('sku_code', $id);
         $this->db->delete(db_prefix() . 'items');
         if ($this->db->affected_rows() > 0) {
             $this->db->where('relid', $id);

@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: erp-backend-app
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - db
+      
+    environment:
+      APP_DB_HOSTNAME: db
+      APP_DB_USERNAME: erp_user
+      APP_DB_PASSWORD: erp_pass
+      APP_DB_NAME: erp_db
+      APP_BASE_URL: http://localhost:8080
+
+  db:
+    image: mysql:5.7
+    container_name: erp-backend-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: erp_db
+      MYSQL_USER: erp_user
+      MYSQL_PASSWORD: erp_pass
+      MYSQL_ROOT_PASSWORD: rootpass
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./db_init:/docker-entrypoint-initdb.d  # dev.sql 
+
+volumes:
+  db_data:

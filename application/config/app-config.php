@@ -17,7 +17,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * environments.
  *
  */
-define('APP_BASE_URL', 'http://localhost/aida/erp-backend/');
+define('APP_BASE_URL', getenv('APP_BASE_URL') ?: 'http://localhost:8080');
 
 /*
  * --------------------------------------------------------------------------
@@ -38,21 +38,24 @@ define('APP_ENC_KEY', '6a88fa70f0c078521d59ed904a0fe44b');
  * Database Credentials
  * The hostname of your database server
  */
-define('APP_DB_HOSTNAME', 'localhost');
+//define('APP_DB_HOSTNAME', 'localhost');
 
 /**
  * The username used to connect to the database
  */
-define('APP_DB_USERNAME', 'root');
+//define('APP_DB_USERNAME', 'root');
 /**
  * The password used to connect to the database
  */
-define('APP_DB_PASSWORD', '');
+//define('APP_DB_PASSWORD', '');
 /**
  * The name of the database you want to connect to
  */
-define('APP_DB_NAME', 'dev');
-
+//define('APP_DB_NAME', 'dev');
+define('APP_DB_HOSTNAME', getenv('APP_DB_HOSTNAME') ?: 'db');
+define('APP_DB_USERNAME', getenv('APP_DB_USERNAME') ?: 'root');
+define('APP_DB_PASSWORD', getenv('APP_DB_PASSWORD') ?: '');
+define('APP_DB_NAME',     getenv('APP_DB_NAME') ?: 'default_db');
 /**
  * @since  2.3.0
  * Database charset

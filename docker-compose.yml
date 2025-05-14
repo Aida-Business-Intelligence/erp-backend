@@ -5,28 +5,27 @@ services:
     build: .
     container_name: erp-backend-app
     ports:
-      - "8080:80"
+      - "${APP_PORT}:80"
     volumes:
       - .:/var/www/html
     depends_on:
       - db
       
     environment:
-      APP_DB_HOSTNAME: db
-      APP_DB_USERNAME: erp_user
-      APP_DB_PASSWORD: erp_pass
-      APP_DB_NAME: erp_db
-      APP_BASE_URL: http://localhost:8080
-
+      APP_DB_HOSTNAME: ${APP_DB_HOSTNAME}
+      APP_DB_USERNAME: ${APP_DB_USERNAME}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      APP_DB_NAME: ${APP_DB_NAME}
+      APP_BASE_URL: ${APP_BASE_URL}
   db:
     image: mysql:5.7
     container_name: erp-backend-db
     restart: always
     environment:
-      MYSQL_DATABASE: erp_db
-      MYSQL_USER: erp_user
-      MYSQL_PASSWORD: erp_pass
-      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: ${APP_DB_NAME}
+      MYSQL_USER: ${APP_DB_USERNAME}
+      MYSQL_PASSWORD: ${APP_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
       - ./db_init:/docker-entrypoint-initdb.d  # dev.sql 

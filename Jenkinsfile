@@ -1,7 +1,4 @@
 pipeline {
-    agent any  // Usa qualquer agente disponível no Jenkins para rodar o pipeline
-
-    pipeline {
     agent any
 
     stages {
@@ -24,5 +21,3 @@ pipeline {
         }
     }
 }
-}
-

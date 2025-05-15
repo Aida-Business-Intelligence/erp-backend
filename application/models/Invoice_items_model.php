@@ -88,6 +88,35 @@ class Invoice_items_model extends App_Model
             t1.taxrate as taxrate,t1.id as taxid,t1.name as taxname,
             t2.taxrate as taxrate_2,t2.id as taxid_2,t2.name as taxname_2,
             description,long_description,group_id,' . db_prefix() . 'items_groups.name as group_name,unit');
+        
+        $items_table = db_prefix() . 'items';
+        
+             $this->db->select([
+            "$items_table.id as id",
+            "$items_table.rate",
+            "$items_table.description",
+            "$items_table.long_description",
+            "$items_table.group_id",
+            "$items_table.unit",
+            "$items_table.sku_code",
+            "$items_table.image",
+            "$items_table.commodity_barcode",
+            "$items_table.status",
+            "$items_table.cost",
+            "$items_table.maxDiscount",
+            "$items_table.promoPrice",
+            "$items_table.promoStart",
+            "$items_table.promoEnd",
+            "$items_table.stock",
+            "$items_table.minStock",
+            "$items_table.product_unit",
+            "$items_table.createdAt",
+            "$items_table.updatedAt",
+            "$items_table.warehouse_id as warehouse_id"
+        ]);
+        
+        
+        
         $this->db->from(db_prefix() . 'items');
         $this->db->join('' . db_prefix() . 'taxes t1', 't1.id = ' . db_prefix() . 'items.tax', 'left');
         $this->db->join('' . db_prefix() . 'taxes t2', 't2.id = ' . db_prefix() . 'items.tax2', 'left');
@@ -111,6 +140,35 @@ class Invoice_items_model extends App_Model
 
         return $this->db->get()->row();
     }
+    
+     public function get_by_sku($id = '')
+    {
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where(db_prefix() . 'items.sku_code', $id);
+        
+        return $this->db->get()->row();
+    }
+    
+    public function get_category_id_by_name($name){
+        
+        $this->db->select('id ');
+        $this->db->from(db_prefix() . 'items_groups');
+        $this->db->where('name', $name);
+        return $this->db->get()->row();
+        
+    }
+    
+     public function get_unit_id_by_name($name){
+        
+        
+        $this->db->select('unit_type_id as id');
+        $this->db->from(db_prefix() . 'ware_unit_type');
+        $this->db->where('unit_code', $name);
+
+           return $this->db->get()->row();
+        
+    }
+    
 
     /**
      * Get items with API formatting
@@ -130,11 +188,14 @@ class Invoice_items_model extends App_Model
         $warehouse_id = null,
         $send = null
     ) {
+        
+       
 
 
         $items_table = db_prefix() . 'items';
         $groups_table = db_prefix() . 'items_groups';
         $subgroups_table = db_prefix() . 'wh_sub_group';
+        $supplier_table = db_prefix() . 'clients';
 
 
 
@@ -144,6 +205,7 @@ class Invoice_items_model extends App_Model
 
             $this->db->select([
                 "$items_table.*",
+                "$supplier_table.company as supplier",
                 "$groups_table.name as group_name",
                 "$subgroups_table.sub_group_name",
                 "$subgroups_table.id as sub_group_id"
@@ -151,7 +213,8 @@ class Invoice_items_model extends App_Model
 
             $this->db->from($items_table)
                 ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left');
+                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+                ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
 
             if ($warehouse_id) {
                 $this->db->where("$items_table.warehouse_id", $warehouse_id);
@@ -169,7 +232,6 @@ class Invoice_items_model extends App_Model
 
 
 
-
             if ($item) {
 
                 if ($send == 'pdv') {
@@ -182,8 +244,10 @@ class Invoice_items_model extends App_Model
             return ['data' => [], 'total' => 0];
         }
 
+        
         $this->db->select([
             "$items_table.id as id",
+            "$supplier_table.company as supplier",
             "$items_table.rate",
             't1.taxrate as taxrate',
             't1.id as taxid',
@@ -201,6 +265,7 @@ class Invoice_items_model extends App_Model
             "$items_table.commodity_barcode",
             "$items_table.status",
             "$items_table.cost",
+            "$items_table.maxDiscount",
             "$items_table.promoPrice",
             "$items_table.promoStart",
             "$items_table.promoEnd",
@@ -218,7 +283,9 @@ class Invoice_items_model extends App_Model
             ->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left')
             ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
             ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left');
+            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+                        ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
+
 
         if ($warehouse_id) {
             $this->db->where("$items_table.warehouse_id", $warehouse_id);
@@ -262,9 +329,25 @@ class Invoice_items_model extends App_Model
         $this->db->order_by("$items_table.$sortField", $sortOrder);
         $this->db->limit($limit, ($page - 1) * $limit);
 
+        
+          
+
+        
         $items = $this->db->get()->result_array();
+        
+        
+        
 
         return ['data' => $items, 'total' => $total];
+    }
+    
+    public function totalItens($warehouse_id) {
+        
+                $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
+                $this->db->from(db_prefix() . 'items');
+                return $this->db->count_all_results('', true);
+
+        
     }
 
 
@@ -424,7 +507,8 @@ class Invoice_items_model extends App_Model
 
         $this->db->order_by("$items_table.$sortField", $sortOrder);
         $this->db->limit($limit, ($page - 1) * $limit);
-
+        
+    
         $items = $this->db->get()->result_array();
 
         return ['data' => $items, 'total' => $total];
@@ -729,6 +813,74 @@ class Invoice_items_model extends App_Model
 
         return $updated;
     }
+    
+    /**
+     * Update invoiec item
+     * @param  array $data Invoice data to update
+     * @return boolean
+     */
+    public function edit_by_sku($data, $id, $warehouse_id)
+    {
+        $itemid = $id;
+
+        if (isset($data['group_id']) && $data['group_id'] == '') {
+            $data['group_id'] = 0;
+        }
+
+        if (isset($data['tax']) && $data['tax'] == '') {
+            $data['tax'] = null;
+        }
+
+        if (isset($data['tax2']) && $data['tax2'] == '') {
+            $data['tax2'] = null;
+        }
+
+        $columns = $this->db->list_fields(db_prefix() . 'items');
+        $this->load->dbforge();
+
+        foreach ($data as $column => $itemData) {
+            if (!in_array($column, $columns) && strpos($column, 'rate_currency_') !== false) {
+                $field = [
+                    $column => [
+                        'type' => 'decimal(15,' . get_decimal_places() . ')',
+                        'null' => true,
+                    ],
+                ];
+                $this->dbforge->add_column('items', $field);
+            }
+        }
+
+        $updated = false;
+        $data = hooks()->apply_filters('before_update_item', $data, $itemid);
+        $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
+
+        $this->db->where('sku_code', $itemid);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $this->db->update('items', $data);
+
+        if ($this->db->affected_rows() > 0) {
+            $updated = true;
+        }
+
+        if (handle_custom_fields_post($itemid, $custom_fields, true)) {
+            $updated = true;
+        }
+
+        do_action_deprecated('item_updated', [$itemid], '2.9.4', 'after_item_updated');
+
+        hooks()->do_action('after_item_updated', [
+            'id' => $itemid,
+            'data' => $data,
+            'custom_fields' => $custom_fields,
+            'updated' => &$updated,
+        ]);
+
+        if ($updated) {
+            log_activity('Invoice Item Updated [ID: ' . $itemid . ', ' . $data['description'] . ']');
+        }
+
+        return $updated;
+    }
 
     public function search($q)
     {
@@ -768,6 +920,36 @@ class Invoice_items_model extends App_Model
         }
 
         return false;
+    }
+    
+     public function delete_by_sku($sku)
+    {
+        // Deleta todos os itens com o SKU fornecido
+        $this->db->where('sku_code', $sku);
+        $this->db->delete(db_prefix() . 'items');
+        
+      
+
+        /*
+        // Verifica se alguma linha foi afetada (ou seja, deletada)
+        if ($this->db->affected_rows() > 0) {
+            // Deleta registros associados na tabela de valores de campos personalizados
+            $this->db->where('relid', $sku);
+            $this->db->where('fieldto', 'items_pr');
+            $this->db->delete(db_prefix() . 'customfieldsvalues');
+
+            // Loga a atividade
+            log_activity('Itens com SKU: ' . $sku . ' foram deletados.');
+
+            // Aciona evento hook
+            hooks()->do_action('items_deleted', $sku);
+
+            return true;
+        }
+         * 
+         */
+
+        return true;
     }
 
     public function get_groups($page = 1, $limit = 10, $search = '', $sortOrder = 'ASC')

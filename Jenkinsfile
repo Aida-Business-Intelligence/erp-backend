@@ -23,19 +23,19 @@ pipeline {
                         echo "🔧 Deployando homologação"
 
                         // Derruba os containers existentes do ambiente de homologação (se houver)
-                        sh 'docker-compose --env-file .env.hml down || true'
+                        sh 'docker-compose -p erp_hml --env-file .env.hml down || true'
 
                         // Sobe os containers usando as variáveis de ambiente do arquivo .env.hom
-                        sh 'docker-compose --env-file .env.hml up -d --build'
+                        sh 'docker-compose -p erp_hml --env-file .env.hml up -d --build'
 
                     } else if (env.BRANCH_NAME == 'cliente1') {
                         echo "🚀 Deployando produção"
 
                         // Derruba os containers existentes do ambiente de produção
-                        sh 'docker-compose --env-file .env.prd down || true'
+                        sh 'docker-compose -p erp_prd --env-file .env.prd down || true'
 
                         // Sobe os containers usando as variáveis do arquivo .env.prod
-                        sh 'docker-compose --env-file .env.prd up -d --build'
+                        sh 'docker-compose -p erp_prd --env-file .env.prd up -d --build'
 
                     } else {
                         // Para outras branches, não faz deploy, apenas loga

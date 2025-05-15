@@ -19,7 +19,7 @@ services:
       APP_BASE_URL: ${APP_BASE_URL}
   db:
     image: mysql:5.7
-    container_name: erp-backend-db
+    #container_name: erp-backend-db
     restart: always
     environment:
       MYSQL_DATABASE: ${APP_DB_NAME}

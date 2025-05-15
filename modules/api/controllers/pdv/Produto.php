@@ -93,12 +93,24 @@ class Produto extends REST_Controller {
 
 
             // Adiciona 'pdv_desconto_produto' a cada elemento do array $data['data']
-            foreach ($data['data'] as &$dataItem) {
+           /* foreach ($data['data'] as &$dataItem) {
 
                 if ((int) $dataItem['maxDiscount'] >= $dataItem['pdv_desconto_produto']) {
                     $dataItem['pdv_desconto_produto'] = $dataItem['maxDiscount'];
                 } else {
                     $dataItem['pdv_desconto_produto'] = $pdv_desconto_produto;
+                }
+            }
+           */
+
+            // corrigido - lucas
+            foreach ($data['data'] as &$dataItem) {
+                $dataItem['pdv_desconto_produto'] = $pdv_desconto_produto;
+
+                if (isset($dataItem['maxDiscount']) && $dataItem['maxDiscount'] !== null) {
+                    if ((float)$dataItem['maxDiscount'] < (float)$pdv_desconto_produto) {
+                        $dataItem['pdv_desconto_produto'] = $dataItem['maxDiscount'];
+                    }
                 }
             }
 

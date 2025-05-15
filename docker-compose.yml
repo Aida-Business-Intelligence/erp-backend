@@ -29,7 +29,6 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./db_init:/docker-entrypoint-initdb.d  # dev.sql
-      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   db_data:

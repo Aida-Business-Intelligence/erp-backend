@@ -789,7 +789,8 @@ class Romaneio extends REST_Controller {
        // $this->db->like('code', $search);
         
         if(is_numeric($search)){
-        $this->db->where('sku_code', $search);
+        $this->db->where('sku_code', $search)
+        ->or_where("commodity_barcode", $search);
         }else{
         
         $this->db->like('description', $search);

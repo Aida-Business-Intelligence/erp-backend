@@ -6,8 +6,8 @@ services:
     #container_name: erp-backend-app
     ports:
       - "${APP_PORT}:80"
-    volumes:
-      - .:/var/www/html
+    #volumes:
+    #  - .:/var/www/html
     depends_on:
       - db
       

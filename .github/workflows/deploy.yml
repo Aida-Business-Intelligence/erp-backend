@@ -1,27 +1,50 @@
-name: Deploy automático na VPS (push para diogo)
+name: Build and Deploy HML
 
 on:
   push:
-    branches:
-      - diogo
+    branches: [main1]
+  pull_request:
+    branches: [main1]
 
 jobs:
-  deploy:
+  build:
+    name: Build and Push Image
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do repositório
-        uses: actions/checkout@v3
+      - name: Checkout código
+        uses: actions/checkout@v4
 
-      - name: Deploy via SSH na VPS
-        uses: appleboy/ssh-action@v1.0.0
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Definir tag da imagem
+        run: echo "IMAGE_TAG=${{ secrets.DOCKERHUB_USERNAME }}/erp-app:latest-hml" >> $GITHUB_ENV
+
+      - name: Build e Push da imagem
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_TAG }}
+
+  deploy:
+    name: Deploy to HML VPS
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Acesso à VPS e deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HML_HOST }}
+          username: ${{ secrets.HML_USER }}
+          key: ${{ secrets.HML_SSH_KEY }}
           script: |
-            cd /root/projeto/erp-backend
-            git pull origin diogo
-            docker-compose down
-            docker-compose up -d --build
-#testando deploy
+            cd /srv/erp/hml
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/erp-app:latest-hml
+            docker compose down --remove-orphans
+            docker compose up -d --pull always

@@ -25,6 +25,7 @@ class Warehouse extends REST_Controller
         // Construct the parent class
         parent::__construct();
         $this->load->model('Warehouse_model');
+        $this->load->model('Invoice_items_model');
     }
 
     /**
@@ -215,28 +216,36 @@ class Warehouse extends REST_Controller
                     log_activity('File too large for warehouse ' . $output . '. Maximum size is 5MB.');
                 }
             }
+        } 
+        
+        ini_set('display_errors', 1);
+		ini_set('display_startup_erros', 1);
+		error_reporting(E_ALL);
+       
+         $warehouse = $this->Warehouse_model->get($output);
+        if($warehouse){
+           
+            
+            if($warehouse->type == 'franquia' || $warehouse->type == 'filial' || $warehouse->type == 'distribuidor' ){
+                
+              $produtos = $this->Invoice_items_model->get_by_type($warehouse->type);
+              foreach($produtos as $prod){
+                  $prod->warehouse_id = $warehouse->warehouse_id;
+                  $this->Invoice_items_model->add($prod);
+              }
+             
+                      
+             
+            }
+           
         }
 
         $this->response([
             'status' => TRUE,
             'message' => 'Warehouse created successfully',
-            'data' => $this->Warehouse_model->get($output)
+            'data' => $warehouse
         ], REST_Controller::HTTP_OK);
     }
-
-    //    public function get_get($id = '') {
-    //        if (!is_numeric($id)) {
-    //            $this->response(['status' => FALSE, 'message' => 'Invalid Warehouse ID'], REST_Controller::HTTP_BAD_REQUEST);
-    //            return;
-    //        }
-    //
-    //        $warehouse = $this->Warehouse_model->get($id);
-    //        if ($warehouse) {
-    //            $this->response(['status' => TRUE, 'data' => $warehouse], REST_Controller::HTTP_OK);
-    //        } else {
-    //            $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
-    //        }
-    //    }
 
     public function get_get($id = '')
     {

@@ -145,6 +145,8 @@ class Cash extends REST_Controller
 
     public function create_post()
     {
+
+        
         // Lê os dados do corpo da requisição
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -218,7 +220,7 @@ class Cash extends REST_Controller
             log_message('error', 'Exceção ao criar caixa: ' . $e->getMessage());
             $this->response([
                 'status' => false,
-                'message' => 'Erro interno no servidor. Tente novamente mais tarde.'
+                'message' => 'Erro interno no servidor. Tente novamente mais tarde.'.$e->getMessage()
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

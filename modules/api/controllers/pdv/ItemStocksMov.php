@@ -24,11 +24,19 @@ class ItemStocksMov extends REST_Controller
                 throw new Exception('Item ID is required and must be numeric', 400);
             }
 
-            $movements = $this->ItemStocksMov_model->get_movements_by_item($item_id);
+            // Parâmetros de paginação
+            $page = $this->input->get('page') ? (int) $this->input->get('page') : 0;
+            $pageSize = $this->input->get('pageSize') ? (int) $this->input->get('pageSize') : 10;
+            $sortField = $this->input->get('sortField') ?: 'date';
+            $sortOrder = $this->input->get('sortOrder') === 'DESC' ? 'DESC' : 'ASC';
+
+            // Obter movimentações com paginação
+            $result = $this->ItemStocksMov_model->get_movements_by_item($item_id, $page, $pageSize, $sortField, $sortOrder);
 
             $this->response([
                 'success' => true,
-                'data' => $movements
+                'data' => $result['data'],
+                'total' => $result['total']
             ], REST_Controller::HTTP_OK);
 
         } catch (Exception $e) {
@@ -38,5 +46,4 @@ class ItemStocksMov extends REST_Controller
             ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
 }

@@ -1,58 +1,43 @@
-name: Build and Deploy HML
+name: Deploy HML via SCP + Compose
 
 on:
   push:
-    branches: [main1]
-
+    branches: [main1]  # ou ajuste para a branch desejada
 
 jobs:
-  build:
-    name: Build and Push Image
+  deploy:
+    name: Deploy to HML VPS
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Login no Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Definir tag da imagem
-        run: echo "IMAGE_TAG=${{ secrets.DOCKERHUB_USERNAME }}/erp-app:latest-hml" >> $GITHUB_ENV
-
-      - name: Build e Push da imagem
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ env.IMAGE_TAG }}
-
-  deploy:
-    name: Deploy to HML VPS
-    needs: build
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Copiar docker-compose.yml para a VPS
+      - name: Copiar projeto para a VPS
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: docker-compose.yml
+          source: ./*
           target: /srv/erp/hml/
-          
-      - name: Acesso à VPS e deploy
+
+      - name: Executar docker-compose na VPS
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
+            echo "📦 Acessando diretório HML"
             cd /srv/erp/hml
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/erp-app:latest-hml
+
+            echo "🛑 Parando e removendo containers com nome contendo 'hml'..."
+            docker ps -a --filter "name=hml" -q | xargs -r docker stop
+            docker ps -a --filter "name=hml" -q | xargs -r docker rm
+
+            echo "🧹 Executando docker compose down para limpar órfãos..."
             docker compose down --remove-orphans
-            docker compose up -d --pull always
+
+            echo "🚀 Subindo nova versão da aplicação com build..."
+            docker compose up -d --build

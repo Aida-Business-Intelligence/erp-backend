@@ -1,0 +1,43 @@
+name: Deploy PRD via SCP + Compose
+
+on:
+  push:
+    branches: [cliente1]  # ou use 'main' ou 'release' conforme seu fluxo
+
+jobs:
+  deploy:
+    name: Deploy to PRD VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Copiar projeto para a VPS (inclui arquivos ocultos)
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SSH_HOST_PRD }}
+          username: ${{ secrets.SSH_USER_PRD }}
+          key: ${{ secrets.SSH_KEY_PRD }}
+          source: .
+          target: /srv/erp/prd/
+
+      - name: Executar docker-compose na VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST_PRD }}
+          username: ${{ secrets.SSH_USER_PRD }}
+          key: ${{ secrets.SSH_KEY_PRD }}
+          script: |
+            echo "📦 Acessando diretório PRD"
+            cd /srv/erp/prd
+
+            echo "🛑 Parando e removendo containers com nome contendo 'prd'..."
+            docker ps -a --filter "name=prd" -q | xargs -r docker stop
+            docker ps -a --filter "name=prd" -q | xargs -r docker rm
+
+            echo "🧹 Executando docker compose down para limpar órfãos..."
+            docker compose down --remove-orphans
+
+            echo "🚀 Subindo nova versão da aplicação (produção)..."
+            docker compose up -d --build

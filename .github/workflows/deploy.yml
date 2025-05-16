@@ -34,6 +34,17 @@ jobs:
     name: Deploy to HML VPS
     needs: build
     runs-on: ubuntu-latest
+    
+    steps:
+      - name: Copiar docker-compose.yml para a VPS
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: docker-compose.yml
+          target: /srv/erp/hml/
+
 
     steps:
       - name: Acesso à VPS e deploy

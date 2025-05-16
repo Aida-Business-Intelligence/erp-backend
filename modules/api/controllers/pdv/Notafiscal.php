@@ -513,4 +513,181 @@ class Notafiscal extends REST_Controller
             'failed_ids' => $failed_ids
         ], $success_count > 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_NOT_FOUND);
     }
+
+    public function distribute_products_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        // Verificar Content-Type e processar payload
+        $content_type = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
+
+        if (strpos($content_type, 'application/json') !== false) {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $this->response(['status' => false, 'message' => 'Invalid JSON'], 400);
+                return;
+            }
+            $_POST = $input;
+        }
+
+        // Log para debug
+        log_message('debug', 'Payload recebido: ' . json_encode($_POST));
+
+        // Validação mínima
+        $required_fields = [
+            'warehouse_id',
+            'invoice_number',
+            'invoice_type',
+            'invoice_date',
+            'due_date',
+            'supplier_name',
+            'supplier_document',
+            'supplier_ie',
+            'supplier_address',
+            'supplier_address_number',
+            'supplier_district',
+            'supplier_city',
+            'supplier_state',
+            'supplier_zip_code',
+            'client_name',
+            'subtotal',
+            'taxes',
+            'total_value',
+            'payment_type',
+            'items',
+            'original_invoice_id',
+            'distributed_items'
+        ];
+
+        foreach ($required_fields as $field) {
+            if (!isset($_POST[$field])) {
+                $this->response(['status' => false, 'message' => "Campo obrigatório ausente: {$field}"], 400);
+                return;
+            }
+        }
+
+        // Formatar campos de data
+        $invoice_date = date('Y-m-d H:i:s', strtotime($_POST['invoice_date']));
+        $due_date = date('Y-m-d H:i:s', strtotime($_POST['due_date']));
+
+        // Preparar dados para inserção
+        $insert_data = [
+            'warehouse_id' => $_POST['warehouse_id'],
+            'invoice_number' => $_POST['invoice_number'],
+            'invoice_type' => $_POST['invoice_type'],
+            'invoice_status' => $_POST['invoice_status'] ?? '0',
+            'invoice_date' => $invoice_date,
+            'due_date' => $due_date,
+            'supplier_id' => $_POST['supplier_id'] ?? null,
+            'supplier_name' => $_POST['supplier_name'],
+            'supplier_document' => $_POST['supplier_document'],
+            'supplier_ie' => $_POST['supplier_ie'],
+            'supplier_address' => $_POST['supplier_address'],
+            'supplier_address_number' => $_POST['supplier_address_number'],
+            'supplier_district' => $_POST['supplier_district'],
+            'supplier_city' => $_POST['supplier_city'],
+            'supplier_state' => $_POST['supplier_state'],
+            'supplier_zip_code' => $_POST['supplier_zip_code'],
+            'supplier_phone' => $_POST['supplier_phone'] ?? '',
+            'client_id' => $_POST['client_id'] ?? null,
+            'client_name' => $_POST['client_name'],
+            'subtotal' => $_POST['subtotal'],
+            'taxes' => $_POST['taxes'],
+            'total_value' => $_POST['total_value'],
+            'payment_type' => $_POST['payment_type'],
+            'items' => is_string($_POST['items']) ? $_POST['items'] : json_encode($_POST['items']),
+            'installments' => isset($_POST['installments']) ? (is_string($_POST['installments']) ? $_POST['installments'] : json_encode($_POST['installments'])) : '[]',
+            'orders_id' => isset($_POST['orders_id']) ? (is_string($_POST['orders_id']) ? $_POST['orders_id'] : json_encode($_POST['orders_id'])) : '[]',
+            'created_by' => $this->session->userdata('staff_user_id') ?? 0,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+
+        // Log para debug
+        log_message('debug', 'Dados para inserção: ' . json_encode($insert_data));
+
+        // Iniciar transação
+        $this->db->trans_begin();
+
+        try {
+            // Inserir a nova nota fiscal
+            $this->db->insert(db_prefix() . 'nota_fiscal', $insert_data);
+            $new_invoice_id = $this->db->insert_id();
+
+            if (!$new_invoice_id) {
+                throw new Exception('Erro ao inserir nota fiscal: ' . $this->db->error()['message']);
+            }
+
+            // Atualizar o estoque dos itens distribuídos
+            $original_invoice_id = $_POST['original_invoice_id'];
+            $distributed_items = $_POST['distributed_items'];
+
+            // Buscar a nota fiscal original
+            $original_invoice = $this->db->get_where(db_prefix() . 'nota_fiscal', ['id' => $original_invoice_id])->row();
+            if (!$original_invoice) {
+                throw new Exception('Nota fiscal original não encontrada');
+            }
+
+            // Decodificar os itens da nota original
+            $original_items = json_decode($original_invoice->items, true);
+            if (!$original_items) {
+                throw new Exception('Erro ao decodificar itens da nota original');
+            }
+
+            // Log para debug
+            log_message('debug', 'Itens originais: ' . json_encode($original_items));
+            log_message('debug', 'Itens distribuídos: ' . json_encode($distributed_items));
+
+            // Atualizar as quantidades dos itens
+            foreach ($distributed_items as $distributed_item) {
+                foreach ($original_items as &$original_item) {
+                    if ($original_item['id'] == $distributed_item['id']) {
+                        $original_item['quantity'] -= $distributed_item['quantity'];
+                        break;
+                    }
+                }
+            }
+
+            // Atualizar a nota fiscal original com as novas quantidades
+            $update_data = [
+                'items' => json_encode($original_items),
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+
+            // Log para debug
+            log_message('debug', 'Dados para atualização: ' . json_encode($update_data));
+
+            $this->db->where('id', $original_invoice_id);
+            $updated = $this->db->update(db_prefix() . 'nota_fiscal', $update_data);
+
+            if (!$updated) {
+                throw new Exception('Erro ao atualizar estoque da nota original: ' . $this->db->error()['message']);
+            }
+
+            // Confirmar transação
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Erro na transação: ' . $this->db->error()['message']);
+            }
+
+            $this->response([
+                'status' => true,
+                'message' => 'Nota fiscal criada e estoque atualizado com sucesso',
+                'data' => ['id' => $new_invoice_id]
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            // Reverter transação em caso de erro
+            $this->db->trans_rollback();
+
+            // Log do erro
+            log_message('error', 'Erro na distribuição: ' . $e->getMessage());
+            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
+
+            $this->response([
+                'status' => false,
+                'message' => 'Erro ao processar distribuição: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

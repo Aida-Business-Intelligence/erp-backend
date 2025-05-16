@@ -40,9 +40,9 @@ jobs:
       - name: Acesso à VPS e deploy
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.HML_HOST }}
-          username: ${{ secrets.HML_USER }}
-          key: ${{ secrets.HML_SSH_KEY }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
             cd /srv/erp/hml
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/erp-app:latest-hml

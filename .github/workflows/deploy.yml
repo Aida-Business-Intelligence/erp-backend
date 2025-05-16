@@ -44,9 +44,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           source: docker-compose.yml
           target: /srv/erp/hml/
-
-
-    steps:
+          
       - name: Acesso à VPS e deploy
         uses: appleboy/ssh-action@v1
         with:

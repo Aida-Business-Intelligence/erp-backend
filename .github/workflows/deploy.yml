@@ -3,8 +3,7 @@ name: Build and Deploy HML
 on:
   push:
     branches: [main1]
-  pull_request:
-    branches: [main1]
+
 
 jobs:
   build:

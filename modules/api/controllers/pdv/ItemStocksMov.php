@@ -12,20 +12,17 @@ class ItemStocksMov extends REST_Controller
     public function movements_get($item_id = '')
     {
         try {
-            // Tenta pegar do parâmetro direto, ou da query
             $item_id = $item_id ?: $this->input->get('id');
 
             if (empty($item_id) || !is_numeric($item_id)) {
                 throw new Exception('Item ID is required and must be numeric', 400);
             }
 
-            // Parâmetros de paginação
             $page = $this->input->get('page') ? (int) $this->input->get('page') : 0;
             $pageSize = $this->input->get('pageSize') ? (int) $this->input->get('pageSize') : 10;
             $sortField = $this->input->get('sortField') ?: 'date';
             $sortOrder = $this->input->get('sortOrder') === 'DESC' ? 'DESC' : 'ASC';
 
-            // Obter movimentações com paginação
             $result = $this->ItemStocksMov_model->get_movements_by_item($item_id, $page, $pageSize, $sortField, $sortOrder);
 
             $this->response([
@@ -45,14 +42,12 @@ class ItemStocksMov extends REST_Controller
     public function product_get($item_id = '')
     {
         try {
-            // Tenta pegar do parâmetro direto, ou da query
             $item_id = $item_id ?: $this->input->get('id');
 
             if (empty($item_id) || !is_numeric($item_id)) {
                 throw new Exception('Item ID is required and must be numeric', 400);
             }
 
-            // Obter informações do produto
             $productInfo = $this->ItemStocksMov_model->get_product_info($item_id);
 
             if (empty($productInfo)) {

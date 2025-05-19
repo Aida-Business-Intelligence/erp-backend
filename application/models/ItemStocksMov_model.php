@@ -20,11 +20,9 @@ class ItemStocksMov_model extends App_Model
      */
     public function get_movements_by_item($item_id, $page = 0, $pageSize = 10, $sortField = 'date', $sortOrder = 'DESC')
     {
-        // Primeiro obtemos o total de registros
         $this->db->where('item_id', $item_id);
         $total = $this->db->count_all_results(db_prefix() . 'itemstocksmov');
 
-        // Depois obtemos os dados paginados
         $this->db->select('
         m.id AS movimento_id,
         m.qtde,
@@ -57,9 +55,8 @@ class ItemStocksMov_model extends App_Model
         $this->db->join(db_prefix() . 'staff staff', 'staff.staffid = m.user_id', 'left');
         $this->db->where('m.item_id', $item_id);
 
-        // Ordenação especial para nome de usuário
         if ($sortField === 'user_name') {
-            $this->db->order_by('user_name', $sortOrder); // Ordena pelo nome completo já concatenado
+            $this->db->order_by('user_name', $sortOrder);
         } else {
             $this->db->order_by($sortField, $sortOrder);
         }

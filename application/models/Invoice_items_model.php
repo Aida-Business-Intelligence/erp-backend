@@ -88,10 +88,10 @@ class Invoice_items_model extends App_Model
             t1.taxrate as taxrate,t1.id as taxid,t1.name as taxname,
             t2.taxrate as taxrate_2,t2.id as taxid_2,t2.name as taxname_2,
             description,long_description,group_id,' . db_prefix() . 'items_groups.name as group_name,unit');
-        
+
         $items_table = db_prefix() . 'items';
-        
-             $this->db->select([
+
+        $this->db->select([
             "$items_table.id as id",
             "$items_table.rate",
             "$items_table.description",
@@ -114,9 +114,9 @@ class Invoice_items_model extends App_Model
             "$items_table.updatedAt",
             "$items_table.warehouse_id as warehouse_id"
         ]);
-        
-        
-        
+
+
+
         $this->db->from(db_prefix() . 'items');
         $this->db->join('' . db_prefix() . 'taxes t1', 't1.id = ' . db_prefix() . 'items.tax', 'left');
         $this->db->join('' . db_prefix() . 'taxes t2', 't2.id = ' . db_prefix() . 'items.tax2', 'left');
@@ -140,35 +140,37 @@ class Invoice_items_model extends App_Model
 
         return $this->db->get()->row();
     }
-    
-     public function get_by_sku($id = '')
+
+    public function get_by_sku($id = '')
     {
         $this->db->from(db_prefix() . 'items');
         $this->db->where(db_prefix() . 'items.sku_code', $id);
-        
+
         return $this->db->get()->row();
     }
-    
-    public function get_category_id_by_name($name){
-        
+
+    public function get_category_id_by_name($name)
+    {
+
         $this->db->select('id ');
         $this->db->from(db_prefix() . 'items_groups');
         $this->db->where('name', $name);
         return $this->db->get()->row();
-        
+
     }
-    
-     public function get_unit_id_by_name($name){
-        
-        
+
+    public function get_unit_id_by_name($name)
+    {
+
+
         $this->db->select('unit_type_id as id');
         $this->db->from(db_prefix() . 'ware_unit_type');
         $this->db->where('unit_code', $name);
 
-           return $this->db->get()->row();
-        
+        return $this->db->get()->row();
+
     }
-    
+
 
     /**
      * Get items with API formatting
@@ -188,8 +190,8 @@ class Invoice_items_model extends App_Model
         $warehouse_id = null,
         $send = null
     ) {
-        
-       
+
+
 
 
         $items_table = db_prefix() . 'items';
@@ -244,7 +246,7 @@ class Invoice_items_model extends App_Model
             return ['data' => [], 'total' => 0];
         }
 
-        
+
         $this->db->select([
             "$items_table.id as id",
             "$supplier_table.company as supplier",
@@ -284,7 +286,7 @@ class Invoice_items_model extends App_Model
             ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
             ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
             ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
-                        ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
+            ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
 
 
         if ($warehouse_id) {
@@ -329,25 +331,26 @@ class Invoice_items_model extends App_Model
         $this->db->order_by("$items_table.$sortField", $sortOrder);
         $this->db->limit($limit, ($page - 1) * $limit);
 
-        
-          
 
-        
+
+
+
         $items = $this->db->get()->result_array();
-        
-        
-        
+
+
+
 
         return ['data' => $items, 'total' => $total];
     }
-    
-    public function totalItens($warehouse_id) {
-        
-                $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
-                $this->db->from(db_prefix() . 'items');
-                return $this->db->count_all_results('', true);
 
-        
+    public function totalItens($warehouse_id)
+    {
+
+        $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
+        $this->db->from(db_prefix() . 'items');
+        return $this->db->count_all_results('', true);
+
+
     }
 
 
@@ -507,8 +510,8 @@ class Invoice_items_model extends App_Model
 
         $this->db->order_by("$items_table.$sortField", $sortOrder);
         $this->db->limit($limit, ($page - 1) * $limit);
-        
-    
+
+
         $items = $this->db->get()->result_array();
 
         return ['data' => $items, 'total' => $total];
@@ -747,6 +750,48 @@ class Invoice_items_model extends App_Model
         return false;
     }
 
+    public function add_products_nf($data)
+    {
+        // Remover campos desnecessários
+        unset($data['itemid']);
+
+        // Tratar campos vazios
+        if (isset($data['tax']) && $data['tax'] == '') {
+            unset($data['tax']);
+        }
+        if (isset($data['tax2']) && $data['tax2'] == '') {
+            unset($data['tax2']);
+        }
+        if (isset($data['group_id']) && $data['group_id'] == '') {
+            $data['group_id'] = 0;
+        }
+
+        // Garantir que campos numéricos sejam números
+        $numericFields = ['rate', 'stock', 'minStock', 'cost', 'promoPrice'];
+        foreach ($numericFields as $field) {
+            if (isset($data[$field])) {
+                $data[$field] = floatval($data[$field]);
+            }
+        }
+
+        // Aplicar hooks e filtros
+        $data = hooks()->apply_filters('before_item_created', $data);
+        $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
+
+        // Inserir no banco
+        $this->db->insert('items', $data);
+        $insert_id = $this->db->insert_id();
+
+        if ($insert_id) {
+            handle_custom_fields_post($insert_id, $custom_fields, true);
+            hooks()->do_action('item_created', $insert_id);
+            log_activity('New Product Added from NF [ID:' . $insert_id . ', ' . $data['description'] . ']');
+            return $insert_id;
+        }
+
+        return false;
+    }
+
     /**
      * Update invoiec item
      * @param  array $data Invoice data to update
@@ -813,7 +858,7 @@ class Invoice_items_model extends App_Model
 
         return $updated;
     }
-    
+
     /**
      * Update invoiec item
      * @param  array $data Invoice data to update
@@ -921,14 +966,14 @@ class Invoice_items_model extends App_Model
 
         return false;
     }
-    
-     public function delete_by_sku($sku)
+
+    public function delete_by_sku($sku)
     {
         // Deleta todos os itens com o SKU fornecido
         $this->db->where('sku_code', $sku);
         $this->db->delete(db_prefix() . 'items');
-        
-      
+
+
 
         /*
         // Verifica se alguma linha foi afetada (ou seja, deletada)

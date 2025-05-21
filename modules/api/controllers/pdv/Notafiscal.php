@@ -143,6 +143,7 @@ class Notafiscal extends REST_Controller
             'supplier_state' => $_POST['supplier_state'] ?? null,
             'supplier_zip_code' => $_POST['supplier_zip_code'] ?? null,
             'supplier_phone' => $_POST['supplier_phone'] ?? null,
+            'supplier_email' => $_POST['supplier_email'] ?? null,
 
             // Dados do cliente
             'client_id' => $_POST['client_id'] ?? null,
@@ -155,6 +156,8 @@ class Notafiscal extends REST_Controller
             'client_city' => $_POST['client_city'] ?? null,
             'client_state' => $_POST['client_state'] ?? null,
             'client_zip_code' => $_POST['client_zip_code'] ?? null,
+            'client_phone' => $_POST['client_phone'] ?? null,
+            'client_email' => $_POST['client_email'] ?? null,
 
             // Valores
             'subtotal' => $_POST['subtotal'] ?? 0,
@@ -290,6 +293,7 @@ class Notafiscal extends REST_Controller
             'supplier_state' => $_POST['supplier_state'] ?? null,
             'supplier_zip_code' => $_POST['supplier_zip_code'] ?? null,
             'supplier_phone' => $_POST['supplier_phone'] ?? null,
+            'supplier_email' => $_POST['supplier_email'] ?? null,
 
             // Dados do cliente
             'client_id' => $_POST['client_id'] ?? null,
@@ -302,6 +306,8 @@ class Notafiscal extends REST_Controller
             'client_city' => $_POST['client_city'] ?? null,
             'client_state' => $_POST['client_state'] ?? null,
             'client_zip_code' => $_POST['client_zip_code'] ?? null,
+            'client_phone' => $_POST['client_phone'] ?? null,
+            'client_email' => $_POST['client_email'] ?? null,
 
             // Valores
             'subtotal' => $_POST['subtotal'] ?? 0,
@@ -406,6 +412,7 @@ class Notafiscal extends REST_Controller
             'supplier_state' => $_POST['supplier_state'] ?? $current_invoice->supplier_state,
             'supplier_zip_code' => $_POST['supplier_zip_code'] ?? $current_invoice->supplier_zip_code,
             'supplier_phone' => $_POST['supplier_phone'] ?? $current_invoice->supplier_phone,
+            'supplier_email' => $_POST['supplier_email'] ?? $current_invoice->supplier_email,
 
             // Dados do cliente
             'client_name' => $_POST['client_name'] ?? $current_invoice->client_name,
@@ -417,6 +424,8 @@ class Notafiscal extends REST_Controller
             'client_city' => $_POST['client_city'] ?? $current_invoice->client_city,
             'client_state' => $_POST['client_state'] ?? $current_invoice->client_state,
             'client_zip_code' => $_POST['client_zip_code'] ?? $current_invoice->client_zip_code,
+            'client_email' => $_POST['client_email'] ?? $current_invoice->client_email,
+            'client_phone' => $_POST['client_phone'] ?? $current_invoice->client_phone,
 
             // Valores
             'subtotal' => $_POST['subtotal'] ?? $current_invoice->subtotal,
@@ -589,8 +598,11 @@ class Notafiscal extends REST_Controller
             'supplier_state' => $_POST['supplier_state'],
             'supplier_zip_code' => $_POST['supplier_zip_code'],
             'supplier_phone' => $_POST['supplier_phone'] ?? '',
+            'supplier_email' => $_POST['supplier_email'] ?? '',
             'client_id' => $_POST['client_id'] ?? null,
             'client_name' => $_POST['client_name'],
+            'client_email' => $_POST['client_email'] ?? '',
+            'client_phone' => $_POST['client_phone'] ?? '',
             'subtotal' => $_POST['subtotal'],
             'taxes' => $_POST['taxes'],
             'total_value' => $_POST['total_value'],

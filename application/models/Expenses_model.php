@@ -11,103 +11,22 @@ class Expenses_model extends App_Model
         parent::__construct();
     }
 
+    public function get_warehouses()
+    {
+        return $this->db
+            ->select('warehouse_id as id, warehouse_name as name')
+            ->from(db_prefix() . 'warehouse')
+            ->where('display', 1)
+            ->order_by('warehouse_name', 'ASC')
+            ->get()
+            ->result_array();
+    }
+
     /**
      * Get expense(s)
      * @param  mixed $id Optional expense id
      * @return mixed     object or array
      */
-
-    public function get_warehouses()
-    {
-        $this->db->select('warehouse_id as id, warehouse_name as name');
-        $this->db->from(db_prefix() . 'warehouse');
-        $this->db->where('display', 1);
-        $this->db->order_by('warehouse_name', 'ASC');
-        return $this->db->get()->result_array();
-    }
-
-    //add lucas
-    public function validate_duplicates($warehouse_id, $data, $mappedColumns)
-    {
-        $duplicates = [];
-
-        foreach ($data as $row) {
-            $numero = $row[$mappedColumns['numero']] ?? null;
-
-            if ($numero) {
-                $this->db->where('warehouse_id', $warehouse_id);
-                $this->db->where('type', 'receita'); // ou 'despesa' dependendo do contexto
-                $this->db->where('reference_no', $numero);
-
-                $existing = $this->db->get(db_prefix() . 'expenses')->row();
-
-                if ($existing) {
-                    $duplicates[] = $row;
-                }
-            }
-        }
-
-        return $duplicates;
-    }
-
-    //add - lucas
-    public function get_titles_summary($warehouse_id)
-    {
-        // RECEBIDOS (status = paid)
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('type', 'receita');
-        $this->db->where('status', 'paid');
-        $received = (float) $this->db->select_sum('amount')->get(db_prefix() . 'expenses')->row()->amount;
-        $this->db->reset_query();
-
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('type', 'receita');
-        $this->db->where('status', 'paid');
-        $received_count = (int) $this->db->count_all_results(db_prefix() . 'expenses');
-        $this->db->reset_query();
-
-        // A RECEBER (status = pending e data >= hoje)
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('type', 'receita');
-        $this->db->where('status', 'pending');
-        $this->db->where('date >=', date('Y-m-d'));
-        $toReceive = (float) $this->db->select_sum('amount')->get(db_prefix() . 'expenses')->row()->amount;
-        $this->db->reset_query();
-
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('type', 'receita');
-        $this->db->where('status', 'pending');
-        $this->db->where('date >=', date('Y-m-d'));
-        $to_receive_count = (int) $this->db->count_all_results(db_prefix() . 'expenses');
-        $this->db->reset_query();
-
-        // VENCIDOS (status = pending e data < hoje)
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('type', 'receita');
-        $this->db->where('status', 'pending');
-        $this->db->where('date <', date('Y-m-d'));
-        $overdue = (float) $this->db->select_sum('amount')->get(db_prefix() . 'expenses')->row()->amount;
-        $this->db->reset_query();
-
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('type', 'receita');
-        $this->db->where('status', 'pending');
-        $this->db->where('date <', date('Y-m-d'));
-        $overdue_count = (int) $this->db->count_all_results(db_prefix() . 'expenses');
-        $this->db->reset_query();
-
-        // 🔥 Retorno com todos os dados incluindo received_count
-        return [
-            'received' => $received,
-            'received_count' => $received_count, // 🟩 Adicionado corretamente
-            'to_receive' => $toReceive,
-            'to_receive_count' => $to_receive_count,
-            'overdue' => $overdue,
-            'overdue_count' => $overdue_count,
-        ];
-    }
-
-
     public function get($id = '', $where = [])
     {
         $this->db->select('*,' . db_prefix() . 'expenses.id as id,' . db_prefix() . 'expenses_categories.name as category_name,' . db_prefix() . 'payment_modes.name as payment_mode_name,' . db_prefix() . 'taxes.name as tax_name, ' . db_prefix() . 'taxes.taxrate as taxrate,' . db_prefix() . 'taxes_2.name as tax_name2, ' . db_prefix() . 'taxes_2.taxrate as taxrate2, ' . db_prefix() . 'expenses.id as expenseid,' . db_prefix() . 'expenses.addedfrom as addedfrom, recurring_from');

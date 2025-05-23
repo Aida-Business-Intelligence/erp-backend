@@ -1,6 +1,13 @@
 <?php
-
 defined('BASEPATH') or exit('No direct script access allowed');
+
+include_once(APPPATH . 'config/env_loader.php');
+
+
+EnvLoader::load($_SERVER['DOCUMENT_ROOT'].'/aida/erp-backend/.env');
+
+
+
 /*
  * --------------------------------------------------------------------------
  * Base Site URL
@@ -17,7 +24,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * environments.
  *
  */
-define('APP_BASE_URL', 'http://localhost/aida/erp-backend/');
+define('APP_BASE_URL', getenv('DB_BASE_URL'));
 
 /*
  * --------------------------------------------------------------------------
@@ -38,20 +45,20 @@ define('APP_ENC_KEY', '6a88fa70f0c078521d59ed904a0fe44b');
  * Database Credentials
  * The hostname of your database server
  */
-define('APP_DB_HOSTNAME', 'localhost');
+define('APP_DB_HOSTNAME', getenv('DB_HOST'));
 
 /**
  * The username used to connect to the database
  */
-define('APP_DB_USERNAME', 'root');
+define('APP_DB_USERNAME', getenv('DB_USER'));
 /**
  * The password used to connect to the database
  */
-define('APP_DB_PASSWORD', '');
+define('APP_DB_PASSWORD', getenv('DB_PASS'));
 /**
  * The name of the database you want to connect to
  */
-define('APP_DB_NAME', 'dev');
+define('APP_DB_NAME', getenv('DB_NAME'));
 
 /**
  * @since  2.3.0

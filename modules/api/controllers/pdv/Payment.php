@@ -98,9 +98,11 @@ class Payment extends REST_Controller
     public function verify_post()
     {
         
-       
+        //busca
+        
+       $status = 'paid';
 
-         $this->response(['status' => true, 'status_payment'=>'paid', 'payment_id'=>1, 'message' => 'Aguardando pagamento'], REST_Controller::HTTP_OK);
+         $this->response(['status' => true, 'status_payment'=>$status, 'payment_id'=>1, 'message' => 'Aguardando pagamento'], REST_Controller::HTTP_OK);
 
            
         

@@ -1,0 +1,91 @@
+name: Deploy (build docker + dockerhub + deploy vps)
+
+on:
+  push:
+    branches: [diogo-docker]
+
+env:                       # opcional (torna IMAGE_NAME visível em todos os jobs)
+  IMAGE_NAME: aidabusiness/aida-repo
+
+jobs:
+  # ---------- JOB 1: build & push ----------
+  build:
+    name: Build e Push Imagem Docker
+    runs-on: ubuntu-latest
+
+    outputs:               # ← aqui exportamos a tag para o job deploy
+      image_tag: ${{ steps.tag.outputs.full_tag }}
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Ler ambiente e versão
+        id: read_version
+        run: |
+          ENV=$(sed -n '1p' VERSION)
+          VER=$(sed -n '2p' VERSION)
+          echo "env=$ENV"     >> $GITHUB_OUTPUT
+          echo "version=$VER" >> $GITHUB_OUTPUT
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.read_version.outputs.env }}-${{ steps.read_version.outputs.version }}
+
+      - name: Definir tag completa para o próximo job
+        id: tag
+        run: |
+          echo "full_tag=${{ env.IMAGE_NAME }}:${{ steps.read_version.outputs.env }}-${{ steps.read_version.outputs.version }}" >> $GITHUB_OUTPUT
+
+  # ---------- JOB 2: deploy ----------
+  deploy:
+    name: Deploy na VPS
+    needs: build
+    runs-on: ubuntu-latest     # só para executar o passo SSH
+
+    steps:
+      - name: Pull + restart via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+
+            APP_DIR="/srv/hml"
+            IMAGE_TAG="${{ needs.build.outputs.image_tag }}"
+            CONTAINER_NAME="aida-app-hml"
+
+            echo "⏩  Criando pasta ${APP_DIR} (se não existir)..."
+            mkdir -p "${APP_DIR}"
+            cd "${APP_DIR}"
+
+            echo "⏩  Docker login (se necessário)..."
+            docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+
+            echo "⏩  Pull da imagem ${IMAGE_TAG}..."
+            docker pull "${IMAGE_TAG}"
+
+            echo "⏩  Parando container antigo (se existir)..."
+            docker stop "${CONTAINER_NAME}" 2>/dev/null || true
+            docker rm   "${CONTAINER_NAME}" 2>/dev/null || true
+
+            echo "⏩  Subindo novo container..."
+            docker run -d \
+              --name "${CONTAINER_NAME}" \
+              --env-file ./.env \
+              -p 8081:80 \
+              "${IMAGE_TAG}"
+
+            echo "✅  Deploy concluído!"

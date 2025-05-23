@@ -60,6 +60,12 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+
+          # torna as secrets disponíveis como variáveis de ambiente no shell remoto
+          envs: |
+            DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}
+
           script: |
             set -e
 
@@ -71,8 +77,9 @@ jobs:
             mkdir -p "${APP_DIR}"
             cd "${APP_DIR}"
 
-            echo "⏩  Docker login (se necessário)..."
-            docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+            echo "⏩  Autenticando no Docker Hub..."
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
 
             echo "⏩  Pull da imagem ${IMAGE_TAG}..."
             docker pull "${IMAGE_TAG}"

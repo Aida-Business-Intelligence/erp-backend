@@ -788,7 +788,6 @@ class Suppliers extends REST_Controller
   public function create_from_nf_post()
   {
     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
     try {
       $this->db->trans_start();
 

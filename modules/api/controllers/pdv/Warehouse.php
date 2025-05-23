@@ -100,11 +100,11 @@ class Warehouse extends REST_Controller
             ], REST_Controller::HTTP_OK);
         }
     }
-    public function list_get($franqueado_id = '', $id = '')
+    public function list_get($id = '')
     {
 
         // Chamada ao modelo
-        $data = $this->Warehouse_model->get($id, array('franqueado_id' => $franqueado_id));
+        $data = $this->Warehouse_model->get($id);
 
         // Verifica se encontrou dados
         if (empty($data)) {

@@ -24,13 +24,6 @@ tests/
 *.spec.php
 *.test.php
 
-# Arquivos de deploy/ambiente
-deploy/
-deploy.php
-config/
-# Excluir arquivos de configuração de banco de dados
-config/.env
-config/database.php.dist
 
 # Arquivos não utilizados
 .idea/
@@ -52,12 +45,7 @@ public/
 
 # Arquivos com senhas e credenciais
 .env
-config/database.php
 .codegpt
 /nbproject/private/
-
-application/config/app-config.php
 uploads/
 deploy.sh
-deploy_gringa.sh
-deploy_imperio.sh

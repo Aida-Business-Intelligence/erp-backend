@@ -56,15 +56,17 @@ jobs:
     steps:
       - name: Pull + restart via SSH
         uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+        env:                              # ← 1) valores ficam disponíveis no runner
+          IMAGE_TAG:          ${{ needs.build.outputs.image_tag }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
 
-          # torna as secrets disponíveis como variáveis de ambiente no shell remoto
-          envs: |
-            DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
-            DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}
+        with:
+          host:      ${{ secrets.SSH_HOST }}
+          username:  ${{ secrets.SSH_USER }}
+          key:       ${{ secrets.SSH_KEY }}
+
+          envs: IMAGE_TAG,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
 
           script: |
             set -e

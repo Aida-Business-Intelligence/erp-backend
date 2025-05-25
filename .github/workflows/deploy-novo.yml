@@ -39,8 +39,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ steps.read_version.outputs.env }}-${{ steps.read_version.outputs.version }}
+          tags: ${{ env.IMAGE_NAME }}:${{ env.ENV }}-${{ env.VER }}
 
       - name: Definir tag completa para o próximo job
         id: tag
@@ -52,11 +51,23 @@ jobs:
     name: Deploy na VPS
     needs: build
     runs-on: ubuntu-latest     # só para executar o passo SSH
-
+    
     steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Ler ambiente e versão
+        run: |
+          ENV=$(sed -n '1p' VERSION)
+          VER=$(sed -n '2p' VERSION)
+          echo "ENV=$ENV" >> $GITHUB_ENV
+          echo "VER=$VER" >> $GITHUB_ENV
+
       - name: Pull + restart via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:                              # ← 1) valores ficam disponíveis no runner
+          ENV:                ${{env.ENV}}
+          VER:                ${{env.VER}}
           IMAGE_TAG:          ${{ needs.build.outputs.image_tag }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
@@ -66,14 +77,16 @@ jobs:
           username:  ${{ secrets.SSH_USER }}
           key:       ${{ secrets.SSH_KEY }}
 
-          envs: IMAGE_TAG,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          envs: ENV,VER,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
 
           script: |
             set -e
 
             APP_DIR="/srv/hml"
-            IMAGE_TAG="${{ needs.build.outputs.image_tag }}"
             CONTAINER_NAME="aida-app-hml"
+            IMAGE_NAME="aidabusiness/aida-repo"
+            IMAGE_TAG="$IMAGE_NAME:$ENV-$VER"
+
 
             echo "⏩  Criando pasta ${APP_DIR} (se não existir)..."
             mkdir -p "${APP_DIR}"

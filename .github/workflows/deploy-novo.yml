@@ -79,7 +79,7 @@ jobs:
           script: |
             set -e
 
-            APP_DIR="/srv/hml"
+            APP_DIR="/srv/erp/hml"
             CONTAINER_NAME="aida-app-hml"
             IMAGE_NAME="aidabusiness/aida-repo"
             IMAGE_TAG="$IMAGE_NAME:$ENV-$VER"

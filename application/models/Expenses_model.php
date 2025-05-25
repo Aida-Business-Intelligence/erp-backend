@@ -11,6 +11,65 @@ class Expenses_model extends App_Model
         parent::__construct();
     }
 
+    //
+    public function get_expenses_summary($warehouse_id)
+    {
+        $today = date('Y-m-d');
+
+        // 🔵 Pagas
+        $paid = $this->sum_expenses_amount('paid', $warehouse_id);
+        $paid_count = $this->count_expenses_by_status('paid', $warehouse_id);
+
+        // 🟢 A pagar (pendentes e vencimento >= hoje)
+        $to_pay = $this->sum_expenses_amount('pending', $warehouse_id, ">=");
+        $to_pay_count = $this->count_expenses_by_status('pending', $warehouse_id, ">=");
+
+        // 🔴 Atrasadas (pendentes e vencimento < hoje)
+        $overdue = $this->sum_expenses_amount('pending', $warehouse_id, "<");
+        $overdue_count = $this->count_expenses_by_status('pending', $warehouse_id, "<");
+
+        return [
+            'paid' => $paid,
+            'paid_count' => $paid_count,
+            'to_pay' => $to_pay,
+            'to_pay_count' => $to_pay_count,
+            'overdue' => $overdue,
+            'overdue_count' => $overdue_count,
+        ];
+    }
+
+// 🔸 Soma os valores
+    private function sum_expenses_amount($status, $warehouse_id, $date_operator = null)
+    {
+        $this->db->select_sum('amount');
+        $this->db->from(db_prefix() . 'expenses');
+        $this->db->where('type', 'despesa');
+        $this->db->where('warehouse_id', $warehouse_id);
+        $this->db->where('status', $status);
+
+        if ($date_operator) {
+            $this->db->where('date ' . $date_operator, date('Y-m-d'));
+        }
+
+        return (float) $this->db->get()->row()->amount;
+    }
+
+// 🔸 Conta quantas
+    private function count_expenses_by_status($status, $warehouse_id, $date_operator = null)
+    {
+        $this->db->from(db_prefix() . 'expenses');
+        $this->db->where('type', 'despesa');
+        $this->db->where('warehouse_id', $warehouse_id);
+        $this->db->where('status', $status);
+
+        if ($date_operator) {
+            $this->db->where('date ' . $date_operator, date('Y-m-d'));
+        }
+
+        return (int) $this->db->count_all_results();
+    }
+
+    //
     public function get_warehouses()
     {
         return $this->db
@@ -36,6 +95,10 @@ class Expenses_model extends App_Model
         $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
         $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category');
+
+        // Adicione esta linha para filtrar apenas despesas
+        $this->db->where(db_prefix() . 'expenses.type', 'despesa');
+
         $this->db->where($where);
 
         if (is_numeric($id)) {

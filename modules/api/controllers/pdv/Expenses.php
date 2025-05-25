@@ -11,13 +11,46 @@ require __DIR__ . '/../REST_Controller.php';
 
 class Expenses extends REST_Controller
 {
-
-
     function __construct()
     {
         parent::__construct();
         $this->load->model('Expenses_model');
     }
+
+    //
+    public function summary_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        $warehouse_id = $this->post('warehouse_id');
+
+        if (empty($warehouse_id)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'warehouse_id é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $summary = $this->Expenses_model->get_expenses_summary($warehouse_id);
+
+        $total = $summary['paid'] + $summary['to_pay'] + $summary['overdue'];
+        $paid_percent = $total > 0 ? round(($summary['paid'] / $total) * 100, 1) : 0;
+
+        return $this->response([
+            'status' => true,
+            'data' => [
+                'paid' => $summary['paid'],
+                'paid_count' => $summary['paid_count'],
+                'to_pay' => $summary['to_pay'],
+                'to_pay_count' => $summary['to_pay_count'],
+                'overdue' => $summary['overdue'],
+                'overdue_count' => $summary['overdue_count'],
+                'paid_percent' => $paid_percent
+            ],
+        ], REST_Controller::HTTP_OK);
+    }
+
+    //
 
     public function warehouselist_get()
     {
@@ -156,7 +189,7 @@ class Expenses extends REST_Controller
         $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
 
         $this->db->where('e.warehouse_id', $warehouse_id);
-
+        $this->db->where('e.type', 'despesa');
         if (!empty($startDate) && $startDate !== 'null') {
             $this->db->where('e.date >=', $startDate);
         }
@@ -265,9 +298,10 @@ class Expenses extends REST_Controller
         $this->db->join(db_prefix() . 'payment_modes', '' . db_prefix() . 'payment_modes.id = ' . db_prefix() . 'expenses.paymentmode', 'left');
         $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
         $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
-        $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category');
+        $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category', 'left');
 
         $this->db->where(db_prefix() . 'expenses.warehouse_id', $warehouse_id);
+        $this->db->where(db_prefix() . 'expenses.type', 'despesa');
 
         if (!empty($start_date)) {
             $this->db->where('date >=', $start_date);
@@ -379,6 +413,9 @@ class Expenses extends REST_Controller
     {
         return number_format($value, 2);
     }
+
+    //lucas
+
 
 
 

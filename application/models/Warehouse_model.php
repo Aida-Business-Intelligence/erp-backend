@@ -235,6 +235,22 @@ class Warehouse_model extends App_Model
         // Retornar true se a exclusão foi bem-sucedida
         return ($this->db->affected_rows() > 0);
     }
+    
+    public function getWarehouses($warehouse_id) {
+
+
+        $warehouse = $this->get($warehouse_id);
+
+        if ($warehouse->type == 'distribuidor') {
+
+            $warehouses = $this->get("", "(type = 'filial' OR type = 'franquia'  OR type = 'distribuidor'  )");
+        } else {
+
+            $warehouses[] = (array) $warehouse;
+        }
+
+        return $warehouses;
+    }
 
 
 

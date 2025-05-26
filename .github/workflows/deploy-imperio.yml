@@ -2,7 +2,7 @@ name: Deploy (build docker + dockerhub + deploy vps)
 
 on:
   push:
-    branches: [main]
+    branches: [imperio]
 
 env:                       # opcional (torna IMAGE_NAME visível em todos os jobs)
   IMAGE_NAME: aidabusiness/aida-repo
@@ -79,8 +79,8 @@ jobs:
           script: |
             set -e
 
-            APP_DIR="/srv/erp/hml"
-            CONTAINER_NAME="aida-app-hml"
+            APP_DIR="/srv/erp/imperio"
+            CONTAINER_NAME="aida-app-imperio"
             IMAGE_NAME="aidabusiness/aida-repo"
             IMAGE_TAG="$IMAGE_NAME:$ENV-$VER"
 
@@ -104,7 +104,7 @@ jobs:
             docker run -d \
               --name "${CONTAINER_NAME}" \
               --env-file ./.env \
-              -p 8081:80 \
+              -p 8082:80 \
               "${IMAGE_TAG}"
 
             echo "✅  Deploy concluído!"

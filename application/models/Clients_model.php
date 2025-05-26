@@ -296,19 +296,19 @@ class Clients_model extends App_Model
     //     }
     // }
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
     {
         if (!is_numeric($id)) {
             $this->db->select('*'); // Seleciona todos os campos
-            $this->db->from(db_prefix() . 'clients'); // Define a tabela
-            $this->db->where('clients.warehouse_id', value: $warehouse_id);
+            $this->db->from(db_prefix() . 'clients_1'); // Define a tabela
+            // $this->db->where('clients_1.warehouse_id', value: $warehouse_id);
 
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like(db_prefix() . 'clients.company', $search);
-                $this->db->or_like(db_prefix() . 'clients.phonenumber', $search);
-                $this->db->or_like(db_prefix() . 'clients.email_default', $search);
-                $this->db->or_like(db_prefix() . 'clients.vat', $search);
+                $this->db->like(db_prefix() . 'clients_1.company', $search);
+                $this->db->or_like(db_prefix() . 'clients_1.phonenumber', $search);
+                $this->db->or_like(db_prefix() . 'clients_1.email_default', $search);
+                $this->db->or_like(db_prefix() . 'clients_1.vat', $search);
                 $this->db->group_end();
             }
 
@@ -319,15 +319,15 @@ class Clients_model extends App_Model
 
             // Contagem de total de registros
             $this->db->reset_query();
-            $this->db->from(db_prefix() . 'clients');
-            $this->db->where('clients.warehouse_id', $warehouse_id); // Filtro por warehouse_id na contagem
+            $this->db->from(db_prefix() . 'clients_1');
+            // $this->db->where('clients_1.warehouse_id', $warehouse_id); // Filtro por warehouse_id na contagem
 
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like(db_prefix() . 'clients.company', $search);
-                $this->db->or_like(db_prefix() . 'clients.phonenumber', $search);
-                $this->db->or_like(db_prefix() . 'clients.email_default', $search);
-                $this->db->or_like(db_prefix() . 'clients.vat', $search);
+                $this->db->like(db_prefix() . 'clients_1.company', $search);
+                $this->db->or_like(db_prefix() . 'clients_1.phonenumber', $search);
+                $this->db->or_like(db_prefix() . 'clients_1.email_default', $search);
+                $this->db->or_like(db_prefix() . 'clients_1.vat', $search);
                 $this->db->group_end();
             }
 
@@ -336,9 +336,9 @@ class Clients_model extends App_Model
             return ['data' => $clients, 'total' => $total];
         } else {
             $this->db->select('*');
-            $this->db->from(db_prefix() . 'clients');
-            $this->db->where(db_prefix() . 'clients.userid', $id);
-            $this->db->where('clients.warehouse_id', value: $warehouse_id);
+            $this->db->from(db_prefix() . 'clients_1');
+            $this->db->where(db_prefix() . 'clients_1.userid', $id);
+            // $this->db->where('clients_1.warehouse_id', value: $warehouse_id);
 
             $client = $this->db->get()->row();
             $total = $client ? 1 : 0;

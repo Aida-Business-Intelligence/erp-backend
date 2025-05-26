@@ -11,6 +11,124 @@ class Expenses_model extends App_Model
         parent::__construct();
     }
 
+
+
+    //26/05
+    public function addtwo($data)
+    {
+        $data['dateadded'] = date('Y-m-d H:i:s');
+        $data['addedfrom'] = get_staff_user_id();
+        $data['perfex_saas_tenant_id'] = get_perfex_saas_tenant_id();
+
+        // Handle file uploads
+        if (isset($data['file'])) {
+            $data['file'] = handle_expense_file_upload($data['file']);
+        }
+        if (isset($data['comprovante'])) {
+            $data['comprovante'] = handle_expense_comprovante_upload($data['comprovante']);
+        }
+
+        // Convert boolean values to integers
+        $data['billable'] = isset($data['billable']) ? 1 : 0;
+        $data['recurring'] = isset($data['recurring']) ? 1 : 0;
+        $data['custom_recurring'] = isset($data['custom_recurring']) ? 1 : 0;
+        $data['create_invoice_billable'] = isset($data['create_invoice_billable']) ? 1 : 0;
+        $data['send_invoice_to_customer'] = isset($data['send_invoice_to_customer']) ? 1 : 0;
+
+        $this->db->insert(db_prefix() . 'expenses', $data);
+        $insert_id = $this->db->insert_id();
+
+        if ($insert_id) {
+            log_activity('Nova Despesa/Receita Adicionada [ID: ' . $insert_id . ', Tipo: ' . $data['type'] . ']');
+            return $insert_id;
+        }
+
+        return false;
+    }
+
+    public function get_categories($warehouse_id)
+    {
+        $this->db->where('warehouse_id', $warehouse_id);
+        $this->db->order_by('name', 'asc');
+        return $this->db->get(db_prefix() . 'expenses_categories')->result_array();
+    }
+
+    public function get_currencies()
+    {
+        return $this->db->get(db_prefix() . 'currencies')->result_array();
+    }
+
+    public function get_taxes()
+    {
+        return $this->db->get(db_prefix() . 'taxes')->result_array();
+    }
+
+    public function get_payment_modes()
+    {
+        return $this->db->get(db_prefix() . 'payment_modes')->result_array();
+    }
+
+    public function get_clients($warehouse_id = 0, $search = '', $limit = 10, $page = 0)
+    {
+        $this->db->select('userid as id, company as name, vat');
+        $this->db->where('active', 1);
+        $this->db->where('warehouse_id', $warehouse_id);
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('company', $search);
+            $this->db->or_like('vat', $search);
+            $this->db->group_end();
+        }
+
+        $offset = ($page - 1) * $limit;
+        $this->db->limit($limit, $offset);
+        
+        return $this->db->get(db_prefix() . 'clients')->result_array();
+    }
+
+    public function get_projects($client_id = 0, $warehouse_id = 0, $search = '', $limit = 10, $page = 0)
+    {
+        $this->db->select('id, name');
+        $this->db->where('clientid', $client_id);
+        $this->db->where('warehouse_id', $warehouse_id);
+
+        if (!empty($search)) {
+            $this->db->like('name', $search);
+        }
+
+        $this->db->limit($limit, $page * $limit);
+        return $this->db->get(db_prefix() . 'projects')->result_array();
+    }
+
+    public function upload_file($expense_id, $file, $field_name)
+    {
+        $path = EXPENSE_ATTACHMENTS_FOLDER . $expense_id . '/';
+
+        if (!file_exists($path)) {
+            mkdir($path, 0755, true);
+        }
+
+        $filename = unique_filename($path, $file['name']);
+        $file_path = $path . $filename;
+
+        if (move_uploaded_file($file['tmp_name'], $file_path)) {
+            $this->db->where('id', $expense_id);
+            $this->db->update(db_prefix() . 'expenses', [$field_name => $filename]);
+
+            return [
+                'success' => true,
+                'filename' => $filename
+            ];
+        }
+
+        return ['success' => false];
+    }
+
+
+
+
+
     //
     public function get_expenses_summary($warehouse_id)
     {

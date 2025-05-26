@@ -17,6 +17,227 @@ class Expenses extends REST_Controller
         $this->load->model('Expenses_model');
     }
 
+    //26/05
+    public function categoriestwo_get()
+    {
+    try {
+        $warehouse_id = $this->input->get('warehouse_id') ?: 0;
+        $categories = $this->Expenses_model->get_categories($warehouse_id);
+
+        $this->response([
+            'success' => true,
+            'data' => $categories
+        ], REST_Controller::HTTP_OK);
+
+    } catch (Exception $e) {
+        $this->response([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+    }
+
+    public function currencies_get()
+    {
+        try {
+            $currencies = $this->Expenses_model->get_currencies();
+
+            $this->response([
+                'success' => true,
+                'data' => $currencies
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function taxes_get()
+    {
+        try {
+            $taxes = $this->Expenses_model->get_taxes();
+
+            $this->response([
+                'success' => true,
+                'data' => $taxes
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function payment_modes_get()
+    {
+        try {
+            $paymentModes = $this->Expenses_model->get_payment_modes();
+
+            $this->response([
+                'success' => true,
+                'data' => $paymentModes
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function clients_get()
+    {
+        try {
+            $warehouse_id = $this->input->get('warehouse_id') ?: 0;
+            $search = $this->input->get('search') ?: '';
+            $page = max(1, (int) $this->input->get('page'));
+            $limit = $this->input->get('limit') ?: 10;
+
+            $clients = $this->Expenses_model->get_clients($warehouse_id, $search, $limit, $page);
+
+            $this->response([
+                'success' => true,
+                'data' => $clients
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function projects_get()
+    {
+        try {
+            $client_id = $this->input->get('client_id') ?: 0;
+            $warehouse_id = $this->input->get('warehouse_id') ?: 0;
+            $search = $this->input->get('search') ?: '';
+            $page = $this->input->get('page') ?: 0;
+            $limit = $this->input->get('limit') ?: 10;
+
+            if (empty($client_id)) {
+                throw new Exception('Client ID is required', REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            $projects = $this->Expenses_model->get_projects($client_id, $warehouse_id, $search, $limit, $page);
+
+            $this->response([
+                'success' => true,
+                'data' => $projects
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function createtwo_post()
+    {
+        try {
+            $data = $this->input->post();
+
+            // Validate required fields
+            $required_fields = ['category', 'currency', 'amount', 'expense_name', 'date', 'type'];
+            foreach ($required_fields as $field) {
+                if (empty($data[$field])) {
+                    throw new Exception("O campo {$field} é obrigatório", REST_Controller::HTTP_BAD_REQUEST);
+                }
+            }
+
+            // Convert date format if needed
+            if (isset($data['date'])) {
+                $data['date'] = date('Y-m-d', strtotime($data['date']));
+            }
+
+            // Handle recurring data
+            if (isset($data['recurring']) && $data['recurring']) {
+                if (empty($data['recurring_type']) || empty($data['repeat_every'])) {
+                    throw new Exception("Para despesas recorrentes, tipo e frequência são obrigatórios", REST_Controller::HTTP_BAD_REQUEST);
+                }
+            } else {
+                // Clear recurring fields if not recurring
+                $data['recurring'] = 0;
+                $data['recurring_type'] = null;
+                $data['repeat_every'] = null;
+                $data['total_cycles'] = 0;
+                $data['custom_recurring'] = 0;
+            }
+
+            $id = $this->Expenses_model->addtwo($data);
+
+            if (!$id) {
+                throw new Exception("Falha ao cadastrar despesa/receita", REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            $this->response([
+                'success' => true,
+                'id' => $id,
+                'message' => $data['type'] === 'despesa' ? 'Despesa cadastrada com sucesso' : 'Receita cadastrada com sucesso'
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function upload_post()
+    {
+        try {
+            $expense_id = $this->input->post('expense_id');
+            $field_name = $this->input->post('field_name');
+
+            if (empty($expense_id) || empty($field_name)) {
+                throw new Exception("ID da despesa/receita e nome do campo são obrigatórios", REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            if (empty($_FILES['file'])) {
+                throw new Exception("Nenhum arquivo enviado", REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            $result = $this->Expenses_model->upload_file($expense_id, $_FILES['file'], $field_name);
+
+            if (!$result['success']) {
+                throw new Exception("Falha ao fazer upload do arquivo", REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            $this->response([
+                'success' => true,
+                'filename' => $result['filename']
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    //
+
+
+
+
+
+
+
+
+
+
     //
     public function summary_post()
     {

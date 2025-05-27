@@ -16,33 +16,44 @@ class Expenses_model extends App_Model
     //26/05
     public function addtwo($data)
     {
+        // Forçar category para inteiro
+        if (isset($data['category'])) {
+            $data['category'] = (int)$data['category'];
+        }
+        // Garantir que os campos obrigatórios estejam presentes
+        $required_fields = ['category', 'amount', 'expense_name', 'date', 'type'];
+        foreach ($required_fields as $field) {
+            if (!isset($data[$field]) || is_null($data[$field]) || $data[$field] === '' || ($field === 'category' && (int)$data[$field] <= 0)) {
+                return false;
+            }
+        }
+        // Campos opcionais
+        if (!isset($data['currency'])) $data['currency'] = null;
+        if (!isset($data['tax'])) $data['tax'] = null;
+        if (!isset($data['tax2'])) $data['tax2'] = null;
+        if (!isset($data['project_id'])) $data['project_id'] = null;
+        // Conversão de booleanos
+        $data['billable'] = isset($data['billable']) ? (int)$data['billable'] : 0;
+        $data['recurring'] = isset($data['recurring']) ? (int)$data['recurring'] : 0;
+        $data['custom_recurring'] = isset($data['custom_recurring']) ? (int)$data['custom_recurring'] : 0;
+        $data['create_invoice_billable'] = isset($data['create_invoice_billable']) ? (int)$data['create_invoice_billable'] : 0;
+        $data['send_invoice_to_customer'] = isset($data['send_invoice_to_customer']) ? (int)$data['send_invoice_to_customer'] : 0;
         $data['dateadded'] = date('Y-m-d H:i:s');
         $data['addedfrom'] = get_staff_user_id();
-        $data['perfex_saas_tenant_id'] = get_perfex_saas_tenant_id();
-
-        // Handle file uploads
+        $data['perfex_saas_tenant_id'] = 'master';
+        // Uploads
         if (isset($data['file'])) {
             $data['file'] = handle_expense_file_upload($data['file']);
         }
         if (isset($data['comprovante'])) {
             $data['comprovante'] = handle_expense_comprovante_upload($data['comprovante']);
         }
-
-        // Convert boolean values to integers
-        $data['billable'] = isset($data['billable']) ? 1 : 0;
-        $data['recurring'] = isset($data['recurring']) ? 1 : 0;
-        $data['custom_recurring'] = isset($data['custom_recurring']) ? 1 : 0;
-        $data['create_invoice_billable'] = isset($data['create_invoice_billable']) ? 1 : 0;
-        $data['send_invoice_to_customer'] = isset($data['send_invoice_to_customer']) ? 1 : 0;
-
         $this->db->insert(db_prefix() . 'expenses', $data);
         $insert_id = $this->db->insert_id();
-
         if ($insert_id) {
             log_activity('Nova Despesa/Receita Adicionada [ID: ' . $insert_id . ', Tipo: ' . $data['type'] . ']');
             return $insert_id;
         }
-
         return false;
     }
 

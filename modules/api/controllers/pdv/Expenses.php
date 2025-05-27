@@ -33,7 +33,7 @@ class Expenses extends REST_Controller
         $this->response([
             'success' => false,
             'message' => $e->getMessage()
-        ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        ], REST_Controller::HTTP_BAD_REQUEST);
     }
     }
 
@@ -51,7 +51,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 
@@ -69,7 +69,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 
@@ -87,7 +87,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 
@@ -96,7 +96,7 @@ class Expenses extends REST_Controller
         try {
             $warehouse_id = $this->input->get('warehouse_id') ?: 0;
             $search = $this->input->get('search') ?: '';
-            $page = max(1, (int) $this->input->get('page'));
+            $page = $this->input->get('page') ?: 0;
             $limit = $this->input->get('limit') ?: 10;
 
             $clients = $this->Expenses_model->get_clients($warehouse_id, $search, $limit, $page);
@@ -110,7 +110,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 
@@ -138,7 +138,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 
@@ -190,7 +190,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 
@@ -223,7 +223,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 
@@ -287,7 +287,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 

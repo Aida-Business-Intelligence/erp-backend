@@ -167,16 +167,16 @@ class Suppliers extends REST_Controller
         'segment' => $_POST['segment'] ?? null,
         'company_size' => $_POST['company_size'] ?? null,
         'observations' => $_POST['observations'] ?? null,
-        'commission' => !empty($_POST['commission']) ? (float)$_POST['commission'] : 0,
+        'commission' => !empty($_POST['commission']) ? (float) $_POST['commission'] : 0,
         'commercial_conditions' => $_POST['commercial_conditions'] ?? null,
         'commission_type' => $_POST['commission_type'] ?? null,
-        'commission_base_percentage' => !empty($_POST['commission_base_percentage']) ? (float)$_POST['commission_base_percentage'] : 0,
+        'commission_base_percentage' => !empty($_POST['commission_base_percentage']) ? (float) $_POST['commission_base_percentage'] : 0,
         'commission_payment_type' => $_POST['commission_payment_type'] ?? null,
-        'commission_due_day' => !empty($_POST['commission_due_day']) ? (int)$_POST['commission_due_day'] : 0,
+        'commission_due_day' => !empty($_POST['commission_due_day']) ? (int) $_POST['commission_due_day'] : 0,
         'agent_commission_type' => $_POST['agent_commission_type'] ?? null,
-        'agent_commission_base_percentage' => !empty($_POST['agent_commission_base_percentage']) ? (float)$_POST['agent_commission_base_percentage'] : 0,
+        'agent_commission_base_percentage' => !empty($_POST['agent_commission_base_percentage']) ? (float) $_POST['agent_commission_base_percentage'] : 0,
         'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
-        'agent_commission_due_day' => !empty($_POST['agent_commission_due_day']) ? (int)$_POST['agent_commission_due_day'] : 0
+        'agent_commission_due_day' => !empty($_POST['agent_commission_due_day']) ? (int) $_POST['agent_commission_due_day'] : 0
       ];
 
       $supplier_id = $this->clients_model->add($supplier_data);
@@ -304,16 +304,16 @@ class Suppliers extends REST_Controller
         'segment' => $_POST['segment'] ?? null,
         'company_size' => $_POST['company_size'] ?? null,
         'observations' => $_POST['observations'] ?? null,
-        'commission' => !empty($_POST['commission']) ? (float)$_POST['commission'] : 0,
+        'commission' => !empty($_POST['commission']) ? (float) $_POST['commission'] : 0,
         'commercial_conditions' => $_POST['commercial_conditions'] ?? null,
         'commission_type' => $_POST['commission_type'] ?? null,
-        'commission_base_percentage' => !empty($_POST['commission_base_percentage']) ? (float)$_POST['commission_base_percentage'] : 0,
+        'commission_base_percentage' => !empty($_POST['commission_base_percentage']) ? (float) $_POST['commission_base_percentage'] : 0,
         'commission_payment_type' => $_POST['commission_payment_type'] ?? null,
-        'commission_due_day' => !empty($_POST['commission_due_day']) ? (int)$_POST['commission_due_day'] : 0,
+        'commission_due_day' => !empty($_POST['commission_due_day']) ? (int) $_POST['commission_due_day'] : 0,
         'agent_commission_type' => $_POST['agent_commission_type'] ?? null,
-        'agent_commission_base_percentage' => !empty($_POST['agent_commission_base_percentage']) ? (float)$_POST['agent_commission_base_percentage'] : 0,
+        'agent_commission_base_percentage' => !empty($_POST['agent_commission_base_percentage']) ? (float) $_POST['agent_commission_base_percentage'] : 0,
         'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
-        'agent_commission_due_day' => !empty($_POST['agent_commission_due_day']) ? (int)$_POST['agent_commission_due_day'] : 0
+        'agent_commission_due_day' => !empty($_POST['agent_commission_due_day']) ? (int) $_POST['agent_commission_due_day'] : 0
       ];
 
       $this->clients_model->update($supplier_data, $id);
@@ -383,10 +383,12 @@ class Suppliers extends REST_Controller
       $updated_contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
 
       $all_documents = array_merge(
-        [[
-          'type' => strtolower($updated_supplier['documentType']),
-          'number' => $updated_supplier['vat']
-        ]],
+        [
+          [
+            'type' => strtolower($updated_supplier['documentType']),
+            'number' => $updated_supplier['vat']
+          ]
+        ],
         array_map(function ($doc) {
           return [
             'type' => strtolower($doc['type']),
@@ -401,10 +403,12 @@ class Suppliers extends REST_Controller
       );
 
       $all_contacts = array_merge(
-        [[
-          'name' => $updated_supplier['company'],
-          'phone' => $updated_supplier['phonenumber']
-        ]],
+        [
+          [
+            'name' => $updated_supplier['company'],
+            'phone' => $updated_supplier['phonenumber']
+          ]
+        ],
         array_map(function ($contact) {
           return [
             'name' => $contact['firstname'],
@@ -432,16 +436,16 @@ class Suppliers extends REST_Controller
         'segment' => $updated_supplier['segment'],
         'company_size' => $updated_supplier['company_size'],
         'observations' => $updated_supplier['observations'],
-        'commission' => (float)$updated_supplier['commission'],
+        'commission' => (float) $updated_supplier['commission'],
         'commercial_conditions' => $updated_supplier['commercial_conditions'],
         'commission_type' => $updated_supplier['commission_type'],
-        'commission_base_percentage' => (float)$updated_supplier['commission_base_percentage'],
+        'commission_base_percentage' => (float) $updated_supplier['commission_base_percentage'],
         'commission_payment_type' => $updated_supplier['commission_payment_type'],
-        'commission_due_day' => (int)$updated_supplier['commission_due_day'],
+        'commission_due_day' => (int) $updated_supplier['commission_due_day'],
         'agent_commission_type' => $updated_supplier['agent_commission_type'],
-        'agent_commission_base_percentage' => (float)$updated_supplier['agent_commission_base_percentage'],
+        'agent_commission_base_percentage' => (float) $updated_supplier['agent_commission_base_percentage'],
         'agent_commission_payment_type' => $updated_supplier['agent_commission_payment_type'],
-        'agent_commission_due_day' => (int)$updated_supplier['agent_commission_due_day']
+        'agent_commission_due_day' => (int) $updated_supplier['agent_commission_due_day']
       ];
 
       $this->response([
@@ -491,10 +495,12 @@ class Suppliers extends REST_Controller
     $additional_contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
 
     $all_documents = array_merge(
-      [[
-        'type' => strtolower($supplier['documentType']),
-        'number' => $supplier['vat']
-      ]],
+      [
+        [
+          'type' => strtolower($supplier['documentType']),
+          'number' => $supplier['vat']
+        ]
+      ],
       array_map(function ($doc) {
         return [
           'type' => strtolower($doc['type']),
@@ -509,10 +515,12 @@ class Suppliers extends REST_Controller
     );
 
     $all_contacts = array_merge(
-      [[
-        'name' => $supplier['company'],
-        'phone' => $supplier['phonenumber']
-      ]],
+      [
+        [
+          'name' => $supplier['company'],
+          'phone' => $supplier['phonenumber']
+        ]
+      ],
       array_map(function ($contact) {
         return [
           'name' => $contact['firstname'],
@@ -540,16 +548,16 @@ class Suppliers extends REST_Controller
       'segment' => $supplier['segment'],
       'company_size' => $supplier['company_size'],
       'observations' => $supplier['observations'],
-      'commission' => (float)$supplier['commission'],
+      'commission' => (float) $supplier['commission'],
       'commercial_conditions' => $supplier['commercial_conditions'],
       'commission_type' => $supplier['commission_type'],
-      'commission_base_percentage' => (float)$supplier['commission_base_percentage'],
+      'commission_base_percentage' => (float) $supplier['commission_base_percentage'],
       'commission_payment_type' => $supplier['commission_payment_type'],
-      'commission_due_day' => (int)$supplier['commission_due_day'],
+      'commission_due_day' => (int) $supplier['commission_due_day'],
       'agent_commission_type' => $supplier['agent_commission_type'],
-      'agent_commission_base_percentage' => (float)$supplier['agent_commission_base_percentage'],
+      'agent_commission_base_percentage' => (float) $supplier['agent_commission_base_percentage'],
       'agent_commission_payment_type' => $supplier['agent_commission_payment_type'],
-      'agent_commission_due_day' => (int)$supplier['agent_commission_due_day']
+      'agent_commission_due_day' => (int) $supplier['agent_commission_due_day']
     ];
 
     $this->response([
@@ -560,8 +568,8 @@ class Suppliers extends REST_Controller
 
   public function list_get()
   {
-    $page = $this->get('page') ? (int)$this->get('page') : 1;
-    $limit = $this->get('limit') ? (int)$this->get('limit') : 10;
+    $page = $this->get('page') ? (int) $this->get('page') : 1;
+    $limit = $this->get('limit') ? (int) $this->get('limit') : 10;
     $search = $this->get('search') ?: '';
     $status = $this->get('status');
     $sortField = $this->get('sortField') ?: 'userid';
@@ -637,19 +645,21 @@ class Suppliers extends REST_Controller
       $contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
 
       $supplier['contacts'] = array_merge(
-        [[
-          'name' => $supplier['company'],
-          'phone' => $supplier['phonenumber']
-        ]],
+        [
+          [
+            'name' => $supplier['company'],
+            'phone' => $supplier['phonenumber']
+          ]
+        ],
         $contacts
       );
     }
 
     $this->response([
       'status' => TRUE,
-      'total' => (int)$total,
-      'page' => (int)$page,
-      'limit' => (int)$limit,
+      'total' => (int) $total,
+      'page' => (int) $page,
+      'limit' => (int) $limit,
       'data' => array_map(function ($supplier) {
         return [
           'userid' => $supplier['userid'],
@@ -670,7 +680,7 @@ class Suppliers extends REST_Controller
             $supplier['additional_emails'] ? explode(',', $supplier['additional_emails']) : []
           )),
           'contacts' => $supplier['contacts'] ?? [],
-          'contacts_count' => (int)($supplier['contacts_count'] ?? 0),
+          'contacts_count' => (int) ($supplier['contacts_count'] ?? 0),
           'status' => $supplier['active'] ? 'active' : 'inactive',
           'created_at' => $supplier['datecreated'] ?? null,
           'inscricao_estadual' => $supplier['inscricao_estadual'] ?? null,
@@ -680,16 +690,16 @@ class Suppliers extends REST_Controller
           'segment' => $supplier['segment'] ?? null,
           'company_size' => $supplier['company_size'] ?? null,
           'observations' => $supplier['observations'] ?? null,
-          'commission' => !empty($supplier['commission']) ? (float)$supplier['commission'] : 0,
+          'commission' => !empty($supplier['commission']) ? (float) $supplier['commission'] : 0,
           'commercial_conditions' => $supplier['commercial_conditions'] ?? null,
           'commission_type' => $supplier['commission_type'] ?? null,
-          'commission_base_percentage' => !empty($supplier['commission_base_percentage']) ? (float)$supplier['commission_base_percentage'] : 0,
+          'commission_base_percentage' => !empty($supplier['commission_base_percentage']) ? (float) $supplier['commission_base_percentage'] : 0,
           'commission_payment_type' => $supplier['commission_payment_type'] ?? null,
-          'commission_due_day' => !empty($supplier['commission_due_day']) ? (int)$supplier['commission_due_day'] : 0,
+          'commission_due_day' => !empty($supplier['commission_due_day']) ? (int) $supplier['commission_due_day'] : 0,
           'agent_commission_type' => $supplier['agent_commission_type'] ?? null,
-          'agent_commission_base_percentage' => !empty($supplier['agent_commission_base_percentage']) ? (float)$supplier['agent_commission_base_percentage'] : 0,
+          'agent_commission_base_percentage' => !empty($supplier['agent_commission_base_percentage']) ? (float) $supplier['agent_commission_base_percentage'] : 0,
           'agent_commission_payment_type' => $supplier['agent_commission_payment_type'] ?? null,
-          'agent_commission_due_day' => !empty($supplier['agent_commission_due_day']) ? (int)$supplier['agent_commission_due_day'] : 0
+          'agent_commission_due_day' => !empty($supplier['agent_commission_due_day']) ? (int) $supplier['agent_commission_due_day'] : 0
         ];
       }, $suppliers)
     ], REST_Controller::HTTP_OK);
@@ -772,6 +782,98 @@ class Suppliers extends REST_Controller
         'failed_ids' => $failed_ids
       );
       $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  public function create_from_nf_post()
+  {
+    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    try {
+      $this->db->trans_start();
+
+      // Validar campos obrigatórios
+      $required_fields = ['name', 'documents', 'contacts', 'emails'];
+      foreach ($required_fields as $field) {
+        if (empty($_POST[$field])) {
+          throw new Exception("Campo {$field} é obrigatório");
+        }
+      }
+
+      // Validar CNPJ
+      $cnpj = $_POST['documents'][0]['number'] ?? '';
+      if (empty($cnpj)) {
+        throw new Exception("CNPJ é obrigatório");
+      }
+
+      // Verificar se CNPJ já existe
+      $this->db->where('vat', $cnpj);
+      $existing_supplier = $this->db->get(db_prefix() . 'clients')->row();
+      if ($existing_supplier) {
+        throw new Exception("CNPJ já cadastrado");
+      }
+
+      $primary_contact = $_POST['contacts'][0] ?? null;
+      $primary_document = $_POST['documents'][0] ?? null;
+
+      $supplier_data = [
+        'company' => $_POST['name'],
+        'vat' => $primary_document['number'],
+        'documentType' => strtoupper($primary_document['type']),
+        'phonenumber' => $primary_contact['phone'],
+        'email_default' => $_POST['emails'][0] ?? null,
+        'active' => 1,
+        'is_supplier' => 1,
+        'datecreated' => date('Y-m-d H:i:s'),
+      ];
+
+      $supplier_id = $this->clients_model->add($supplier_data);
+
+      if (!$supplier_id) {
+        throw new Exception('Falha ao criar fornecedor');
+      }
+
+      // Adicionar contato
+      $contact_data = [
+        'userid' => $supplier_id,
+        'firstname' => $_POST['name'],
+        'phonenumber' => $primary_contact['phone'],
+        'active' => 1,
+        'datecreated' => date('Y-m-d H:i:s')
+      ];
+
+      $this->clients_model->add_contact($contact_data, $supplier_id);
+
+      $this->db->trans_complete();
+
+      if ($this->db->trans_status() === FALSE) {
+        throw new Exception('Falha na transação');
+      }
+
+      // Buscar dados do fornecedor criado
+      $this->db->where('userid', $supplier_id);
+      $this->db->where('is_supplier', 1);
+      $created_supplier = $this->db->get(db_prefix() . 'clients')->row_array();
+
+      $this->response([
+        'status' => TRUE,
+        'message' => 'Fornecedor criado com sucesso',
+        'data' => [
+          'userid' => $created_supplier['userid'],
+          'company' => $created_supplier['company'],
+          'vat' => $created_supplier['vat'],
+          'documentType' => $created_supplier['documentType'],
+          'phonenumber' => $created_supplier['phonenumber'],
+          'email_default' => $created_supplier['email_default'],
+        ]
+      ], REST_Controller::HTTP_OK);
+
+    } catch (Exception $e) {
+      $this->db->trans_rollback();
+
+      $this->response([
+        'status' => FALSE,
+        'message' => 'Erro: ' . $e->getMessage()
+      ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
   }
 }

@@ -104,7 +104,7 @@ jobs:
             docker run -d \
               --name "${CONTAINER_NAME}" \
               --env-file ./.env \
-              -p 8082:80 \
+              -p 8083:80 \
               "${IMAGE_TAG}"
 
             echo "✅  Deploy concluído!"

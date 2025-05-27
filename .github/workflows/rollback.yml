@@ -1,0 +1,110 @@
+name: Rollback Generalizado para Loja na VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      store_identifier:
+        description: 'Identificador da loja (ex: lojas7, hml, imperio). Usado para nome do container e diretório.'
+        required: true
+        type: string
+      host_port:
+        description: 'Porta no host VPS para esta loja (ex: 8083, 8081). O container interno usará a porta 80.'
+        required: true
+        type: string # Entrada como string, validada como número no script
+      image_tag_suffix:
+        description: 'Sufixo da tag da imagem para rollback (ex: prod-V1.0.0, dev-V0.2.1, lojasV0.0.1). Será concatenado com o nome base da imagem.'
+        required: true
+        type: string
+
+env:
+  IMAGE_BASE_NAME: aidabusiness/aida-repo # Nome base da imagem Docker (constante)
+
+jobs:
+  rollback_vps_generalizado:
+    name: Rollback da Loja para Versão Especificada na VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        # Esta etapa geralmente não é estritamente necessária para o rollback,
+        # a menos que você tenha scripts ou arquivos de configuração no repositório
+        # que precisem ser usados durante o processo de rollback na VPS.
+        # Para este cenário (apenas pull e restart do Docker), pode ser omitida.
+        # Mantida por precaução ou se o .env for gerenciado no repo.
+
+      - name: Mostrar Inputs Manuais
+        run: |
+          echo "Solicitação de Rollback Recebida:"
+          echo "  Loja: ${{ github.event.inputs.store_identifier }}"
+          echo "  Porta no Host VPS: ${{ github.event.inputs.host_port }}"
+          echo "  Sufixo da Tag da Imagem: ${{ github.event.inputs.image_tag_suffix }}"
+          echo "  Imagem Completa Alvo do Rollback: ${{ env.IMAGE_BASE_NAME }}:${{ github.event.inputs.image_tag_suffix }}"
+
+      - name: Executar Rollback na VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          # Segredos e variáveis de ambiente para o script SSH
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+          # Parâmetros do workflow para o script SSH
+          PARAM_STORE_IDENTIFIER: ${{ github.event.inputs.store_identifier }}
+          PARAM_HOST_PORT:        ${{ github.event.inputs.host_port }}
+          PARAM_IMAGE_TAG_SUFFIX: ${{ github.event.inputs.image_tag_suffix }}
+          PARAM_IMAGE_BASE_NAME:  ${{ env.IMAGE_BASE_NAME }} # Do env do workflow
+        with:
+          host:     ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key:      ${{ secrets.SSH_KEY }}
+          # Passa as variáveis de ambiente para a sessão SSH
+          envs: PARAM_STORE_IDENTIFIER,PARAM_HOST_PORT,PARAM_IMAGE_TAG_SUFFIX,PARAM_IMAGE_BASE_NAME,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+
+          script: |
+            set -e # Encerra o script imediatamente se um comando falhar
+
+            # --- Validação básica dos parâmetros ---
+            if [ -z "$PARAM_STORE_IDENTIFIER" ]; then echo "Erro: Identificador da loja não fornecido."; exit 1; fi
+            if [ -z "$PARAM_HOST_PORT" ]; then echo "Erro: Porta no host não fornecida."; exit 1; fi
+            if ! [[ "$PARAM_HOST_PORT" =~ ^[0-9]+$ ]]; then echo "Erro: Porta no host (${PARAM_HOST_PORT}) deve ser um número."; exit 1; fi
+            if [ -z "$PARAM_IMAGE_TAG_SUFFIX" ]; then echo "Erro: Sufixo da tag da imagem não fornecido."; exit 1; fi
+            if [ -z "$PARAM_IMAGE_BASE_NAME" ]; then echo "Erro: Nome base da imagem não configurado."; exit 1; fi
+
+            # --- Derivar nomes e caminhos dinamicamente ---
+            APP_DIR="/srv/erp/${PARAM_STORE_IDENTIFIER}"
+            CONTAINER_NAME="aida-app-${PARAM_STORE_IDENTIFIER}"
+            ROLLBACK_IMAGE_TAG="${PARAM_IMAGE_BASE_NAME}:${PARAM_IMAGE_TAG_SUFFIX}" # Imagem completa para rollback
+
+            echo "--- Iniciando Processo de Rollback ---"
+            echo "  Loja Alvo: ${PARAM_STORE_IDENTIFIER}"
+            echo "  Diretório da Aplicação na VPS: ${APP_DIR}"
+            echo "  Nome do Container Docker: ${CONTAINER_NAME}"
+            echo "  Porta no Host da VPS: ${PARAM_HOST_PORT} (interno no container: 80)"
+            echo "  Imagem Docker para Rollback: ${ROLLBACK_IMAGE_TAG}"
+            echo "----------------------------------------"
+
+            echo "⏩ Garantindo que o diretório da aplicação (${APP_DIR}) exista..."
+            mkdir -p "${APP_DIR}"
+            cd "${APP_DIR}" # Muda para o diretório da app para que '--env-file ./.env' funcione
+
+            echo "⏩ Autenticando no Docker Hub..."
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+            echo "⏩ Fazendo pull da imagem de rollback: ${ROLLBACK_IMAGE_TAG}..."
+            docker pull "${ROLLBACK_IMAGE_TAG}"
+
+            echo "⏩ Parando e removendo o container antigo ('${CONTAINER_NAME}'), se existir..."
+            docker stop "${CONTAINER_NAME}" 2>/dev/null || echo "Container '${CONTAINER_NAME}' não estava rodando ou não existia."
+            docker rm   "${CONTAINER_NAME}" 2>/dev/null || echo "Container '${CONTAINER_NAME}' não existia para ser removido."
+
+            echo "⏩ Subindo novo container ('${CONTAINER_NAME}') com a imagem ${ROLLBACK_IMAGE_TAG}..."
+            # Assume que cada loja tem seu próprio arquivo .env em seu APP_DIR (ex: /srv/erp/lojas7/.env)
+            # O container internamente expõe a porta 80, que é mapeada para PARAM_HOST_PORT na VPS.
+            docker run -d \
+              --name "${CONTAINER_NAME}" \
+              --env-file ./.env \
+              -p "${PARAM_HOST_PORT}:80" \
+              "${ROLLBACK_IMAGE_TAG}"
+
+            echo "✅ Rollback para a loja '${PARAM_STORE_IDENTIFIER}' concluído com sucesso!"
+            echo "   Nova imagem em execução: ${ROLLBACK_IMAGE_TAG}"
+            echo "   Acessível na porta do host: ${PARAM_HOST_PORT}"

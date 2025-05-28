@@ -761,8 +761,9 @@ class Invoices extends REST_Controller
             pn.status as purchase_status,
             itm.description as product_name,
             itm.sku_code,
-            itm.rate as unit_price,  -- Alterado de cost para rate
-            (pn.qtde * itm.rate) as total_price  -- Adicionado cálculo do total
+            itm.image,
+            itm.rate as unit_price,
+            (pn.qtde * itm.rate) as total_price
         ');
             $this->db->from(db_prefix() . 'purchase_needs pn');
             $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
@@ -879,8 +880,9 @@ class Invoices extends REST_Controller
             pn.status as purchase_status,
             itm.description as product_name,
             itm.sku_code,
-            itm.rate as unit_price,  -- Alterado de cost para rate
-            (pn.qtde * itm.rate) as total_price  -- Adicionado cálculo do total
+            itm.image,
+            itm.rate as unit_price, 
+            (pn.qtde * itm.rate) as total_price
         ');
             $this->db->from(db_prefix() . 'purchase_needs pn');
             $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
@@ -1176,6 +1178,7 @@ class Invoices extends REST_Controller
             pn.status as purchase_status,
             itm.description as product_name,
             itm.sku_code,
+            itm.image,
             itm.cost as unit_cost,
             (itm.cost * pn.qtde) as total_cost
         ');

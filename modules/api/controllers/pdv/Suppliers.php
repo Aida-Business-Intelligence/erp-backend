@@ -48,9 +48,6 @@ class Suppliers extends REST_Controller
 
   public function data_post()
   {
-
-
-
     \modules\api\core\Apiinit::the_da_vinci_code('api');
     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -133,14 +130,14 @@ class Suppliers extends REST_Controller
 
       $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
       foreach ($percentage_fields as $field) {
-        if (isset($_POST[$field]) && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
+        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
           throw new Exception("Field {$field} must be between 0 and 100");
         }
       }
 
       $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
       foreach ($due_day_fields as $field) {
-        if (isset($_POST[$field]) && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
+        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
           throw new Exception("Field {$field} must be between 1 and 31");
         }
       }
@@ -273,14 +270,14 @@ class Suppliers extends REST_Controller
 
       $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
       foreach ($percentage_fields as $field) {
-        if (isset($_POST[$field]) && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
+        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
           throw new Exception("Field {$field} must be between 0 and 100");
         }
       }
 
       $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
       foreach ($due_day_fields as $field) {
-        if (isset($_POST[$field]) && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
+        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
           throw new Exception("Field {$field} must be between 1 and 31");
         }
       }

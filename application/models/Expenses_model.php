@@ -920,59 +920,104 @@ public function handle_file_uploads($expense_id, $files)
     
     // 🔹 Resumo das despesas (cards do frontend)
     public function get_expenses_summary($warehouse_id)
-    {
-        $today = date('Y-m-d');
+{
+    $today = date('Y-m-d');
+    $currentMonth = date('m');
+    $currentYear = date('Y');
 
-        // 🔵 Pagas
-        $paid = $this->sum_expenses_amount('paid', $warehouse_id);
-        $paid_count = $this->count_expenses_by_status('paid', $warehouse_id);
+    // 🔵 Pagas hoje
+    $paid_today = $this->sum_expenses_amount('paid', $warehouse_id, '=', $today);
+    $paid_today_count = $this->count_expenses_by_status('paid', $warehouse_id, '=', $today);
 
-        // 🟢 A Pagar (pendentes e vencimento >= hoje)
-        $to_pay = $this->sum_expenses_amount('pending', $warehouse_id, ">=");
-        $to_pay_count = $this->count_expenses_by_status('pending', $warehouse_id, ">=");
+    // 🔵 Pagas (todas)
+    $paid = $this->sum_expenses_amount('paid', $warehouse_id);
+    $paid_count = $this->count_expenses_by_status('paid', $warehouse_id);
 
-        // 🔴 Inadimplentes (pendentes e vencimento < hoje)
-        $overdue = $this->sum_expenses_amount('pending', $warehouse_id, "<");
-        $overdue_count = $this->count_expenses_by_status('pending', $warehouse_id, "<");
+    // 🟢 A pagar no mês
+    $to_pay_month = $this->sum_expenses_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
+    $to_pay_month_count = $this->count_expenses_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
 
-        return [
-            'paid' => $paid,
-            'paid_count' => $paid_count,
-            'to_pay' => $to_pay,
-            'to_pay_count' => $to_pay_count,
-            'overdue' => $overdue,
-            'overdue_count' => $overdue_count,
-        ];
+    // 🟢 A pagar (futuro)
+    $to_pay = $this->sum_expenses_amount('pending', $warehouse_id, '>=');
+    $to_pay_count = $this->count_expenses_by_status('pending', $warehouse_id, '>=');
+
+    // 🔴 Inadimplentes
+    $overdue = $this->sum_expenses_amount('pending', $warehouse_id, '<');
+    $overdue_count = $this->count_expenses_by_status('pending', $warehouse_id, '<');
+
+    return [
+        'paid' => $paid,
+        'paid_count' => $paid_count,
+        'paid_today' => $paid_today,
+        'paid_today_count' => $paid_today_count,
+        'to_pay' => $to_pay,
+        'to_pay_count' => $to_pay_count,
+        'to_pay_month' => $to_pay_month,
+        'to_pay_month_count' => $to_pay_month_count,
+        'overdue' => $overdue,
+        'overdue_count' => $overdue_count,
+    ];
+}
+
+private function sum_expenses_amount($status, $warehouse_id, $date_operator = null, $specific_date = null)
+{
+    $this->db->select_sum('amount');
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->where('type', 'despesa');
+    $this->db->where('warehouse_id', $warehouse_id);
+    $this->db->where('status', $status);
+
+    if ($date_operator && !$specific_date) {
+        $this->db->where('date ' . $date_operator, date('Y-m-d'));
     }
 
-    // 🔸 Funções auxiliares para somar
-    private function sum_expenses_amount($status, $warehouse_id, $date_operator = null)
-    {
-        $this->db->select_sum('amount');
-        $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('type', 'despesa');
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('status', $status);
-
-        if ($date_operator) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
-        }
-
-        return (float) $this->db->get()->row()->amount;
+    if ($specific_date) {
+        $this->db->where('date', $specific_date);
     }
 
-    // 🔸 Funções auxiliares para contar
-    private function count_expenses_by_status($status, $warehouse_id, $date_operator = null)
-    {
-        $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('type', 'despesa');
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('status', $status);
+    return (float) $this->db->get()->row()->amount;
+}
 
-        if ($date_operator) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
-        }
+private function count_expenses_by_status($status, $warehouse_id, $date_operator = null, $specific_date = null)
+{
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->where('type', 'despesa');
+    $this->db->where('warehouse_id', $warehouse_id);
+    $this->db->where('status', $status);
 
-        return (int) $this->db->count_all_results();
+    if ($date_operator && !$specific_date) {
+        $this->db->where('date ' . $date_operator, date('Y-m-d'));
     }
+
+    if ($specific_date) {
+        $this->db->where('date', $specific_date);
+    }
+
+    return (int) $this->db->count_all_results();
+}
+
+private function sum_expenses_in_month($status, $warehouse_id, $month, $year)
+{
+    $this->db->select_sum('amount');
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->where('type', 'despesa');
+    $this->db->where('warehouse_id', $warehouse_id);
+    $this->db->where('status', $status);
+    $this->db->where('MONTH(date)', $month);
+    $this->db->where('YEAR(date)', $year);
+
+    return (float) $this->db->get()->row()->amount;
+}
+
+private function count_expenses_in_month($status, $warehouse_id, $month, $year)
+{
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->where('type', 'despesa');
+    $this->db->where('warehouse_id', $warehouse_id);
+    $this->db->where('status', $status);
+    $this->db->where('MONTH(date)', $month);
+    $this->db->where('YEAR(date)', $year);
+
+    return (int) $this->db->count_all_results();
+}
 }

@@ -1599,35 +1599,42 @@ class Expenses extends REST_Controller
     }
 
     //28/05
+    
     public function summary_post()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
+{
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        $warehouse_id = $this->post('warehouse_id');
+    $warehouse_id = $this->post('warehouse_id');
 
-        if (empty($warehouse_id)) {
-            return $this->response([
-                'status' => false,
-                'message' => 'warehouse_id é obrigatório'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-        }
-
-        $summary = $this->Expenses_model->get_expenses_summary($warehouse_id);
-
-        $total = $summary['paid'] + $summary['to_pay'] + $summary['overdue'];
-        $paid_percent = $total > 0 ? round(($summary['paid'] / $total) * 100, 1) : 0;
-
+    if (empty($warehouse_id)) {
         return $this->response([
-            'status' => true,
-            'data' => [
-                'paid' => $summary['paid'],
-                'paid_count' => $summary['paid_count'],
-                'to_pay' => $summary['to_pay'],
-                'to_pay_count' => $summary['to_pay_count'],
-                'overdue' => $summary['overdue'],
-                'overdue_count' => $summary['overdue_count'],
-                'paid_percent' => $paid_percent
-            ],
-        ], REST_Controller::HTTP_OK);
+            'status' => false,
+            'message' => 'warehouse_id é obrigatório'
+        ], REST_Controller::HTTP_BAD_REQUEST);
     }
+
+    $summary = $this->Expenses_model->get_expenses_summary($warehouse_id);
+
+    $total = $summary['paid'] + $summary['to_pay'] + $summary['overdue'];
+    $paid_percent = $total > 0 ? round(($summary['paid'] / $total) * 100, 1) : 0;
+
+    return $this->response([
+        'status' => true,
+        'data' => [
+            'paid' => $summary['paid'],
+            'paid_count' => $summary['paid_count'],
+            'paid_today' => $summary['paid_today'],
+            'paid_today_count' => $summary['paid_today_count'],
+            'to_pay' => $summary['to_pay'],
+            'to_pay_count' => $summary['to_pay_count'],
+            'to_pay_month' => $summary['to_pay_month'],
+            'to_pay_month_count' => $summary['to_pay_month_count'],
+            'overdue' => $summary['overdue'],
+            'overdue_count' => $summary['overdue_count'],
+            'paid_percent' => $paid_percent
+        ],
+    ], REST_Controller::HTTP_OK);
+}
+
+
 }

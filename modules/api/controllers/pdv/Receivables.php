@@ -63,36 +63,41 @@ class Receivables extends REST_Controller
     }
 
     public function summary_post()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
+{
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        $warehouse_id = $this->post('warehouse_id');
+    $warehouse_id = $this->post('warehouse_id');
 
-        if (empty($warehouse_id)) {
-            return $this->response([
-                'status' => false,
-                'message' => 'warehouse_id é obrigatório'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-        }
-
-        $summary = $this->Receivables_model->get_receivables_summary($warehouse_id);
-
-        $total = $summary['received'] + $summary['to_receive'] + $summary['overdue'];
-        $received_percent = $total > 0 ? round(($summary['received'] / $total) * 100, 1) : 0;
-
+    if (empty($warehouse_id)) {
         return $this->response([
-            'status' => true,
-            'data' => [
-                'received' => $summary['received'],
-                'received_count' => $summary['received_count'],
-                'to_receive' => $summary['to_receive'],
-                'to_receive_count' => $summary['to_receive_count'],
-                'overdue' => $summary['overdue'],
-                'overdue_count' => $summary['overdue_count'],
-                'received_percent' => $received_percent
-            ],
-        ], REST_Controller::HTTP_OK);
+            'status' => false,
+            'message' => 'warehouse_id é obrigatório'
+        ], REST_Controller::HTTP_BAD_REQUEST);
     }
+
+    $summary = $this->Receivables_model->get_receivables_summary($warehouse_id);
+
+    $total = $summary['received'] + $summary['to_receive'] + $summary['overdue'];
+    $received_percent = $total > 0 ? round(($summary['received'] / $total) * 100, 1) : 0;
+
+    return $this->response([
+        'status' => true,
+        'data' => [
+            'received' => $summary['received'],
+            'received_count' => $summary['received_count'],
+            'received_today' => $summary['received_today'],
+            'received_today_count' => $summary['received_today_count'],
+            'to_receive' => $summary['to_receive'],
+            'to_receive_count' => $summary['to_receive_count'],
+            'to_receive_month' => $summary['to_receive_month'],
+            'to_receive_month_count' => $summary['to_receive_month_count'],
+            'overdue' => $summary['overdue'],
+            'overdue_count' => $summary['overdue_count'],
+            'received_percent' => $received_percent
+        ],
+    ], REST_Controller::HTTP_OK);
+}
+
 
     public function list_post()
     {

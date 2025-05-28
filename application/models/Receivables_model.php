@@ -130,58 +130,106 @@ class Receivables_model extends App_Model
 
     // 🔹 Resumo dos títulos (cards do frontend)
     public function get_receivables_summary($warehouse_id)
-    {
-        $today = date('Y-m-d');
+{
+    $today = date('Y-m-d');
+    $currentMonth = date('m');
+    $currentYear = date('Y');
 
-        // 🔵 Recebidos
-        $received = $this->sum_receivables_amount('paid', $warehouse_id);
-        $received_count = $this->count_receivables_by_status('paid', $warehouse_id);
+    // 🔵 Recebido no dia
+    $received_today = $this->sum_receivables_amount('paid', $warehouse_id, '=', $today);
+    $received_today_count = $this->count_receivables_by_status('paid', $warehouse_id, '=', $today);
 
-        // 🟢 A receber (pendentes e vencimento >= hoje)
-        $to_receive = $this->sum_receivables_amount('pending', $warehouse_id, ">=");
-        $to_receive_count = $this->count_receivables_by_status('pending', $warehouse_id, ">=");
+    // 🔵 Recebidas (todas)
+    $received = $this->sum_receivables_amount('paid', $warehouse_id);
+    $received_count = $this->count_receivables_by_status('paid', $warehouse_id);
 
-        // 🔴 Vencidos (pendentes e vencimento < hoje)
-        $overdue = $this->sum_receivables_amount('pending', $warehouse_id, "<");
-        $overdue_count = $this->count_receivables_by_status('pending', $warehouse_id, "<");
+    // 🟢 A receber no mês
+    $to_receive_month = $this->sum_receivables_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
+    $to_receive_month_count = $this->count_receivables_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
 
-        return [
-            'received' => $received,
-            'received_count' => $received_count,
-            'to_receive' => $to_receive,
-            'to_receive_count' => $to_receive_count,
-            'overdue' => $overdue,
-            'overdue_count' => $overdue_count,
-        ];
-    }
+    // 🟢 A receber (futuro)
+    $to_receive = $this->sum_receivables_amount('pending', $warehouse_id, '>=');
+    $to_receive_count = $this->count_receivables_by_status('pending', $warehouse_id, '>=');
+
+    // 🔴 Inadimplentes
+    $overdue = $this->sum_receivables_amount('pending', $warehouse_id, '<');
+    $overdue_count = $this->count_receivables_by_status('pending', $warehouse_id, '<');
+
+    return [
+        'received' => $received,
+        'received_count' => $received_count,
+        'received_today' => $received_today,
+        'received_today_count' => $received_today_count,
+        'to_receive' => $to_receive,
+        'to_receive_count' => $to_receive_count,
+        'to_receive_month' => $to_receive_month,
+        'to_receive_month_count' => $to_receive_month_count,
+        'overdue' => $overdue,
+        'overdue_count' => $overdue_count,
+    ];
+}
 
     // 🔹 Funções auxiliares internas
-    private function sum_receivables_amount($status, $warehouse_id, $date_operator = null)
-    {
-        $this->db->select_sum('amount');
-        $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('type', 'receita');
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('status', $status);
+    private function sum_receivables_amount($status, $warehouse_id, $date_operator = null, $specific_date = null)
+{
+    $this->db->select_sum('amount');
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->where('type', 'receita');
+    $this->db->where('warehouse_id', $warehouse_id);
+    $this->db->where('status', $status);
 
-        if ($date_operator) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
-        }
-
-        return (float) $this->db->get()->row()->amount;
+    if ($date_operator && !$specific_date) {
+        $this->db->where('date ' . $date_operator, date('Y-m-d'));
     }
 
-    private function count_receivables_by_status($status, $warehouse_id, $date_operator = null)
-    {
-        $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('type', 'receita');
-        $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('status', $status);
-
-        if ($date_operator) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
-        }
-
-        return (int) $this->db->count_all_results();
+    if ($specific_date) {
+        $this->db->where('date', $specific_date);
     }
+
+    return (float) $this->db->get()->row()->amount;
+}
+
+private function count_receivables_by_status($status, $warehouse_id, $date_operator = null, $specific_date = null)
+{
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->where('type', 'receita');
+    $this->db->where('warehouse_id', $warehouse_id);
+    $this->db->where('status', $status);
+
+    if ($date_operator && !$specific_date) {
+        $this->db->where('date ' . $date_operator, date('Y-m-d'));
+    }
+
+    if ($specific_date) {
+        $this->db->where('date', $specific_date);
+    }
+
+    return (int) $this->db->count_all_results();
+}
+
+private function sum_receivables_in_month($status, $warehouse_id, $month, $year)
+{
+    $this->db->select_sum('amount');
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->where('type', 'receita');
+    $this->db->where('warehouse_id', $warehouse_id);
+    $this->db->where('status', $status);
+    $this->db->where('MONTH(date)', $month);
+    $this->db->where('YEAR(date)', $year);
+
+    return (float) $this->db->get()->row()->amount;
+}
+
+private function count_receivables_in_month($status, $warehouse_id, $month, $year)
+{
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->where('type', 'receita');
+    $this->db->where('warehouse_id', $warehouse_id);
+    $this->db->where('status', $status);
+    $this->db->where('MONTH(date)', $month);
+    $this->db->where('YEAR(date)', $year);
+
+    return (int) $this->db->count_all_results();
+}
+
 }

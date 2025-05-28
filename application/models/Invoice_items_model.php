@@ -157,22 +157,7 @@ public function get_by_type($type = '') {
         return $this->db->get()->result_array();
     }
 
-    public function get_item($id = '') {
-        $this->db->select(db_prefix() . 'items.*, ' . db_prefix() . 'clients.company');
-        $this->db->from(db_prefix() . 'items');
-        $this->db->where(db_prefix() . 'items.id', $id);
-        $this->db->join(db_prefix() . 'clients', 'clients.userid = ' . db_prefix() . 'items.userid', 'left');
-
-        return $this->db->get()->row();
-    }
-
-  
-  public function get_by_sku($id = '') {
-        $this->db->from(db_prefix() . 'items');
-        $this->db->where(db_prefix() . 'items.sku_code', $id);
-
-        return $this->db->get()->row();
-    }
+   
   
   
     public function get_item($id = '') {

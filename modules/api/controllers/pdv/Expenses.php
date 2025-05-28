@@ -197,7 +197,7 @@ class Expenses extends REST_Controller
 
         $input['send_invoice_to_customer'] = (!empty($_POST['send_invoice_to_customer']) && $_POST['send_invoice_to_customer'] !== 'false') ? 1 : 0;
 
-        $expense_id = $this->Expenses_model->add($input);
+        $expense_id = $this->Expenses_model->addtwo($input);
 
         if (!$expense_id) {
             $this->response(['status' => false, 'message' => 'Failed to create expense'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);

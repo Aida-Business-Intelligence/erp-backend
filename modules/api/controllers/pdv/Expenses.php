@@ -20,21 +20,23 @@ class Expenses extends REST_Controller
     //26/05
     public function categoriestwo_get()
     {
-    try {
-        $warehouse_id = $this->input->get('warehouse_id') ?: 0;
-        $categories = $this->Expenses_model->get_categories($warehouse_id);
+        try {
+            $warehouse_id = $this->input->get('warehouse_id') ?: 0;
+            $search = $this->input->get('search') ?: '';
+            $pageSize = $this->input->get('pageSize') ?: 5;
+            $categories = $this->Expenses_model->get_categories($warehouse_id, $search, $pageSize);
 
-        $this->response([
-            'success' => true,
-            'data' => $categories
-        ], REST_Controller::HTTP_OK);
+            $this->response([
+                'success' => true,
+                'data' => $categories
+            ], REST_Controller::HTTP_OK);
 
-    } catch (Exception $e) {
-        $this->response([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-    }
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function currencies_get()
@@ -97,7 +99,7 @@ class Expenses extends REST_Controller
             $warehouse_id = $this->input->get('warehouse_id') ?: 0;
             $search = $this->input->get('search') ?: '';
             $page = $this->input->get('page') ?: 0;
-            $limit = $this->input->get('limit') ?: 10;
+            $limit = $this->input->get('pageSize') ?: 5;
 
             $clients = $this->Expenses_model->get_clients($warehouse_id, $search, $limit, $page);
 
@@ -192,6 +194,8 @@ class Expenses extends REST_Controller
             'status' => $_POST['status'] ?? 'pending',
             'warehouse_id' => $_POST['warehouse_id'] ?? 0,
         ];
+
+        $input['send_invoice_to_customer'] = (!empty($_POST['send_invoice_to_customer']) && $_POST['send_invoice_to_customer'] !== 'false') ? 1 : 0;
 
         $expense_id = $this->Expenses_model->add($input);
 

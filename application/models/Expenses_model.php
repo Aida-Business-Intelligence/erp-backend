@@ -42,10 +42,14 @@ public function handle_file_uploads($expense_id, $files)
         }
     }
 
-    public function get_categories($warehouse_id)
+    public function get_categories($warehouse_id, $search = '', $limit = 5)
     {
         $this->db->where('warehouse_id', $warehouse_id);
+        if (!empty($search)) {
+            $this->db->like('name', $search);
+        }
         $this->db->order_by('name', 'asc');
+        $this->db->limit($limit);
         return $this->db->get(db_prefix() . 'expenses_categories')->result_array();
     }
 
@@ -64,7 +68,7 @@ public function handle_file_uploads($expense_id, $files)
         return $this->db->get(db_prefix() . 'payment_modes')->result_array();
     }
 
-    public function get_clients($warehouse_id = 0, $search = '', $limit = 10, $page = 0)
+    public function get_clients($warehouse_id = 0, $search = '', $limit = 5, $page = 0)
     {
         $this->db->select('userid as id, company as name, vat');
         $this->db->where('active', 1);
@@ -77,7 +81,7 @@ public function handle_file_uploads($expense_id, $files)
             $this->db->group_end();
         }
 
-        $offset = ($page - 1) * $limit;
+        $offset = 0; // sempre retorna os primeiros 5
         $this->db->limit($limit, $offset);
         
         return $this->db->get(db_prefix() . 'clients')->result_array();

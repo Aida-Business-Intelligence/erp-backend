@@ -33,7 +33,7 @@ class Expenses extends REST_Controller
         $this->response([
             'success' => false,
             'message' => $e->getMessage()
-        ], REST_Controller::HTTP_BAD_REQUEST);
+        ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
     }
 
@@ -51,7 +51,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], REST_Controller::HTTP_BAD_REQUEST);
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -69,7 +69,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], REST_Controller::HTTP_BAD_REQUEST);
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -87,7 +87,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], REST_Controller::HTTP_BAD_REQUEST);
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -110,7 +110,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], REST_Controller::HTTP_BAD_REQUEST);
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -138,60 +138,76 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], REST_Controller::HTTP_BAD_REQUEST);
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     public function createtwo_post()
     {
-        try {
-            $data = $this->input->post();
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-            // Validate required fields
-            $required_fields = ['category', 'currency', 'amount', 'expense_name', 'date', 'type'];
-            foreach ($required_fields as $field) {
-                if (empty($data[$field])) {
-                    throw new Exception("O campo {$field} é obrigatório", REST_Controller::HTTP_BAD_REQUEST);
-                }
-            }
+        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
 
-            // Convert date format if needed
-            if (isset($data['date'])) {
-                $data['date'] = date('Y-m-d', strtotime($data['date']));
-            }
-
-            // Handle recurring data
-            if (isset($data['recurring']) && $data['recurring']) {
-                if (empty($data['recurring_type']) || empty($data['repeat_every'])) {
-                    throw new Exception("Para despesas recorrentes, tipo e frequência são obrigatórios", REST_Controller::HTTP_BAD_REQUEST);
-                }
-            } else {
-                // Clear recurring fields if not recurring
-                $data['recurring'] = 0;
-                $data['recurring_type'] = null;
-                $data['repeat_every'] = null;
-                $data['total_cycles'] = 0;
-                $data['custom_recurring'] = 0;
-            }
-
-            $id = $this->Expenses_model->addtwo($data);
-
-            if (!$id) {
-                throw new Exception("Falha ao cadastrar despesa/receita", REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-            }
-
-            $this->response([
-                'success' => true,
-                'id' => $id,
-                'message' => $data['type'] === 'despesa' ? 'Despesa cadastrada com sucesso' : 'Receita cadastrada com sucesso'
-            ], REST_Controller::HTTP_OK);
-
-        } catch (Exception $e) {
-            $this->response([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], REST_Controller::HTTP_BAD_REQUEST);
+        if ($is_multipart) {
+            $_POST = $this->input->post();
+        } else {
+            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         }
+
+        if (empty($_POST)) {
+            $this->response(['status' => false, 'message' => 'Invalid input data'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $input = [
+            'category' => $_POST['category'] ?? null,
+            'currency' => $_POST['currency'] ?? null,
+            'amount' => $_POST['amount'] ?? null,
+            'tax' => $_POST['tax'] ?? null,
+            'tax2' => $_POST['tax2'] ?? 0,
+            'reference_no' => $_POST['reference_no'] ?? null,
+            'note' => $_POST['note'] ?? null,
+            'expense_name' => $_POST['expense_name'] ?? null,
+            'clientid' => $_POST['clientid'] ?? 0,
+            'project_id' => $_POST['project_id'] ?? 0,
+            'billable' => $_POST['billable'] ?? 0,
+            'invoiceid' => $_POST['invoiceid'] ?? null,
+            'paymentmode' => $_POST['paymentmode'] ?? null,
+            'date' => $_POST['date'] ?? null,
+            'recurring_type' => $_POST['recurring_type'] ?? null,
+            'repeat_every' => $_POST['repeat_every'] ?? null,
+            'recurring' => $_POST['recurring'] ?? 0,
+            'cycles' => $_POST['cycles'] ?? 0,
+            'total_cycles' => $_POST['total_cycles'] ?? 0,
+            'custom_recurring' => $_POST['custom_recurring'] ?? 0,
+            'last_recurring_date' => $_POST['last_recurring_date'] ?? null,
+            'create_invoice_billable' => $_POST['create_invoice_billable'] ?? 0,
+            'send_invoice_to_customer' => $_POST['send_invoice_to_customer'] ?? 0,
+            'recurring_from' => $_POST['recurring_from'] ?? null,
+            'dateadded' => date('Y-m-d H:i:s'),
+            'addedfrom' => get_staff_user_id() ?? 1,
+            'perfex_saas_tenant_id' => 'master',
+            'type' => $_POST['type'] ?? 'despesa',
+            'status' => $_POST['status'] ?? 'pending',
+            'warehouse_id' => $_POST['warehouse_id'] ?? 0,
+        ];
+
+        $expense_id = $this->Expenses_model->add($input);
+
+        if (!$expense_id) {
+            $this->response(['status' => false, 'message' => 'Failed to create expense'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        // Upload de arquivos
+        $this->Expenses_model->handle_file_uploads($expense_id, $_FILES);
+
+        $this->response([
+            'status' => true,
+            'message' => 'Expense created successfully',
+            'data' => ['id' => $expense_id]
+        ], REST_Controller::HTTP_OK);
     }
 
     public function upload_post()
@@ -223,7 +239,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], REST_Controller::HTTP_BAD_REQUEST);
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -287,7 +303,7 @@ class Expenses extends REST_Controller
             $this->response([
                 'success' => false,
                 'message' => $e->getMessage()
-            ], REST_Controller::HTTP_BAD_REQUEST);
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

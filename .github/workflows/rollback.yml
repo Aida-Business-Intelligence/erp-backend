@@ -1,4 +1,4 @@
-name: Rollback Generalizado para Loja na VPS
+name: Rollback Imagem
 
 on:
   workflow_dispatch:

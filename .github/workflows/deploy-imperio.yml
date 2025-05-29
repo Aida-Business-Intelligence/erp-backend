@@ -1,5 +1,4 @@
-name: Deploy (build docker + dockerhub + deploy vps)
-
+name: Deploy Imperio
 on:
   push:
     branches: [imperio]

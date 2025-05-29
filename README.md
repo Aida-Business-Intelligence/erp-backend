@@ -7,6 +7,10 @@ Este projeto configura o **build e deploy automático**
 - **VPS** para execução do container via SSH.
 
 ---
+# Ambientes Existentes
+http://31.97.17.80:8081/  **HML**
+http://31.97.17.80:8082/  **imperio**
+http://31.97.17.80:8083/  **lojas7**
 
 ## Fluxo implementado
 

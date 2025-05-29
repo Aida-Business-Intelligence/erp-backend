@@ -1,4 +1,4 @@
-name: Rollback Generalizado para Loja na VPS
+name: Rollback Imagem
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ on:
         required: true
         type: string # Entrada como string, validada como número no script
       image_tag_suffix:
-        description: 'Sufixo da tag da imagem para rollback (ex: prod-V1.0.0, dev-V0.2.1, lojasV0.0.1). Será concatenado com o nome base da imagem.'
+        description: 'Sufixo da tag da imagem para rollback (ex: Use a tag ¨ERP¨, pois estamos usando uma imagem para todos clientes. ). Será concatenado com o nome base da imagem.'
         required: true
         type: string
 
@@ -28,10 +28,7 @@ jobs:
       - name: Checkout código
         uses: actions/checkout@v4
         # Esta etapa geralmente não é estritamente necessária para o rollback,
-        # a menos que você tenha scripts ou arquivos de configuração no repositório
-        # que precisem ser usados durante o processo de rollback na VPS.
-        # Para este cenário (apenas pull e restart do Docker), pode ser omitida.
-        # Mantida por precaução ou se o .env for gerenciado no repo.
+        
 
       - name: Mostrar Inputs Manuais
         run: |

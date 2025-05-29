@@ -1636,5 +1636,37 @@ class Expenses extends REST_Controller
     ], REST_Controller::HTTP_OK);
 }
 
+public function delete_post()
+{
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+    $id = $this->post('id');
+    $warehouse_id = $this->post('warehouse_id');
+    $type = $this->post('type'); // 'receita' ou 'despesa'
+
+    if (empty($id)) {
+        return $this->response([
+            'status' => false,
+            'message' => 'ID é obrigatório para deletar'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+    }
+
+    $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id, $type);
+
+    if ($deleted) {
+        return $this->response([
+            'status' => true,
+            'message' => 'Registro deletado com sucesso'
+        ], REST_Controller::HTTP_OK);
+    } else {
+        return $this->response([
+            'status' => false,
+            'message' => 'Falha ao deletar o registro'
+        ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+}
+
+
+
 
 }

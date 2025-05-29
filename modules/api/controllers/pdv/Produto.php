@@ -159,17 +159,12 @@ class Produto extends REST_Controller
         $sortOrder = $this->post('sortOrder') ?: 'DESC';
         $send = $this->post('send') ?: null;
 
-        $status = $this->post('status');
+        // Novos filtros
         $category = $this->post('category');
         $subcategory = $this->post('subcategory');
-
-        $statusFilter = null;
-        if (is_array($status) && !empty($status)) {
-            $statusFilter = $status;
-        }
-
-        $start_date = $this->post('startDate') ?: '';
-        $end_date = $this->post('endDate') ?: '';
+        $minPrice = $this->post('minPrice');
+        $maxPrice = $this->post('maxPrice');
+        $company = $this->post('company');
 
         $data = $this->Invoice_items_model->get_api2(
             $id,
@@ -178,17 +173,19 @@ class Produto extends REST_Controller
             $search,
             $sortField,
             $sortOrder,
-            $statusFilter,
-            $start_date,
-            $end_date,
+            null, // statusFilter removido pois não é mais necessário
+            null, // startDate removido pois não é mais necessário
+            null, // endDate removido pois não é mais necessário
             $category,
             $subcategory,
             $warehouse_id,
-            $send
+            $send,
+            $minPrice,
+            $maxPrice,
+            $company
         );
 
         if ($data['total'] > 0) {
-
             $this->response(
                 [
                     'status' => true,

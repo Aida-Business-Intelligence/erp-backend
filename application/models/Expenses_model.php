@@ -1023,7 +1023,12 @@ private function count_expenses_in_month($status, $warehouse_id, $month, $year)
 
 public function delete_expense($id, $warehouse_id = null, $type = null)
 {
-    $this->db->where('id', $id);
+    if (is_array($id)) {
+        $this->db->where_in('id', $id);
+    } else {
+        $this->db->where('id', $id);
+    }
+
     if ($warehouse_id !== null) {
         $this->db->where('warehouse_id', $warehouse_id);
     }
@@ -1033,7 +1038,5 @@ public function delete_expense($id, $warehouse_id = null, $type = null)
 
     return $this->db->delete(db_prefix() . 'expenses');
 }
-
-
 
 }

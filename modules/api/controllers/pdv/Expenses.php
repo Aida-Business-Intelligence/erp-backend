@@ -1641,8 +1641,28 @@ public function delete_post()
     \modules\api\core\Apiinit::the_da_vinci_code('api');
 
     $id = $this->post('id');
+    $rows = $this->post('rows');
     $warehouse_id = $this->post('warehouse_id');
     $type = $this->post('type'); // 'receita' ou 'despesa'
+
+    if (!empty($rows) && is_array($rows)) {
+        $success = 0;
+        $fail = 0;
+        foreach ($rows as $rowId) {
+            $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id, $type);
+            if ($deleted) {
+                $success++;
+            } else {
+                $fail++;
+            }
+        }
+        return $this->response([
+            'status' => $fail === 0,
+            'message' => $fail === 0 ? 'Registros deletados com sucesso' : "Alguns registros não foram deletados",
+            'success_count' => $success,
+            'fail_count' => $fail
+        ], $fail === 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_PARTIAL_CONTENT);
+    }
 
     if (empty($id)) {
         return $this->response([

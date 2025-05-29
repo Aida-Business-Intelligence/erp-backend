@@ -12,7 +12,7 @@ on:
         required: true
         type: string # Entrada como string, validada como número no script
       image_tag_suffix:
-        description: 'Sufixo da tag da imagem para rollback (ex: Use a tag ¨ERP¨, pois estamos usando uma imagem para todos clientes. ). Será concatenado com o nome base da imagem.'
+        description: 'Sufixo da tag da imagem para rollback (ex: Use a tag ¨ERPV0.0.1¨, pois estamos usando uma imagem para todos clientes. ). Será concatenado com o nome base da imagem.'
         required: true
         type: string
 

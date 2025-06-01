@@ -1039,4 +1039,26 @@ public function delete_expense($id, $warehouse_id = null, $type = null)
     return $this->db->delete(db_prefix() . 'expenses');
 }
 
+//01/06
+public function updatetwo($data, $id)
+{
+    if (empty($id) || !is_numeric($id)) {
+        return false;
+    }
+
+    // Atualiza os dados permitidos
+    $this->db->where('id', $id);
+    $this->db->update(db_prefix() . 'expenses', $data);
+
+    // Retorna true se houverem alterações
+    return $this->db->affected_rows() > 0;
+}
+
+    public function gettwo($id)
+    {
+         $this->db->where('id', $id);
+        return $this->db->get(db_prefix() . 'expenses')->row();
+    }
+
+
 }

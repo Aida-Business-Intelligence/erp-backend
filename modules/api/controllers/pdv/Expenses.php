@@ -1729,7 +1729,73 @@ public function delete_post()
         ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
 }
+//01/06
+public function updatetwo_post($id = '')
+{
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
 
+    if (empty($id)) {
+        return $this->response([
+            'status' => false,
+            'message' => 'ID is required'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+    }
+
+    // Detecta tipo de conteúdo
+    $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+    $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+
+    // Coleta os dados com segurança
+    if ($is_multipart) {
+        $_POST = $this->input->post();
+    } else {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    }
+
+    if (empty($_POST)) {
+        return $this->response([
+            'status' => false,
+            'message' => 'Invalid input data'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+    }
+
+    // Campos permitidos para atualização
+    $fields = [
+        'expense_name', 'type', 'category', 'amount', 'date',
+        'paymentmode', 'clientid', 'note', 'billable',
+        'send_invoice_to_customer', 'status', 'recurring',
+        'warehouse_id', 'reference_no'
+    ];
+
+    $updateData = [];
+
+    foreach ($fields as $field) {
+        if (isset($_POST[$field])) {
+            $updateData[$field] = $_POST[$field];
+        }
+    }
+
+    // Tratamento para booleano especial (igual ao create)
+    $updateData['send_invoice_to_customer'] = (!empty($_POST['send_invoice_to_customer']) && $_POST['send_invoice_to_customer'] !== 'false') ? 1 : 0;
+
+    // Log para depuração
+    log_activity('Updating expense ID: ' . $id . ' with data: ' . print_r($updateData, true));
+
+    $success = $this->Expenses_model->updatetwo($updateData, $id);
+
+    if (!$success) {
+        return $this->response([
+            'status' => false,
+            'message' => 'Failed to update expense/receita or no changes made'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+    }
+
+    return $this->response([
+        'status' => true,
+        'message' => 'Despesa/Receita atualizada com sucesso',
+        'data' => $this->Expenses_model->gettwo($id)
+    ], REST_Controller::HTTP_OK);
+}
 
 
 

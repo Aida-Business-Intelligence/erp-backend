@@ -1319,65 +1319,109 @@ class Expenses extends REST_Controller
     }
 
     public function get_get($id = '')
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
+{
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        if (empty($id)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'ID is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $this->db->select('*,' . db_prefix() . 'expenses.id as id,' .
-            db_prefix() . 'expenses_categories.name as category_name,' .
-            db_prefix() . 'expenses.paymentmode as payment_mode,' .
-            db_prefix() . 'taxes.name as tax_name, ' .
-            db_prefix() . 'taxes.taxrate as taxrate,' .
-            db_prefix() . 'taxes_2.name as tax_name2, ' .
-            db_prefix() . 'taxes_2.taxrate as taxrate2, ' .
-            db_prefix() . 'expenses.file as file');
-
-        $this->db->from(db_prefix() . 'expenses');
-        $this->db->join(db_prefix() . 'clients', '' . db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses.clientid', 'left');
-        $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
-        $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
-        $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category');
-
-        $this->db->where(db_prefix() . 'expenses.id', $id);
-
-        $expense = $this->db->get()->row();
-
-        if (!$expense) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Expense not found'
-            ], REST_Controller::HTTP_NOT_FOUND);
-            return;
-        }
-
-        $expense->payment_mode_name = $this->get_payment_mode_name($expense->payment_mode);
-
-        if ($expense->recurring == 1) {
-            $expense->recurring_info = array(
-                'recurring' => true,
-                'recurring_type' => $expense->recurring_type,
-                'repeat_every' => $expense->repeat_every,
-                'cycles_completed' => $expense->cycles,
-                'total_cycles' => $expense->total_cycles,
-                'custom_recurring' => $expense->custom_recurring == 1,
-                'last_recurring_date' => $expense->last_recurring_date,
-            );
-        } else {
-            $expense->recurring_info = null;
-        }
-
+    if (empty($id)) {
         $this->response([
-            'status' => TRUE,
-            'data' => $expense
-        ], REST_Controller::HTTP_OK);
+            'status' => FALSE,
+            'message' => 'ID is required'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
     }
+
+    $this->db->select(
+        // Campos da tabela expenses
+        db_prefix() . 'expenses.id as id,' .
+        db_prefix() . 'expenses.category,' .
+        db_prefix() . 'expenses.currency,' .
+        db_prefix() . 'expenses.amount,' .
+        db_prefix() . 'expenses.tax,' .
+        db_prefix() . 'expenses.tax2,' .
+        db_prefix() . 'expenses.reference_no,' .
+        db_prefix() . 'expenses.note,' .
+        db_prefix() . 'expenses.expense_name,' .
+        db_prefix() . 'expenses.clientid,' .
+        db_prefix() . 'expenses.project_id,' .
+        db_prefix() . 'expenses.billable,' .
+        db_prefix() . 'expenses.invoiceid,' .
+        db_prefix() . 'expenses.paymentmode,' .
+        db_prefix() . 'expenses.date,' .
+        db_prefix() . 'expenses.recurring_type,' .
+        db_prefix() . 'expenses.repeat_every,' .
+        db_prefix() . 'expenses.recurring,' .
+        db_prefix() . 'expenses.cycles,' .
+        db_prefix() . 'expenses.total_cycles,' .
+        db_prefix() . 'expenses.custom_recurring,' .
+        db_prefix() . 'expenses.last_recurring_date,' .
+        db_prefix() . 'expenses.create_invoice_billable,' .
+        db_prefix() . 'expenses.send_invoice_to_customer,' .
+        db_prefix() . 'expenses.recurring_from,' .
+        db_prefix() . 'expenses.dateadded,' .
+        db_prefix() . 'expenses.addedfrom,' .
+        db_prefix() . 'expenses.perfex_saas_tenant_id,' .
+        db_prefix() . 'expenses.type,' . // <- campo correto
+        db_prefix() . 'expenses.status,' .
+        db_prefix() . 'expenses.warehouse_id,' .
+        db_prefix() . 'expenses.file,' .
+        db_prefix() . 'expenses.comprovante,' .
+
+        // Apenas os dois campos da tabela clients
+        db_prefix() . 'clients.userid as userid,' .
+        db_prefix() . 'clients.company as company,' .
+        db_prefix() . 'clients.vat,' .
+        db_prefix() . 'clients.phonenumber,' .
+        db_prefix() . 'clients.address,' .
+        db_prefix() . 'clients.email_default,'.
+
+        // Campos derivados
+        db_prefix() . 'expenses_categories.name as category_name,' .
+        db_prefix() . 'expenses.paymentmode as payment_mode,' .
+        db_prefix() . 'taxes.name as tax_name,' .
+        db_prefix() . 'taxes.taxrate as taxrate,' .
+        db_prefix() . 'taxes_2.name as tax_name2,' .
+        db_prefix() . 'taxes_2.taxrate as taxrate2'
+    );
+
+    $this->db->from(db_prefix() . 'expenses');
+    $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses.clientid', 'left');
+    $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
+    $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
+    $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category', 'left');
+
+    $this->db->where(db_prefix() . 'expenses.id', $id);
+
+    $expense = $this->db->get()->row();
+
+    if (!$expense) {
+        $this->response([
+            'status' => FALSE,
+            'message' => 'Expense not found'
+        ], REST_Controller::HTTP_NOT_FOUND);
+        return;
+    }
+
+    // Modo de pagamento amigável
+    $expense->payment_mode_name = $this->get_payment_mode_name($expense->payment_mode);
+
+    // Dados de recorrência
+    $expense->recurring_info = ($expense->recurring == 1) ? [
+        'recurring' => true,
+        'recurring_type' => $expense->recurring_type,
+        'repeat_every' => $expense->repeat_every,
+        'cycles_completed' => $expense->cycles,
+        'total_cycles' => $expense->total_cycles,
+        'custom_recurring' => $expense->custom_recurring == 1,
+        'last_recurring_date' => $expense->last_recurring_date,
+    ] : null;
+
+    $this->response([
+        'status' => TRUE,
+        'data' => $expense
+    ], REST_Controller::HTTP_OK);
+}
+
+
 
     public function financial_report_post()
     {

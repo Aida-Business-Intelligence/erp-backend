@@ -9,7 +9,6 @@ class Receivables_model extends App_Model
         parent::__construct();
     }
 
-    // 🔹 Listar contas a receber
     public function get_receivables($filters = [], $page = 0, $pageSize = 10, $sortField = 'date', $sortOrder = 'DESC')
     {
         $this->db->select('
@@ -40,8 +39,6 @@ class Receivables_model extends App_Model
             $this->db->or_like('e.reference_no', $filters['search']);
             $this->db->group_end();
         }
-
-        // 🔥 Filtro por data exata (quando seleciona no calendário)
         if (
             !empty($filters['startDate']) &&
             !empty($filters['endDate']) &&
@@ -57,7 +54,6 @@ class Receivables_model extends App_Model
             }
         }
 
-        // 🔥 Aqui faz a correção da ordenação
         $allowedSortFields = [
             'id' => 'e.id',
             'date' => 'e.date',
@@ -103,7 +99,6 @@ class Receivables_model extends App_Model
             $this->db->group_end();
         }
 
-        // 🔥 Filtro por data exata (quando seleciona no calendário)
         if (
             !empty($filters['startDate']) &&
             !empty($filters['endDate']) &&
@@ -122,36 +117,24 @@ class Receivables_model extends App_Model
         return $this->db->count_all_results();
     }
 
-
-
-    // 🔹 Contagem total para paginação
-
-
-
-    // 🔹 Resumo dos títulos (cards do frontend)
     public function get_receivables_summary($warehouse_id)
 {
     $today = date('Y-m-d');
     $currentMonth = date('m');
     $currentYear = date('Y');
 
-    // 🔵 Recebido no dia
     $received_today = $this->sum_receivables_amount('paid', $warehouse_id, '=', $today);
     $received_today_count = $this->count_receivables_by_status('paid', $warehouse_id, '=', $today);
 
-    // 🔵 Recebidas (todas)
     $received = $this->sum_receivables_amount('paid', $warehouse_id);
     $received_count = $this->count_receivables_by_status('paid', $warehouse_id);
 
-    // 🟢 A receber no mês
     $to_receive_month = $this->sum_receivables_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
     $to_receive_month_count = $this->count_receivables_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
 
-    // 🟢 A receber (futuro)
     $to_receive = $this->sum_receivables_amount('pending', $warehouse_id, '>=');
     $to_receive_count = $this->count_receivables_by_status('pending', $warehouse_id, '>=');
 
-    // 🔴 Inadimplentes
     $overdue = $this->sum_receivables_amount('pending', $warehouse_id, '<');
     $overdue_count = $this->count_receivables_by_status('pending', $warehouse_id, '<');
 
@@ -169,7 +152,6 @@ class Receivables_model extends App_Model
     ];
 }
 
-    // 🔹 Funções auxiliares internas
     private function sum_receivables_amount($status, $warehouse_id, $date_operator = null, $specific_date = null)
 {
     $this->db->select_sum('amount');

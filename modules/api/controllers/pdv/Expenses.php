@@ -1759,24 +1759,40 @@ public function updatetwo_post($id = '')
         ], REST_Controller::HTTP_BAD_REQUEST);
     }
 
-    // Campos permitidos para atualização
+    // Campos permitidos para atualização (incluindo os novos campos de recorrência)
     $fields = [
         'expense_name', 'type', 'category', 'amount', 'date',
         'paymentmode', 'clientid', 'note', 'billable',
         'send_invoice_to_customer', 'status', 'recurring',
-        'warehouse_id', 'reference_no'
+        'warehouse_id', 'reference_no',
+        // Novos campos de recorrência
+        'recurring_type', 'repeat_every', 'cycles', 'total_cycles',
+        'custom_recurring', 'last_recurring_date', 'create_invoice_billable',
+        'recurring_from'
     ];
 
     $updateData = [];
 
     foreach ($fields as $field) {
         if (isset($_POST[$field])) {
-            $updateData[$field] = $_POST[$field];
+            // Tratamento especial para campos booleanos
+            if (in_array($field, ['billable', 'send_invoice_to_customer', 'recurring', 'custom_recurring', 'create_invoice_billable'])) {
+                $updateData[$field] = (!empty($_POST[$field]) && $_POST[$field] !== 'false') ? 1 : 0;
+            } 
+            // Tratamento para campos numéricos
+            elseif (in_array($field, ['repeat_every', 'cycles', 'total_cycles'])) {
+                $updateData[$field] = is_numeric($_POST[$field]) ? $_POST[$field] : 0;
+            }
+            // Tratamento para datas
+            elseif (in_array($field, ['last_recurring_date'])) {
+                $updateData[$field] = !empty($_POST[$field]) ? $_POST[$field] : null;
+            }
+            // Demais campos
+            else {
+                $updateData[$field] = $_POST[$field];
+            }
         }
     }
-
-    // Tratamento para booleano especial (igual ao create)
-    $updateData['send_invoice_to_customer'] = (!empty($_POST['send_invoice_to_customer']) && $_POST['send_invoice_to_customer'] !== 'false') ? 1 : 0;
 
     // Log para depuração
     log_activity('Updating expense ID: ' . $id . ' with data: ' . print_r($updateData, true));

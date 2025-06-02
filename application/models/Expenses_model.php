@@ -1046,6 +1046,13 @@ public function updatetwo($data, $id)
         return false;
     }
 
+    // Tratamento especial para campos de data
+    if (isset($data['last_recurring_date']) && !empty($data['last_recurring_date'])) {
+        $data['last_recurring_date'] = to_sql_date($data['last_recurring_date']);
+    } else {
+        $data['last_recurring_date'] = null;
+    }
+
     // Atualiza os dados permitidos
     $this->db->where('id', $id);
     $this->db->update(db_prefix() . 'expenses', $data);

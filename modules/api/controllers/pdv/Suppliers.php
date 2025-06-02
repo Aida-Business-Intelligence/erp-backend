@@ -158,7 +158,7 @@ class Suppliers extends REST_Controller
         'email_default' => $_POST['emails'][0] ?? null,
         'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
         'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
-
+        'warehouse_id' => $_POST['warehouse_id'] ?? null,
         'company_type' => $_POST['company_type'] ?? null,
         'business_type' => $_POST['business_type'] ?? null,
         'segment' => $_POST['segment'] ?? null,
@@ -174,6 +174,7 @@ class Suppliers extends REST_Controller
         'agent_commission_base_percentage' => !empty($_POST['agent_commission_base_percentage']) ? (float) $_POST['agent_commission_base_percentage'] : 0,
         'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
         'agent_commission_due_day' => !empty($_POST['agent_commission_due_day']) ? (int) $_POST['agent_commission_due_day'] : 0
+
       ];
 
       $supplier_id = $this->clients_model->add($supplier_data);
@@ -573,6 +574,7 @@ class Suppliers extends REST_Controller
     $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
     $startDate = $this->get('startDate');
     $endDate = $this->get('endDate');
+    $warehouse_id = $this->get('warehouse_id') ?: 0;
 
     $this->db->select('c.userid, c.company, c.vat, c.phonenumber, c.city, c.state, 
       c.country, c.active, c.datecreated, c.email_default, c.payment_terms,
@@ -591,7 +593,7 @@ class Suppliers extends REST_Controller
     $this->db->join(db_prefix() . 'email_supplier es', 'es.supplier_id = c.userid', 'left');
     $this->db->join(db_prefix() . 'contacts co', 'co.userid = c.userid', 'left');
     $this->db->where('c.is_supplier', 1);
-
+    $this->db->where('c.warehouse_id', $warehouse_id);
     if (!empty($search)) {
       $this->db->group_start();
       $this->db->like('c.company', $search);

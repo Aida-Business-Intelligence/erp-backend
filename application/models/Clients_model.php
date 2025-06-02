@@ -257,53 +257,15 @@ class Clients_model extends App_Model
 //        // (O resto do código existente para quando $id é válido)
 //
 
-    // public function get_api($id = '', $page = 0, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $warehouse_id = 0)
-    // {
-    //     if (!is_numeric($id)) {
-    //         $allowedSortFields = ['userid', 'company', 'email'];
-    //         $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'userid';
 
-
-    //         // Conta o total
-    //         $this->db->select('COUNT(*) as total');
-    //         if (!empty($search)) {
-    //             $this->db->like('company', $search);
-    //         }
-    //         $total = $this->db->get(db_prefix() . 'clients')->row()->total;
-    //         $this->db->where('clients.warehouse_id', $warehouse_id);
-
-
-    //         // Busca os dados com paginação
-    //         if (!empty($search)) {
-    //             $this->db->like('company', $search);
-    //         }
-    //         $this->db->order_by($sortField, $sortOrder);
-
-    //         // Certifique-se de que o valor de `$page` seja sempre maior ou igual a 1.
-    //         $offset = ($page > 1) ? ($page - 1) * $limit : 0;
-
-    //         $this->db->limit($limit, $offset);
-
-    //         $clients = $this->db->get(db_prefix() . 'clients')->result();
-
-
-    //         return ['data' => $clients, 'total' => $total];
-    //     } else {
-    //         $this->db->where('clients.warehouse_id', $warehouse_id);
-    //         $client = $this->get($id);
-    //         return ['data' => (array) $client, 'total' => $client ? 1 : 0];
-
-    //     }
-    // }
-
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
     {
 
         $this->db->where('is_supplier', 0);
         if (!is_numeric($id)) {
             $this->db->select('*'); // Seleciona todos os campos
             $this->db->from(db_prefix() . 'clients'); // Define a tabela
-            // $this->db->where('clients.warehouse_id', value: $warehouse_id);
+            $this->db->where('clients.warehouse_id', value: $warehouse_id);
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -322,7 +284,7 @@ class Clients_model extends App_Model
             // Contagem de total de registros
             $this->db->reset_query();
             $this->db->from(db_prefix() . 'clients');
-            // $this->db->where('clients.warehouse_id', $warehouse_id); // Filtro por warehouse_id na contagem
+            $this->db->where('clients.warehouse_id', $warehouse_id);
 
             $this->db->where('is_supplier', 0);
 
@@ -342,7 +304,7 @@ class Clients_model extends App_Model
             $this->db->select('*');
             $this->db->from(db_prefix() . 'clients');
             $this->db->where(db_prefix() . 'clients.userid', $id);
-            // $this->db->where('clients.warehouse_id', value: $warehouse_id);
+            $this->db->where('clients.warehouse_id', value: $warehouse_id);
 
             $client = $this->db->get()->row();
             $total = $client ? 1 : 0;

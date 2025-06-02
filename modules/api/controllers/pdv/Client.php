@@ -76,7 +76,6 @@ class Client extends REST_Controller
      */
     public function list_post($id = '')
     {
-
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -196,6 +195,7 @@ class Client extends REST_Controller
 
         // Outros campos do cliente
         $_input['vat'] = $_POST['vat'] ?? null;
+        $_input['is_supplier'] = 0;
         $_input['email_default'] = $_POST['email_default'] ?? null;
         $_input['phonenumber'] = $_POST['phonenumber'] ?? null;
         $_input['documentType'] = $_POST['documentType'] ?? null;

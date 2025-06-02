@@ -96,22 +96,22 @@ class Produto extends REST_Controller
 
 
             // Adiciona 'pdv_desconto_produto' a cada elemento do array $data['data']
-           /* foreach ($data['data'] as &$dataItem) {
+            /* foreach ($data['data'] as &$dataItem) {
 
-                if ((int) $dataItem['maxDiscount'] >= $dataItem['pdv_desconto_produto']) {
-                    $dataItem['pdv_desconto_produto'] = $dataItem['maxDiscount'];
-                } else {
-                    $dataItem['pdv_desconto_produto'] = $pdv_desconto_produto;
-                }
-            }
-           */
+                 if ((int) $dataItem['maxDiscount'] >= $dataItem['pdv_desconto_produto']) {
+                     $dataItem['pdv_desconto_produto'] = $dataItem['maxDiscount'];
+                 } else {
+                     $dataItem['pdv_desconto_produto'] = $pdv_desconto_produto;
+                 }
+             }
+            */
 
             // corrigido - lucas
             foreach ($data['data'] as &$dataItem) {
                 $dataItem['pdv_desconto_produto'] = $pdv_desconto_produto;
 
                 if (isset($dataItem['maxDiscount']) && $dataItem['maxDiscount'] !== null) {
-                    if ((float)$dataItem['maxDiscount'] < (float)$pdv_desconto_produto) {
+                    if ((float) $dataItem['maxDiscount'] < (float) $pdv_desconto_produto) {
                         $dataItem['pdv_desconto_produto'] = $dataItem['maxDiscount'];
                     }
                 }
@@ -159,17 +159,12 @@ class Produto extends REST_Controller
         $sortOrder = $this->post('sortOrder') ?: 'DESC';
         $send = $this->post('send') ?: null;
 
-        $status = $this->post('status');
+        // Novos filtros
         $category = $this->post('category');
         $subcategory = $this->post('subcategory');
-
-        $statusFilter = null;
-        if (is_array($status) && !empty($status)) {
-            $statusFilter = $status;
-        }
-
-        $start_date = $this->post('startDate') ?: '';
-        $end_date = $this->post('endDate') ?: '';
+        $minPrice = $this->post('minPrice');
+        $maxPrice = $this->post('maxPrice');
+        $company = $this->post('company');
 
         $data = $this->Invoice_items_model->get_api2(
             $id,
@@ -178,17 +173,19 @@ class Produto extends REST_Controller
             $search,
             $sortField,
             $sortOrder,
-            $statusFilter,
-            $start_date,
-            $end_date,
+            null, // statusFilter removido pois não é mais necessário
+            null, // startDate removido pois não é mais necessário
+            null, // endDate removido pois não é mais necessário
             $category,
             $subcategory,
             $warehouse_id,
-            $send
+            $send,
+            $minPrice,
+            $maxPrice,
+            $company
         );
 
         if ($data['total'] > 0) {
-
             $this->response(
                 [
                     'status' => true,
@@ -209,68 +206,6 @@ class Produto extends REST_Controller
             );
         }
     }
-
-    // {
-    //     $warehouse_id = $this->post('warehouse_id');
-    //     if (empty($warehouse_id)) {
-    //         $this->response(
-    //             ['status' => FALSE, 'message' => 'Warehouse ID is required'],
-    //             REST_Controller::HTTP_BAD_REQUEST
-    //         );
-    //         return;
-    //     }
-    //     $page = $this->post('page') ? (int) $this->post('page') : 0;
-    //     $page = $page + 1;
-    //     $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-    //     $search = $this->post('search') ?: '';
-    //     $sortField = $this->post('sortField') ?: 'id';
-    //     $sortOrder = $this->post('sortOrder') ?: 'DESC';
-    //     $send = $this->post('send') ?: null;
-    //     $status = $this->post('status');
-    //     $category = $this->post('category');
-    //     $subcategory = $this->post('subcategory');
-    //     $statusFilter = null;
-    //     if (is_array($status) && !empty($status)) {
-    //         $statusFilter = $status;
-    //     }
-    //     $start_date = $this->post('startDate') ?: '';
-    //     $end_date = $this->post('endDate') ?: '';
-    //     $data = $this->Invoice_items_model->get_api2(
-    //         $id,
-    //         $page,
-    //         $limit,
-    //         // $search,
-    //         $sortField,
-    //         $sortOrder,
-    //         // $statusFilter,
-    //         // $start_date,
-    //         // $end_date,
-    //         // $category,
-    //         // $subcategory,
-    //         // $send,
-    //         $warehouse_id,
-    //     );
-    //     if ($data['total'] > 0) {
-    //         $this->response(
-    //             [
-    //                 'status' => true,
-    //                 'total' => $data['total'] ?? 0,
-    //                 'data' => $data['data'] ?? []
-    //             ],
-    //             REST_Controller::HTTP_OK
-    //         );
-    //     } else {
-    //         $this->response(
-    //             [
-    //                 'status' => false,
-    //                 'message' => 'Produto não encontrado',
-    //                 'total' => $data['total'] ?? 0,
-    //                 'data' => $data['data'] ?? []
-    //             ],
-    //             REST_Controller::HTTP_NOT_FOUND
-    //         );
-    //     }
-    // }
 
     public function create_post()
     {

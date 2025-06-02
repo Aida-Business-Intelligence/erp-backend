@@ -1074,5 +1074,16 @@ public function updatetwo($data, $id)
     return $this->db->get()->row(); // retorna objeto ou null
 }
 
+public function get_expense_category($expenseId)
+{
+    $this->db->select('cat.id AS id_categoria, cat.name AS nome_categoria');
+    $this->db->from(db_prefix() . 'expenses e');
+    $this->db->join(db_prefix() . 'expenses_categories cat', 'e.category = cat.id', 'left');
+    $this->db->where('e.id', $expenseId);
+
+    return $this->db->get()->row_array();
+}
+
+
 
 }

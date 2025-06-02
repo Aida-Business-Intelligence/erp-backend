@@ -17,7 +17,6 @@ class Expenses extends REST_Controller
         $this->load->model('Expenses_model');
     }
 
-    //26/05
     public function categoriestwo_get()
     {
         try {
@@ -204,7 +203,6 @@ class Expenses extends REST_Controller
             return;
         }
 
-        // Upload de arquivos
         $this->Expenses_model->handle_file_uploads($expense_id, $_FILES);
 
         $this->response([
@@ -247,10 +245,6 @@ class Expenses extends REST_Controller
         }
     }
 
-    //
-
-
-    //
 
     public function warehouselist_get()
     {
@@ -270,7 +264,6 @@ class Expenses extends REST_Controller
         }
     }
 
-    //add lucas
     public function validateduplicates_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -614,11 +607,6 @@ class Expenses extends REST_Controller
         return number_format($value, 2);
     }
 
-    //lucas
-
-
-
-
     public function create_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -749,18 +737,15 @@ class Expenses extends REST_Controller
                 mkdir($upload_dir, 0777, true);
             }
 
-            // cria nome unico para o arquivo
             $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
             $filename = uniqid() . '.' . $extension;
             $upload_path = $upload_dir . $filename;
 
-            // manda pora pasta
             if (move_uploaded_file($file['tmp_name'], $upload_path)) {
                 $server_url = base_url();
                 $relative_path = str_replace('./', '', $upload_path);
                 $file_url = rtrim($server_url, '/') . '/' . $relative_path;
 
-                // gerasw url do arquivo
                 $this->db->where('id', $expense_id);
                 $this->db->update(db_prefix() . 'expenses', ['file' => $file_url]);
             } else {
@@ -1331,7 +1316,6 @@ class Expenses extends REST_Controller
     }
 
     $this->db->select(
-        // Campos da tabela expenses
         db_prefix() . 'expenses.id as id,' .
         db_prefix() . 'expenses.category,' .
         db_prefix() . 'expenses.currency,' .
@@ -1366,7 +1350,6 @@ class Expenses extends REST_Controller
         db_prefix() . 'expenses.file,' .
         db_prefix() . 'expenses.comprovante,' .
 
-        // Apenas os dois campos da tabela clients
         db_prefix() . 'clients.userid as userid,' .
         db_prefix() . 'clients.company as company,' .
         db_prefix() . 'clients.vat,' .
@@ -1374,7 +1357,6 @@ class Expenses extends REST_Controller
         db_prefix() . 'clients.address,' .
         db_prefix() . 'clients.email_default,'.
 
-        // Campos derivados
         db_prefix() . 'expenses_categories.name as category_name,' .
         db_prefix() . 'expenses.paymentmode as payment_mode,' .
         db_prefix() . 'taxes.name as tax_name,' .
@@ -1401,10 +1383,8 @@ class Expenses extends REST_Controller
         return;
     }
 
-    // Modo de pagamento amigável
     $expense->payment_mode_name = $this->get_payment_mode_name($expense->payment_mode);
 
-    // Dados de recorrência
     $expense->recurring_info = ($expense->recurring == 1) ? [
         'recurring' => true,
         'recurring_type' => $expense->recurring_type,
@@ -1420,8 +1400,6 @@ class Expenses extends REST_Controller
         'data' => $expense
     ], REST_Controller::HTTP_OK);
 }
-
-
 
     public function financial_report_post()
     {
@@ -1642,8 +1620,6 @@ class Expenses extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
-    //28/05
-    
     public function summary_post()
 {
     \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -1687,7 +1663,7 @@ public function delete_post()
     $id = $this->post('id');
     $rows = $this->post('rows');
     $warehouse_id = $this->post('warehouse_id');
-    $type = $this->post('type'); // 'receita' ou 'despesa'
+    $type = $this->post('type');
 
     if (!empty($rows) && is_array($rows)) {
         $success = 0;
@@ -1729,7 +1705,6 @@ public function delete_post()
         ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
 }
-//01/06
 public function updatetwo_post($id = '')
 {
     \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -1740,12 +1715,9 @@ public function updatetwo_post($id = '')
             'message' => 'ID is required'
         ], REST_Controller::HTTP_BAD_REQUEST);
     }
-
-    // Detecta tipo de conteúdo
     $content_type = $this->input->request_headers()['Content-Type'] ?? '';
     $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
 
-    // Coleta os dados com segurança
     if ($is_multipart) {
         $_POST = $this->input->post();
     } else {
@@ -1759,13 +1731,11 @@ public function updatetwo_post($id = '')
         ], REST_Controller::HTTP_BAD_REQUEST);
     }
 
-    // Campos permitidos para atualização (incluindo os novos campos de recorrência)
     $fields = [
         'expense_name', 'type', 'category', 'amount', 'date',
         'paymentmode', 'clientid', 'note', 'billable',
         'send_invoice_to_customer', 'status', 'recurring',
         'warehouse_id', 'reference_no',
-        // Novos campos de recorrência
         'recurring_type', 'repeat_every', 'cycles', 'total_cycles',
         'custom_recurring', 'last_recurring_date', 'create_invoice_billable',
         'recurring_from'
@@ -1775,27 +1745,20 @@ public function updatetwo_post($id = '')
 
     foreach ($fields as $field) {
         if (isset($_POST[$field])) {
-            // Tratamento especial para campos booleanos
             if (in_array($field, ['billable', 'send_invoice_to_customer', 'recurring', 'custom_recurring', 'create_invoice_billable'])) {
                 $updateData[$field] = (!empty($_POST[$field]) && $_POST[$field] !== 'false') ? 1 : 0;
             } 
-            // Tratamento para campos numéricos
             elseif (in_array($field, ['repeat_every', 'cycles', 'total_cycles'])) {
                 $updateData[$field] = is_numeric($_POST[$field]) ? $_POST[$field] : 0;
             }
-            // Tratamento para datas
             elseif (in_array($field, ['last_recurring_date'])) {
                 $updateData[$field] = !empty($_POST[$field]) ? $_POST[$field] : null;
             }
-            // Demais campos
             else {
                 $updateData[$field] = $_POST[$field];
             }
         }
     }
-
-    // Log para depuração
-    log_activity('Updating expense ID: ' . $id . ' with data: ' . print_r($updateData, true));
 
     $success = $this->Expenses_model->updatetwo($updateData, $id);
 

@@ -830,7 +830,6 @@ public function handle_file_uploads($expense_id, $files)
         return false;
     }
 
-    /* Categories start */
 
     /**
      * Get expense category
@@ -916,32 +915,24 @@ public function handle_file_uploads($expense_id, $files)
         return $this->db->query('SELECT DISTINCT(YEAR(date)) as year FROM ' . db_prefix() . 'expenses ORDER by year DESC')->result_array();
     }
 
-    //add 28/05
-    
-    // 🔹 Resumo das despesas (cards do frontend)
     public function get_expenses_summary($warehouse_id)
 {
     $today = date('Y-m-d');
     $currentMonth = date('m');
     $currentYear = date('Y');
 
-    // 🔵 Pagas hoje
     $paid_today = $this->sum_expenses_amount('paid', $warehouse_id, '=', $today);
     $paid_today_count = $this->count_expenses_by_status('paid', $warehouse_id, '=', $today);
 
-    // 🔵 Pagas (todas)
     $paid = $this->sum_expenses_amount('paid', $warehouse_id);
     $paid_count = $this->count_expenses_by_status('paid', $warehouse_id);
 
-    // 🟢 A pagar no mês
     $to_pay_month = $this->sum_expenses_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
     $to_pay_month_count = $this->count_expenses_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
 
-    // 🟢 A pagar (futuro)
     $to_pay = $this->sum_expenses_amount('pending', $warehouse_id, '>=');
     $to_pay_count = $this->count_expenses_by_status('pending', $warehouse_id, '>=');
 
-    // 🔴 Inadimplentes
     $overdue = $this->sum_expenses_amount('pending', $warehouse_id, '<');
     $overdue_count = $this->count_expenses_by_status('pending', $warehouse_id, '<');
 
@@ -1039,25 +1030,21 @@ public function delete_expense($id, $warehouse_id = null, $type = null)
     return $this->db->delete(db_prefix() . 'expenses');
 }
 
-//01/06
 public function updatetwo($data, $id)
 {
     if (empty($id) || !is_numeric($id)) {
         return false;
     }
 
-    // Tratamento especial para campos de data
     if (isset($data['last_recurring_date']) && !empty($data['last_recurring_date'])) {
         $data['last_recurring_date'] = to_sql_date($data['last_recurring_date']);
     } else {
         $data['last_recurring_date'] = null;
     }
 
-    // Atualiza os dados permitidos
     $this->db->where('id', $id);
     $this->db->update(db_prefix() . 'expenses', $data);
 
-    // Retorna true se houverem alterações
     return $this->db->affected_rows() > 0;
 }
 
@@ -1078,7 +1065,7 @@ public function updatetwo($data, $id)
     $this->db->join(db_prefix() . 'clients c', 'e.clientid = c.userid');
     $this->db->where('e.id', $expenseId);
 
-    return $this->db->get()->row(); // retorna objeto ou null
+    return $this->db->get()->row();
 }
 
 public function get_expense_category($expenseId)

@@ -1797,4 +1797,31 @@ public function updatetwo_post($id = '')
     ], REST_Controller::HTTP_OK);
 }
 
+public function client_get($expenseId = '')
+{
+    \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+    if (empty($expenseId) || !is_numeric($expenseId)) {
+        return $this->response([
+            'status' => false,
+            'message' => 'Expense ID is required and must be numeric'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+    }
+
+    $client = $this->Expenses_model->get_client_by_expense_id($expenseId);
+
+    if (!$client) {
+        return $this->response([
+            'status' => false,
+            'message' => 'Client not found for this expense'
+        ], REST_Controller::HTTP_NOT_FOUND);
+    }
+
+    return $this->response([
+        'status' => true,
+        'data' => $client
+    ], REST_Controller::HTTP_OK);
+}
+
+
 }

@@ -1060,4 +1060,19 @@ public function updatetwo($data, $id)
         return $this->db->get(db_prefix() . 'expenses')->row();
     }
 
+    public function get_client_by_expense_id($expenseId)
+{
+    if (empty($expenseId) || !is_numeric($expenseId)) {
+        return false;
+    }
+
+    $this->db->select('c.userid AS id_cliente, c.company AS nome_cliente');
+    $this->db->from(db_prefix() . 'expenses e');
+    $this->db->join(db_prefix() . 'clients c', 'e.clientid = c.userid');
+    $this->db->where('e.id', $expenseId);
+
+    return $this->db->get()->row(); // retorna objeto ou null
+}
+
+
 }

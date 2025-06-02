@@ -1797,6 +1797,4 @@ public function updatetwo_post($id = '')
     ], REST_Controller::HTTP_OK);
 }
 
-
-
 }

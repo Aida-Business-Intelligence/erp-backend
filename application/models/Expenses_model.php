@@ -1060,5 +1060,4 @@ public function updatetwo($data, $id)
         return $this->db->get(db_prefix() . 'expenses')->row();
     }
 
-
 }

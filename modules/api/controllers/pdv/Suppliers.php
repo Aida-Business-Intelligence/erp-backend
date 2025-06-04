@@ -156,7 +156,9 @@ class Suppliers extends REST_Controller
         'phonenumber' => $primary_contact['phone'],
         'vat' => $primary_document['number'],
         'documentType' => strtoupper($primary_document['type']),
-        'email_default' => $_POST['emails'][0] ?? null,
+        
+        'email_default' => $primary_contact['email'] ?? null,
+        
         'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
         'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
         'warehouse_id' => $_POST['warehouse_id'] ?? 0,
@@ -199,18 +201,6 @@ class Suppliers extends REST_Controller
         ];
 
         $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
-      }
-
-      for ($i = 1; $i < count($_POST['emails']); $i++) {
-        $email = $_POST['emails'][$i];
-        if (!empty($email)) {
-          $email_data = [
-            'supplier_id' => $supplier_id,
-            'email' => $email
-          ];
-
-          $this->db->insert(db_prefix() . 'email_supplier', $email_data);
-        }
       }
 
       for ($i = 1; $i < count($_POST['contacts']); $i++) {

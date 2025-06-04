@@ -2073,4 +2073,64 @@ class Invoices_model extends App_Model
         $this->db->set('status', $status);
         return $this->db->update('tblinvoices');
     }
+
+    // Entrega o/os pedidos - expedition
+    public function update_entrega($ids, $status)
+    {
+        $this->db->where_in('id', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tblinvoices');
+    }
+
+
+    public function update_order_item_quantity($order_id, $item_id, $quantity)
+    {
+        // Verifica se o pedido existe
+        $this->db->where('id', $order_id);
+        $order = $this->db->get(db_prefix() . 'invoices')->row();
+
+        if (!$order) {
+            return false;
+        }
+
+        // Atualiza a quantidade na tabela purchase_needs
+        $this->db->where('invoice_id', $order_id);
+        $this->db->where('id', $item_id);
+        $this->db->update(db_prefix() . 'purchase_needs', [
+            'qtde' => $quantity
+        ]);
+
+        // Busca o item atualizado para pegar o preço unitário
+        $this->db->select('pn.*, i.rate as unit_price');
+        $this->db->from(db_prefix() . 'purchase_needs pn');
+        $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id');
+        $this->db->where('pn.invoice_id', $order_id);
+        $this->db->where('pn.id', $item_id);
+        $item = $this->db->get()->row();
+
+        if (!$item) {
+            return false;
+        }
+
+        // Atualiza o total do pedido
+        $this->db->select('pn.qtde, i.rate as unit_price');
+        $this->db->from(db_prefix() . 'purchase_needs pn');
+        $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id');
+        $this->db->where('pn.invoice_id', $order_id);
+        $items = $this->db->get()->result_array();
+
+        $total = 0;
+        foreach ($items as $item) {
+            $total += $item['qtde'] * $item['unit_price'];
+        }
+
+        // Atualiza o pedido com os novos totais
+        $this->db->where('id', $order_id);
+        $update_data = array(
+            'subtotal' => $total,
+            'total' => $total
+        );
+
+        return $this->db->update(db_prefix() . 'invoices', $update_data);
+    }
 }

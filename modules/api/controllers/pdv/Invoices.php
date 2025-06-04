@@ -1120,13 +1120,37 @@ class Invoices extends REST_Controller
         $ids = $_POST['ids'];
         $status = "11";
 
-        $output = $this->Invoices_model->update_entregue($ids, $status);
+        $output = $this->Invoices_model->update_entrega($ids, $status);
 
         if ($output) {
             $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
             $this->response($message, REST_Controller::HTTP_OK);
         } else {
             $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function update_order_nf_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['order_id']) || !isset($_POST['item_id']) || !isset($_POST['quantity'])) {
+            $message = array('status' => FALSE, 'message' => 'Dados não fornecidos ou inválidos');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+        }
+
+        $order_id = $_POST['order_id'];
+        $item_id = $_POST['item_id'];
+        $quantity = $_POST['quantity'];
+
+        $output = $this->Invoices_model->update_order_item_quantity($order_id, $item_id, $quantity);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Quantidade atualizada com sucesso.');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Falha ao atualizar quantidade.');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
     }

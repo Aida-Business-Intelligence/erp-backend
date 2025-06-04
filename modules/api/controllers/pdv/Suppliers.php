@@ -106,136 +106,117 @@ class Suppliers extends REST_Controller
 
 
   public function create_post()
-  {
-
-
+{
     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
     try {
-      $this->db->trans_start();
-
-      $primary_contact = $_POST['contacts'][0] ?? null;
-      $primary_document = $_POST['documents'][0] ?? null;
-
-      if (!$primary_contact || !$primary_document) {
-        throw new Exception('Primary contact and document are required');
-      }
-
-      $required_fields = ['name', 'address', 'city', 'state', 'country', 'company_type', 'business_type', 'segment', 'company_size'];
-      foreach ($required_fields as $field) {
-        if (empty($_POST[$field])) {
-          throw new Exception("Field {$field} is required");
+        $this->db->trans_start();
+        $primary_contact = $_POST['contacts'][0] ?? null;
+        $primary_document = $_POST['documents'][0] ?? null;
+        if (!$primary_contact || !$primary_document) {
+            throw new Exception('Primary contact and document are required');
         }
-      }
-
-      $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
-      foreach ($percentage_fields as $field) {
-        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
-          throw new Exception("Field {$field} must be between 0 and 100");
+        $required_fields = ['name', 'address', 'city', 'state', 'country', 'company_type', 'business_type', 'segment', 'company_size'];
+        foreach ($required_fields as $field) {
+            if (empty($_POST[$field])) {
+                throw new Exception("Field {$field} is required");
+            }
         }
-      }
-
-      $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
-      foreach ($due_day_fields as $field) {
-        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
-          throw new Exception("Field {$field} must be between 1 and 31");
+        $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
+        foreach ($percentage_fields as $field) {
+            if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
+                throw new Exception("Field {$field} must be between 0 and 100");
+            }
         }
-      }
-
-      $supplier_data = [
-        'company' => $_POST['name'],
-        'address' => $_POST['address'],
-        'city' => $_POST['city'],
-        'state' => $_POST['state'],
-        'country' => $_POST['country'],
-        'cep' => $_POST['cep'] ?? null,
-        'payment_terms' => $_POST['paymentTerm'] ?? null,
-        'active' => ($_POST['status'] === 'active') ? 1 : 0,
-        'is_supplier' => 1,
-        'datecreated' => date('Y-m-d H:i:s'),
-        'phonenumber' => $primary_contact['phone'],
-        'vat' => $primary_document['number'],
-        'documentType' => strtoupper($primary_document['type']),
-        
-        'email_default' => $primary_contact['email'] ?? null,
-        
-        'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
-        'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
-        'warehouse_id' => $_POST['warehouse_id'] ?? 0,
-        'company_type' => $_POST['company_type'],
-        'business_type' => $_POST['business_type'],
-        'segment' => $_POST['segment'],
-        'company_size' => $_POST['company_size'],
-        'observations' => $_POST['observations'] ?? null,
-        'commission' => isset($_POST['commission']) ? (float)$_POST['commission'] : 0,
-        'commercial_conditions' => $_POST['commercial_conditions'] ?? null,
-        'commission_type' => $_POST['commission_type'] ?? null,
-        'commission_base_percentage' => isset($_POST['commission_base_percentage']) ? (float)$_POST['commission_base_percentage'] : 0,
-        'commission_payment_type' => $_POST['commission_payment_type'] ?? null,
-        'commission_due_day' => isset($_POST['commission_due_day']) ? (int)$_POST['commission_due_day'] : null,
-        'agent_commission_type' => $_POST['agent_commission_type'] ?? null,
-        'agent_commission_base_percentage' => isset($_POST['agent_commission_base_percentage']) ? (float)$_POST['agent_commission_base_percentage'] : 0,
-        'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
-        'agent_commission_due_day' => isset($_POST['agent_commission_due_day']) ? (int)$_POST['agent_commission_due_day'] : null,
-        'tipo_frete' => $_POST['freight_type'] ?? null,
-        'freight_value' => isset($_POST['freight_value']) ? (float)$_POST['freight_value'] : 0,
-        'min_payment_term' => isset($_POST['min_payment_term']) ? (int)$_POST['min_payment_term'] : null,
-        'max_payment_term' => isset($_POST['max_payment_term']) ? (int)$_POST['max_payment_term'] : null,
-        'min_order_value' => isset($_POST['min_order_value']) ? (float)$_POST['min_order_value'] : null,
-        'max_order_value' => isset($_POST['max_order_value']) ? (float)$_POST['max_order_value'] : null,
-    ];
-    
-
-      $supplier_id = $this->clients_model->add($supplier_data);
-
-      if (!$supplier_id) {
-        throw new Exception('Failed to create supplier');
-      }
-
-      for ($i = 1; $i < count($_POST['documents']); $i++) {
-        $document = $_POST['documents'][$i];
-        $doc_data = [
-          'supplier_id' => $supplier_id,
-          'document' => $document['number'],
-          'type' => strtoupper($document['type'])
+        $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
+        foreach ($due_day_fields as $field) {
+            if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
+                throw new Exception("Field {$field} must be between 1 and 31");
+            }
+        }
+        $supplier_data = [
+            'company' => $_POST['name'],
+            'address' => $_POST['address'],
+            'city' => $_POST['city'],
+            'state' => $_POST['state'],
+            'country' => $_POST['country'],
+            'cep' => $_POST['cep'] ?? null,
+            'payment_terms' => $_POST['paymentTerm'] ?? null,
+            'active' => ($_POST['status'] === 'active') ? 1 : 0,
+            'is_supplier' => 1,
+            'datecreated' => date('Y-m-d H:i:s'),
+            'phonenumber' => $primary_contact['phone'],
+            'vat' => $primary_document['number'],
+            'documentType' => strtoupper($primary_document['type']),
+            'email_default' => $primary_contact['email'] ?? null,
+            'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
+            'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
+            'warehouse_id' => $_POST['warehouse_id'] ?? 0,
+            'company_type' => $_POST['company_type'],
+            'business_type' => $_POST['business_type'],
+            'segment' => $_POST['segment'],
+            'company_size' => $_POST['company_size'],
+            'observations' => $_POST['observations'] ?? null,
+            'commission' => isset($_POST['commission']) ? (float)$_POST['commission'] : 0,
+            'commercial_conditions' => $_POST['commercial_conditions'] ?? null,
+            'commission_type' => $_POST['commission_type'] ?? null,
+            'commission_base_percentage' => isset($_POST['commission_base_percentage']) ? (float)$_POST['commission_base_percentage'] : 0,
+            'commission_payment_type' => $_POST['commission_payment_type'] ?? null,
+            'commission_due_day' => isset($_POST['commission_due_day']) ? (int)$_POST['commission_due_day'] : null,
+            'agent_commission_type' => $_POST['agent_commission_type'] ?? null,
+            'agent_commission_base_percentage' => isset($_POST['agent_commission_base_percentage']) ? (float)$_POST['agent_commission_base_percentage'] : 0,
+            'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
+            'agent_commission_due_day' => isset($_POST['agent_commission_due_day']) ? (int)$_POST['agent_commission_due_day'] : null,
+            'tipo_frete' => $_POST['freight_type'] ?? null,
+            'freight_value' => isset($_POST['freight_value']) ? (float)$_POST['freight_value'] : 0,
+            'min_payment_term' => isset($_POST['min_payment_term']) ? (int)$_POST['min_payment_term'] : null,
+            'max_payment_term' => isset($_POST['max_payment_term']) ? (int)$_POST['max_payment_term'] : null,
+            'min_order_value' => isset($_POST['min_order_value']) ? (float)$_POST['min_order_value'] : null,
+            'max_order_value' => isset($_POST['max_order_value']) ? (float)$_POST['max_order_value'] : null,
         ];
-
-        $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
-      }
-
-      for ($i = 1; $i < count($_POST['contacts']); $i++) {
-        $contact = $_POST['contacts'][$i];
-        $contact_data = [
-          'userid' => $supplier_id,
-          'firstname' => $contact['name'],
-          'phonenumber' => $contact['phone'],
-          'active' => 1,
-          'datecreated' => date('Y-m-d H:i:s')
-        ];
-
-        $this->clients_model->add_contact($contact_data, $supplier_id);
-      }
-
-      $this->db->trans_complete();
-
-      if ($this->db->trans_status() === FALSE) {
-        throw new Exception('Transaction failed');
-      }
-
-      $this->response([
-        'status' => TRUE,
-        'message' => 'Supplier created successfully',
-        'supplier_id' => $supplier_id
-      ], REST_Controller::HTTP_OK);
+        $supplier_id = $this->clients_model->add($supplier_data);
+        if (!$supplier_id) {
+            throw new Exception('Failed to create supplier');
+        }
+        for ($i = 1; $i < count($_POST['documents']); $i++) {
+            $document = $_POST['documents'][$i];
+            $doc_data = [
+                'supplier_id' => $supplier_id,
+                'document' => $document['number'],
+                'type' => strtoupper($document['type'])
+            ];
+            $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
+        }
+        for ($i = 1; $i < count($_POST['contacts']); $i++) {
+            $contact = $_POST['contacts'][$i];
+            $contact_data = [
+                'userid' => $supplier_id,
+                'firstname' => $contact['name'],
+                'lastname' => $contact['lastname'] ?? 'N/A', // Alteração: Usar 'N/A' se lastname não for fornecido no payload
+                'phonenumber' => $contact['phone'],
+                'email' => $contact['email'],
+                'active' => 1,
+                'is_primary' => 0, // ✅ FORÇAR SECUNDÁRIO!
+                'datecreated' => date('Y-m-d H:i:s'),
+            ];
+            $this->clients_model->add_contact($contact_data, $supplier_id, false);
+        }
+        $this->db->trans_complete();
+        if ($this->db->trans_status() === FALSE) {
+            throw new Exception('Transaction failed');
+        }
+        $this->response([
+            'status' => TRUE,
+            'message' => 'Supplier created successfully',
+            'supplier_id' => $supplier_id
+        ], REST_Controller::HTTP_OK);
     } catch (Exception $e) {
-      $this->db->trans_rollback();
-
-      $this->response([
-        'status' => FALSE,
-        'message' => 'Error: ' . $e->getMessage()
-      ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        $this->db->trans_rollback();
+        $this->response([
+            'status' => FALSE,
+            'message' => 'Error: ' . $e->getMessage()
+        ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
-  }
+}
 
   public function update_put($id)
   {

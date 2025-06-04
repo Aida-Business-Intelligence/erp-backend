@@ -187,15 +187,23 @@ class Suppliers extends REST_Controller
             $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
         }
         for ($i = 1; $i < count($_POST['contacts']); $i++) {
+
             $contact = $_POST['contacts'][$i];
+
+            $nome = trim($contact['name']);
+            $partes = explode(' ', $nome);
+            
+            $firstname = $partes[0] ?? 'Contato';
+            $lastname = isset($partes[1]) ? implode(' ', array_slice($partes, 1)) : 'N/A';
+
             $contact_data = [
                 'userid' => $supplier_id,
-                'firstname' => $contact['name'],
-                'lastname' => $contact['lastname'] ?? 'N/A', // Alteração: Usar 'N/A' se lastname não for fornecido no payload
-                'phonenumber' => $contact['phone'],
-                'email' => $contact['email'],
+                'firstname' => $firstname,
+                'lastname' => $lastname,
+                'phonenumber' => $contact['phone'] ?? 'N/A',
+                'email' => $contact['email'] ?? 'N/A',
                 'active' => 1,
-                'is_primary' => 0, // ✅ FORÇAR SECUNDÁRIO!
+                'is_primary' => 0, 
                 'datecreated' => date('Y-m-d H:i:s'),
             ];
             $this->clients_model->add_contact($contact_data, $supplier_id, false);

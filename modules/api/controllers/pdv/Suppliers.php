@@ -115,6 +115,44 @@ class Suppliers extends REST_Controller
         if (!$primary_contact || !$primary_document) {
             throw new Exception('Primary contact and document are required');
         }
+
+        // Processar a imagem se existir
+        $profile_image = null;
+        if (!empty($_POST['image'])) {
+            $image_data = $_POST['image'];
+            
+            // Verificar se é uma string base64 válida
+            if (preg_match('/^data:image\/(\w+);base64,/', $image_data, $type)) {
+                $image_data = substr($image_data, strpos($image_data, ',') + 1);
+                $type = strtolower($type[1]); // jpg, png, gif
+                
+                if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    throw new Exception('Tipo de imagem inválido');
+                }
+                
+                $image_data = base64_decode($image_data);
+                
+                if ($image_data === false) {
+                    throw new Exception('Falha ao decodificar a imagem');
+                }
+                
+                // Opção 1: Salvar como string base64 no banco
+                $profile_image = $_POST['image']; // mantém o formato data:image/...
+                
+                // Opção 2: Salvar no sistema de arquivos (recomendado para imagens grandes)
+                /*
+                $upload_path = FCPATH . 'uploads/clients/' . $client_id . '/';
+                if (!is_dir($upload_path)) {
+                    mkdir($upload_path, 0755, true);
+                }
+                $filename = 'profile_' . time() . '.' . $type;
+                file_put_contents($upload_path . $filename, $image_data);
+                $profile_image = 'uploads/clients/' . $client_id . '/' . $filename;
+                */
+            }
+        }
+
+
         $required_fields = ['name', 'address', 'city', 'state', 'country', 'company_type', 'business_type', 'segment', 'company_size'];
         foreach ($required_fields as $field) {
             if (empty($_POST[$field])) {
@@ -172,7 +210,11 @@ class Suppliers extends REST_Controller
             'max_payment_term' => isset($_POST['max_payment_term']) ? (int)$_POST['max_payment_term'] : null,
             'min_order_value' => isset($_POST['min_order_value']) ? (float)$_POST['min_order_value'] : null,
             'max_order_value' => isset($_POST['max_order_value']) ? (float)$_POST['max_order_value'] : null,
-        ];
+
+            'profile_image' => $profile_image,
+
+        
+          ];
         $supplier_id = $this->clients_model->add($supplier_data);
         if (!$supplier_id) {
             throw new Exception('Failed to create supplier');

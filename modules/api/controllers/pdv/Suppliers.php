@@ -158,7 +158,7 @@ class Suppliers extends REST_Controller
         'email_default' => $_POST['emails'][0] ?? null,
         'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
         'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
-        'warehouse_id' => $_POST['warehouse_id'] ?? null,
+        'warehouse_id' => $_POST['warehouse_id'] ?? 0,
         'company_type' => $_POST['company_type'] ?? null,
         'business_type' => $_POST['business_type'] ?? null,
         'segment' => $_POST['segment'] ?? null,
@@ -835,6 +835,7 @@ class Suppliers extends REST_Controller
         'active' => 1,
         'is_supplier' => 1,
         'datecreated' => date('Y-m-d H:i:s'),
+        'warehouse_id' => $_POST['warehouse_id'] ?? 0,
       ];
 
       $supplier_id = $this->clients_model->add($supplier_data);

@@ -2082,37 +2082,42 @@ class Invoices_model extends App_Model
         return $this->db->update('tblinvoices');
     }
 
-
-    public function update_order_item_quantity($order_id, $item_id, $quantity)
+    public function update_order_item_quantity($updates)
     {
-        // Verifica se o pedido existe
-        $this->db->where('id', $order_id);
-        $order = $this->db->get(db_prefix() . 'invoices')->row();
+        $this->db->trans_begin();
 
-        if (!$order) {
+        try {
+            foreach ($updates as $update) {
+                $order_id = $update['order_id'];
+                $item_id = $update['item_id'];
+                $quantity = $update['quantity'];
+
+                // Atualiza a quantidade
+                $this->db->where('invoice_id', $order_id);
+                $this->db->where('id', $item_id);
+                $this->db->update(db_prefix() . 'purchase_needs', [
+                    'qtde' => $quantity
+                ]);
+
+                // Recalcula o total do pedido
+                $this->recalculate_order_total($order_id);
+            }
+
+            if ($this->db->trans_status() === FALSE) {
+                $this->db->trans_rollback();
+                return false;
+            }
+
+            $this->db->trans_commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
             return false;
         }
+    }
 
-        // Atualiza a quantidade na tabela purchase_needs
-        $this->db->where('invoice_id', $order_id);
-        $this->db->where('id', $item_id);
-        $this->db->update(db_prefix() . 'purchase_needs', [
-            'qtde' => $quantity
-        ]);
-
-        // Busca o item atualizado para pegar o preço unitário
-        $this->db->select('pn.*, i.rate as unit_price');
-        $this->db->from(db_prefix() . 'purchase_needs pn');
-        $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id');
-        $this->db->where('pn.invoice_id', $order_id);
-        $this->db->where('pn.id', $item_id);
-        $item = $this->db->get()->row();
-
-        if (!$item) {
-            return false;
-        }
-
-        // Atualiza o total do pedido
+    private function recalculate_order_total($order_id)
+    {
         $this->db->select('pn.qtde, i.rate as unit_price');
         $this->db->from(db_prefix() . 'purchase_needs pn');
         $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id');
@@ -2124,13 +2129,11 @@ class Invoices_model extends App_Model
             $total += $item['qtde'] * $item['unit_price'];
         }
 
-        // Atualiza o pedido com os novos totais
         $this->db->where('id', $order_id);
-        $update_data = array(
+        $this->db->update(db_prefix() . 'invoices', [
             'subtotal' => $total,
             'total' => $total
-        );
-
-        return $this->db->update(db_prefix() . 'invoices', $update_data);
+        ]);
     }
+
 }

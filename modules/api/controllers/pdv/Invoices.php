@@ -1135,23 +1135,32 @@ class Invoices extends REST_Controller
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        if (empty($_POST) || !isset($_POST['order_id']) || !isset($_POST['item_id']) || !isset($_POST['quantity'])) {
+        if (empty($_POST) || !isset($_POST['updates']) || !is_array($_POST['updates'])) {
             $message = array('status' => FALSE, 'message' => 'Dados não fornecidos ou inválidos');
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+            return;
         }
 
-        $order_id = $_POST['order_id'];
-        $item_id = $_POST['item_id'];
-        $quantity = $_POST['quantity'];
+        $updates = $_POST['updates'];
 
-        $output = $this->Invoices_model->update_order_item_quantity($order_id, $item_id, $quantity);
+        // Valida os dados antes de processar
+        foreach ($updates as $update) {
+            if (!isset($update['order_id']) || !isset($update['item_id']) || !isset($update['quantity'])) {
+                $message = array('status' => FALSE, 'message' => 'Dados inválidos para um dos itens');
+                $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+                return;
+            }
+        }
+
+        // Processa todas as atualizações em uma única transação
+        $output = $this->Invoices_model->update_order_item_quantity($updates);
 
         if ($output) {
-            $message = array('status' => TRUE, 'message' => 'Quantidade atualizada com sucesso.');
+            $message = array('status' => TRUE, 'message' => 'Quantidades atualizadas com sucesso');
             $this->response($message, REST_Controller::HTTP_OK);
         } else {
-            $message = array('status' => FALSE, 'message' => 'Falha ao atualizar quantidade.');
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            $message = array('status' => FALSE, 'message' => 'Falha ao atualizar quantidades');
+            $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

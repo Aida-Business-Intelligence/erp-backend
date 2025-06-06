@@ -144,24 +144,35 @@ class Warehouse extends REST_Controller
         $_input = [
             'warehouse_code' => $_POST['warehouse_code'] ?? null,
             'warehouse_name' => $_POST['warehouse_name'] ?? null,
-            'cnpj' => $_POST['cnpj'] ?? null,
-            'type' => $_POST['type'] ?? null,
             'razao_social' => $_POST['razao_social'] ?? null,
-            // 'order' => $_POST['order'] ?? null,
-            'display' => $_POST['display'] ?? null,
+            'type' => $_POST['type'] ?? null,
             'note' => $_POST['note'] ?? null,
-            'cidade' => $_POST['cidade'] ?? null,
-            'estado' => $_POST['estado'] ?? null,
-            'ie' => $_POST['ie'] ?? null,
+            'franqueado_id' => $_POST['franqueado_id'] ?? null,
+            'cnpj' => $_POST['cnpj'] ?? null,
             'im' => $_POST['im'] ?? null,
+            'ie' => $_POST['ie'] ?? null,
             'cep' => $_POST['cep'] ?? null,
+            'endereco' => $_POST['endereco'] ?? null,
+            'numero' => $_POST['numero'] ?? null,
             'complemento' => $_POST['complemento'] ?? null,
             'bairro' => $_POST['bairro'] ?? null,
-            'numero' => $_POST['numero'] ?? null,
-            'endereco' => $_POST['endereco'] ?? null,
-            'franqueado_id' => $_POST['franqueado_id'] ?? null,
-            'password_nfe' => $_POST['password_nfe'] ?? null
+            'cidade' => $_POST['cidade'] ?? null,
+            'estado' => $_POST['estado'] ?? null,
+            'display' => $_POST['display'] ?? 0,
+            'password_nfe' => $_POST['password_nfe'] ?? null,
+            'cnae' => $_POST['cnae'] ?? null,
+            'crt' => $_POST['crt'] ?? null,
+            'warehouse_number' => $_POST['numero'] ?? null, // mesmo valor de "numero"
+            'telefone' => $_POST['telefone'] ?? null,
+            'dt_cto_certifcado_a2' => $_POST['dt_cto_certifcado_a2'] ?? null,
+            'tpAmb' => $_POST['tpAmb'] ?? 2,
+            'ccidade' => $_POST['ccidade'] ?? 0,
+            'codigoUF' => $_POST['codigoUF'] ?? 0,
+            'situacao_tributaria' => $_POST['situacao_tributaria'] ?? null,
+            'cscid' => $_POST['cscid'] ?? null,
+            'csc' => $_POST['csc'] ?? null,
         ];
+        
 
         // Validação dos campos
         $this->form_validation->set_data($_input);

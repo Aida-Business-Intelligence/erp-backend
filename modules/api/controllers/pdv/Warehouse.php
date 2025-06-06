@@ -119,7 +119,6 @@ class Warehouse extends REST_Controller
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        // Detecta o tipo de conteúdo da requisição
         $content_type = isset($this->input->request_headers()['Content-Type'])
             ? $this->input->request_headers()['Content-Type']
             : (isset($this->input->request_headers()['content-type'])
@@ -128,7 +127,6 @@ class Warehouse extends REST_Controller
 
         $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
 
-        // Carrega os dados em uma variável intermediária, sem sobrescrever $_POST
         if ($is_multipart) {
             $input_data = $this->input->post();
             log_activity('Warehouse Create Input (multipart): ' . json_encode($input_data));
@@ -139,7 +137,6 @@ class Warehouse extends REST_Controller
             log_activity('Warehouse Create Input (json): ' . json_encode($input_data));
         }
 
-        // Se não houver dados, retorna erro
         if (empty($input_data)) {
             $this->response([
                 'status'  => FALSE,
@@ -148,7 +145,6 @@ class Warehouse extends REST_Controller
             return;
         }
 
-        // Lista de campos obrigatórios (validação estrita)
         $required_fields = [
             'razao_social',
             'cnpj',
@@ -184,7 +180,6 @@ class Warehouse extends REST_Controller
             return;
         }
 
-        // Monta array para inserção no banco
         $insert_payload = [
             'warehouse_code'       => $input_data['warehouse_code']    ?? null,
             'warehouse_name'       => $input_data['warehouse_name'],
@@ -217,7 +212,6 @@ class Warehouse extends REST_Controller
             'csc'                  => $input_data['csc']              ?? null,
         ];
 
-        // Insere no banco
         $new_id = $this->Warehouse_model->add($insert_payload);
         if (!$new_id) {
             $this->response([
@@ -227,7 +221,6 @@ class Warehouse extends REST_Controller
             return;
         }
 
-        // Se multipart e foi enviado arquivo .pfx, faz upload
         if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
             $file      = $_FILES['arquivo_nfe'];
             $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
@@ -258,7 +251,6 @@ class Warehouse extends REST_Controller
             }
         }
 
-        // Replicação de produtos, se aplicável
         $warehouse = $this->Warehouse_model->get($new_id);
         if ($warehouse && in_array($warehouse->type, ['franquia', 'filial', 'distribuidor'])) {
             $produtos = $this->Invoice_items_model->get_by_type($warehouse->type);
@@ -268,7 +260,6 @@ class Warehouse extends REST_Controller
             }
         }
 
-        // Retorna sucesso com os dados do novo warehouse
         $this->response([
             'status'  => TRUE,
             'message' => 'Warehouse created successfully',
@@ -326,14 +317,12 @@ class Warehouse extends REST_Controller
             return;
         }
 
-        // Verifica se a warehouse existe
         $current_warehouse = $this->Warehouse_model->get($id);
         if (!$current_warehouse) {
             $this->response(['status' => FALSE, 'message' => 'Warehouse not found'], REST_Controller::HTTP_NOT_FOUND);
             return;
         }
 
-        // Validação de campos obrigatórios
         $required_fields = [
             'razao_social',
             'cnpj',
@@ -369,7 +358,6 @@ class Warehouse extends REST_Controller
             return;
         }
 
-        // Filtra apenas os campos permitidos para atualização
         $update_data = array_intersect_key($_POST, array_flip([
             'warehouse_code',
             'warehouse_name',
@@ -402,10 +390,8 @@ class Warehouse extends REST_Controller
             'password_nfe',
         ]));
 
-        // Atualiza os dados
         $output = $this->Warehouse_model->update($update_data, $id);
 
-        // Upload do certificado, se enviado
         if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
             $file = $_FILES['arquivo_nfe'];
 

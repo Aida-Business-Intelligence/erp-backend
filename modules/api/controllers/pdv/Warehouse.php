@@ -326,39 +326,86 @@ class Warehouse extends REST_Controller
             return;
         }
 
-        // Get current warehouse data
+        // Verifica se a warehouse existe
         $current_warehouse = $this->Warehouse_model->get($id);
         if (!$current_warehouse) {
             $this->response(['status' => FALSE, 'message' => 'Warehouse not found'], REST_Controller::HTTP_NOT_FOUND);
             return;
         }
 
-        // Ajustar os campos permitidos para atualização
+        // Validação de campos obrigatórios
+        $required_fields = [
+            'razao_social',
+            'cnpj',
+            'warehouse_name',
+            'ie',
+            'im',
+            'cnae',
+            'crt',
+            'endereco',
+            'numero',
+            'bairro',
+            'cidade',
+            'ccidade',
+            'cep',
+            'estado',
+            'codigoUF',
+            'telefone'
+        ];
+
+        $missing_fields = [];
+        foreach ($required_fields as $field) {
+            if (!isset($_POST[$field]) || trim($_POST[$field]) === '') {
+                $missing_fields[] = $field;
+            }
+        }
+
+        if (!empty($missing_fields)) {
+            $this->response([
+                'status'         => FALSE,
+                'message'        => 'Campos obrigatórios ausentes ou nulos',
+                'missing_fields' => $missing_fields
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        // Filtra apenas os campos permitidos para atualização
         $update_data = array_intersect_key($_POST, array_flip([
             'warehouse_code',
             'warehouse_name',
-            'cnpj',
-            'type',
+            'warehouse_number',
             'razao_social',
-            // 'order',
-            'display',
+            'type',
             'note',
-            'cidade',
-            'estado',
-            'ie',
+            'franqueado_id',
+            'cnpj',
             'im',
+            'ie',
+            'cnae',
+            'crt',
+            'tpAmb',
+            'situacao_tributaria',
+            'cscid',
+            'csc',
+            'telefone',
+            'dt_cto_certifcado_a2',
             'cep',
+            'endereco',
+            'numero',
             'complemento',
             'bairro',
-            'numero',
-            'endereco',
-            'franqueado_id',
+            'cidade',
+            'estado',
+            'ccidade',
+            'codigoUF',
+            'display',
             'password_nfe',
         ]));
 
-        // First update the warehouse data through the model
+        // Atualiza os dados
         $output = $this->Warehouse_model->update($update_data, $id);
 
+        // Upload do certificado, se enviado
         if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
             $file = $_FILES['arquivo_nfe'];
 
@@ -366,7 +413,7 @@ class Warehouse extends REST_Controller
             if ($extension !== 'pfx') {
                 log_activity('Invalid file type uploaded for warehouse ' . $id . '. Only PFX files are allowed.');
             } else {
-                $max_size = 5 * 1024 * 1024; // 5MB
+                $max_size = 5 * 1024 * 1024;
                 if ($file['size'] <= $max_size) {
                     $upload_dir = './uploads/warehouse/' . $id . '/';
                     if (!file_exists($upload_dir)) {
@@ -385,10 +432,7 @@ class Warehouse extends REST_Controller
                     $upload_path = $upload_dir . $filename;
 
                     if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                        $server_url = base_url();
-                        $relative_path = str_replace('./', '', $upload_path);
-                        $file_url = rtrim($server_url, '/') . '/' . $relative_path;
-
+                        $file_url = base_url(str_replace('./', '', $upload_path));
                         $this->db->where('warehouse_id', $id);
                         $this->db->update(db_prefix() . 'warehouse', ['arquivo_nfe' => $file_url]);
                     } else {
@@ -403,11 +447,12 @@ class Warehouse extends REST_Controller
         $updated_warehouse = $this->Warehouse_model->get($id);
 
         $this->response([
-            'status' => TRUE,
+            'status'  => TRUE,
             'message' => 'Warehouse updated successfully',
-            'data' => $updated_warehouse
+            'data'    => $updated_warehouse
         ], REST_Controller::HTTP_OK);
     }
+
 
     public function remove_post()
     {

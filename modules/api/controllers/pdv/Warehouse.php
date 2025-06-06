@@ -439,7 +439,6 @@ class Warehouse extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
-
     public function remove_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);

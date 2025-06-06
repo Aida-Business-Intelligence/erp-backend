@@ -219,7 +219,7 @@ class Warehouse_model extends App_Model
             'display',
             'password_nfe',
         ];
-        
+
 
 
         // Filtrar os dados permitidos

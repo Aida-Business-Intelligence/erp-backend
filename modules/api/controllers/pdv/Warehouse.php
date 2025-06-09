@@ -102,8 +102,7 @@ class Warehouse extends REST_Controller
     }
     public function list_get($id = '')
     {
-
-        // Chamada ao modelo
+             // Chamada ao modelo
         $data = $this->Warehouse_model->get($id);
 
         // Verifica se encontrou dados

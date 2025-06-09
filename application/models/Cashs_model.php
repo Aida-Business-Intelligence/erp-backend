@@ -57,6 +57,21 @@ class Cashs_model extends App_Model
         return $client;
     }
 
+    /*
+    public function validate($warehouse_id, $user_id, $cash_id)
+    {
+
+        $this->db->from(db_prefix() . 'cashs');
+        $this->db->where(key: 'cashs.warehouse_id', $warehouse_id);
+        $this->db->where(key: 'cashs.user_id', $user_id);
+        $this->db->where(key: 'cashs.number', $cash_id);
+        $this->db->where(key: 'cashs.status', 1);
+        $client = $this->db->get()->row();
+        return $client;
+    }
+        */
+
+
     public function get_by_id($id)
     {
 
@@ -495,37 +510,6 @@ class Cashs_model extends App_Model
         return $this->db->update('cashextracts', $data);
     }
 
-    public function update_itemstocks($qtde, $item_id, $warehouse_id)
-    {
-        // Retrieve the current quantity
-        $this->db->select('stock, id');
-        $this->db->from(db_prefix() . 'items');
-        $this->db->where('id', $item_id);
-        $this->db->where('warehouse_id', $warehouse_id);
-        $query = $this->db->get();
-
-        if ($query->num_rows() > 0) {
-            $row = $query->row();
-
-        
-            $currentQuantity = $row->stock;
-            $updatedQuantity = $currentQuantity - $qtde;
-
-
-
-            // Update the quantity in the database
-            $this->db->where('id', $item_id);
-            $this->db->where('warehouse_id', $warehouse_id);
-            $this->db->set('stock', $updatedQuantity);
-            $this->db->update(db_prefix() . 'items');
-
-            // Return the ID of the updated record
-            return $row->id;
-        } else {
-            // Handle case where no record is found
-            return false; // or handle as necessary
-        }
-    }
 
     public function update_itemstocksmov($data, $id)
     {
@@ -533,6 +517,7 @@ class Cashs_model extends App_Model
         $this->db->where('id', $id);
         return $this->db->update('itemstocksmov', $data);
     }
+
 
     public function add1($data)
     {
@@ -619,8 +604,6 @@ class Cashs_model extends App_Model
     public function add($data)
     {
 
-
-
         // Iniciar transação
         $this->db->trans_start();
 
@@ -656,6 +639,8 @@ class Cashs_model extends App_Model
                 // Atualiza os saldos com base no método de pagamento
                 if (strtolower($payment->type) == "dinheiro") {
                     $update_data['balance_dinheiro'] += $payment->value;
+                    
+
                 }
                 $update_data['balance'] += $payment->value;
 
@@ -666,7 +651,8 @@ class Cashs_model extends App_Model
             }
 
             foreach ($items as $item) {
-                $this->db->insert(db_prefix() . 'itemcash', [
+
+                $$this->db->insert(db_prefix() . 'itemcash', [
                     'description' => $item['description'],
                     'long_description' => nl2br($item['description']),
                     'qty' => $item['qty'],
@@ -677,22 +663,8 @@ class Cashs_model extends App_Model
                     'unit' => $item['unit']
                 ]);
 
-
-                $id_itemstocks = $this->update_itemstocks($item['qty'], $item['id'], $data['warehouse_id']);
-
-                $data_itemstocksmov = [
-
-                    'warehouse_id' => $data['warehouse_id'],
-                    'transaction_id' => $id_itemstocks,
-                    'cash_id' => $data['cash_id'],
-                    'qtde' => $item['qty'],
-                    'transaction_id' => $detalhes_caixa->id,
-                    'hash' => $data['hash'],
-                    'user_id' => $data['user_id'],
-                    'obs' => 'pagamento',
-                    'type_transaction' => 'cash'
-                ];
-                $this->db->insert(db_prefix() . 'itemstocksmov', $data_itemstocksmov);
+                updateStock($data, $item, $detalhes_caixa);
+               
             }
 
             // Finaliza a transação
@@ -700,6 +672,18 @@ class Cashs_model extends App_Model
 
             // Verifica se a transação foi bem-sucedida
             if ($this->db->trans_status() === TRUE) {
+
+               
+                $nfce = false;
+
+                foreach ($data['form_payments'] as $payment) {
+                    if (!$nfce && strtolower($payment['type']) === 'dinheiro') {
+                        gerarNFC($data);
+                        $nfce = true; // garante que não será chamado novamente
+                    }
+                 
+                }
+
                 return $insert_id;
             } else {
                 // Transação falhou, rollback é automático

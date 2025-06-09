@@ -31,7 +31,7 @@ class Warehouse_model extends App_Model
         if (is_numeric($id)) {
             $this->db->where(db_prefix() . 'warehouse.warehouse_id', $id);
             $client = $this->db->get(db_prefix() . 'warehouse')->row();
-
+        
             $GLOBALS['client'] = $client;
 
             return $client;

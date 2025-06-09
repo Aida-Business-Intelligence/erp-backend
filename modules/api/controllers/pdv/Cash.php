@@ -43,9 +43,26 @@ class Cash extends REST_Controller
     public function get_by_number_get($id)
     {
 
-
-
         $data = $this->cashs_model->get_by_id($id);
+        if ($data) {
+            $this->response(['status' => true, 'total' => 1, 'data' => $data], REST_Controller::HTTP_OK);
+        } else {
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+        }
+
+    }
+
+    /*
+    public function validate()
+    {
+
+
+        $warehouse_id = $this->post('warehouse_id');
+        $user_id = $this->post('user_id');
+        $cash_id = $this->post('cash_id');
+
+        $data = $this->cashs_model->validate($warehouse_id, $user_id, $cash_id);
+
         if ($data) {
             $this->response(['status' => true, 'total' => 1, 'data' => $data], REST_Controller::HTTP_OK);
         } else {
@@ -55,6 +72,8 @@ class Cash extends REST_Controller
 
 
     }
+        */
+
     public function list_post($id = '')
     {
 
@@ -92,13 +111,13 @@ class Cash extends REST_Controller
 
         if ($data['total'] == 0) {
 
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_OK);
         } else {
 
             if ($data) {
                 $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
             } else {
-                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_OK);
             }
         }
 

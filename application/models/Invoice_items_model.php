@@ -369,7 +369,7 @@ class Invoice_items_model extends App_Model
 
         $items = $this->db->get()->result_array();
 
-        //  var_dump($this->db->last_query());
+        //var_dump($this->db->last_query());
 
         return ['data' => $items, 'total' => $total];
     }

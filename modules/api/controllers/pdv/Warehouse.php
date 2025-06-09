@@ -128,124 +128,146 @@ class Warehouse extends REST_Controller
         $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
 
         if ($is_multipart) {
-            $_POST = $this->input->post();
-            log_activity('Warehouse Create Input (multipart): ' . json_encode($_POST));
+            $input_data = $this->input->post();
+            log_activity('Warehouse Create Input (multipart): ' . json_encode($input_data));
         } else {
-            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-            log_activity('Warehouse Create Input (json): ' . json_encode($_POST));
+            $raw = file_get_contents("php://input");
+            $clean = $this->security->xss_clean($raw);
+            $input_data = json_decode($clean, true);
+            log_activity('Warehouse Create Input (json): ' . json_encode($input_data));
         }
 
-        if (empty($_POST)) {
-            $this->response(['status' => FALSE, 'message' => 'Invalid input data'], REST_Controller::HTTP_BAD_REQUEST);
+        if (empty($input_data)) {
+            $this->response([
+                'status'  => FALSE,
+                'message' => 'Invalid input data'
+            ], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
 
-        // Ajustando os campos de entrada para os campos reais da tabela
-        $_input = [
-            'warehouse_code' => $_POST['warehouse_code'] ?? null,
-            'warehouse_name' => $_POST['warehouse_name'] ?? null,
-            'cnpj' => $_POST['cnpj'] ?? null,
-            'type' => $_POST['type'] ?? null,
-            'razao_social' => $_POST['razao_social'] ?? null,
-            // 'order' => $_POST['order'] ?? null,
-            'display' => $_POST['display'] ?? null,
-            'note' => $_POST['note'] ?? null,
-            'cidade' => $_POST['cidade'] ?? null,
-            'estado' => $_POST['estado'] ?? null,
-            'ie' => $_POST['ie'] ?? null,
-            'im' => $_POST['im'] ?? null,
-            'cep' => $_POST['cep'] ?? null,
-            'complemento' => $_POST['complemento'] ?? null,
-            'bairro' => $_POST['bairro'] ?? null,
-            'numero' => $_POST['numero'] ?? null,
-            'endereco' => $_POST['endereco'] ?? null,
-            'franqueado_id' => $_POST['franqueado_id'] ?? null,
-            'password_nfe' => $_POST['password_nfe'] ?? null
+        $required_fields = [
+            'razao_social',
+            'cnpj',
+            'warehouse_name',
+            'ie',
+            'im',
+            'cnae',
+            'crt',
+            'endereco',
+            'numero',
+            'bairro',
+            'cidade',
+            'ccidade',
+            'cep',
+            'estado',
+            'codigoUF',
+            'telefone'
         ];
 
-        // Validação dos campos
-        $this->form_validation->set_data($_input);
-        $this->form_validation->set_rules('warehouse_name', 'Warehouse Name', 'trim|required|max_length[255]');
-        $this->form_validation->set_rules('endereco', 'Endereco', 'trim|required|max_length[255]');
-        $this->form_validation->set_rules('display', 'Display', 'trim|required|in_list[0,1]');
-        $this->form_validation->set_rules('cidade', 'Cidade', 'trim|required|max_length[100]');
-        $this->form_validation->set_rules('estado', 'Estado', 'trim|required|max_length[100]');
-        $this->form_validation->set_rules('bairro', 'bairro', 'trim|required|max_length[100]');
-        $this->form_validation->set_rules('cnpj', 'Cnpj', 'trim|required|max_length[20]');
-        $this->form_validation->set_rules('cep', 'Cep', 'trim|required|max_length[9]|regex_match[/^\d{5}-\d{3}$/]');
+        $missing_fields = [];
+        foreach ($required_fields as $field) {
+            if (!isset($input_data[$field]) || trim($input_data[$field]) === '') {
+                $missing_fields[] = $field;
+            }
+        }
 
-        if ($this->form_validation->run() === FALSE) {
-            $this->response(['status' => FALSE, 'error' => $this->form_validation->error_array()], REST_Controller::HTTP_BAD_REQUEST);
+        if (!empty($missing_fields)) {
+            $this->response([
+                'status'         => FALSE,
+                'message'        => 'Campos obrigatórios ausentes ou nulos',
+                'missing_fields' => $missing_fields
+            ], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
 
-        $output = $this->Warehouse_model->add($_input);
-        if (!$output) {
-            $this->response(['status' => FALSE, 'message' => 'Failed to create warehouse'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        $insert_payload = [
+            'warehouse_code'       => $input_data['warehouse_code']    ?? null,
+            'warehouse_name'       => $input_data['warehouse_name'],
+            'razao_social'         => $input_data['razao_social'],
+            'type'                 => $input_data['type']             ?? null,
+            'note'                 => $input_data['note']             ?? null,
+            'franqueado_id'        => $input_data['franqueado_id']    ?? null,
+            'cnpj'                 => $input_data['cnpj'],
+            'im'                   => $input_data['im'],
+            'ie'                   => $input_data['ie'],
+            'cep'                  => $input_data['cep'],
+            'endereco'             => $input_data['endereco'],
+            'numero'               => $input_data['numero'],
+            'complemento'          => $input_data['complemento']      ?? null,
+            'bairro'               => $input_data['bairro'],
+            'cidade'               => $input_data['cidade'],
+            'estado'               => $input_data['estado'],
+            'display'              => $input_data['display']          ?? 1,
+            'password_nfe'         => $input_data['password_nfe']      ?? null,
+            'cnae'                 => $input_data['cnae'],
+            'crt'                  => $input_data['crt'],
+            'warehouse_number'     => $input_data['warehouse_number'] ?? null,
+            'telefone'             => $input_data['telefone'],
+            'dt_cto_certifcado_a2' => $input_data['dt_cto_certifcado_a2'] ?? null,
+            'tpAmb'                => $input_data['tpAmb']            ?? 2,
+            'ccidade'              => $input_data['ccidade'],
+            'codigoUF'             => $input_data['codigoUF'],
+            'situacao_tributaria'  => $input_data['situacao_tributaria'] ?? null,
+            'cscid'                => $input_data['cscid']            ?? null,
+            'csc'                  => $input_data['csc']              ?? null,
+        ];
+
+        $new_id = $this->Warehouse_model->add($insert_payload);
+        if (!$new_id) {
+            $this->response([
+                'status'  => FALSE,
+                'message' => 'Failed to create warehouse'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             return;
         }
 
         if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['arquivo_nfe'];
-
+            $file      = $_FILES['arquivo_nfe'];
             $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
             if ($extension !== 'pfx') {
-                log_activity('Invalid file type uploaded for warehouse ' . $output . '. Only PFX files are allowed.');
+                log_activity('Invalid file type for warehouse ' . $new_id);
             } else {
                 $max_size = 5 * 1024 * 1024; // 5MB
                 if ($file['size'] <= $max_size) {
-                    $upload_dir = './uploads/warehouse/' . $output . '/';
+                    $upload_dir = './uploads/warehouse/' . $new_id . '/';
                     if (!file_exists($upload_dir)) {
                         mkdir($upload_dir, 0777, true);
                     }
 
-                    $filename = uniqid() . '.pfx';
+                    $filename    = uniqid() . '.pfx';
                     $upload_path = $upload_dir . $filename;
 
                     if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                        $server_url = base_url();
-                        $relative_path = str_replace('./', '', $upload_path);
-                        $file_url = rtrim($server_url, '/') . '/' . $relative_path;
-
-                        $this->db->where('warehouse_id', $output);
+                        $file_url = base_url(str_replace('./', '', $upload_path));
+                        $this->db->where('warehouse_id', $new_id);
                         $this->db->update(db_prefix() . 'warehouse', ['arquivo_nfe' => $file_url]);
                     } else {
-                        log_activity('Failed to move uploaded file for warehouse ' . $output);
+                        log_activity('Erro ao mover certificado para warehouse ' . $new_id);
                     }
                 } else {
-                    log_activity('File too large for warehouse ' . $output . '. Maximum size is 5MB.');
+                    log_activity('Arquivo de certificado excede 5MB: warehouse ' . $new_id);
                 }
             }
-        } 
-        
-        ini_set('display_errors', 1);
-		ini_set('display_startup_erros', 1);
-		error_reporting(E_ALL);
-       
-         $warehouse = $this->Warehouse_model->get($output);
-        if($warehouse){
-           
-            
-            if($warehouse->type == 'franquia' || $warehouse->type == 'filial' || $warehouse->type == 'distribuidor' ){
-                
-              $produtos = $this->Invoice_items_model->get_by_type($warehouse->type);
-              foreach($produtos as $prod){
-                  $prod->warehouse_id = $warehouse->warehouse_id;
-                  $this->Invoice_items_model->add($prod);
-              }
-             
-                      
-             
+        }
+
+        $warehouse = $this->Warehouse_model->get($new_id);
+        if ($warehouse && in_array($warehouse->type, ['franquia', 'filial', 'distribuidor'])) {
+            $produtos = $this->Invoice_items_model->get_by_type($warehouse->type);
+            foreach ($produtos as $prod) {
+                $prod->warehouse_id = $warehouse->warehouse_id;
+                $this->Invoice_items_model->add((array) $prod);
             }
-           
         }
 
         $this->response([
-            'status' => TRUE,
+            'status'  => TRUE,
             'message' => 'Warehouse created successfully',
-            'data' => $warehouse
+            'data'    => $warehouse
         ], REST_Controller::HTTP_OK);
     }
+
+
 
     public function get_get($id = '')
     {
@@ -295,37 +317,79 @@ class Warehouse extends REST_Controller
             return;
         }
 
-        // Get current warehouse data
         $current_warehouse = $this->Warehouse_model->get($id);
         if (!$current_warehouse) {
             $this->response(['status' => FALSE, 'message' => 'Warehouse not found'], REST_Controller::HTTP_NOT_FOUND);
             return;
         }
 
-        // Ajustar os campos permitidos para atualização
+        $required_fields = [
+            'razao_social',
+            'cnpj',
+            'warehouse_name',
+            'ie',
+            'im',
+            'cnae',
+            'crt',
+            'endereco',
+            'numero',
+            'bairro',
+            'cidade',
+            'ccidade',
+            'cep',
+            'estado',
+            'codigoUF',
+            'telefone'
+        ];
+
+        $missing_fields = [];
+        foreach ($required_fields as $field) {
+            if (!isset($_POST[$field]) || trim($_POST[$field]) === '') {
+                $missing_fields[] = $field;
+            }
+        }
+
+        if (!empty($missing_fields)) {
+            $this->response([
+                'status'         => FALSE,
+                'message'        => 'Campos obrigatórios ausentes ou nulos',
+                'missing_fields' => $missing_fields
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
         $update_data = array_intersect_key($_POST, array_flip([
             'warehouse_code',
             'warehouse_name',
-            'cnpj',
-            'type',
+            'warehouse_number',
             'razao_social',
-            // 'order',
-            'display',
+            'type',
             'note',
-            'cidade',
-            'estado',
-            'ie',
+            'franqueado_id',
+            'cnpj',
             'im',
+            'ie',
+            'cnae',
+            'crt',
+            'tpAmb',
+            'situacao_tributaria',
+            'cscid',
+            'csc',
+            'telefone',
+            'dt_cto_certifcado_a2',
             'cep',
+            'endereco',
+            'numero',
             'complemento',
             'bairro',
-            'numero',
-            'endereco',
-            'franqueado_id',
+            'cidade',
+            'estado',
+            'ccidade',
+            'codigoUF',
+            'display',
             'password_nfe',
         ]));
 
-        // First update the warehouse data through the model
         $output = $this->Warehouse_model->update($update_data, $id);
 
         if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
@@ -335,7 +399,7 @@ class Warehouse extends REST_Controller
             if ($extension !== 'pfx') {
                 log_activity('Invalid file type uploaded for warehouse ' . $id . '. Only PFX files are allowed.');
             } else {
-                $max_size = 5 * 1024 * 1024; // 5MB
+                $max_size = 5 * 1024 * 1024;
                 if ($file['size'] <= $max_size) {
                     $upload_dir = './uploads/warehouse/' . $id . '/';
                     if (!file_exists($upload_dir)) {
@@ -354,10 +418,7 @@ class Warehouse extends REST_Controller
                     $upload_path = $upload_dir . $filename;
 
                     if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                        $server_url = base_url();
-                        $relative_path = str_replace('./', '', $upload_path);
-                        $file_url = rtrim($server_url, '/') . '/' . $relative_path;
-
+                        $file_url = base_url(str_replace('./', '', $upload_path));
                         $this->db->where('warehouse_id', $id);
                         $this->db->update(db_prefix() . 'warehouse', ['arquivo_nfe' => $file_url]);
                     } else {
@@ -372,9 +433,9 @@ class Warehouse extends REST_Controller
         $updated_warehouse = $this->Warehouse_model->get($id);
 
         $this->response([
-            'status' => TRUE,
+            'status'  => TRUE,
             'message' => 'Warehouse updated successfully',
-            'data' => $updated_warehouse
+            'data'    => $updated_warehouse
         ], REST_Controller::HTTP_OK);
     }
 

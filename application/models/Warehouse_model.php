@@ -92,7 +92,6 @@ class Warehouse_model extends App_Model
                 $this->db->or_like(db_prefix() . 'warehouse.endereco', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.franqueado_id', $search);
                 $this->db->group_end();
-
             }
 
             $this->db->order_by($sortField, $sortOrder);
@@ -123,7 +122,6 @@ class Warehouse_model extends App_Model
                 $this->db->or_like(db_prefix() . 'warehouse.endereco', $search);
                 $this->db->or_like(db_prefix() . 'warehouse.franqueado_id', $search);
                 $this->db->group_end();
-
             }
 
             $total = $this->db->count_all_results();
@@ -153,8 +151,6 @@ class Warehouse_model extends App_Model
             'razao_social',
             'type',
             'display',
-            // 'order',
-            'display',
             'note',
             'cidade',
             'estado',
@@ -167,17 +163,26 @@ class Warehouse_model extends App_Model
             'endereco',
             'franqueado_id',
             'password_nfe',
+            'cnae',
+            'crt',
+            'telefone',
+            'dt_cto_certifcado_a2',
+            'tpAmb',
+            'ccidade',
+            'codigoUF',
+            'situacao_tributaria',
+            'cscid',
+            'csc',
+            'warehouse_number', // caso queira manter esse campo no lugar de 'numero'
         ];
 
-        // Filtrar apenas os campos válidos
         $insert_data = array_intersect_key($data, array_flip($allowed_fields));
 
-        // Inserir no banco de dados
         $this->db->insert(db_prefix() . 'warehouse', $insert_data);
 
-        // Retornar ID se a inserção for bem-sucedida
         return ($this->db->affected_rows() > 0) ? $this->db->insert_id() : false;
     }
+
 
 
     public function update($data, $id)
@@ -186,26 +191,37 @@ class Warehouse_model extends App_Model
         $allowed_fields = [
             'warehouse_code',
             'warehouse_name',
-            'cnpj',
+            'warehouse_number',
             'razao_social',
             'type',
-            // 'order',
-            'display',
             'note',
-            'cidade',
-            'estado',
-            'ie',
+            'franqueado_id',
+            'cnpj',
             'im',
+            'ie',
+            'cnae',
+            'crt',
+            'tpAmb',
+            'situacao_tributaria',
+            'cscid',
+            'csc',
+            'telefone',
+            'dt_cto_certifcado_a2',
             'cep',
+            'endereco',
+            'numero',
             'complemento',
             'bairro',
-            'numero',
-            'endereco',
-            'franqueado_id',
+            'cidade',
+            'estado',
+            'ccidade',
+            'codigoUF',
+            'display',
             'password_nfe',
         ];
-        
-          
+
+
+
         // Filtrar os dados permitidos
         $update_data = array_intersect_key($data, array_flip($allowed_fields));
 
@@ -213,8 +229,8 @@ class Warehouse_model extends App_Model
         if (empty($update_data)) {
             return false;
         }
-        
-  
+
+
 
         // Atualizar os dados na tabela
         $this->db->where('warehouse_id', $id);
@@ -235,8 +251,9 @@ class Warehouse_model extends App_Model
         // Retornar true se a exclusão foi bem-sucedida
         return ($this->db->affected_rows() > 0);
     }
-    
-    public function getWarehouses($warehouse_id) {
+
+    public function getWarehouses($warehouse_id)
+    {
 
 
         $warehouse = $this->get($warehouse_id);
@@ -251,7 +268,4 @@ class Warehouse_model extends App_Model
 
         return $warehouses;
     }
-
-
-
 }

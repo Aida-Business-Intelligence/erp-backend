@@ -2073,4 +2073,67 @@ class Invoices_model extends App_Model
         $this->db->set('status', $status);
         return $this->db->update('tblinvoices');
     }
+
+    // Entrega o/os pedidos - expedition
+    public function update_entrega($ids, $status)
+    {
+        $this->db->where_in('id', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tblinvoices');
+    }
+
+    public function update_order_item_quantity($updates)
+    {
+        $this->db->trans_begin();
+
+        try {
+            foreach ($updates as $update) {
+                $order_id = $update['order_id'];
+                $item_id = $update['item_id'];
+                $quantity = $update['quantity'];
+
+                // Atualiza a quantidade
+                $this->db->where('invoice_id', $order_id);
+                $this->db->where('id', $item_id);
+                $this->db->update(db_prefix() . 'purchase_needs', [
+                    'qtde' => $quantity
+                ]);
+
+                // Recalcula o total do pedido
+                $this->recalculate_order_total($order_id);
+            }
+
+            if ($this->db->trans_status() === FALSE) {
+                $this->db->trans_rollback();
+                return false;
+            }
+
+            $this->db->trans_commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            return false;
+        }
+    }
+
+    private function recalculate_order_total($order_id)
+    {
+        $this->db->select('pn.qtde, i.rate as unit_price');
+        $this->db->from(db_prefix() . 'purchase_needs pn');
+        $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id');
+        $this->db->where('pn.invoice_id', $order_id);
+        $items = $this->db->get()->result_array();
+
+        $total = 0;
+        foreach ($items as $item) {
+            $total += $item['qtde'] * $item['unit_price'];
+        }
+
+        $this->db->where('id', $order_id);
+        $this->db->update(db_prefix() . 'invoices', [
+            'subtotal' => $total,
+            'total' => $total
+        ]);
+    }
+
 }

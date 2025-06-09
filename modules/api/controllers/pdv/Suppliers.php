@@ -158,7 +158,7 @@ class Suppliers extends REST_Controller
         'email_default' => $_POST['emails'][0] ?? null,
         'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
         'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
-        'warehouse_id' => $_POST['warehouse_id'] ?? null,
+        'warehouse_id' => $_POST['warehouse_id'] ?? 0,
         'company_type' => $_POST['company_type'] ?? null,
         'business_type' => $_POST['business_type'] ?? null,
         'segment' => $_POST['segment'] ?? null,
@@ -383,13 +383,13 @@ class Suppliers extends REST_Controller
       $all_documents = array_merge(
         [
           [
-            'type' => strtolower($updated_supplier['documentType']),
+            'type' => $updated_supplier['documentType'] ?? 'cnpj',
             'number' => $updated_supplier['vat']
           ]
         ],
-        array_map(function ($doc) {
+        array_map(function ($doc) use ($updated_supplier) {
           return [
-            'type' => strtolower($doc['type']),
+            'type' => $updated_supplier['documentType'] ?? 'cnpj',
             'number' => $doc['document']
           ];
         }, $updated_documents)
@@ -495,13 +495,13 @@ class Suppliers extends REST_Controller
     $all_documents = array_merge(
       [
         [
-          'type' => strtolower($supplier['documentType']),
+          'type' => $supplier['documentType'] ?? 'cnpj',
           'number' => $supplier['vat']
         ]
       ],
-      array_map(function ($doc) {
+      array_map(function ($doc) use ($supplier) {
         return [
-          'type' => strtolower($doc['type']),
+          'type' => $supplier['documentType'] ?? 'cnpj',
           'number' => $doc['document']
         ];
       }, $documents)
@@ -585,6 +585,8 @@ class Suppliers extends REST_Controller
       c.commission_due_day, c.agent_commission_type,
       c.agent_commission_base_percentage, c.agent_commission_payment_type,
       c.agent_commission_due_day, c.address,
+      c.zip,
+      c.documentType,
       GROUP_CONCAT(DISTINCT ds.document) as additional_documents,
       GROUP_CONCAT(DISTINCT es.email) as additional_emails,
       COUNT(DISTINCT co.id) as contacts_count', false);
@@ -664,13 +666,22 @@ class Suppliers extends REST_Controller
           'userid' => $supplier['userid'],
           'company' => $supplier['company'],
           'documents' => array_merge(
-            [['type' => 'cnpj', 'number' => $supplier['vat']]],
-            array_map(function ($doc) {
-              return ['type' => 'cnpj', 'number' => $doc];
+            [
+              [
+                'type' => $supplier['documentType'] ?? 'cnpj',
+                'number' => $supplier['vat']
+              ]
+            ],
+            array_map(function ($doc) use ($supplier) {
+              return [
+                'type' => $supplier['documentType'] ?? 'cnpj',
+                'number' => $doc
+              ];
             }, $supplier['additional_documents'] ? explode(',', $supplier['additional_documents']) : [])
           ),
           'address' => $supplier['address'] ?? null,
           'city' => $supplier['city'] ?? null,
+          'zip' => $supplier['zip'] ?? null,
           'state' => $supplier['state'] ?? null,
           'country' => $supplier['country'] ?? null,
           'payment_terms' => $supplier['payment_terms'] ?? null,
@@ -684,6 +695,7 @@ class Suppliers extends REST_Controller
           'created_at' => $supplier['datecreated'] ?? null,
           'inscricao_estadual' => $supplier['inscricao_estadual'] ?? null,
           'inscricao_municipal' => $supplier['inscricao_municipal'] ?? null,
+
           'company_type' => $supplier['company_type'] ?? null,
           'business_type' => $supplier['business_type'] ?? null,
           'segment' => $supplier['segment'] ?? null,
@@ -823,6 +835,7 @@ class Suppliers extends REST_Controller
         'active' => 1,
         'is_supplier' => 1,
         'datecreated' => date('Y-m-d H:i:s'),
+        'warehouse_id' => $_POST['warehouse_id'] ?? 0,
       ];
 
       $supplier_id = $this->clients_model->add($supplier_data);

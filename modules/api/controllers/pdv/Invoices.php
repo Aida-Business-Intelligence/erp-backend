@@ -373,48 +373,40 @@ class Invoices extends REST_Controller
             $total = 0;
             $purchase_need_ids = [];
 
-            foreach ($_POST['items'] as $item) {
-                // Verificar se o produto existe
-                $this->db->where('id', $item['id']);
-                $product = $this->db->get(db_prefix() . 'items')->row();
+            foreach ($_POST['items'] as $index => $item) {
+                $product = $this->db->get_where('tblitems', ['id' => $item['id']])->row();
 
                 if (!$product) {
-                    throw new Exception('Product not found with ID: ' . $item['id']);
+                    continue;
                 }
 
-                // Usar o preço enviado ou o preço padrão do produto
-                $item_price = $item['price'] ?? $product->rate;
-
-                // Criar purchase need
-                $this->db->insert(db_prefix() . 'purchase_needs', [
-                    'item_id' => $product->id,
+                $purchase_need = [
+                    'item_id' => $item['id'],
                     'warehouse_id' => $warehouse_id,
                     'qtde' => $item['quantity'],
                     'status' => 0,
                     'date' => date('Y-m-d H:i:s'),
-                    'user_id' => $user_id,
-                    // 'unit_price' => $item_price
-                ]);
+                    'user_id' => $user_id
+                ];
 
+                $this->db->insert('tblpurchase_needs', $purchase_need);
                 $purchase_need_id = $this->db->insert_id();
                 $purchase_need_ids[] = $purchase_need_id;
 
-                // Preparar items para a invoice
-                $item_total = $item_price * $item['quantity']; // Usar o preço recebido
+                $item_total = $product->cost * $item['quantity'];
                 $total += $item_total;
 
                 $newitems[] = [
                     'description' => $product->description,
                     'long_description' => $product->long_description,
                     'qty' => $item['quantity'],
-                    'rate' => $item_price, // Usar o preço recebido
+                    'rate' => $item['price'],
                     'unit' => $product->unit,
-                    'item_id' => $product->id,
-                    'order' => count($newitems) + 1
+                    'item_id' => $item['id'],
+                    'order' => $index + 1
                 ];
             }
 
-            // 2. Criar a invoice
             $invoice_data = [
                 'clientid' => $clientid,
                 'supplier_id' => $supplier_id,
@@ -456,23 +448,46 @@ class Invoices extends REST_Controller
                 throw new Exception('Failed to create invoice');
             }
 
-            // 3. Atualizar purchase needs com o invoice_id
-            foreach ($purchase_need_ids as $need_id) {
-                $this->db->where('id', $need_id);
-                $this->db->update(db_prefix() . 'purchase_needs', [
-                    'invoice_id' => $invoice_id,
-                    'status' => 1
-                ]);
+            foreach ($purchase_need_ids as $index => $purchase_need_id) {
+                $this->db->where('id', $purchase_need_id);
+                $this->db->update('tblpurchase_needs', ['invoice_id' => $invoice_id]);
+
+                $item = [
+                    'qty' => $_POST['items'][$index]['quantity'],
+                    'id' => $_POST['items'][$index]['id']
+                ];
+
+                $data = [
+                    'warehouse_id' => $warehouse_id,
+                    'user_id' => $user_id,
+                    'obs' => 'Removendo do estoque',
+                    'hash' => md5(uniqid(rand(), true))
+                ];
+
+                $transaction = [
+                    'id' => $invoice_id,
+                    'cash' => 'invoice'
+                ];
+
+                try {
+                    updateStocks2($data, $item, $transaction);
+                } catch (Exception $e) {
+                    throw $e;
+                }
             }
 
             $this->db->trans_complete();
 
             if ($this->db->trans_status() === FALSE) {
-                throw new Exception('Transaction failed');
+                $this->db->trans_rollback();
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Error creating purchase order'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             }
 
-            $this->response([
-                'status' => TRUE,
+            return $this->response([
+                'status' => true,
                 'message' => 'Purchase order created successfully',
                 'invoice_id' => $invoice_id,
                 'purchase_need_ids' => $purchase_need_ids
@@ -480,6 +495,9 @@ class Invoices extends REST_Controller
 
         } catch (Exception $e) {
             $this->db->trans_rollback();
+            var_dump('Erro capturado:', $e->getMessage());
+            var_dump('Stack trace:', $e->getTraceAsString());
+
             $this->response([
                 'status' => FALSE,
                 'message' => 'Error: ' . $e->getMessage()
@@ -530,10 +548,9 @@ class Invoices extends REST_Controller
                     $newitems = [];
                     $total = 0;
                     $purchase_need_ids = [];
-                    $clientid = $order['clientid'] ?? 0; // Corrigido: estava usando $order fora do loop
-                    $supplier_id = $order['supplier_id'] ?? 0; // Corrigido: estava usando $order fora do loop
+                    $clientid = $order['clientid'] ?? 0;
+                    $supplier_id = $order['supplier_id'] ?? 0;
 
-                    // 1. Criar purchase needs para cada item
                     foreach ($order['items'] as $item) {
                         $this->db->where('id', $item['id']);
                         $product = $this->db->get(db_prefix() . 'items')->row();
@@ -542,10 +559,8 @@ class Invoices extends REST_Controller
                             throw new Exception('Product not found with ID: ' . $item['id']);
                         }
 
-                        // Usar o preço enviado ou o preço padrão do produto
-                        $item_price = $item['price'] ?? $product->rate; // Alterado de cost para rate
+                        $item_price = $item['price'] ?? $product->rate;
 
-                        // Criar purchase need
                         $this->db->insert(db_prefix() . 'purchase_needs', [
                             'item_id' => $product->id,
                             'warehouse_id' => $warehouse_id,
@@ -553,28 +568,25 @@ class Invoices extends REST_Controller
                             'status' => 0,
                             'date' => date('Y-m-d H:i:s'),
                             'user_id' => $user_id,
-                            // 'unit_price' => $item_price
                         ]);
 
                         $purchase_need_id = $this->db->insert_id();
                         $purchase_need_ids[] = $purchase_need_id;
 
-                        // Preparar items para a invoice
-                        $item_total = $item_price * $item['quantity']; // Usar o preço recebido
+                        $item_total = $item_price * $item['quantity'];
                         $total += $item_total;
 
                         $newitems[] = [
                             'description' => $product->description,
                             'long_description' => $product->long_description,
                             'qty' => $item['quantity'],
-                            'rate' => $item_price, // Usar o preço recebido
+                            'rate' => $item_price,
                             'unit' => $product->unit,
                             'item_id' => $product->id,
                             'order' => count($newitems) + 1
                         ];
                     }
 
-                    // 2. Criar a invoice
                     $invoice_data = [
                         'clientid' => $clientid,
                         'supplier_id' => $supplier_id,
@@ -616,13 +628,32 @@ class Invoices extends REST_Controller
                         throw new Exception('Failed to create invoice');
                     }
 
-                    // 3. Atualizar purchase needs com o invoice_id
-                    foreach ($purchase_need_ids as $need_id) {
+                    foreach ($purchase_need_ids as $index => $need_id) {
                         $this->db->where('id', $need_id);
                         $this->db->update(db_prefix() . 'purchase_needs', [
                             'invoice_id' => $invoice_id,
                             'status' => 1
                         ]);
+
+                        // Atualizar estoque
+                        $item = [
+                            'qty' => $order['items'][$index]['quantity'],
+                            'id' => $order['items'][$index]['id']
+                        ];
+
+                        $data = [
+                            'warehouse_id' => $warehouse_id,
+                            'user_id' => $user_id,
+                            'obs' => 'Removendo do estoque',
+                            'hash' => md5(uniqid(rand(), true))
+                        ];
+
+                        $transaction = [
+                            'id' => $invoice_id,
+                            'cash' => 'invoice'
+                        ];
+
+                        updateStocks2($data, $item, $transaction);
                     }
 
                     $results[] = [
@@ -660,8 +691,6 @@ class Invoices extends REST_Controller
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
-
 
     public function list_post()
     {
@@ -986,21 +1015,96 @@ class Invoices extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
         }
 
-        $ids = $_POST['ids'];
-        $status = "0"; // Define o campo 'active' como "0" (inativo)
+        try {
+            $this->db->trans_start();
 
-        // Atualiza o campo 'active' para os IDs fornecidos
-        $output = $this->Invoices_model->update_rejeita($ids, $status);
+            $ids = $_POST['ids'];
+            $status = "0"; // Define o status como "0" (rejeitado)
 
-        if ($output) {
-            $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
-            $this->response($message, REST_Controller::HTTP_OK);
-        } else {
-            $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            // Buscar os itens dos pedidos que serão rejeitados
+            $this->db->select('pn.*, i.warehouse_id');
+            $this->db->from(db_prefix() . 'purchase_needs pn');
+            $this->db->join(db_prefix() . 'invoices i', 'i.id = pn.invoice_id');
+            $this->db->where_in('pn.invoice_id', $ids);
+            $purchase_needs = $this->db->get()->result_array();
+
+            // Para cada item do pedido, vai restaurar o estoque
+            foreach ($purchase_needs as $need) {
+                try {
+                    $item = [
+                        'qty' => $need['qtde'],
+                        'id' => $need['item_id']
+                    ];
+
+                    $data = [
+                        'warehouse_id' => $need['warehouse_id'],
+                        'user_id' => $need['user_id'],
+                        'obs' => 'Restaurando estoque após rejeição de pedido',
+                        'hash' => md5(uniqid(rand(), true))
+                    ];
+
+                    $transaction = [
+                        'id' => $need['invoice_id'],
+                        'cash' => 'restore'
+                    ];
+
+                    // Atualizar o estoque diretamente
+                    $this->db->where('id', $item['id']);
+                    $this->db->where('warehouse_id', $data['warehouse_id']);
+                    $current_stock = $this->db->get(db_prefix() . 'items')->row();
+
+                    if (!$current_stock) {
+                        throw new Exception('Item não encontrado no estoque');
+                    }
+
+                    // Atualizar o estoque do item (adicionando a quantidade de volta)
+                    $new_stock = $current_stock->stock + $item['qty'];
+
+                    $this->db->where('id', $item['id']);
+                    $this->db->where('warehouse_id', $data['warehouse_id']);
+                    $this->db->update(db_prefix() . 'items', ['stock' => $new_stock]);
+
+                    // Registrar o movimento no itemstocksmov
+                    $data_itemstocksmov = [
+                        'warehouse_id' => $data['warehouse_id'],
+                        'transaction_id' => $transaction['id'],
+                        'cash_id' => $transaction['id'],
+                        'qtde' => $item['qty'],
+                        'hash' => $data['hash'],
+                        'user_id' => $data['user_id'],
+                        'obs' => 'Restaurando estoque após rejeição de pedido',
+                        'type_transaction' => 'restore'
+                    ];
+
+                    $this->db->insert(db_prefix() . 'itemstocksmov', $data_itemstocksmov);
+
+                } catch (Exception $e) {
+                    throw $e;
+                }
+            }
+
+            // Atualiza o status dos pedidos
+            $output = $this->Invoices_model->update_rejeita($ids, $status);
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Falha na transação');
+            }
+
+            if ($output) {
+                $message = array('status' => TRUE, 'message' => 'Pedidos rejeitados e estoque restaurado com sucesso.');
+                $this->response($message, REST_Controller::HTTP_OK);
+            } else {
+                $message = array('status' => FALSE, 'message' => 'Falha ao rejeitar pedidos.');
+                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            }
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            $message = array('status' => FALSE, 'message' => 'Erro: ' . $e->getMessage());
+            $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
 
     // Transmite o/os pedidos
     public function put_transmitir_post()

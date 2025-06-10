@@ -278,19 +278,25 @@ class Suppliers extends REST_Controller
 
     $data = $this->put();
 
+    // Adicione logs para depuração
+    log_activity('Supplier Update Payload: ' . print_r($data, true));
+
     $this->load->model('clients_model');
     $updated = $this->clients_model->update_supplier($id, $data);
 
     if (!$updated) {
+      log_activity('Failed to update supplier ID: ' . $id);
       return $this->response([
         'status' => FALSE,
         'message' => 'Failed to update supplier'
       ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
 
+    log_activity('Supplier updated successfully ID: ' . $id);
     return $this->response([
       'status' => TRUE,
-      'message' => 'Supplier updated successfully'
+      'message' => 'Supplier updated successfully',
+      'data' => $data // Retorna os dados atualizados para verificação
     ], REST_Controller::HTTP_OK);
   }
 

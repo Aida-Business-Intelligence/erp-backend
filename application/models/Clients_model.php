@@ -107,27 +107,30 @@ class Clients_model extends App_Model
      */
     public function update_supplier($id, $data)
     {
+        // Primeiro verifica se o supplier existe
+        $this->db->where('userid', $id);
+        $supplier = $this->db->get(db_prefix() . 'clients')->row();
+        if (!$supplier) {
+            return false;
+        }
+
         // Atualiza dados principais
         $mainData = [
             'company' => $data['name'] ?? null,
             'address' => $data['address'] ?? null,
             'city' => $data['city'] ?? null,
             'state' => $data['state'] ?? null,
-            'country' => $data['country'] ?? null,
-            'cep' => $data['cep'] ?? null,
-            'payment_terms' => $data['paymentTerm'] ?? null,
+            'country' => isset($data['country']) ? (int)$data['country'] : 0,
+            'zip' => $data['cep'] ?? null, // Note que na tabela o campo é 'zip' mas no payload é 'cep'
             'active' => ($data['status'] === 'active') ? 1 : 0,
-            'phonenumber' => $data['phonenumber'] ?? null,
-            'vat' => $data['vat'] ?? null,
-            'documentType' => isset($data['documentType']) ? strtoupper($data['documentType']) : null,
-            'email_default' => $data['email_default'] ?? null,
+            'documentType' => isset($data['document_type']) ? strtoupper($data['document_type']) : null,
+            'vat' => $data['document_number'] ?? null, // Mapeando document_number para vat
             'warehouse_id' => $data['warehouse_id'] ?? 0,
             'company_type' => $data['company_type'] ?? null,
             'business_type' => $data['business_type'] ?? null,
             'segment' => $data['segment'] ?? null,
             'company_size' => $data['company_size'] ?? null,
             'observations' => $data['observations'] ?? null,
-            'commission' => isset($data['commission']) ? (float)$data['commission'] : 0,
             'commercial_conditions' => $data['commercial_conditions'] ?? null,
             'commission_type' => $data['commission_type'] ?? null,
             'commission_base_percentage' => isset($data['commission_base_percentage']) ? (float)$data['commission_base_percentage'] : 0,
@@ -137,7 +140,7 @@ class Clients_model extends App_Model
             'agent_commission_base_percentage' => isset($data['agent_commission_base_percentage']) ? (float)$data['agent_commission_base_percentage'] : 0,
             'agent_commission_payment_type' => $data['agent_commission_payment_type'] ?? null,
             'agent_commission_due_day' => isset($data['agent_commission_due_day']) ? (int)$data['agent_commission_due_day'] : null,
-            'freight_type' => $data['freight_type'] ?? null,
+            'tipo_frete' => $data['freight_type'] ?? 'na',
             'freight_value' => isset($data['freight_value']) ? (float)$data['freight_value'] : null,
             'min_payment_term' => isset($data['min_payment_term']) ? (int)$data['min_payment_term'] : null,
             'max_payment_term' => isset($data['max_payment_term']) ? (int)$data['max_payment_term'] : null,
@@ -145,70 +148,59 @@ class Clients_model extends App_Model
             'max_order_value' => isset($data['max_order_value']) ? (float)$data['max_order_value'] : null,
             'inscricao_estadual' => $data['inscricao_estadual'] ?? null,
             'inscricao_municipal' => $data['inscricao_municipal'] ?? null,
+            'code' => $data['code'] ?? null,
         ];
 
         $this->db->where('userid', $id);
-        $this->db->update(db_prefix() . 'clients', $mainData);
+        $updated = $this->db->update(db_prefix() . 'clients', $mainData);
 
-        // Atualiza emails
-        $this->db->where('supplier_id', $id)->delete(db_prefix() . 'email_supplier');
-        if (!empty($data['emails']) && is_array($data['emails'])) {
-            $emailsData = array_map(fn($email) => [
-                'supplier_id' => $id,
-                'email' => $email,
-            ], array_slice($data['emails'], 1)); // primeiro email é o default
-
-            if (!empty($emailsData)) {
-                $this->db->insert_batch(db_prefix() . 'email_supplier', $emailsData);
-            }
-
-            // Atualiza email principal
-            $this->db->where('userid', $id);
-            $this->db->update(db_prefix() . 'clients', ['email_default' => $data['emails'][0]]);
+        if (!$updated) {
+            return false;
         }
 
         // Atualiza contatos
         $this->db->where('userid', $id)->delete(db_prefix() . 'contacts');
         if (!empty($data['contacts']) && is_array($data['contacts'])) {
-            $contactsData = array_map(fn($contact) => [
-                'userid' => $id,
-                'firstname' => $contact['name'] ?? '',
-                'phonenumber' => $contact['phone'] ?? '',
-                'email' => $contact['email'] ?? '',
-            ], array_slice($data['contacts'], 1)); // primeiro contato é do próprio supplier
+            $contactsData = [];
+            foreach ($data['contacts'] as $contact) {
+                $contactsData[] = [
+                    'userid' => $id,
+                    'firstname' => $contact['name'] ?? '',
+                    'phonenumber' => $contact['phone'] ?? '',
+                    'email' => $contact['email'] ?? '',
+                    'is_primary' => $contact['is_primary'] ?? 0,
+                ];
+
+                // Se for o contato primário, atualiza também os dados principais
+                if (!empty($contact['is_primary'])) {
+                    $this->db->where('userid', $id);
+                    $this->db->update(db_prefix() . 'clients', [
+                        'phonenumber' => $contact['phone'] ?? null,
+                        'email_default' => $contact['email'] ?? null,
+                    ]);
+                }
+            }
 
             if (!empty($contactsData)) {
                 $this->db->insert_batch(db_prefix() . 'contacts', $contactsData);
             }
-
-            // Atualiza nome e telefone principais
-            $mainContact = $data['contacts'][0];
-            $this->db->where('userid', $id);
-            $this->db->update(db_prefix() . 'clients', [
-                'company' => $mainContact['name'] ?? $mainData['company'],
-                'phonenumber' => $mainContact['phone'] ?? null,
-            ]);
         }
 
         // Atualiza documentos
         $this->db->where('supplier_id', $id)->delete(db_prefix() . 'document_supplier');
         if (!empty($data['documents']) && is_array($data['documents'])) {
-            $documentsData = array_map(fn($doc) => [
-                'supplier_id' => $id,
-                'type' => $doc['type'],
-                'document' => $doc['number'],
-            ], array_slice($data['documents'], 1)); // primeiro documento é o default (já está salvo)
+            $documentsData = [];
+            foreach ($data['documents'] as $doc) {
+                $documentsData[] = [
+                    'supplier_id' => $id,
+                    'type' => $doc['type'] ?? '',
+                    'document' => $doc['number'] ?? '',
+                ];
+            }
 
             if (!empty($documentsData)) {
                 $this->db->insert_batch(db_prefix() . 'document_supplier', $documentsData);
             }
-
-            // Atualiza documento principal
-            $this->db->where('userid', $id);
-            $this->db->update(db_prefix() . 'clients', [
-                'documentType' => $data['documents'][0]['type'] ?? '',
-                'vat' => $data['documents'][0]['number'] ?? '',
-            ]);
         }
 
         return true;

@@ -1687,4 +1687,353 @@ class Produto extends REST_Controller
             ]
         ], REST_Controller::HTTP_OK);
     }
+
+    public function ncm_get()
+    {
+        $search = $this->get('search') ?: '';
+        $page = $this->get('page') ? (int) $this->get('page') : 1;
+        $limit = $this->get('pageSize') ? (int) $this->get('pageSize') : 10;
+        $category = $this->get('category') ?: '';
+        $sortField = $this->get('sortField') ?: 'code';
+        $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+        
+        $result = $this->Invoice_items_model->get_ncm($search, $page, $limit, $category, $sortField, $sortOrder);
+        
+        $this->response(
+            array_merge(['status' => TRUE], $result),
+            REST_Controller::HTTP_OK
+        );
+    }
+
+    public function bulk_create_post()
+    {
+        ini_set('display_errors', 1);
+        ini_set('display_startup_erros', 1);
+        error_reporting(E_ALL);
+
+        $raw_data = file_get_contents("php://input");
+        
+        $input = json_decode($raw_data, true);
+        
+        if (empty($input) || !isset($input['products']) || !is_array($input['products'])) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Invalid request format. Expected products array.'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
+        $products = $input['products'];
+        $warehouse_id = $input['warehouse_id'] ?? null;
+
+        if (empty($warehouse_id) && !empty($products) && isset($products[0]['warehouse_id'])) {
+            $warehouse_id = $products[0]['warehouse_id'];
+        }
+
+        if (empty($warehouse_id)) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
+        $result = $this->Invoice_items_model->bulk_create_products($products, $warehouse_id);
+        
+        if ($result['status']) {
+            $this->response($result, REST_Controller::HTTP_OK);
+        } else {
+            $this->response($result, REST_Controller::HTTP_BAD_REQUEST);
+        }
+    }
+
+    public function edit_product_erp_put($product_id = '')
+    {
+        $raw_data = file_get_contents("php://input");
+        $input = json_decode($raw_data, true);
+        
+        $result = $this->Invoice_items_model->bulk_create_products([$input], null, $product_id);
+        
+        $this->response($result, $result['status'] ? REST_Controller::HTTP_OK : REST_Controller::HTTP_BAD_REQUEST);
+    }
+
+    public function category_checker_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['names']) || !is_array($_POST['names']) || empty($_POST['names'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Names array is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $warehouse_id = $_POST['warehouse_id'];
+        $input_names = $_POST['names'];
+        $similarity_threshold = isset($_POST['similarity_threshold']) ? (float)$_POST['similarity_threshold'] : 80.0;
+
+        $this->db->select('id, name');
+        $this->db->from(db_prefix() . 'items_groups');
+        $this->db->where('warehouse_id', $warehouse_id);
+        $this->db->order_by('name', 'ASC');
+        $existing_categories = $this->db->get()->result_array();
+
+        $results = [];
+
+        foreach ($input_names as $input_name) {
+            $input_name = trim($input_name);
+            if (empty($input_name)) {
+                continue;
+            }
+
+            $best_matches = [];
+            $exact_match = null;
+
+            foreach ($existing_categories as $existing) {
+                $existing_name = $existing['name'];
+                
+                if (strcasecmp($input_name, $existing_name) === 0) {
+                    $exact_match = [
+                        'id' => $existing['id'],
+                        'name' => $existing_name,
+                        'similarity_score' => 100,
+                        'match_type' => 'exact'
+                    ];
+                    break;
+                }
+
+                $similarity_percent = 0;
+                similar_text(strtolower($input_name), strtolower($existing_name), $similarity_percent);
+                
+                $levenshtein_distance = levenshtein(strtolower($input_name), strtolower($existing_name));
+                $max_length = max(strlen($input_name), strlen($existing_name));
+                $levenshtein_similarity = $max_length > 0 ? (($max_length - $levenshtein_distance) / $max_length) * 100 : 0;
+
+                $metaphone_input = metaphone($input_name);
+                $metaphone_existing = metaphone($existing_name);
+                $metaphone_match = ($metaphone_input === $metaphone_existing);
+
+                $final_similarity = max($similarity_percent, $levenshtein_similarity);
+                if ($metaphone_match && $final_similarity < 60) {
+                    $final_similarity = 60;
+                }
+
+                if ($final_similarity >= $similarity_threshold) {
+                    $match_type = 'similar';
+                    if ($metaphone_match) {
+                        $match_type = 'phonetic';
+                    }
+                    if ($final_similarity >= 95) {
+                        $match_type = 'very_similar';
+                    }
+
+                    $best_matches[] = [
+                        'id' => $existing['id'],
+                        'name' => $existing_name,
+                        'similarity_score' => round($final_similarity, 2),
+                        'match_type' => $match_type,
+                        'levenshtein_distance' => $levenshtein_distance,
+                        'metaphone_match' => $metaphone_match
+                    ];
+                }
+            }
+
+            usort($best_matches, function($a, $b) {
+                return $b['similarity_score'] <=> $a['similarity_score'];
+            });
+
+            $best_matches = array_slice($best_matches, 0, 5);
+
+            $result_item = [
+                'input_name' => $input_name,
+                'exact_match' => $exact_match,
+                'similar_matches' => $best_matches,
+                'has_matches' => ($exact_match !== null || !empty($best_matches)),
+                'recommendation' => $this->getCategoryRecommendation($exact_match, $best_matches, $input_name)
+            ];
+
+            $results[] = $result_item;
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'data' => $results,
+            'summary' => [
+                'total_checked' => count($input_names),
+                'exact_matches' => count(array_filter($results, function($r) { return $r['exact_match'] !== null; })),
+                'similar_matches' => count(array_filter($results, function($r) { return !empty($r['similar_matches']); })),
+                'no_matches' => count(array_filter($results, function($r) { return !$r['has_matches']; }))
+            ]
+        ], REST_Controller::HTTP_OK);
+    }
+
+    private function getCategoryRecommendation($exact_match, $similar_matches, $input_name)
+    {
+        if ($exact_match) {
+            return [
+                'action' => 'use_existing',
+                'category_id' => $exact_match['id'],
+                'category_name' => $exact_match['name'],
+                'reason' => 'Exact match found'
+            ];
+        }
+
+        if (!empty($similar_matches)) {
+            $best_match = $similar_matches[0];
+            if ($best_match['similarity_score'] >= 90) {
+                return [
+                    'action' => 'use_existing',
+                    'category_id' => $best_match['id'],
+                    'category_name' => $best_match['name'],
+                    'reason' => 'Very high similarity (' . $best_match['similarity_score'] . '%)'
+                ];
+            } else {
+                return [
+                    'action' => 'review_similar',
+                    'suggested_category_id' => $best_match['id'],
+                    'suggested_category_name' => $best_match['name'],
+                    'reason' => 'Similar category found (' . $best_match['similarity_score'] . '%) - manual review recommended'
+                ];
+            }
+        }
+
+        return [
+            'action' => 'create_new',
+            'suggested_name' => $input_name,
+            'reason' => 'No similar categories found'
+        ];
+    }
+
+    public function product_check_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['product_ids']) || !is_array($_POST['product_ids']) || empty($_POST['product_ids'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Product IDs array is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $product_ids = $_POST['product_ids'];
+        $warehouse_id = $_POST['warehouse_id'] ?? null;
+
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $results = [];
+        $summary = [
+            'total_checked' => 0,
+            'complete_products' => 0,
+            'incomplete_products' => 0,
+            'not_found' => 0
+        ];
+
+        foreach ($product_ids as $product_id) {
+            $product_id = $this->security->xss_clean($product_id);
+
+            if (empty($product_id) || !is_numeric($product_id)) {
+                $results[] = [
+                    'product_id' => $product_id,
+                    'status' => 'invalid',
+                    'message' => 'Invalid product ID',
+                    'checks' => null
+                ];
+                continue;
+            }
+
+            $this->db->select('id, description, image, stock, rate, cfop');
+            $this->db->where('id', $product_id);
+            $this->db->where('warehouse_id', $warehouse_id);
+            $product = $this->db->get(db_prefix() . 'items')->row();
+
+            $summary['total_checked']++;
+
+            if (!$product) {
+                $results[] = [
+                    'product_id' => (int)$product_id,
+                    'status' => 'not_found',
+                    'message' => 'Product not found in warehouse',
+                    'checks' => null
+                ];
+                $summary['not_found']++;
+                continue;
+            }
+
+            $checks = [
+                'image' => [
+                    'status' => !empty($product->image) && $product->image !== null,
+                    'value' => $product->image,
+                    'message' => !empty($product->image) ? 'Image present' : 'Image missing'
+                ],
+                'stock' => [
+                    'status' => isset($product->stock) && is_numeric($product->stock) && $product->stock >= 0,
+                    'value' => $product->stock,
+                    'message' => (isset($product->stock) && is_numeric($product->stock) && $product->stock >= 0) ? 'Stock valid' : 'Stock missing or invalid'
+                ],
+                'rate' => [
+                    'status' => isset($product->rate) && is_numeric($product->rate) && $product->rate > 0,
+                    'value' => $product->rate,
+                    'message' => (isset($product->rate) && is_numeric($product->rate) && $product->rate > 0) ? 'Rate valid' : 'Rate missing or invalid'
+                ],
+                'cfop' => [
+                    'status' => !empty($product->cfop) && $product->cfop !== null,
+                    'value' => $product->cfop,
+                    'message' => !empty($product->cfop) ? 'CFOP present' : 'CFOP missing'
+                ]
+            ];
+
+            $all_checks_passed = $checks['image']['status'] && 
+                                $checks['stock']['status'] && 
+                                $checks['rate']['status'] && 
+                                $checks['cfop']['status'];
+
+            $missing_fields = array_keys(array_filter($checks, function($check) {
+                return !$check['status'];
+            }));
+
+            $product_result = [
+                'product_id' => (int)$product_id,
+                'product_name' => $product->description,
+                'status' => $all_checks_passed ? 'complete' : 'incomplete',
+                'message' => $all_checks_passed ? 'All required fields present' : 'Missing required fields: ' . implode(', ', $missing_fields),
+                'checks' => $checks,
+                'missing_fields' => $missing_fields,
+                'completion_percentage' => round((array_sum(array_column($checks, 'status')) / count($checks)) * 100, 2)
+            ];
+
+            $results[] = $product_result;
+
+            if ($all_checks_passed) {
+                $summary['complete_products']++;
+            } else {
+                $summary['incomplete_products']++;
+            }
+        }
+
+        $summary['completion_rate'] = $summary['total_checked'] > 0 ? 
+            round(($summary['complete_products'] / $summary['total_checked']) * 100, 2) : 0;
+
+        $this->response([
+            'status' => TRUE,
+            'message' => 'Product check completed',
+            'data' => $results,
+            'summary' => $summary
+        ], REST_Controller::HTTP_OK);
+    }
 }

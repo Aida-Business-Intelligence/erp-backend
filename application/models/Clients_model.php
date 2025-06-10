@@ -137,6 +137,12 @@ class Clients_model extends App_Model
             'agent_commission_base_percentage' => isset($data['agent_commission_base_percentage']) ? (float)$data['agent_commission_base_percentage'] : 0,
             'agent_commission_payment_type' => $data['agent_commission_payment_type'] ?? null,
             'agent_commission_due_day' => isset($data['agent_commission_due_day']) ? (int)$data['agent_commission_due_day'] : null,
+            'freight_type' => $data['freight_type'] ?? null,
+            'freight_value' => isset($data['freight_value']) ? (float)$data['freight_value'] : null,
+            'min_payment_term' => isset($data['min_payment_term']) ? (int)$data['min_payment_term'] : null,
+            'max_payment_term' => isset($data['max_payment_term']) ? (int)$data['max_payment_term'] : null,
+            'min_order_value' => isset($data['min_order_value']) ? (float)$data['min_order_value'] : null,
+            'max_order_value' => isset($data['max_order_value']) ? (float)$data['max_order_value'] : null,
         ];
 
         $this->db->where('userid', $id);
@@ -310,12 +316,12 @@ class Clients_model extends App_Model
             'agent_commission_base_percentage' => (float) $supplier['agent_commission_base_percentage'],
             'agent_commission_payment_type' => $supplier['agent_commission_payment_type'],
             'agent_commission_due_day' => (int) $supplier['agent_commission_due_day'],
-            'tipo_frete' => isset($data['freight_type']) ? $data['freight_type'] : 'na',
-            'freight_value' => isset($data['freight_value']) ? (float) $data['freight_value'] : null,
-            'min_payment_term' => isset($data['min_payment_term']) ? (int) $data['min_payment_term'] : null,
-            'max_payment_term' => isset($data['max_payment_term']) ? (int) $data['max_payment_term'] : null,
-            'min_order_value' => isset($data['min_order_value']) ? (float) $data['min_order_value'] : null,
-            'max_order_value' => isset($data['max_order_value']) ? (float) $data['max_order_value'] : null,
+            'tipo_frete' => isset($supplier['freight_type']) ? $supplier['freight_type'] : 'na',
+            'freight_value' => isset($supplier['freight_value']) ? (float) $supplier['freight_value'] : null,
+            'min_payment_term' => isset($supplier['min_payment_term']) ? (int) $supplier['min_payment_term'] : null,
+            'max_payment_term' => isset($supplier['max_payment_term']) ? (int) $supplier['max_payment_term'] : null,
+            'min_order_value' => isset($supplier['min_order_value']) ? (float) $supplier['min_order_value'] : null,
+            'max_order_value' => isset($supplier['max_order_value']) ? (float) $supplier['max_order_value'] : null,
 
         ];
     }

@@ -175,7 +175,7 @@ class Notafiscal extends REST_Controller
             'cofins_value' => $_POST['cofins_value'] ?? 0,
 
             // Pedidos e itens (verificar se já são strings JSON)
-            'orders_id' => is_string($_POST['orders_id'] ?? null) ? $_POST['orders_id'] : json_encode($_POST['orders_id'] ?? []),
+            'orders_id' => is_array($_POST['orders'] ?? null) ? json_encode($_POST['orders']) : json_encode([]),
             'items' => is_string($_POST['items'] ?? null) ? $_POST['items'] : json_encode($_POST['items'] ?? []),
             'installments' => is_string($_POST['installments'] ?? null) ? $_POST['installments'] : json_encode($_POST['installments'] ?? []),
 

@@ -110,8 +110,6 @@ class Payment extends REST_Controller
      public function finish_post()
     {
          
-          
-         
          $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
          $payments = $_POST['payments'];
          $doc =  $_POST['cpf'];

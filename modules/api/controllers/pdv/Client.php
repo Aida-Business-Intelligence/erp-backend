@@ -76,7 +76,6 @@ class Client extends REST_Controller
      */
     public function list_post($id = '')
     {
-
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
 
@@ -84,9 +83,9 @@ class Client extends REST_Controller
         $search = $this->post('search') ?: ''; // Alterado para this->post
         $sortField = $this->post('sortField') ?: 'userid'; // Alterado para this->post
         $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC'; // Alterado para this->post
-        // $warehouse_id = $this->post('warehouse_id') ?: 0;
+        $warehouse_id = $this->post('warehouse_id') ?: 0;
 
-        $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder);
+        $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
 
         if ($data['total'] == 0) {
 
@@ -196,6 +195,7 @@ class Client extends REST_Controller
 
         // Outros campos do cliente
         $_input['vat'] = $_POST['vat'] ?? null;
+        $_input['is_supplier'] = 0;
         $_input['email_default'] = $_POST['email_default'] ?? null;
         $_input['phonenumber'] = $_POST['phonenumber'] ?? null;
         $_input['documentType'] = $_POST['documentType'] ?? null;

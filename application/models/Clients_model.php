@@ -143,6 +143,8 @@ class Clients_model extends App_Model
             'max_payment_term' => isset($data['max_payment_term']) ? (int)$data['max_payment_term'] : null,
             'min_order_value' => isset($data['min_order_value']) ? (float)$data['min_order_value'] : null,
             'max_order_value' => isset($data['max_order_value']) ? (float)$data['max_order_value'] : null,
+            'inscricao_estadual' => $data['inscricao_estadual'] ?? null,
+            'inscricao_municipal' => $data['inscricao_municipal'] ?? null,
         ];
 
         $this->db->where('userid', $id);

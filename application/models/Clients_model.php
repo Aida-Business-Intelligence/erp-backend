@@ -256,7 +256,9 @@ class Clients_model extends App_Model
         );
 
         // contatos
+        // contatos
         $this->db->where('userid', $id);
+        $this->db->where('is_primary !=', 1); // evita duplicar o contato padrão
         $contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
 
         $all_contacts = array_merge(

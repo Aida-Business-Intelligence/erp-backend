@@ -48,9 +48,6 @@ class Suppliers extends REST_Controller
 
   public function data_post()
   {
-
-
-
     \modules\api\core\Apiinit::the_da_vinci_code('api');
     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -133,14 +130,14 @@ class Suppliers extends REST_Controller
 
       $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
       foreach ($percentage_fields as $field) {
-        if (isset($_POST[$field]) && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
+        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
           throw new Exception("Field {$field} must be between 0 and 100");
         }
       }
 
       $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
       foreach ($due_day_fields as $field) {
-        if (isset($_POST[$field]) && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
+        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
           throw new Exception("Field {$field} must be between 1 and 31");
         }
       }
@@ -161,7 +158,7 @@ class Suppliers extends REST_Controller
         'email_default' => $_POST['emails'][0] ?? null,
         'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
         'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
-
+        'warehouse_id' => $_POST['warehouse_id'] ?? 0,
         'company_type' => $_POST['company_type'] ?? null,
         'business_type' => $_POST['business_type'] ?? null,
         'segment' => $_POST['segment'] ?? null,
@@ -177,6 +174,7 @@ class Suppliers extends REST_Controller
         'agent_commission_base_percentage' => !empty($_POST['agent_commission_base_percentage']) ? (float) $_POST['agent_commission_base_percentage'] : 0,
         'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
         'agent_commission_due_day' => !empty($_POST['agent_commission_due_day']) ? (int) $_POST['agent_commission_due_day'] : 0
+
       ];
 
       $supplier_id = $this->clients_model->add($supplier_data);
@@ -273,14 +271,14 @@ class Suppliers extends REST_Controller
 
       $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
       foreach ($percentage_fields as $field) {
-        if (isset($_POST[$field]) && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
+        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
           throw new Exception("Field {$field} must be between 0 and 100");
         }
       }
 
       $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
       foreach ($due_day_fields as $field) {
-        if (isset($_POST[$field]) && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
+        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
           throw new Exception("Field {$field} must be between 1 and 31");
         }
       }
@@ -385,13 +383,13 @@ class Suppliers extends REST_Controller
       $all_documents = array_merge(
         [
           [
-            'type' => strtolower($updated_supplier['documentType']),
+            'type' => $updated_supplier['documentType'] ?? 'cnpj',
             'number' => $updated_supplier['vat']
           ]
         ],
-        array_map(function ($doc) {
+        array_map(function ($doc) use ($updated_supplier) {
           return [
-            'type' => strtolower($doc['type']),
+            'type' => $updated_supplier['documentType'] ?? 'cnpj',
             'number' => $doc['document']
           ];
         }, $updated_documents)
@@ -497,13 +495,13 @@ class Suppliers extends REST_Controller
     $all_documents = array_merge(
       [
         [
-          'type' => strtolower($supplier['documentType']),
+          'type' => $supplier['documentType'] ?? 'cnpj',
           'number' => $supplier['vat']
         ]
       ],
-      array_map(function ($doc) {
+      array_map(function ($doc) use ($supplier) {
         return [
-          'type' => strtolower($doc['type']),
+          'type' => $supplier['documentType'] ?? 'cnpj',
           'number' => $doc['document']
         ];
       }, $documents)
@@ -576,6 +574,7 @@ class Suppliers extends REST_Controller
     $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
     $startDate = $this->get('startDate');
     $endDate = $this->get('endDate');
+    $warehouse_id = $this->get('warehouse_id') ?: 0;
 
     $this->db->select('c.userid, c.company, c.vat, c.phonenumber, c.city, c.state, 
       c.country, c.active, c.datecreated, c.email_default, c.payment_terms,
@@ -586,6 +585,8 @@ class Suppliers extends REST_Controller
       c.commission_due_day, c.agent_commission_type,
       c.agent_commission_base_percentage, c.agent_commission_payment_type,
       c.agent_commission_due_day, c.address,
+      c.zip,
+      c.documentType,
       GROUP_CONCAT(DISTINCT ds.document) as additional_documents,
       GROUP_CONCAT(DISTINCT es.email) as additional_emails,
       COUNT(DISTINCT co.id) as contacts_count', false);
@@ -594,7 +595,7 @@ class Suppliers extends REST_Controller
     $this->db->join(db_prefix() . 'email_supplier es', 'es.supplier_id = c.userid', 'left');
     $this->db->join(db_prefix() . 'contacts co', 'co.userid = c.userid', 'left');
     $this->db->where('c.is_supplier', 1);
-
+    $this->db->where('c.warehouse_id', $warehouse_id);
     if (!empty($search)) {
       $this->db->group_start();
       $this->db->like('c.company', $search);
@@ -665,13 +666,22 @@ class Suppliers extends REST_Controller
           'userid' => $supplier['userid'],
           'company' => $supplier['company'],
           'documents' => array_merge(
-            [['type' => 'cnpj', 'number' => $supplier['vat']]],
-            array_map(function ($doc) {
-              return ['type' => 'cnpj', 'number' => $doc];
+            [
+              [
+                'type' => $supplier['documentType'] ?? 'cnpj',
+                'number' => $supplier['vat']
+              ]
+            ],
+            array_map(function ($doc) use ($supplier) {
+              return [
+                'type' => $supplier['documentType'] ?? 'cnpj',
+                'number' => $doc
+              ];
             }, $supplier['additional_documents'] ? explode(',', $supplier['additional_documents']) : [])
           ),
           'address' => $supplier['address'] ?? null,
           'city' => $supplier['city'] ?? null,
+          'zip' => $supplier['zip'] ?? null,
           'state' => $supplier['state'] ?? null,
           'country' => $supplier['country'] ?? null,
           'payment_terms' => $supplier['payment_terms'] ?? null,
@@ -685,6 +695,7 @@ class Suppliers extends REST_Controller
           'created_at' => $supplier['datecreated'] ?? null,
           'inscricao_estadual' => $supplier['inscricao_estadual'] ?? null,
           'inscricao_municipal' => $supplier['inscricao_municipal'] ?? null,
+
           'company_type' => $supplier['company_type'] ?? null,
           'business_type' => $supplier['business_type'] ?? null,
           'segment' => $supplier['segment'] ?? null,
@@ -824,6 +835,7 @@ class Suppliers extends REST_Controller
         'active' => 1,
         'is_supplier' => 1,
         'datecreated' => date('Y-m-d H:i:s'),
+        'warehouse_id' => $_POST['warehouse_id'] ?? 0,
       ];
 
       $supplier_id = $this->clients_model->add($supplier_data);

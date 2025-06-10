@@ -84,7 +84,6 @@ class Suppliers extends REST_Controller
     }
   }
 
-
   public function data_delete($id = '')
   {
     $id = $this->security->xss_clean($id);
@@ -106,41 +105,41 @@ class Suppliers extends REST_Controller
 
 
   public function create_post()
-{
+  {
     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
     try {
-        $this->db->trans_start();
-        $primary_contact = $_POST['contacts'][0] ?? null;
-        $primary_document = $_POST['documents'][0] ?? null;
-        if (!$primary_contact || !$primary_document) {
-            throw new Exception('Primary contact and document are required');
-        }
+      $this->db->trans_start();
+      $primary_contact = $_POST['contacts'][0] ?? null;
+      $primary_document = $_POST['documents'][0] ?? null;
+      if (!$primary_contact || !$primary_document) {
+        throw new Exception('Primary contact and document are required');
+      }
 
-        // Processar a imagem se existir
-        $profile_image = null;
-        if (!empty($_POST['image'])) {
-            $image_data = $_POST['image'];
-            
-            // Verificar se é uma string base64 válida
-            if (preg_match('/^data:image\/(\w+);base64,/', $image_data, $type)) {
-                $image_data = substr($image_data, strpos($image_data, ',') + 1);
-                $type = strtolower($type[1]); // jpg, png, gif
-                
-                if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
-                    throw new Exception('Tipo de imagem inválido');
-                }
-                
-                $image_data = base64_decode($image_data);
-                
-                if ($image_data === false) {
-                    throw new Exception('Falha ao decodificar a imagem');
-                }
-                
-                // Opção 1: Salvar como string base64 no banco
-                $profile_image = $_POST['image']; // mantém o formato data:image/...
-                
-                // Opção 2: Salvar no sistema de arquivos (recomendado para imagens grandes)
-                /*
+      // Processar a imagem se existir
+      $profile_image = null;
+      if (!empty($_POST['image'])) {
+        $image_data = $_POST['image'];
+
+        // Verificar se é uma string base64 válida
+        if (preg_match('/^data:image\/(\w+);base64,/', $image_data, $type)) {
+          $image_data = substr($image_data, strpos($image_data, ',') + 1);
+          $type = strtolower($type[1]); // jpg, png, gif
+
+          if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
+            throw new Exception('Tipo de imagem inválido');
+          }
+
+          $image_data = base64_decode($image_data);
+
+          if ($image_data === false) {
+            throw new Exception('Falha ao decodificar a imagem');
+          }
+
+          // Opção 1: Salvar como string base64 no banco
+          $profile_image = $_POST['image']; // mantém o formato data:image/...
+
+          // Opção 2: Salvar no sistema de arquivos (recomendado para imagens grandes)
+          /*
                 $upload_path = FCPATH . 'uploads/clients/' . $client_id . '/';
                 if (!is_dir($upload_path)) {
                     mkdir($upload_path, 0755, true);
@@ -149,146 +148,9 @@ class Suppliers extends REST_Controller
                 file_put_contents($upload_path . $filename, $image_data);
                 $profile_image = 'uploads/clients/' . $client_id . '/' . $filename;
                 */
-            }
         }
-
-
-        $required_fields = ['name', 'address', 'city', 'state', 'country', 'company_type', 'business_type', 'segment', 'company_size'];
-        foreach ($required_fields as $field) {
-            if (empty($_POST[$field])) {
-                throw new Exception("Field {$field} is required");
-            }
-        }
-        $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
-        foreach ($percentage_fields as $field) {
-            if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
-                throw new Exception("Field {$field} must be between 0 and 100");
-            }
-        }
-        $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
-        foreach ($due_day_fields as $field) {
-            if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
-                throw new Exception("Field {$field} must be between 1 and 31");
-            }
-        }
-        $supplier_data = [
-            'company' => $_POST['name'],
-            'address' => $_POST['address'],
-            'city' => $_POST['city'],
-            'state' => $_POST['state'],
-            'country' => $_POST['country'],
-            'cep' => $_POST['cep'] ?? null,
-            'payment_terms' => $_POST['paymentTerm'] ?? null,
-            'active' => ($_POST['status'] === 'active') ? 1 : 0,
-            'is_supplier' => 1,
-            'datecreated' => date('Y-m-d H:i:s'),
-            'phonenumber' => $primary_contact['phone'],
-            'vat' => $primary_document['number'],
-            'documentType' => strtoupper($primary_document['type']),
-            'email_default' => $primary_contact['email'] ?? null,
-            'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
-            'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
-            'warehouse_id' => $_POST['warehouse_id'] ?? 0,
-            'company_type' => $_POST['company_type'],
-            'business_type' => $_POST['business_type'],
-            'segment' => $_POST['segment'],
-            'company_size' => $_POST['company_size'],
-            'observations' => $_POST['observations'] ?? null,
-            'commission' => isset($_POST['commission']) ? (float)$_POST['commission'] : 0,
-            'commercial_conditions' => $_POST['commercial_conditions'] ?? null,
-            'commission_type' => $_POST['commission_type'] ?? null,
-            'commission_base_percentage' => isset($_POST['commission_base_percentage']) ? (float)$_POST['commission_base_percentage'] : 0,
-            'commission_payment_type' => $_POST['commission_payment_type'] ?? null,
-            'commission_due_day' => isset($_POST['commission_due_day']) ? (int)$_POST['commission_due_day'] : null,
-            'agent_commission_type' => $_POST['agent_commission_type'] ?? null,
-            'agent_commission_base_percentage' => isset($_POST['agent_commission_base_percentage']) ? (float)$_POST['agent_commission_base_percentage'] : 0,
-            'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
-            'agent_commission_due_day' => isset($_POST['agent_commission_due_day']) ? (int)$_POST['agent_commission_due_day'] : null,
-            'tipo_frete' => $_POST['freight_type'] ?? null,
-            'freight_value' => isset($_POST['freight_value']) ? (float)$_POST['freight_value'] : 0,
-            'min_payment_term' => isset($_POST['min_payment_term']) ? (int)$_POST['min_payment_term'] : null,
-            'max_payment_term' => isset($_POST['max_payment_term']) ? (int)$_POST['max_payment_term'] : null,
-            'min_order_value' => isset($_POST['min_order_value']) ? (float)$_POST['min_order_value'] : null,
-            'max_order_value' => isset($_POST['max_order_value']) ? (float)$_POST['max_order_value'] : null,
-
-            'profile_image' => $profile_image,
-
-        
-          ];
-        $supplier_id = $this->clients_model->add($supplier_data);
-        if (!$supplier_id) {
-            throw new Exception('Failed to create supplier');
-        }
-        for ($i = 1; $i < count($_POST['documents']); $i++) {
-            $document = $_POST['documents'][$i];
-            $doc_data = [
-                'supplier_id' => $supplier_id,
-                'document' => $document['number'],
-                'type' => strtoupper($document['type'])
-            ];
-            $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
-        }
-        for ($i = 1; $i < count($_POST['contacts']); $i++) {
-
-            $contact = $_POST['contacts'][$i];
-
-            $nome = trim($contact['name']);
-            $partes = explode(' ', $nome);
-            
-            $firstname = $partes[0] ?? 'Contato';
-            $lastname = isset($partes[1]) ? implode(' ', array_slice($partes, 1)) : 'N/A';
-
-            $contact_data = [
-                'userid' => $supplier_id,
-                'firstname' => $firstname,
-                'lastname' => $lastname,
-                'phonenumber' => $contact['phone'] ?? 'N/A',
-                'email' => $contact['email'] ?? 'N/A',
-                'active' => 1,
-                'is_primary' => 0, 
-                'datecreated' => date('Y-m-d H:i:s'),
-            ];
-            $this->clients_model->add_contact($contact_data, $supplier_id, false);
-        }
-        $this->db->trans_complete();
-        if ($this->db->trans_status() === FALSE) {
-            throw new Exception('Transaction failed');
-        }
-        $this->response([
-            'status' => TRUE,
-            'message' => 'Supplier created successfully',
-            'supplier_id' => $supplier_id
-        ], REST_Controller::HTTP_OK);
-    } catch (Exception $e) {
-        $this->db->trans_rollback();
-        $this->response([
-            'status' => FALSE,
-            'message' => 'Error: ' . $e->getMessage()
-        ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-    }
-}
-
-  public function update_put($id)
-  {
-    if (empty($id) || !is_numeric($id)) {
-      $this->response([
-        'status' => FALSE,
-        'message' => 'Invalid supplier ID'
-      ], REST_Controller::HTTP_BAD_REQUEST);
-      return;
-    }
-
-    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-    try {
-      $this->db->trans_start();
-
-      $primary_contact = $_POST['contacts'][0] ?? null;
-      $primary_document = $_POST['documents'][0] ?? null;
-
-      if (!$primary_contact || !$primary_document) {
-        throw new Exception('Primary contact and document are required');
       }
+
 
       $required_fields = ['name', 'address', 'city', 'state', 'country', 'company_type', 'business_type', 'segment', 'company_size'];
       foreach ($required_fields as $field) {
@@ -296,192 +158,108 @@ class Suppliers extends REST_Controller
           throw new Exception("Field {$field} is required");
         }
       }
-
       $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
       foreach ($percentage_fields as $field) {
         if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
           throw new Exception("Field {$field} must be between 0 and 100");
         }
       }
-
       $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
       foreach ($due_day_fields as $field) {
         if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
           throw new Exception("Field {$field} must be between 1 and 31");
         }
       }
-
       $supplier_data = [
         'company' => $_POST['name'],
         'address' => $_POST['address'],
         'city' => $_POST['city'],
         'state' => $_POST['state'],
         'country' => $_POST['country'],
-        'payment_terms' => $_POST['paymentTerm'],
-        'active' => $_POST['status'] === 'active' ? 1 : 0,
+        'cep' => $_POST['cep'] ?? null,
+        'payment_terms' => $_POST['paymentTerm'] ?? null,
+        'active' => ($_POST['status'] === 'active') ? 1 : 0,
+        'is_supplier' => 1,
+        'datecreated' => date('Y-m-d H:i:s'),
         'phonenumber' => $primary_contact['phone'],
         'vat' => $primary_document['number'],
         'documentType' => strtoupper($primary_document['type']),
-        'email_default' => $_POST['emails'][0] ?? null,
+        'email_default' => $primary_contact['email'] ?? null,
         'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
         'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
-        'company_type' => $_POST['company_type'] ?? null,
-        'business_type' => $_POST['business_type'] ?? null,
-        'segment' => $_POST['segment'] ?? null,
-        'company_size' => $_POST['company_size'] ?? null,
+        'warehouse_id' => $_POST['warehouse_id'] ?? 0,
+        'company_type' => $_POST['company_type'],
+        'business_type' => $_POST['business_type'],
+        'segment' => $_POST['segment'],
+        'company_size' => $_POST['company_size'],
         'observations' => $_POST['observations'] ?? null,
-        'commission' => !empty($_POST['commission']) ? (float) $_POST['commission'] : 0,
+        'commission' => isset($_POST['commission']) ? (float)$_POST['commission'] : 0,
         'commercial_conditions' => $_POST['commercial_conditions'] ?? null,
         'commission_type' => $_POST['commission_type'] ?? null,
-        'commission_base_percentage' => !empty($_POST['commission_base_percentage']) ? (float) $_POST['commission_base_percentage'] : 0,
+        'commission_base_percentage' => isset($_POST['commission_base_percentage']) ? (float)$_POST['commission_base_percentage'] : 0,
         'commission_payment_type' => $_POST['commission_payment_type'] ?? null,
-        'commission_due_day' => !empty($_POST['commission_due_day']) ? (int) $_POST['commission_due_day'] : 0,
+        'commission_due_day' => isset($_POST['commission_due_day']) ? (int)$_POST['commission_due_day'] : null,
         'agent_commission_type' => $_POST['agent_commission_type'] ?? null,
-        'agent_commission_base_percentage' => !empty($_POST['agent_commission_base_percentage']) ? (float) $_POST['agent_commission_base_percentage'] : 0,
+        'agent_commission_base_percentage' => isset($_POST['agent_commission_base_percentage']) ? (float)$_POST['agent_commission_base_percentage'] : 0,
         'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
-        'agent_commission_due_day' => !empty($_POST['agent_commission_due_day']) ? (int) $_POST['agent_commission_due_day'] : 0
+        'agent_commission_due_day' => isset($_POST['agent_commission_due_day']) ? (int)$_POST['agent_commission_due_day'] : null,
+        'tipo_frete' => $_POST['freight_type'] ?? null,
+        'freight_value' => isset($_POST['freight_value']) ? (float)$_POST['freight_value'] : 0,
+        'min_payment_term' => isset($_POST['min_payment_term']) ? (int)$_POST['min_payment_term'] : null,
+        'max_payment_term' => isset($_POST['max_payment_term']) ? (int)$_POST['max_payment_term'] : null,
+        'min_order_value' => isset($_POST['min_order_value']) ? (float)$_POST['min_order_value'] : null,
+        'max_order_value' => isset($_POST['max_order_value']) ? (float)$_POST['max_order_value'] : null,
+
+        'profile_image' => $profile_image,
+
+
       ];
-
-      $this->clients_model->update($supplier_data, $id);
-
-      $this->db->where('supplier_id', $id);
-      $this->db->delete(db_prefix() . 'document_supplier');
-
+      $supplier_id = $this->clients_model->add($supplier_data);
+      if (!$supplier_id) {
+        throw new Exception('Failed to create supplier');
+      }
       for ($i = 1; $i < count($_POST['documents']); $i++) {
         $document = $_POST['documents'][$i];
         $doc_data = [
-          'supplier_id' => $id,
+          'supplier_id' => $supplier_id,
           'document' => $document['number'],
           'type' => strtoupper($document['type'])
         ];
-
         $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
       }
-
-      $this->db->where('supplier_id', $id);
-      $this->db->delete(db_prefix() . 'email_supplier');
-
-      for ($i = 1; $i < count($_POST['emails']); $i++) {
-        $email = $_POST['emails'][$i];
-        if (!empty($email)) {
-          $email_data = [
-            'supplier_id' => $id,
-            'email' => $email
-          ];
-
-          $this->db->insert(db_prefix() . 'email_supplier', $email_data);
-        }
-      }
-
-      $this->db->where('userid', $id);
-      $this->db->delete(db_prefix() . 'contacts');
-
       for ($i = 1; $i < count($_POST['contacts']); $i++) {
+
         $contact = $_POST['contacts'][$i];
+
+        $nome = trim($contact['name']);
+        $partes = explode(' ', $nome);
+
+        $firstname = $partes[0] ?? 'Contato';
+        $lastname = isset($partes[1]) ? implode(' ', array_slice($partes, 1)) : 'N/A';
+
         $contact_data = [
-          'userid' => $id,
-          'firstname' => $contact['name'],
-          'phonenumber' => $contact['phone'],
+          'userid' => $supplier_id,
+          'firstname' => $firstname,
+          'lastname' => $lastname,
+          'phonenumber' => $contact['phone'] ?? 'N/A',
+          'email' => $contact['email'] ?? 'N/A',
           'active' => 1,
-          'datecreated' => date('Y-m-d H:i:s')
+          'is_primary' => 0,
+          'datecreated' => date('Y-m-d H:i:s'),
         ];
-
-        $this->clients_model->add_contact($contact_data, $id);
+        $this->clients_model->add_contact($contact_data, $supplier_id, false);
       }
-
       $this->db->trans_complete();
-
       if ($this->db->trans_status() === FALSE) {
         throw new Exception('Transaction failed');
       }
-
-      $this->db->where('userid', $id);
-      $this->db->where('is_supplier', 1);
-      $updated_supplier = $this->db->get(db_prefix() . 'clients')->row_array();
-
-      $this->db->where('supplier_id', $id);
-      $updated_documents = $this->db->get(db_prefix() . 'document_supplier')->result_array();
-
-      $this->db->where('supplier_id', $id);
-      $updated_emails = $this->db->get(db_prefix() . 'email_supplier')->result_array();
-
-      $this->db->where('userid', $id);
-      $updated_contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
-
-      $all_documents = array_merge(
-        [
-          [
-            'type' => strtolower($updated_supplier['documentType']),
-            'number' => $updated_supplier['vat']
-          ]
-        ],
-        array_map(function ($doc) {
-          return [
-            'type' => strtolower($doc['type']),
-            'number' => $doc['document']
-          ];
-        }, $updated_documents)
-      );
-
-      $all_emails = array_merge(
-        [$updated_supplier['email_default']],
-        array_column($updated_emails, 'email')
-      );
-
-      $all_contacts = array_merge(
-        [
-          [
-            'name' => $updated_supplier['company'],
-            'phone' => $updated_supplier['phonenumber']
-          ]
-        ],
-        array_map(function ($contact) {
-          return [
-            'name' => $contact['firstname'],
-            'phone' => $contact['phonenumber']
-          ];
-        }, $updated_contacts)
-      );
-
-      $response_data = [
-        'userid' => $updated_supplier['userid'],
-        'name' => $updated_supplier['company'],
-        'address' => $updated_supplier['address'],
-        'city' => $updated_supplier['city'],
-        'state' => $updated_supplier['state'],
-        'country' => $updated_supplier['country'],
-        'paymentTerm' => $updated_supplier['payment_terms'],
-        'status' => $updated_supplier['active'] ? 'active' : 'inactive',
-        'documents' => $all_documents,
-        'emails' => array_filter($all_emails),
-        'contacts' => $all_contacts,
-        'inscricao_estadual' => $updated_supplier['inscricao_estadual'],
-        'inscricao_municipal' => $updated_supplier['inscricao_municipal'],
-        'company_type' => $updated_supplier['company_type'],
-        'business_type' => $updated_supplier['business_type'],
-        'segment' => $updated_supplier['segment'],
-        'company_size' => $updated_supplier['company_size'],
-        'observations' => $updated_supplier['observations'],
-        'commission' => (float) $updated_supplier['commission'],
-        'commercial_conditions' => $updated_supplier['commercial_conditions'],
-        'commission_type' => $updated_supplier['commission_type'],
-        'commission_base_percentage' => (float) $updated_supplier['commission_base_percentage'],
-        'commission_payment_type' => $updated_supplier['commission_payment_type'],
-        'commission_due_day' => (int) $updated_supplier['commission_due_day'],
-        'agent_commission_type' => $updated_supplier['agent_commission_type'],
-        'agent_commission_base_percentage' => (float) $updated_supplier['agent_commission_base_percentage'],
-        'agent_commission_payment_type' => $updated_supplier['agent_commission_payment_type'],
-        'agent_commission_due_day' => (int) $updated_supplier['agent_commission_due_day']
-      ];
-
       $this->response([
         'status' => TRUE,
-        'message' => 'Supplier updated successfully',
-        'data' => $response_data
+        'message' => 'Supplier created successfully',
+        'supplier_id' => $supplier_id
       ], REST_Controller::HTTP_OK);
     } catch (Exception $e) {
       $this->db->trans_rollback();
-
       $this->response([
         'status' => FALSE,
         'message' => 'Error: ' . $e->getMessage()
@@ -489,108 +267,60 @@ class Suppliers extends REST_Controller
     }
   }
 
-  public function get_get($id = '')
+  public function update_put($id = '')
   {
     if (empty($id) || !is_numeric($id)) {
-      $this->response([
+      return $this->response([
         'status' => FALSE,
         'message' => 'Invalid supplier ID'
       ], REST_Controller::HTTP_BAD_REQUEST);
-      return;
     }
 
-    $this->db->where('userid', $id);
-    $this->db->where('is_supplier', 1);
-    $supplier = $this->db->get(db_prefix() . 'clients')->row_array();
+    $data = $this->put();
+
+    $this->load->model('clients_model');
+    $updated = $this->clients_model->update_supplier($id, $data);
+
+    if (!$updated) {
+      return $this->response([
+        'status' => FALSE,
+        'message' => 'Failed to update supplier'
+      ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+
+    return $this->response([
+      'status' => TRUE,
+      'message' => 'Supplier updated successfully'
+    ], REST_Controller::HTTP_OK);
+  }
+
+
+  public function get_get($id = '')
+  {
+    if (empty($id) || !is_numeric($id)) {
+      return $this->response([
+        'status' => FALSE,
+        'message' => 'Invalid supplier ID'
+      ], REST_Controller::HTTP_BAD_REQUEST);
+    }
+
+    $this->load->model('clients_model');
+
+    $supplier = $this->clients_model->get($id);
 
     if (!$supplier) {
-      $this->response([
+      return $this->response([
         'status' => FALSE,
         'message' => 'Supplier not found'
       ], REST_Controller::HTTP_NOT_FOUND);
-      return;
     }
 
-    $this->db->where('supplier_id', $id);
-    $documents = $this->db->get(db_prefix() . 'document_supplier')->result_array();
-
-    $this->db->where('supplier_id', $id);
-    $additional_emails = $this->db->get(db_prefix() . 'email_supplier')->result_array();
-
-    $this->db->where('userid', $id);
-    $additional_contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
-
-    $all_documents = array_merge(
-      [
-        [
-          'type' => strtolower($supplier['documentType']),
-          'number' => $supplier['vat']
-        ]
-      ],
-      array_map(function ($doc) {
-        return [
-          'type' => strtolower($doc['type']),
-          'number' => $doc['document']
-        ];
-      }, $documents)
-    );
-
-    $all_emails = array_merge(
-      [$supplier['email_default']],
-      array_column($additional_emails, 'email')
-    );
-
-    $all_contacts = array_merge(
-      [
-        [
-          'name' => $supplier['company'],
-          'phone' => $supplier['phonenumber']
-        ]
-      ],
-      array_map(function ($contact) {
-        return [
-          'name' => $contact['firstname'],
-          'phone' => $contact['phonenumber']
-        ];
-      }, $additional_contacts)
-    );
-
-    $response_data = [
-      'userid' => $supplier['userid'],
-      'name' => $supplier['company'],
-      'address' => $supplier['address'],
-      'city' => $supplier['city'],
-      'state' => $supplier['state'],
-      'country' => $supplier['country'],
-      'paymentTerm' => $supplier['payment_terms'],
-      'status' => $supplier['active'] ? 'active' : 'inactive',
-      'documents' => $all_documents,
-      'emails' => array_filter($all_emails),
-      'contacts' => $all_contacts,
-      'inscricao_estadual' => $supplier['inscricao_estadual'],
-      'inscricao_municipal' => $supplier['inscricao_municipal'],
-      'company_type' => $supplier['company_type'],
-      'business_type' => $supplier['business_type'],
-      'segment' => $supplier['segment'],
-      'company_size' => $supplier['company_size'],
-      'observations' => $supplier['observations'],
-      'commission' => (float) $supplier['commission'],
-      'commercial_conditions' => $supplier['commercial_conditions'],
-      'commission_type' => $supplier['commission_type'],
-      'commission_base_percentage' => (float) $supplier['commission_base_percentage'],
-      'commission_payment_type' => $supplier['commission_payment_type'],
-      'commission_due_day' => (int) $supplier['commission_due_day'],
-      'agent_commission_type' => $supplier['agent_commission_type'],
-      'agent_commission_base_percentage' => (float) $supplier['agent_commission_base_percentage'],
-      'agent_commission_payment_type' => $supplier['agent_commission_payment_type'],
-      'agent_commission_due_day' => (int) $supplier['agent_commission_due_day']
-    ];
-
-    $this->response([
+    return $this->response([
       'status' => TRUE,
-      'data' => $response_data
+      'data' => $supplier
     ], REST_Controller::HTTP_OK);
   }
+
 
   public function list_get()
   {
@@ -893,7 +623,6 @@ class Suppliers extends REST_Controller
           'email_default' => $created_supplier['email_default'],
         ]
       ], REST_Controller::HTTP_OK);
-
     } catch (Exception $e) {
       $this->db->trans_rollback();
 

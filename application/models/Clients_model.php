@@ -107,14 +107,105 @@ class Clients_model extends App_Model
      */
     public function update_supplier($id, $data)
     {
-        $data['is_supplier'] = 1;
+        // Atualiza dados principais
+        $mainData = [
+            'company' => $data['name'] ?? null,
+            'address' => $data['address'] ?? null,
+            'city' => $data['city'] ?? null,
+            'state' => $data['state'] ?? null,
+            'country' => $data['country'] ?? null,
+            'cep' => $data['cep'] ?? null,
+            'payment_terms' => $data['paymentTerm'] ?? null,
+            'active' => ($data['status'] === 'active') ? 1 : 0,
+            'phonenumber' => $data['phonenumber'] ?? null,
+            'vat' => $data['vat'] ?? null,
+            'documentType' => isset($data['documentType']) ? strtoupper($data['documentType']) : null,
+            'email_default' => $data['email_default'] ?? null,
+            'warehouse_id' => $data['warehouse_id'] ?? 0,
+            'company_type' => $data['company_type'] ?? null,
+            'business_type' => $data['business_type'] ?? null,
+            'segment' => $data['segment'] ?? null,
+            'company_size' => $data['company_size'] ?? null,
+            'observations' => $data['observations'] ?? null,
+            'commission' => isset($data['commission']) ? (float)$data['commission'] : 0,
+            'commercial_conditions' => $data['commercial_conditions'] ?? null,
+            'commission_type' => $data['commission_type'] ?? null,
+            'commission_base_percentage' => isset($data['commission_base_percentage']) ? (float)$data['commission_base_percentage'] : 0,
+            'commission_payment_type' => $data['commission_payment_type'] ?? null,
+            'commission_due_day' => isset($data['commission_due_day']) ? (int)$data['commission_due_day'] : null,
+            'agent_commission_type' => $data['agent_commission_type'] ?? null,
+            'agent_commission_base_percentage' => isset($data['agent_commission_base_percentage']) ? (float)$data['agent_commission_base_percentage'] : 0,
+            'agent_commission_payment_type' => $data['agent_commission_payment_type'] ?? null,
+            'agent_commission_due_day' => isset($data['agent_commission_due_day']) ? (int)$data['agent_commission_due_day'] : null,
+        ];
 
-        // Update the supplier
         $this->db->where('userid', $id);
-        $this->db->update(db_prefix() . 'clients', $data);
+        $this->db->update(db_prefix() . 'clients', $mainData);
 
-        return $this->db->affected_rows() > 0;
+        // Atualiza emails
+        $this->db->where('supplier_id', $id)->delete(db_prefix() . 'email_supplier');
+        if (!empty($data['emails']) && is_array($data['emails'])) {
+            $emailsData = array_map(fn($email) => [
+                'supplier_id' => $id,
+                'email' => $email,
+            ], array_slice($data['emails'], 1)); // primeiro email é o default
+
+            if (!empty($emailsData)) {
+                $this->db->insert_batch(db_prefix() . 'email_supplier', $emailsData);
+            }
+
+            // Atualiza email principal
+            $this->db->where('userid', $id);
+            $this->db->update(db_prefix() . 'clients', ['email_default' => $data['emails'][0]]);
+        }
+
+        // Atualiza contatos
+        $this->db->where('userid', $id)->delete(db_prefix() . 'contacts');
+        if (!empty($data['contacts']) && is_array($data['contacts'])) {
+            $contactsData = array_map(fn($contact) => [
+                'userid' => $id,
+                'firstname' => $contact['name'] ?? '',
+                'phonenumber' => $contact['phone'] ?? '',
+                'email' => $contact['email'] ?? '',
+            ], array_slice($data['contacts'], 1)); // primeiro contato é do próprio supplier
+
+            if (!empty($contactsData)) {
+                $this->db->insert_batch(db_prefix() . 'contacts', $contactsData);
+            }
+
+            // Atualiza nome e telefone principais
+            $mainContact = $data['contacts'][0];
+            $this->db->where('userid', $id);
+            $this->db->update(db_prefix() . 'clients', [
+                'company' => $mainContact['name'] ?? $mainData['company'],
+                'phonenumber' => $mainContact['phone'] ?? null,
+            ]);
+        }
+
+        // Atualiza documentos
+        $this->db->where('supplier_id', $id)->delete(db_prefix() . 'document_supplier');
+        if (!empty($data['documents']) && is_array($data['documents'])) {
+            $documentsData = array_map(fn($doc) => [
+                'supplier_id' => $id,
+                'type' => $doc['type'],
+                'document' => $doc['number'],
+            ], array_slice($data['documents'], 1)); // primeiro documento é o default (já está salvo)
+
+            if (!empty($documentsData)) {
+                $this->db->insert_batch(db_prefix() . 'document_supplier', $documentsData);
+            }
+
+            // Atualiza documento principal
+            $this->db->where('userid', $id);
+            $this->db->update(db_prefix() . 'clients', [
+                'documentType' => $data['documents'][0]['type'] ?? '',
+                'vat' => $data['documents'][0]['number'] ?? '',
+            ]);
+        }
+
+        return true;
     }
+
 
     /**
      * Delete a supplier
@@ -130,33 +221,103 @@ class Clients_model extends App_Model
     }
 
 
-    public function get($id = '', $where = [])
+    public function get($id)
     {
-        $this->db->select(implode(',', prefixed_table_fields_array(db_prefix() . 'clients')) . ',' . get_sql_select_client_company());
+        $this->db->where('userid', $id);
+        $this->db->where('is_supplier', 1);
+        $supplier = $this->db->get(db_prefix() . 'clients')->row_array();
 
-        $this->db->join(db_prefix() . 'countries', '' . db_prefix() . 'countries.country_id = ' . db_prefix() . 'clients.country', 'left');
-        $this->db->join(db_prefix() . 'contacts', '' . db_prefix() . 'contacts.userid = ' . db_prefix() . 'clients.userid AND is_primary = 1', 'left');
+        if (!$supplier) return null;
 
-        if ((is_array($where) && count($where) > 0) || (is_string($where) && $where != '')) {
-            $this->db->where($where);
-        }
+        // documentos
+        $this->db->where('supplier_id', $id);
+        $documents = $this->db->get(db_prefix() . 'document_supplier')->result_array();
 
-        if (is_numeric($id)) {
-            $this->db->where(db_prefix() . 'clients.userid', $id);
-            $client = $this->db->get(db_prefix() . 'clients')->row();
+        $all_documents = array_merge(
+            [[
+                'type' => strtolower($supplier['documentType']),
+                'number' => $supplier['vat']
+            ]],
+            array_map(function ($doc) {
+                return [
+                    'type' => strtolower($doc['type']),
+                    'number' => $doc['document']
+                ];
+            }, $documents)
+        );
 
-            if ($client && get_option('company_requires_vat_number_field') == 0) {
-                $client->vat = null;
-            }
+        // emails
+        $this->db->where('supplier_id', $id);
+        $additional_emails = $this->db->get(db_prefix() . 'email_supplier')->result_array();
 
-            $GLOBALS['client'] = $client;
+        $all_emails = array_merge(
+            [$supplier['email_default']],
+            array_column($additional_emails, 'email')
+        );
 
-            return $client;
-        }
+        // contatos
+        $this->db->where('userid', $id);
+        $contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
 
-        $this->db->order_by('company', 'asc');
+        $all_contacts = array_merge(
+            [[
+                'name' => $supplier['company'],
+                'phone' => $supplier['phonenumber'],
+                'email' => $supplier['email_default'] ?? null,
+            ]],
+            array_map(function ($c) {
+                return [
+                    'name' => $c['firstname'],
+                    'phone' => $c['phonenumber'],
+                    'email' => $c['email'],
+                ];
+            }, $contacts)
+        );
 
-        return $this->db->get(db_prefix() . 'clients')->result_array();
+        // resposta final
+        return [
+            'userid' => $supplier['userid'],
+            'name' => $supplier['company'],
+            'address' => $supplier['address'],
+            'cep' => $supplier['zip'], // se você quiser incluir o CEP corretamente
+            'city' => $supplier['city'],
+            'state' => $supplier['state'],
+            'country' => $supplier['country'],
+            'phonenumber' => $supplier['phonenumber'],
+            'vat' => $supplier['vat'],
+            'documentType' => $supplier['documentType'],
+            'email_default' => $supplier['email_default'],
+            'paymentTerm' => $supplier['payment_terms'],
+            'status' => $supplier['active'] ? 'active' : 'inactive',
+            'documents' => $all_documents,
+            'emails' => array_filter($all_emails),
+            'contacts' => $all_contacts,
+            'warehouse_id' => $supplier['warehouse_id'],
+            'inscricao_estadual' => $supplier['inscricao_estadual'],
+            'inscricao_municipal' => $supplier['inscricao_municipal'],
+            'company_type' => $supplier['company_type'],
+            'business_type' => $supplier['business_type'],
+            'segment' => $supplier['segment'],
+            'company_size' => $supplier['company_size'],
+            'observations' => $supplier['observations'],
+            'commission' => (float) $supplier['commission'],
+            'commercial_conditions' => $supplier['commercial_conditions'],
+            'commission_type' => $supplier['commission_type'],
+            'commission_base_percentage' => (float) $supplier['commission_base_percentage'],
+            'commission_payment_type' => $supplier['commission_payment_type'],
+            'commission_due_day' => (int) $supplier['commission_due_day'],
+            'agent_commission_type' => $supplier['agent_commission_type'],
+            'agent_commission_base_percentage' => (float) $supplier['agent_commission_base_percentage'],
+            'agent_commission_payment_type' => $supplier['agent_commission_payment_type'],
+            'agent_commission_due_day' => (int) $supplier['agent_commission_due_day'],
+            'tipo_frete' => isset($data['freight_type']) ? $data['freight_type'] : 'na',
+            'freight_value' => isset($data['freight_value']) ? (float) $data['freight_value'] : null,
+            'min_payment_term' => isset($data['min_payment_term']) ? (int) $data['min_payment_term'] : null,
+            'max_payment_term' => isset($data['max_payment_term']) ? (int) $data['max_payment_term'] : null,
+            'min_order_value' => isset($data['min_order_value']) ? (float) $data['min_order_value'] : null,
+            'max_order_value' => isset($data['max_order_value']) ? (float) $data['max_order_value'] : null,
+
+        ];
     }
 
     public function get_api_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
@@ -200,62 +361,62 @@ class Clients_model extends App_Model
 
 
     //    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
-//    {
-//
-//        if (!is_numeric($id)) {
-//            // Adicionar condições de busca
-//            if (!empty($search)) {
-//                $this->db->group_start(); // Começa um agrupamento de condição
-//                $this->db->like('company', $search); // Busca pelo campo 'company'
-//                $this->db->or_like('billing_city', $search);
-//                $this->db->or_like('billing_state', $search);
-//                $this->db->or_like('vat', $search); // Busca pelo campo 'vat'
-//                // Pesquisa o CNPJ sem formatação
-//                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
-//                $this->db->group_end(); // Fecha o agrupamento de condição
-//            }
-//
-//            // Implementar lógica para ordenação
-//            $this->db->order_by($sortField, $sortOrder);
-//
-//            // Implementar a limitação e o deslocamento
-//            $this->db->limit($limit, ($page - 1) * $limit);
-//
-//            // Obtenha todos os clientes
-//            $clients = $this->db->get(db_prefix() . 'clients')->result_array();
-//
-//            // Contar o total de clientes (considerando a busca)
-//            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
-//
-//            if (!empty($search)) {
-//                // Condições de busca para contar os resultados
-//                $this->db->group_start(); // Começa um agrupamento de condição
-//                $this->db->like('company', $search);
-//                $this->db->or_like('billing_city', $search);
-//                $this->db->or_like('billing_state', $search);
-//                $this->db->or_like('vat', $search);
-//                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
-//                $this->db->group_end(); // Fecha o agrupamento de condição
-//            }
-//
-//            // Seleciona o total de clientes
-//            $this->db->select('COUNT(*) as total');
-//            $total = $this->db->get(db_prefix() . 'clients')->row()->total;
-//
-//            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
-//        } else {
-//
-//            $client = $this->get($id);
-//            $total = 0;
-//            if ($client) {
-//                $total = 1;
-//            }
-//
-//            return ['data' => (array) $client, 'total' => $total];
-//        }
-//
-//        // (O resto do código existente para quando $id é válido)
-//
+    //    {
+    //
+    //        if (!is_numeric($id)) {
+    //            // Adicionar condições de busca
+    //            if (!empty($search)) {
+    //                $this->db->group_start(); // Começa um agrupamento de condição
+    //                $this->db->like('company', $search); // Busca pelo campo 'company'
+    //                $this->db->or_like('billing_city', $search);
+    //                $this->db->or_like('billing_state', $search);
+    //                $this->db->or_like('vat', $search); // Busca pelo campo 'vat'
+    //                // Pesquisa o CNPJ sem formatação
+    //                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+    //                $this->db->group_end(); // Fecha o agrupamento de condição
+    //            }
+    //
+    //            // Implementar lógica para ordenação
+    //            $this->db->order_by($sortField, $sortOrder);
+    //
+    //            // Implementar a limitação e o deslocamento
+    //            $this->db->limit($limit, ($page - 1) * $limit);
+    //
+    //            // Obtenha todos os clientes
+    //            $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+    //
+    //            // Contar o total de clientes (considerando a busca)
+    //            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+    //
+    //            if (!empty($search)) {
+    //                // Condições de busca para contar os resultados
+    //                $this->db->group_start(); // Começa um agrupamento de condição
+    //                $this->db->like('company', $search);
+    //                $this->db->or_like('billing_city', $search);
+    //                $this->db->or_like('billing_state', $search);
+    //                $this->db->or_like('vat', $search);
+    //                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+    //                $this->db->group_end(); // Fecha o agrupamento de condição
+    //            }
+    //
+    //            // Seleciona o total de clientes
+    //            $this->db->select('COUNT(*) as total');
+    //            $total = $this->db->get(db_prefix() . 'clients')->row()->total;
+    //
+    //            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
+    //        } else {
+    //
+    //            $client = $this->get($id);
+    //            $total = 0;
+    //            if ($client) {
+    //                $total = 1;
+    //            }
+    //
+    //            return ['data' => (array) $client, 'total' => $total];
+    //        }
+    //
+    //        // (O resto do código existente para quando $id é válido)
+    //
 
 
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)

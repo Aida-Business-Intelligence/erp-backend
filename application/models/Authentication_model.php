@@ -160,7 +160,7 @@ class Authentication_model extends App_Model
                     $payload = [
                         'iat' => time(), // Data de emissão
                         'exp' => time() + (24 * 60 * 60), // Expira em 1 dia
-                        'user' => $user
+                        'user' => null
                     ];
 
                     $token = JWT::encode($payload, $this->config->item('jwt_key'), $this->config->item('jwt_algorithm'));

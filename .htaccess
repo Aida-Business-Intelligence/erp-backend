@@ -1,27 +1,8 @@
-# Define o encoding padrão para UTF-8, evitando problemas com acentos
 AddDefaultCharset utf-8
-
-# Bloco para Habilitar CORS (Cross-Origin Resource Sharing)
-# Permite que seu front-end em outro domínio acesse os recursos (imagens, etc.)
-# Esta é a solução para a imagem que não aparecia na página do produto.
-<IfModule mod_headers.c>
-    # AVISO DE SEGURANÇA: O "*" permite que QUALQUER site acesse seus recursos.
-    # Para produção, substitua "*" pelo domínio exato do seu front-end.
-    # Exemplo: Header set Access-Control-Allow-Origin "https://www.meusite.com"
-    Header set Access-control-allow-origin "*"
-</IfModule>
-
-# Bloco de Regras para URL Amigável (código original)
-# Redireciona todas as requisições que não são para arquivos ou pastas existentes
-# para o arquivo index.php, que controla a aplicação.
 <IfModule mod_rewrite.c>
-    RewriteEngine on
-
-    # Condição para não reescrever URLs de arquivos e pastas que já existem
-    RewriteCond $1 !^(index\.php|resources|robots\.txt)
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    
-    # Regra que envia tudo para o index.php
-    RewriteRule ^(.*)$ index.php?/$1 [L,QSA]
+RewriteEngine on
+RewriteCond $1 !^(index\.php|resources|robots\.txt)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?/$1 [L,QSA]
 </IfModule>

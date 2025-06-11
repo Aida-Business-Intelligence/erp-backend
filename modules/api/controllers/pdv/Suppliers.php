@@ -210,7 +210,7 @@ class Suppliers extends REST_Controller
         'min_order_value' => isset($_POST['min_order_value']) ? (float)$_POST['min_order_value'] : null,
         'max_order_value' => isset($_POST['max_order_value']) ? (float)$_POST['max_order_value'] : null,
 
-        'profile_image' => $profile_image,
+        
 
 
       ];

@@ -455,8 +455,8 @@ class Clients_model extends App_Model
         }
 
         if (!empty($startDate) && !empty($endDate)) {
-            $this->db->where('datecreated >=', $startDate);
-            $this->db->where('datecreated <=', $endDate);
+            $this->db->where('datecreated >=', $startDate . ' 00:00:00');
+            $this->db->where('datecreated <=', $endDate . ' 23:59:59');
         }
 
         if (!empty($search)) {

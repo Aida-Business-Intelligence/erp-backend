@@ -87,6 +87,7 @@ public function handle_file_uploads($expense_id, $files)
         return $this->db->get(db_prefix() . 'clients')->result_array();
     }
 
+    
     public function get_projects($client_id = 0, $warehouse_id = 0, $search = '', $limit = 10, $page = 0)
     {
         $this->db->select('id, name');

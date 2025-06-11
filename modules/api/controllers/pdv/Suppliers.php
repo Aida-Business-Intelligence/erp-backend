@@ -25,7 +25,7 @@ class Suppliers extends REST_Controller
   {
     // Construct the parent class
     parent::__construct();
-    $this->load->model('clients_model');
+    $this->load->model('Clients_model');
   }
 
   public function data_get($id = '')
@@ -36,7 +36,7 @@ class Suppliers extends REST_Controller
     $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
     $sortField = $this->get('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
     $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-    $data = $this->clients_model->get_supplier($id, $page, $limit, $search, $sortField, $sortOrder);
+    $data = $this->Clients_model->get_supplier($id, $page, $limit, $search, $sortField, $sortOrder);
 
     if ($data) {
       $this->response(['total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
@@ -58,7 +58,7 @@ class Suppliers extends REST_Controller
     } elseif (is_array($_POST) && isset($_POST[0]) && is_array($_POST[0])) {
       // Se for um array de objetos
       foreach ($_POST as $representante) {
-        $output = $this->clients_model->add($representante);
+        $output = $this->Clients_model->add($representante);
       }
 
       $message = array('status' => TRUE, 'message' => 'Import add successful.', 'data' => []);
@@ -72,9 +72,9 @@ class Suppliers extends REST_Controller
       } else {
         $groups_in = $this->Api_model->value($this->input->post('groups_in', TRUE));
 
-        $output = $this->clients_model->add($insert_data);
+        $output = $this->Clients_model->add($insert_data);
         if ($output > 0 && !empty($output)) {
-          $message = array('status' => TRUE, 'message' => 'Client add successful.', 'data' => $this->clients_model->get($output));
+          $message = array('status' => TRUE, 'message' => 'Client add successful.', 'data' => $this->Clients_model->get($output));
           $this->response($message, REST_Controller::HTTP_OK);
         } else {
           $message = array('status' => FALSE, 'message' => 'Client add fail.');
@@ -91,8 +91,8 @@ class Suppliers extends REST_Controller
       $message = array('status' => FALSE, 'message' => 'Invalid Customer ID');
       $this->response($message, REST_Controller::HTTP_NOT_FOUND);
     } else {
-      $this->load->model('clients_model');
-      $output = $this->clients_model->delete($id);
+      $this->load->model('Clients_model');
+      $output = $this->Clients_model->delete($id);
       if ($output === TRUE) {
         $message = array('status' => TRUE, 'message' => 'Customer Delete Successful.');
         $this->response($message, REST_Controller::HTTP_OK);
@@ -214,7 +214,7 @@ class Suppliers extends REST_Controller
 
 
       ];
-      $supplier_id = $this->clients_model->add($supplier_data);
+      $supplier_id = $this->Clients_model->add($supplier_data);
       if (!$supplier_id) {
         throw new Exception('Failed to create supplier');
       }
@@ -247,7 +247,7 @@ class Suppliers extends REST_Controller
           'is_primary' => 0,
           'datecreated' => date('Y-m-d H:i:s'),
         ];
-        $this->clients_model->add_contact($contact_data, $supplier_id, false);
+        $this->Clients_model->add_contact($contact_data, $supplier_id, false);
       }
       $this->db->trans_complete();
       if ($this->db->trans_status() === FALSE) {
@@ -281,8 +281,8 @@ class Suppliers extends REST_Controller
     // Adicione logs para depuração
     log_activity('Supplier Update Payload: ' . print_r($data, true));
 
-    $this->load->model('clients_model');
-    $updated = $this->clients_model->update_supplier($id, $data);
+    $this->load->model('Clients_model');
+    $updated = $this->Clients_model->update_supplier($id, $data);
 
     if (!$updated) {
       log_activity('Failed to update supplier ID: ' . $id);
@@ -310,9 +310,9 @@ class Suppliers extends REST_Controller
       ], REST_Controller::HTTP_BAD_REQUEST);
     }
 
-    $this->load->model('clients_model');
+    $this->load->model('Clients_model');
 
-    $supplier = $this->clients_model->get($id);
+    $supplier = $this->Clients_model->get($id);
 
     if (!$supplier) {
       return $this->response([
@@ -328,145 +328,33 @@ class Suppliers extends REST_Controller
   }
 
 
-  public function list_get()
+  public function list_post()
   {
-    $page = $this->get('page') ? (int) $this->get('page') : 1;
-    $limit = $this->get('limit') ? (int) $this->get('limit') : 10;
-    $search = $this->get('search') ?: '';
-    $status = $this->get('status');
-    $sortField = $this->get('sortField') ?: 'userid';
-    $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
-    $startDate = $this->get('startDate');
-    $endDate = $this->get('endDate');
-    $warehouse_id = $this->get('warehouse_id') ?: 0;
+    $page = $this->post('page') ? (int) $this->post('page') : 1; // Já começa em 1 agora
+    $limit = $this->post('limit') ? (int) $this->post('limit') : 10; // Mudei de pageSize para limit
+    $search = $this->post('search') ?: '';
+    $sortField = $this->post('sortField') ?: 'userid';
+    $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC';
+    $status = $this->post('status') ? (array) $this->post('status') : []; // Agora trata como array
+    $startDate = $this->post('startDate') ?: '';
+    $endDate = $this->post('endDate') ?: '';
+    $warehouse_id = $this->post('warehouse_id') ? (int) $this->post('warehouse_id') : 0;
 
-    $this->db->select('c.userid, c.company, c.vat, c.phonenumber, c.city, c.state, 
-      c.country, c.active, c.datecreated, c.email_default, c.payment_terms,
-      c.person_type, c.business_type, c.segment, c.company_size,
-      c.inscricao_estadual, c.inscricao_municipal, c.observations,
-      c.commission, c.commercial_conditions, c.commission_type,
-      c.commission_base_percentage, c.commission_payment_type,
-      c.commission_due_day, c.agent_commission_type,
-      c.agent_commission_base_percentage, c.agent_commission_payment_type,
-      c.agent_commission_due_day, c.address,
-      GROUP_CONCAT(DISTINCT ds.document) as additional_documents,
-      GROUP_CONCAT(DISTINCT es.email) as additional_emails,
-      COUNT(DISTINCT co.id) as contacts_count', false);
-    $this->db->from(db_prefix() . 'clients c');
-    $this->db->join(db_prefix() . 'document_supplier ds', 'ds.supplier_id = c.userid', 'left');
-    $this->db->join(db_prefix() . 'email_supplier es', 'es.supplier_id = c.userid', 'left');
-    $this->db->join(db_prefix() . 'contacts co', 'co.userid = c.userid', 'left');
-    $this->db->where('c.is_supplier', 1);
-    $this->db->where('c.warehouse_id', $warehouse_id);
-    if (!empty($search)) {
-      $this->db->group_start();
-      $this->db->like('c.company', $search);
-      $this->db->or_like('c.vat', $search);
-      $this->db->or_like('c.email_default', $search);
-      $this->db->or_like('ds.document', $search);
-      $this->db->or_like('es.email', $search);
-      $this->db->group_end();
+    $data = $this->Clients_model->get_api('', $page, $limit, $search, $sortField, $sortOrder, $status, $startDate, $endDate, $warehouse_id);
+
+    if (empty($data['data'])) {
+      // Adicione um log para debug
+      log_message('debug', 'Suppliers query returned empty. Params: ' . json_encode($this->post()));
+      $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
+    } else {
+      $this->response([
+        'status' => TRUE,
+        'total' => $data['total'],
+        'data' => $data['data']
+      ], REST_Controller::HTTP_OK);
     }
-
-    if ($status === 'active') {
-      $this->db->where('c.active', 1);
-    } else if ($status === 'inactive') {
-      $this->db->where('c.active', 0);
-    }
-
-    if (!empty($startDate)) {
-      $this->db->where('DATE(c.datecreated) >=', date('Y-m-d', strtotime($startDate)));
-    }
-    if (!empty($endDate)) {
-      $this->db->where('DATE(c.datecreated) <=', date('Y-m-d', strtotime($endDate)));
-    }
-
-    $this->db->group_by('c.userid');
-
-    $validSortFields = [
-      'userid' => 'c.userid',
-      'name' => 'c.company',
-      'company' => 'c.company',
-      'city' => 'c.city',
-      'state' => 'c.state',
-      'country' => 'c.country',
-      'created_at' => 'c.datecreated',
-      'status' => 'c.active'
-    ];
-
-    $sortFieldDB = isset($validSortFields[$sortField]) ? $validSortFields[$sortField] : 'c.company';
-    $this->db->order_by($sortFieldDB, $sortOrder);
-
-    $total = $this->db->count_all_results('', false);
-
-    $this->db->limit($limit, ($page - 1) * $limit);
-    $suppliers = $this->db->get()->result_array();
-
-    foreach ($suppliers as &$supplier) {
-      $this->db->select('firstname as name, phonenumber as phone');
-      $this->db->where('userid', $supplier['userid']);
-      $contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
-
-      $supplier['contacts'] = array_merge(
-        [
-          [
-            'name' => $supplier['company'],
-            'phone' => $supplier['phonenumber']
-          ]
-        ],
-        $contacts
-      );
-    }
-
-    $this->response([
-      'status' => TRUE,
-      'total' => (int) $total,
-      'page' => (int) $page,
-      'limit' => (int) $limit,
-      'data' => array_map(function ($supplier) {
-        return [
-          'userid' => $supplier['userid'],
-          'company' => $supplier['company'],
-          'documents' => array_merge(
-            [['type' => 'cnpj', 'number' => $supplier['vat']]],
-            array_map(function ($doc) {
-              return ['type' => 'cnpj', 'number' => $doc];
-            }, $supplier['additional_documents'] ? explode(',', $supplier['additional_documents']) : [])
-          ),
-          'address' => $supplier['address'] ?? null,
-          'city' => $supplier['city'] ?? null,
-          'state' => $supplier['state'] ?? null,
-          'country' => $supplier['country'] ?? null,
-          'payment_terms' => $supplier['payment_terms'] ?? null,
-          'emails' => array_filter(array_merge(
-            [$supplier['email_default']],
-            $supplier['additional_emails'] ? explode(',', $supplier['additional_emails']) : []
-          )),
-          'contacts' => $supplier['contacts'] ?? [],
-          'contacts_count' => (int) ($supplier['contacts_count'] ?? 0),
-          'status' => $supplier['active'] ? 'active' : 'inactive',
-          'created_at' => $supplier['datecreated'] ?? null,
-          'inscricao_estadual' => $supplier['inscricao_estadual'] ?? null,
-          'inscricao_municipal' => $supplier['inscricao_municipal'] ?? null,
-          'company_type' => $supplier['company_type'] ?? null,
-          'business_type' => $supplier['business_type'] ?? null,
-          'segment' => $supplier['segment'] ?? null,
-          'company_size' => $supplier['company_size'] ?? null,
-          'observations' => $supplier['observations'] ?? null,
-          'commission' => !empty($supplier['commission']) ? (float) $supplier['commission'] : 0,
-          'commercial_conditions' => $supplier['commercial_conditions'] ?? null,
-          'commission_type' => $supplier['commission_type'] ?? null,
-          'commission_base_percentage' => !empty($supplier['commission_base_percentage']) ? (float) $supplier['commission_base_percentage'] : 0,
-          'commission_payment_type' => $supplier['commission_payment_type'] ?? null,
-          'commission_due_day' => !empty($supplier['commission_due_day']) ? (int) $supplier['commission_due_day'] : 0,
-          'agent_commission_type' => $supplier['agent_commission_type'] ?? null,
-          'agent_commission_base_percentage' => !empty($supplier['agent_commission_base_percentage']) ? (float) $supplier['agent_commission_base_percentage'] : 0,
-          'agent_commission_payment_type' => $supplier['agent_commission_payment_type'] ?? null,
-          'agent_commission_due_day' => !empty($supplier['agent_commission_due_day']) ? (int) $supplier['agent_commission_due_day'] : 0
-        ];
-      }, $suppliers)
-    ], REST_Controller::HTTP_OK);
   }
+
 
   public function remove_post()
   {
@@ -589,7 +477,7 @@ class Suppliers extends REST_Controller
         'datecreated' => date('Y-m-d H:i:s'),
       ];
 
-      $supplier_id = $this->clients_model->add($supplier_data);
+      $supplier_id = $this->Clients_model->add($supplier_data);
 
       if (!$supplier_id) {
         throw new Exception('Falha ao criar fornecedor');
@@ -604,7 +492,7 @@ class Suppliers extends REST_Controller
         'datecreated' => date('Y-m-d H:i:s')
       ];
 
-      $this->clients_model->add_contact($contact_data, $supplier_id);
+      $this->Clients_model->add_contact($contact_data, $supplier_id);
 
       $this->db->trans_complete();
 

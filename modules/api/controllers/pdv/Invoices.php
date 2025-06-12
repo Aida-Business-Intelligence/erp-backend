@@ -1364,34 +1364,34 @@ class Invoices extends REST_Controller
 
     public function add_to_cart_post()
     {
-        $data = $this->input->post();
-
-        // Verifica se o user_id foi enviado
-        if (!isset($data['user_id'])) {
-            $this->response(['status' => false, 'message' => 'user_id é obrigatório'], 400);
-            return;
-        }
-
-        // Verifica se o item_id foi enviado
-        if (!isset($data['item_id'])) {
-            $this->response(['status' => false, 'message' => 'item_id é obrigatório'], 400);
-            return;
-        }
-
-        // Verifica se o warehouse_id foi enviado
-        if (!isset($data['warehouse_id'])) {
-            $this->response(['status' => false, 'message' => 'warehouse_id é obrigatório'], 400);
-            return;
-        }
-
-        // Verifica se o quantity foi enviado
-        if (!isset($data['quantity'])) {
-            $this->response(['status' => false, 'message' => 'quantity é obrigatório'], 400);
-            return;
-        }
-
         try {
-            $result = $this->invoices_model->add_to_cart($data);
+            $data = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+            // Verifica se o user_id foi enviado
+            if (!isset($data['user_id'])) {
+                $this->response(['status' => false, 'message' => 'user_id é obrigatório'], 400);
+                return;
+            }
+
+            // Verifica se o item_id foi enviado
+            if (!isset($data['item_id'])) {
+                $this->response(['status' => false, 'message' => 'item_id é obrigatório'], 400);
+                return;
+            }
+
+            // Verifica se o warehouse_id foi enviado
+            if (!isset($data['warehouse_id'])) {
+                $this->response(['status' => false, 'message' => 'warehouse_id é obrigatório'], 400);
+                return;
+            }
+
+            // Verifica se o quantity foi enviado
+            if (!isset($data['quantity'])) {
+                $this->response(['status' => false, 'message' => 'quantity é obrigatório'], 400);
+                return;
+            }
+
+            $result = $this->Invoices_model->add_to_cart($data);
 
             if ($result) {
                 $this->response(['status' => true, 'message' => 'Item adicionado ao carrinho']);
@@ -1405,53 +1405,180 @@ class Invoices extends REST_Controller
 
     public function remove_from_cart_post()
     {
-        $data = $this->input->post();
-        $data['user_id'] = $this->session->userdata('staff_user_id');
+        try {
+            $data = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $result = $this->invoices_model->remove_from_cart($data);
+            if (!isset($data['item_id']) || !isset($data['warehouse_id'])) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'item_id e warehouse_id são obrigatórios'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+                return;
+            }
 
-        if ($result) {
-            $this->response(['status' => true, 'message' => 'Item removido do carrinho']);
-        } else {
-            $this->response(['status' => false, 'message' => 'Erro ao remover item do carrinho'], 400);
+            $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+            if (!$decodedToken['status']) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Usuário não autenticado'
+                ], REST_Controller::HTTP_UNAUTHORIZED);
+                return;
+            }
+
+            $data['user_id'] = $decodedToken['data']->user->staffid;
+
+            $result = $this->Invoices_model->remove_from_cart($data);
+
+            if ($result) {
+                $this->response([
+                    'status' => true,
+                    'message' => 'Item removido do carrinho com sucesso'
+                ], REST_Controller::HTTP_OK);
+            } else {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Erro ao remover item do carrinho'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+        } catch (Exception $e) {
+            $this->response([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     public function update_cart_item_post()
     {
-        $data = $this->input->post();
-        $data['user_id'] = $this->session->userdata('staff_user_id');
+        try {
+            $data = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $result = $this->invoices_model->update_cart_item($data);
+            if (!isset($data['item_id']) || !isset($data['quantity']) || !isset($data['warehouse_id'])) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'item_id, quantity e warehouse_id são obrigatórios'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+                return;
+            }
 
-        if ($result) {
-            $this->response(['status' => true, 'message' => 'Item atualizado no carrinho']);
-        } else {
-            $this->response(['status' => false, 'message' => 'Erro ao atualizar item no carrinho'], 400);
+            $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+            if (!$decodedToken['status']) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Usuário não autenticado'
+                ], REST_Controller::HTTP_UNAUTHORIZED);
+                return;
+            }
+
+            $data['user_id'] = $decodedToken['data']->user->staffid;
+
+            $result = $this->Invoices_model->update_cart_item($data);
+
+            if ($result) {
+                $this->response([
+                    'status' => true,
+                    'message' => 'Item atualizado no carrinho com sucesso'
+                ], REST_Controller::HTTP_OK);
+            } else {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Erro ao atualizar item no carrinho'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+        } catch (Exception $e) {
+            $this->response([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     public function get_cart_items_post()
     {
-        $user_id = $this->session->userdata('staff_user_id');
-        $warehouse_id = $this->input->post('warehouse_id');
+        try {
+            $data = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $items = $this->invoices_model->get_cart_items($user_id, $warehouse_id);
+            if (!isset($data['warehouse_id'])) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'warehouse_id é obrigatório'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+                return;
+            }
 
-        $this->response(['status' => true, 'items' => $items]);
+            $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+            if (!$decodedToken['status']) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Usuário não autenticado'
+                ], REST_Controller::HTTP_UNAUTHORIZED);
+                return;
+            }
+
+            $user_id = $decodedToken['data']->user->staffid;
+            $warehouse_id = $data['warehouse_id'];
+
+            $items = $this->Invoices_model->get_cart_items($user_id, $warehouse_id);
+
+            $this->response([
+                'status' => true,
+                'items' => $items
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->response([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function clear_cart_post()
     {
-        $user_id = $this->session->userdata('staff_user_id');
-        $warehouse_id = $this->input->post('warehouse_id');
+        try {
+            $data = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        $result = $this->invoices_model->clear_cart($user_id, $warehouse_id);
+            if (!isset($data['warehouse_id'])) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'warehouse_id é obrigatório'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+                return;
+            }
 
-        if ($result) {
-            $this->response(['status' => true, 'message' => 'Carrinho limpo com sucesso']);
-        } else {
-            $this->response(['status' => false, 'message' => 'Erro ao limpar carrinho'], 400);
+            $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+            if (!$decodedToken['status']) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Usuário não autenticado'
+                ], REST_Controller::HTTP_UNAUTHORIZED);
+                return;
+            }
+
+            $user_id = $decodedToken['data']->user->staffid;
+            $warehouse_id = $data['warehouse_id'];
+
+            $result = $this->Invoices_model->clear_cart($user_id, $warehouse_id);
+
+            if ($result) {
+                $this->response([
+                    'status' => true,
+                    'message' => 'Carrinho limpo com sucesso'
+                ], REST_Controller::HTTP_OK);
+            } else {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Erro ao limpar carrinho'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+        } catch (Exception $e) {
+            $this->response([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

@@ -1362,4 +1362,97 @@ class Invoices extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
+    public function add_to_cart_post()
+    {
+        $data = $this->input->post();
+
+        // Verifica se o user_id foi enviado
+        if (!isset($data['user_id'])) {
+            $this->response(['status' => false, 'message' => 'user_id é obrigatório'], 400);
+            return;
+        }
+
+        // Verifica se o item_id foi enviado
+        if (!isset($data['item_id'])) {
+            $this->response(['status' => false, 'message' => 'item_id é obrigatório'], 400);
+            return;
+        }
+
+        // Verifica se o warehouse_id foi enviado
+        if (!isset($data['warehouse_id'])) {
+            $this->response(['status' => false, 'message' => 'warehouse_id é obrigatório'], 400);
+            return;
+        }
+
+        // Verifica se o quantity foi enviado
+        if (!isset($data['quantity'])) {
+            $this->response(['status' => false, 'message' => 'quantity é obrigatório'], 400);
+            return;
+        }
+
+        try {
+            $result = $this->invoices_model->add_to_cart($data);
+
+            if ($result) {
+                $this->response(['status' => true, 'message' => 'Item adicionado ao carrinho']);
+            } else {
+                $this->response(['status' => false, 'message' => 'Erro ao adicionar item ao carrinho'], 400);
+            }
+        } catch (Exception $e) {
+            $this->response(['status' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function remove_from_cart_post()
+    {
+        $data = $this->input->post();
+        $data['user_id'] = $this->session->userdata('staff_user_id');
+
+        $result = $this->invoices_model->remove_from_cart($data);
+
+        if ($result) {
+            $this->response(['status' => true, 'message' => 'Item removido do carrinho']);
+        } else {
+            $this->response(['status' => false, 'message' => 'Erro ao remover item do carrinho'], 400);
+        }
+    }
+
+    public function update_cart_item_post()
+    {
+        $data = $this->input->post();
+        $data['user_id'] = $this->session->userdata('staff_user_id');
+
+        $result = $this->invoices_model->update_cart_item($data);
+
+        if ($result) {
+            $this->response(['status' => true, 'message' => 'Item atualizado no carrinho']);
+        } else {
+            $this->response(['status' => false, 'message' => 'Erro ao atualizar item no carrinho'], 400);
+        }
+    }
+
+    public function get_cart_items_post()
+    {
+        $user_id = $this->session->userdata('staff_user_id');
+        $warehouse_id = $this->input->post('warehouse_id');
+
+        $items = $this->invoices_model->get_cart_items($user_id, $warehouse_id);
+
+        $this->response(['status' => true, 'items' => $items]);
+    }
+
+    public function clear_cart_post()
+    {
+        $user_id = $this->session->userdata('staff_user_id');
+        $warehouse_id = $this->input->post('warehouse_id');
+
+        $result = $this->invoices_model->clear_cart($user_id, $warehouse_id);
+
+        if ($result) {
+            $this->response(['status' => true, 'message' => 'Carrinho limpo com sucesso']);
+        } else {
+            $this->response(['status' => false, 'message' => 'Erro ao limpar carrinho'], 400);
+        }
+    }
+
 }

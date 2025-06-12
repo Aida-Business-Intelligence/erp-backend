@@ -2136,4 +2136,172 @@ class Invoices_model extends App_Model
         ]);
     }
 
+    public function add_to_cart($data)
+    {
+        try {
+            $this->db->trans_start();
+
+            // Verifica se o item existe e tem estoque suficiente
+            $item = $this->db->where([
+                'id' => $data['item_id'],
+                'warehouse_id' => $data['warehouse_id']
+            ])->get('tblitems')->row();
+
+            if (!$item) {
+                throw new Exception('Item não encontrado');
+            }
+
+            if ($item->stock < $data['quantity']) {
+                throw new Exception('Estoque insuficiente');
+            }
+
+            // Verifica se já existe reserva para este item
+            $existing = $this->db->where([
+                'user_id' => $data['user_id'],
+                'item_id' => $data['item_id'],
+                'warehouse_id' => $data['warehouse_id'],
+                'status' => 'reserved'
+            ])->get('tblecommerce_cart')->row();
+
+            if ($existing) {
+                // Atualiza quantidade existente
+                $new_quantity = $existing->quantity + $data['quantity'];
+                $this->db->where('id', $existing->id)
+                    ->update('tblecommerce_cart', [
+                        'quantity' => $new_quantity,
+                        'expires_at' => date('Y-m-d H:i:s', strtotime('+30 minutes'))
+                    ]);
+            } else {
+                // Cria nova reserva
+                $this->db->insert('tblecommerce_cart', [
+                    'user_id' => $data['user_id'],
+                    'warehouse_id' => $data['warehouse_id'],
+                    'item_id' => $data['item_id'],
+                    'quantity' => $data['quantity'],
+                    'expires_at' => date('Y-m-d H:i:s', strtotime('+30 minutes'))
+                ]);
+            }
+
+            // Atualiza estoque
+            $this->db->set('stock', 'stock - ' . $data['quantity'], FALSE)
+                ->where('id', $data['item_id'])
+                ->where('warehouse_id', $data['warehouse_id'])
+                ->update('tblitems');
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Erro ao processar transação');
+            }
+
+            return true;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            throw $e;
+        }
+    }
+
+    public function remove_from_cart($data)
+    {
+        $this->db->trans_start();
+
+        // Busca item no carrinho
+        $cart_item = $this->db->where([
+            'user_id' => $data['user_id'],
+            'item_id' => $data['item_id'],
+            'warehouse_id' => $data['warehouse_id'],
+            'status' => 'reserved'
+        ])->get('tblecommerce_cart')->row();
+
+        if ($cart_item) {
+            // Devolve quantidade ao estoque
+            $this->db->set('stock', 'stock + ' . $cart_item->quantity, FALSE)
+                ->where('id', $data['item_id'])
+                ->where('warehouse_id', $data['warehouse_id'])
+                ->update('tblitems');
+
+            // Remove do carrinho
+            $this->db->where('id', $cart_item->id)->delete('tblecommerce_cart');
+        }
+
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
+    public function update_cart_item($data)
+    {
+        $this->db->trans_start();
+
+        $cart_item = $this->db->where([
+            'user_id' => $data['user_id'],
+            'item_id' => $data['item_id'],
+            'warehouse_id' => $data['warehouse_id'],
+            'status' => 'reserved'
+        ])->get('tblecommerce_cart')->row();
+
+        if ($cart_item) {
+            $quantity_diff = $data['quantity'] - $cart_item->quantity;
+
+            // Atualiza estoque
+            $this->db->set('stock', 'stock - ' . $quantity_diff, FALSE)
+                ->where('id', $data['item_id'])
+                ->where('warehouse_id', $data['warehouse_id'])
+                ->update('tblitems');
+
+            // Atualiza carrinho
+            $this->db->where('id', $cart_item->id)
+                ->update('tblecommerce_cart', [
+                    'quantity' => $data['quantity'],
+                    'expires_at' => date('Y-m-d H:i:s', strtotime('+30 minutes'))
+                ]);
+        }
+
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
+    public function get_cart_items($user_id, $warehouse_id)
+    {
+        return $this->db->select('c.*, i.description, i.rate, i.promoPrice, i.image')
+            ->from('tblecommerce_cart c')
+            ->join('tblitems i', 'i.id = c.item_id')
+            ->where([
+                'c.user_id' => $user_id,
+                'c.warehouse_id' => $warehouse_id,
+                'c.status' => 'reserved'
+            ])
+            ->get()
+            ->result();
+    }
+
+    public function clear_cart($user_id, $warehouse_id)
+    {
+        $this->db->trans_start();
+
+        // Busca todos os itens do carrinho
+        $cart_items = $this->db->where([
+            'user_id' => $user_id,
+            'warehouse_id' => $warehouse_id,
+            'status' => 'reserved'
+        ])->get('tblecommerce_cart')->result();
+
+        // Devolve quantidade ao estoque para cada item
+        foreach ($cart_items as $item) {
+            $this->db->set('stock', 'stock + ' . $item->quantity, FALSE)
+                ->where('id', $item->item_id)
+                ->where('warehouse_id', $warehouse_id)
+                ->update('tblitems');
+        }
+
+        // Remove todos os itens do carrinho
+        $this->db->where([
+            'user_id' => $user_id,
+            'warehouse_id' => $warehouse_id,
+            'status' => 'reserved'
+        ])->delete('tblecommerce_cart');
+
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
 }

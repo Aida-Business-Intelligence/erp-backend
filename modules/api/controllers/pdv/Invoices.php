@@ -761,8 +761,9 @@ class Invoices extends REST_Controller
             pn.status as purchase_status,
             itm.description as product_name,
             itm.sku_code,
-            itm.rate as unit_price,  -- Alterado de cost para rate
-            (pn.qtde * itm.rate) as total_price  -- Adicionado cálculo do total
+            itm.image,
+            itm.rate as unit_price,
+            (pn.qtde * itm.rate) as total_price
         ');
             $this->db->from(db_prefix() . 'purchase_needs pn');
             $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
@@ -887,6 +888,10 @@ class Invoices extends REST_Controller
             itm.cost as unit_cost,
             itm.image as product_image,
             itm.commodity_barcode as barcode
+            itm.image,
+            itm.rate as unit_price, 
+            (pn.qtde * itm.rate) as total_price
+
         ');
             $this->db->from(db_prefix() . 'purchase_needs pn');
             $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
@@ -1142,7 +1147,7 @@ class Invoices extends REST_Controller
         $ids = $_POST['ids'];
         $status = "11";
 
-        $output = $this->Invoices_model->update_entregue($ids, $status);
+        $output = $this->Invoices_model->update_entrega($ids, $status);
 
         if ($output) {
             $message = array('status' => TRUE, 'message' => 'Invoices Updated Successfully.');
@@ -1150,6 +1155,39 @@ class Invoices extends REST_Controller
         } else {
             $message = array('status' => FALSE, 'message' => 'Failed to Update Invoices.');
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function update_order_nf_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST) || !isset($_POST['updates']) || !is_array($_POST['updates'])) {
+            $message = array('status' => FALSE, 'message' => 'Dados não fornecidos ou inválidos');
+            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+            return;
+        }
+
+        $updates = $_POST['updates'];
+
+        // Valida os dados antes de processar
+        foreach ($updates as $update) {
+            if (!isset($update['order_id']) || !isset($update['item_id']) || !isset($update['quantity'])) {
+                $message = array('status' => FALSE, 'message' => 'Dados inválidos para um dos itens');
+                $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+                return;
+            }
+        }
+
+        // Processa todas as atualizações em uma única transação
+        $output = $this->Invoices_model->update_order_item_quantity($updates);
+
+        if ($output) {
+            $message = array('status' => TRUE, 'message' => 'Quantidades atualizadas com sucesso');
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array('status' => FALSE, 'message' => 'Falha ao atualizar quantidades');
+            $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -1200,6 +1238,7 @@ class Invoices extends REST_Controller
             pn.status as purchase_status,
             itm.description as product_name,
             itm.sku_code,
+            itm.image,
             itm.cost as unit_cost,
             (itm.cost * pn.qtde) as total_cost
         ');

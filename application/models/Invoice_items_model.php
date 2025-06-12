@@ -4,9 +4,11 @@ use app\services\utilities\Arr;
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Invoice_items_model extends App_Model {
+class Invoice_items_model extends App_Model
+{
 
-    public function __construct() {
+    public function __construct()
+    {
         parent::__construct();
     }
 
@@ -15,7 +17,8 @@ class Invoice_items_model extends App_Model {
      * @param array $data Invoice item data
      * @return boolean
      */
-    public function copy($_data) {
+    public function copy($_data)
+    {
         $custom_fields_items = get_custom_fields('items');
 
         $data = [
@@ -67,56 +70,58 @@ class Invoice_items_model extends App_Model {
 
         return false;
     }
-    
-public function get_by_type($type = '') {
-    $items_table = db_prefix() . 'items';
-    $warehouses_table = db_prefix() . 'warehouse';
 
-    // First, find the warehouse ID that matches the specified type
-    $this->db->select('warehouse_id');
-    $this->db->from($warehouses_table);
-    $this->db->where('type', $type);
-    $this->db->limit(1); // Assuming you want just one warehouse of a specific type
-    $warehouse = $this->db->get()->row();
+    public function get_by_type($type = '')
+    {
+        $items_table = db_prefix() . 'items';
+        $warehouses_table = db_prefix() . 'warehouse';
 
-    if ($warehouse) {
-        $this->db->select([
-            "$items_table.id as id",
-            "$items_table.rate",
-            "$items_table.description",
-            "$items_table.long_description",
-            "$items_table.group_id",
-            "$items_table.unit",
-            "$items_table.sku_code",
-            "$items_table.image",
-            "$items_table.commodity_barcode",
-            "$items_table.status",
-            "$items_table.cost",
-            "$items_table.maxDiscount",
-            "$items_table.promoPrice",
-            "$items_table.promoStart",
-            "$items_table.promoEnd",
-            "$items_table.stock",
-            "$items_table.minStock",
-            "$items_table.product_unit",
-            "$items_table.createdAt",
-            "$items_table.updatedAt",
-            "$items_table.warehouse_id as warehouse_id"
-        ]);
+        // First, find the warehouse ID that matches the specified type
+        $this->db->select('warehouse_id');
+        $this->db->from($warehouses_table);
+        $this->db->where('type', $type);
+        $this->db->limit(1); // Assuming you want just one warehouse of a specific type
+        $warehouse = $this->db->get()->row();
 
-        $this->db->from($items_table);
-        $this->db->where("$items_table.warehouse_id", $warehouse->warehouse_id);
-        $this->db->order_by("$items_table.id", 'desc');
+        if ($warehouse) {
+            $this->db->select([
+                "$items_table.id as id",
+                "$items_table.rate",
+                "$items_table.description",
+                "$items_table.long_description",
+                "$items_table.group_id",
+                "$items_table.unit",
+                "$items_table.sku_code",
+                "$items_table.image",
+                "$items_table.commodity_barcode",
+                "$items_table.status",
+                "$items_table.cost",
+                "$items_table.maxDiscount",
+                "$items_table.promoPrice",
+                "$items_table.promoStart",
+                "$items_table.promoEnd",
+                "$items_table.stock",
+                "$items_table.minStock",
+                "$items_table.product_unit",
+                "$items_table.createdAt",
+                "$items_table.updatedAt",
+                "$items_table.warehouse_id as warehouse_id"
+            ]);
 
-        return $this->db->get()->result();
+            $this->db->from($items_table);
+            $this->db->where("$items_table.warehouse_id", $warehouse->warehouse_id);
+            $this->db->order_by("$items_table.id", 'desc');
+
+            return $this->db->get()->result();
+        }
+
+        return []; // Return empty array if no warehouse matches the type
     }
 
-    return []; // Return empty array if no warehouse matches the type
-}
 
- 
-   public function get($id = '') {
-       
+    public function get($id = '')
+    {
+
         $items_table = db_prefix() . 'items';
 
         $this->db->select([
@@ -157,10 +162,11 @@ public function get_by_type($type = '') {
         return $this->db->get()->result_array();
     }
 
-   
-  
-  
-    public function get_item($id = '') {
+
+
+
+    public function get_item($id = '')
+    {
         $this->db->select(db_prefix() . 'items.*, ' . db_prefix() . 'clients.company');
         $this->db->from(db_prefix() . 'items');
         $this->db->where(db_prefix() . 'items.id', $id);
@@ -169,14 +175,16 @@ public function get_by_type($type = '') {
         return $this->db->get()->row();
     }
 
-    public function get_by_sku($id = '') {
+    public function get_by_sku($id = '')
+    {
         $this->db->from(db_prefix() . 'items');
         $this->db->where(db_prefix() . 'items.sku_code', $id);
 
         return $this->db->get()->row();
     }
 
-    public function get_category_id_by_name($name) {
+    public function get_category_id_by_name($name)
+    {
 
         $this->db->select('id ');
         $this->db->from(db_prefix() . 'items_groups');
@@ -184,7 +192,8 @@ public function get_by_type($type = '') {
         return $this->db->get()->row();
     }
 
-    public function get_unit_id_by_name($name) {
+    public function get_unit_id_by_name($name)
+    {
 
 
         $this->db->select('unit_type_id as id');
@@ -196,21 +205,21 @@ public function get_by_type($type = '') {
     /**
      * Get items with API formatting
      */
-  
-  public function get_api(
-            $id = '',
-            $page = 1,
-            $limit = 10,
-            $search = '',
-            $sortField = 'id',
-            $sortOrder = 'DESC',
-            $statusFilter = null,
-            $startDate = null,
-            $endDate = null,
-            $category = null,
-            $subcategory = null,
-            $warehouse_id = null,
-            $send = null
+
+    public function get_api(
+        $id = '',
+        $page = 1,
+        $limit = 10,
+        $search = '',
+        $sortField = 'id',
+        $sortOrder = 'DESC',
+        $statusFilter = null,
+        $startDate = null,
+        $endDate = null,
+        $category = null,
+        $subcategory = null,
+        $warehouse_id = null,
+        $send = null
     ) {
 
 
@@ -234,9 +243,9 @@ public function get_by_type($type = '') {
             ]);
 
             $this->db->from($items_table)
-                    ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-                    ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
-                    ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
+                ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
+                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+                ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
 
             if ($warehouse_id) {
                 $this->db->where("$items_table.warehouse_id", $warehouse_id);
@@ -311,11 +320,11 @@ public function get_by_type($type = '') {
         ]);
 
         $this->db->from($items_table)
-                ->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left')
-                ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
-                ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
-                ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
+            ->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left')
+            ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
+            ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
+            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+            ->join($supplier_table, "$supplier_table.userid = $items_table.userid", 'left');
 
         if ($warehouse_id) {
             $this->db->where("$items_table.warehouse_id", $warehouse_id);
@@ -344,19 +353,19 @@ public function get_by_type($type = '') {
         if (!empty($search)) {
             if (is_numeric($search)) {
                 $this->db->group_start()
-                        ->where('sku_code', $search)
-                        ->or_where("$items_table.commodity_barcode", $search)
-                        ->group_end(); // Esto agrupa la condición de búsqueda que incluye OR
+                    ->where('sku_code', $search)
+                    ->or_where("$items_table.commodity_barcode", $search)
+                    ->group_end(); // Esto agrupa la condición de búsqueda que incluye OR
             } else {
 
                 $this->db->group_start()
-                        ->like("$items_table.description", $search)
-                        ->or_like("$items_table.long_description", $search)
-                        ->or_like("$items_table.rate", $search)
-                        ->or_like("$items_table.sku_code", $search)
-                        ->or_like("$items_table.commodity_barcode", $search)
-                        ->or_like("$items_table.id", $search)
-                        ->group_end();
+                    ->like("$items_table.description", $search)
+                    ->or_like("$items_table.long_description", $search)
+                    ->or_like("$items_table.rate", $search)
+                    ->or_like("$items_table.sku_code", $search)
+                    ->or_like("$items_table.commodity_barcode", $search)
+                    ->or_like("$items_table.id", $search)
+                    ->group_end();
             }
         }
 
@@ -370,16 +379,17 @@ public function get_by_type($type = '') {
 
         $items = $this->db->get()->result_array();
 
-        //  var_dump($this->db->last_query());
+        //var_dump($this->db->last_query());
 
         return ['data' => $items, 'total' => $total];
     }
-  
-  
-  
-  
 
-    public function totalItens($warehouse_id) {
+
+
+
+
+    public function totalItens($warehouse_id)
+    {
 
         $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
         $this->db->from(db_prefix() . 'items');
@@ -387,19 +397,22 @@ public function get_by_type($type = '') {
     }
 
     public function get_api2(
-            $id = '',
-            $page = 1,
-            $limit = 10,
-            $search = '',
-            $sortField = 'id',
-            $sortOrder = 'DESC',
-            $statusFilter = null,
-            $startDate = null,
-            $endDate = null,
-            $category = null,
-            $subcategory = null,
-            $warehouse_id = null,
-            $send = null
+        $id = '',
+        $page = 1,
+        $limit = 10,
+        $search = '',
+        $sortField = 'id',
+        $sortOrder = 'DESC',
+        $statusFilter = null,
+        $startDate = null,
+        $endDate = null,
+        $category = null,
+        $subcategory = null,
+        $warehouse_id = null,
+        $send = null,
+        $minPrice = null,
+        $maxPrice = null,
+        $company = null
     ) {
         $items_table = db_prefix() . 'items';
         $groups_table = db_prefix() . 'items_groups';
@@ -407,7 +420,6 @@ public function get_by_type($type = '') {
         $suppliers_table = db_prefix() . 'clients';
 
         if ($id != '') {
-
             $this->db->select([
                 "$items_table.*",
                 "$groups_table.name as group_name",
@@ -418,9 +430,9 @@ public function get_by_type($type = '') {
             ]);
 
             $this->db->from($items_table)
-                    ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-                    ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
-                    ->join($suppliers_table, "$suppliers_table.userid = $items_table.userid", 'left');
+                ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
+                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+                ->join($suppliers_table, "$suppliers_table.userid = $items_table.userid", 'left');
 
             if ($warehouse_id) {
                 $this->db->where("$items_table.warehouse_id", $warehouse_id);
@@ -431,16 +443,11 @@ public function get_by_type($type = '') {
                 $this->db->or_where("$items_table.commodity_barcode", $id)->limit(1);
                 $item = $this->db->get()->row();
             } else {
-
                 $this->db->or_where("$items_table.commodity_barcode", $id);
                 $item = $this->db->get()->row_array();
             }
 
-
-
-
             if ($item) {
-
                 if ($send == 'pdv') {
                     return ['data' => $item, 'total' => 1];
                 } else {
@@ -497,49 +504,58 @@ public function get_by_type($type = '') {
         ]);
 
         $this->db->from($items_table)
-                ->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left')
-                ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
-                ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
-                ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
-                ->join($suppliers_table, "$suppliers_table.userid = $items_table.userid", 'left');
+            ->join(db_prefix() . 'taxes t1', "t1.id = $items_table.tax", 'left')
+            ->join(db_prefix() . 'taxes t2', "t2.id = $items_table.tax2", 'left')
+            ->join($groups_table, "$groups_table.id = $items_table.group_id", 'left')
+            ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
+            ->join($suppliers_table, "$suppliers_table.userid = $items_table.userid", 'left');
 
+        // Aplicando filtros
         if ($warehouse_id) {
             $this->db->where("$items_table.warehouse_id", $warehouse_id);
         }
-        if (!empty($statusFilter) && is_array($statusFilter)) {
-            $this->db->where_in("$items_table.status", $statusFilter);
-        }
-        if (!empty($startDate)) {
-            $this->db->where("DATE($items_table.createdAt) >=", (new DateTime($startDate))->format('Y-m-d'));
-        }
-        if (!empty($endDate)) {
-            $this->db->where("DATE($items_table.createdAt) <=", (new DateTime($endDate))->format('Y-m-d'));
-        }
+
+        // Filtro por categoria (group_id)
         if (!empty($category)) {
             $this->db->where("$items_table.group_id", $category);
         }
 
+        // Filtro por subcategoria
         if (!empty($subcategory)) {
             $this->db->where("$items_table.sub_group", $subcategory);
         }
 
-        if (!empty($search)) {
-            $this->db->group_start()
-                    ->like("$items_table.description", $search)
-                    ->or_like("$items_table.long_description", $search)
-                    // ->or_like("$items_table.rate", $search)
-                    // ->or_like("$items_table.sku_code", $search)
-                    ->or_like("$items_table.commodity_barcode", $search)
-                    // ->or_like("$items_table.id", $search)
-                    ->group_end();
+        // Filtro por empresa/fornecedor
+        if (!empty($company) && $company !== 'all') {
+            $this->db->where("$items_table.userid", $company);
         }
 
+        // Filtro por faixa de preço
+        if (!empty($minPrice)) {
+            $this->db->where("COALESCE($items_table.promoPrice, $items_table.rate) >=", $minPrice);
+        }
+        if (!empty($maxPrice)) {
+            $this->db->where("COALESCE($items_table.promoPrice, $items_table.rate) <=", $maxPrice);
+        }
+
+        // Filtro de busca
+        if (!empty($search)) {
+            $this->db->group_start()
+                ->like("$items_table.description", $search)
+                ->or_like("$items_table.long_description", $search)
+                ->or_like("$items_table.commodity_barcode", $search)
+                ->group_end();
+        }
+
+        // Contagem total antes da paginação
         $total = $this->db->count_all_results('', false);
 
+        // Ordenação
         $allowedSortFields = ['id', 'description', 'rate', 'sku_code', 'createdAt', 'updatedAt'];
         $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'id';
-
         $this->db->order_by("$items_table.$sortField", $sortOrder);
+
+        // Paginação
         $this->db->limit($limit, ($page - 1) * $limit);
 
         $items = $this->db->get()->result_array();
@@ -547,7 +563,8 @@ public function get_by_type($type = '') {
         return ['data' => $items, 'total' => $total];
     }
 
-    public function get_grouped() {
+    public function get_grouped()
+    {
         $items = [];
         $this->db->order_by('name', 'asc');
         $groups = $this->db->get(db_prefix() . 'items_groups')->result_array();
@@ -579,7 +596,8 @@ public function get_by_type($type = '') {
      * @param array $data Invoice item data
      * @return boolean
      */
-    public function add($data) {
+    public function add($data)
+    {
         unset($data['itemid']);
         if (isset($data['tax']) && $data['tax'] == '') {
             unset($data['tax']);
@@ -676,7 +694,8 @@ public function get_by_type($type = '') {
      * @param  array $data Invoice data to update
      * @return boolean
      */
-    public function edit($data, $id) {
+    public function edit($data, $id)
+    {
         $itemid = $id;
 
         if (isset($data['group_id']) && $data['group_id'] == '') {
@@ -742,7 +761,8 @@ public function get_by_type($type = '') {
      * @param  array $data Invoice data to update
      * @return boolean
      */
-    public function edit_by_sku($data, $id, $warehouse_id) {
+    public function edit_by_sku($data, $id, $warehouse_id)
+    {
         $itemid = $id;
 
         if (isset($data['group_id']) && $data['group_id'] == '') {
@@ -804,7 +824,8 @@ public function get_by_type($type = '') {
         return $updated;
     }
 
-    public function search($q) {
+    public function search($q)
+    {
         $this->db->select('rate, id, description as name, long_description as subtext');
         $this->db->like('description', $q);
         $this->db->or_like('long_description', $q);
@@ -824,7 +845,8 @@ public function get_by_type($type = '') {
      * @param  mixed $id
      * @return boolean
      */
-    public function delete($id) {
+    public function delete($id)
+    {
         $this->db->where('id', $id);
         $this->db->delete(db_prefix() . 'items');
         if ($this->db->affected_rows() > 0) {
@@ -842,8 +864,9 @@ public function get_by_type($type = '') {
         return false;
     }
 
-  
-   public function delete_by_sku($sku) {
+
+    public function delete_by_sku($sku)
+    {
         // Deleta todos os itens com o SKU fornecido
         $this->db->where('sku_code', $sku);
         $this->db->delete(db_prefix() . 'items');
@@ -870,7 +893,8 @@ public function get_by_type($type = '') {
         return true;
     }
 
-    public function get_groups($page = 1, $limit = 10, $search = '', $sortOrder = 'ASC') {
+    public function get_groups($page = 1, $limit = 10, $search = '', $sortOrder = 'ASC')
+    {
         $this->db->select('id, name');
         $this->db->from(db_prefix() . 'items_groups');
 
@@ -888,14 +912,16 @@ public function get_by_type($type = '') {
         return ['data' => $groups, 'total' => $total];
     }
 
-    public function add_group($data) {
+    public function add_group($data)
+    {
         $this->db->insert(db_prefix() . 'items_groups', $data);
         log_activity('Items Group Created [Name: ' . $data['name'] . ']');
 
         return $this->db->insert_id();
     }
 
-    public function edit_group($data, $id) {
+    public function edit_group($data, $id)
+    {
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'items_groups', $data);
         if ($this->db->affected_rows() > 0) {
@@ -907,7 +933,8 @@ public function get_by_type($type = '') {
         return false;
     }
 
-    public function delete_group($id) {
+    public function delete_group($id)
+    {
         $this->db->where('id', $id);
         $group = $this->db->get(db_prefix() . 'items_groups')->row();
 
@@ -928,18 +955,21 @@ public function get_by_type($type = '') {
         return false;
     }
 
-    public function add_subgroup($data) {
+    public function add_subgroup($data)
+    {
         $this->db->insert(db_prefix() . 'wh_sub_group', $data);
         log_activity('Sub Group Created [Name: ' . $data['sub_group_name'] . ']');
         return $this->db->insert_id();
     }
 
-    public function edit_subgroup($data, $id) {
+    public function edit_subgroup($data, $id)
+    {
         $this->db->where('id', $id);
         return $this->db->update(db_prefix() . 'wh_sub_group', $data);
     }
 
-    public function delete_subgroup($id) {
+    public function delete_subgroup($id)
+    {
         $this->db->where('id', $id);
         return $this->db->delete(db_prefix() . 'wh_sub_group');
     }

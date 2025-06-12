@@ -657,6 +657,8 @@ class Produto extends REST_Controller
 
 
                         unset($update_data['warehouse_id']);
+                         unset($update_data['images_base64']);
+                        unset($update_data['packaging']);
 
                         if ($warehouse['type'] != 'distribuidor') {
                             unset($update_data['sku_code']);

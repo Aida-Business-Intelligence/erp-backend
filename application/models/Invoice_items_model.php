@@ -785,6 +785,7 @@ class Invoice_items_model extends App_Model
         $updated = false;
         $data = hooks()->apply_filters('before_update_item', $data, $itemid);
         $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
+     
 
         $this->db->where('sku_code', $itemid);
         $this->db->where('warehouse_id', $warehouse_id);

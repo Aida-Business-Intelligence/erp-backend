@@ -32,6 +32,7 @@ class Romaneio extends REST_Controller {
         $endDate = $this->get('endDate');
         $customerId = $this->get('customerId');
         $supplierId = $this->get('supplierId');
+        $type = $this->get('type') ?: '';
 
         if (!$this->db->table_exists(db_prefix() . 'romaneios') ||
                 !$this->db->table_exists(db_prefix() . 'romaneio_orders')) {
@@ -53,11 +54,16 @@ class Romaneio extends REST_Controller {
                 $this->db->group_start();
                 $this->db->like('r.id', $search);
                 $this->db->or_like('r.customer_name', $search);
+                $this->db->or_like('r.supplier_name', $search);
                 $this->db->group_end();
             }
 
             if (!empty($status)) {
                 $this->db->where('r.status', $status);
+            }
+            
+            if (!empty($type)) {
+                $this->db->where('r.type', $type);
             }
 
             if (!empty($startDate)) {
@@ -78,7 +84,7 @@ class Romaneio extends REST_Controller {
 
             $this->db->group_by('r.id');
 
-            $validSortFields = ['id', 'customer_name', 'date_created', 'status'];
+            $validSortFields = ['id', 'customer_name', 'supplier_name', 'date_created', 'status', 'type'];
             $sortFieldDB = in_array($sortField, $validSortFields) ? 'r.' . $sortField : 'r.id';
 
             $this->db->order_by($sortFieldDB, $sortOrder);
@@ -97,11 +103,16 @@ class Romaneio extends REST_Controller {
                 $this->db->group_start();
                 $this->db->like('r.id', $search);
                 $this->db->or_like('r.customer_name', $search);
+                $this->db->or_like('r.supplier_name', $search);
                 $this->db->group_end();
             }
 
             if (!empty($status)) {
                 $this->db->where('r.status', $status);
+            }
+            
+            if (!empty($type)) {
+                $this->db->where('r.type', $type);
             }
 
             if (!empty($startDate)) {
@@ -137,11 +148,29 @@ class Romaneio extends REST_Controller {
                     $romaneio['total_cost'] = (float) $totals['total_cost'];
                     $romaneio['total_price'] = (float) $totals['total_price'];
                     $romaneio['margin'] = $totals['total_cost'] > 0 ? (($totals['total_price'] - $totals['total_cost']) / $totals['total_cost'] * 100) : 0;
+                    
+                    if ($romaneio['type'] === 'entrada') {
+                        $this->db->select('supplier_id, supplier_name');
+                        $this->db->from(db_prefix() . 'romaneio_orders');
+                        $this->db->where('romaneio_id', $romaneio['id']);
+                        $this->db->group_by('supplier_id, supplier_name');
+                        $suppliers = $this->db->get()->result_array();
+                        
+                        $romaneio['suppliers'] = $suppliers;
+                        
+                        $supplier_names = array_column($suppliers, 'supplier_name');
+                        $romaneio['supplier_names'] = implode(', ', $supplier_names);
+                    }
                 } else {
                     $romaneio['total_items'] = 0;
                     $romaneio['total_cost'] = 0;
                     $romaneio['total_price'] = 0;
                     $romaneio['margin'] = 0;
+                    
+                    if ($romaneio['type'] === 'entrada') {
+                        $romaneio['suppliers'] = [];
+                        $romaneio['supplier_names'] = '';
+                    }
                 }
             }
 

@@ -264,7 +264,6 @@ class Expenses extends REST_Controller
         }
     }
 
-    
     public function validateduplicates_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');

@@ -37,8 +37,10 @@ class Receivables_model extends App_Model
             $this->db->group_start();
             $this->db->like('e.expense_name', $filters['search']);
             $this->db->or_like('e.reference_no', $filters['search']);
+            $this->db->or_like('e.note', $filters['search']); // <-- Adicione esta linha
             $this->db->group_end();
         }
+        
         if (
             !empty($filters['startDate']) &&
             !empty($filters['endDate']) &&

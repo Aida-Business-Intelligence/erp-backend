@@ -208,33 +208,56 @@ class Produto extends REST_Controller
     }
 
     public function create_post()
-    {
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+{
+    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        if (empty($_POST['warehouse_id'])) {
-            $this->response(
-                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
-                REST_Controller::HTTP_BAD_REQUEST
-            );
-            return;
-        }
 
-        $warehouses = $this->getWarehouses($_POST['warehouse_id']);
 
-        if (!$warehouses) {
-            $this->response(
-                ['status' => FALSE, 'message' => 'No warehouses found'],
-                REST_Controller::HTTP_BAD_REQUEST
-            );
-            return;
-        }
+    if (empty($_POST['warehouse_id'])) {
+        $this->response(
+            ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+            REST_Controller::HTTP_BAD_REQUEST
+        );
+        return;
+    }
 
-        $createdCount = 0;
-        $failedCount = 0;
-        $errors = [];
+    $warehouses = $this->getWarehouses($_POST['warehouse_id']);
 
-        foreach ($warehouses as $warehouse) {
-            $this->form_validation->set_data(array_merge($_POST, $warehouse));
+    if (!$warehouses) {
+        $this->response(
+            ['status' => FALSE, 'message' => 'No warehouses found'],
+            REST_Controller::HTTP_BAD_REQUEST
+        );
+        return;
+    }
+
+    $createdCount = 0;
+    $failedCount = 0;
+    $errors = [];
+
+    // Verificando se $_POST['products'] é um array. Se não for, converta para array.
+    $products = isset($_POST['products']) ? $_POST['products'] : [$_POST];
+
+
+   
+
+    foreach ($warehouses as $warehouse) {
+        foreach ($products as $productData) {
+
+
+                        unset($productData['images_base64']);
+                        unset($productData['packagings']);
+                        unset($productData['reservedStock']);
+                        unset($productData['primary_image_index']);
+                        unset($productData['itemType']);
+                        
+
+                      
+
+
+            $dataToValidate = array_merge($productData, $warehouse);
+
+            $this->form_validation->set_data($dataToValidate);
             $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');
             $this->form_validation->set_rules('rate', 'Rate', 'numeric');
             $this->form_validation->set_rules('stock', 'Stock', 'numeric');
@@ -251,8 +274,8 @@ class Produto extends REST_Controller
                 continue;
             }
 
-            $_POST['warehouse_id'] = $warehouse['warehouse_id'];
-            $product_id = $this->Invoice_items_model->add(array_merge($_POST));
+            $productData['warehouse_id'] = $warehouse['warehouse_id'];
+            $product_id = $this->Invoice_items_model->add($productData);
 
             if ($product_id) {
                 $createdCount++;
@@ -264,18 +287,18 @@ class Produto extends REST_Controller
                 $failedCount++;
             }
         }
-
-        $message = [
-            'status' => TRUE,
-            'message' => 'Products creation summary',
-            'created_count' => $createdCount,
-            'failed_count' => $failedCount,
-            'errors' => $errors
-        ];
-
-        $this->response($message, REST_Controller::HTTP_OK);
     }
 
+    $message = [
+        'status' => TRUE,
+        'message' => 'Products creation summary',
+        'created_count' => $createdCount,
+        'failed_count' => $failedCount,
+        'errors' => $errors
+    ];
+
+    $this->response($message, REST_Controller::HTTP_OK);
+}
     public function include_products_nf_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);

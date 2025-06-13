@@ -856,12 +856,21 @@ function updateStocks2($data, $item, $transaction)
         throw new Exception('Item não encontrado no estoque');
     }
 
-    // Atualiza o estoque do item
-    $new_stock = $current_stock->stock - $item['qty'];
-    if ($new_stock < 0) {
-        throw new Exception('Estoque insuficiente para o item: ' . $current_stock->description);
+    // Calcula o novo estoque baseado no tipo de transação
+    if ($transaction['cash'] === 'restore' || $transaction['cash'] === 'add') {
+        // Adiciona ao estoque
+        $new_stock = $current_stock->stock + $item['qty'];
+    } else if ($transaction['cash'] === 'reserve' || $transaction['cash'] === 'debit') {
+        // Subtrai do estoque
+        $new_stock = $current_stock->stock - $item['qty'];
+        if ($new_stock < 0) {
+            throw new Exception('Estoque insuficiente para o item: ' . $current_stock->description);
+        }
+    } else {
+        throw new Exception('Tipo de transação inválido: ' . $transaction['cash']);
     }
 
+    // Atualiza o estoque
     $CI->db->where('id', $item['id']);
     $CI->db->where('warehouse_id', $data['warehouse_id']);
     $CI->db->update(db_prefix() . 'items', ['stock' => $new_stock]);

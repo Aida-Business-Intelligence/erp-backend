@@ -2181,12 +2181,22 @@ class Invoices_model extends App_Model
                 ]);
             }
 
-            // Atualiza o estoque
-            $this->db->where('id', $data['item_id']);
-            $this->db->where('warehouse_id', $data['warehouse_id']);
-            $this->db->update(db_prefix() . 'items', [
-                'stock' => $item->stock - $data['quantity']
-            ]);
+            // Atualiza o estoque usando a função updateStocks2
+            $dataEstoque = [
+                'warehouse_id' => $data['warehouse_id'],
+                'user_id' => $data['user_id'],
+                'obs' => 'Reserva de item no carrinho',
+                'hash' => md5(uniqid(rand(), true))
+            ];
+            $itemEstoque = [
+                'qty' => $data['quantity'],
+                'id' => $data['item_id']
+            ];
+            $transaction = [
+                'id' => 'CART_' . time(), // Gerando um ID único para a transação
+                'cash' => 'reserve'
+            ];
+            updateStocks2($dataEstoque, $itemEstoque, $transaction);
 
             $this->db->trans_complete();
 
@@ -2206,26 +2216,46 @@ class Invoices_model extends App_Model
         try {
             $this->db->trans_start();
 
-            // Busca o item no carrinho
+            // Busca o item no carrinho independente do status
             $this->db->where('item_id', $data['item_id']);
             $this->db->where('warehouse_id', $data['warehouse_id']);
-            $this->db->where('user_id', $data['user_id']);
-            $this->db->where('status', 'reserved');
             $cart_item = $this->db->get(db_prefix() . 'ecommerce_cart')->row();
 
             if (!$cart_item) {
                 throw new Exception('Item não encontrado no carrinho');
             }
 
-            // Restaura o estoque
+            // Busca o item atual para verificar o estoque
             $this->db->where('id', $data['item_id']);
             $this->db->where('warehouse_id', $data['warehouse_id']);
-            $this->db->set('stock', 'stock + ' . $cart_item->quantity, false);
-            $this->db->update(db_prefix() . 'items');
+            $item = $this->db->get(db_prefix() . 'items')->row();
+
+            if (!$item) {
+                throw new Exception('Item não encontrado');
+            }
 
             // Remove o item do carrinho (marca como released)
             $this->db->where('id', $cart_item->id);
             $this->db->update(db_prefix() . 'ecommerce_cart', ['status' => 'released']);
+
+            // Registra a movimentação do estoque
+            $dataEstoque = [
+                'warehouse_id' => $data['warehouse_id'],
+                'user_id' => $cart_item->user_id,
+                'obs' => 'Devolução de item ao estoque após remoção do carrinho',
+                'hash' => md5(uniqid(rand(), true))
+            ];
+            $itemEstoque = [
+                'qty' => $cart_item->quantity,
+                'id' => $data['item_id']
+            ];
+            $transaction = [
+                'id' => 'CART_REMOVE_' . time(),
+                'cash' => 'restore'
+            ];
+
+            // Atualiza o estoque usando updateStocks2
+            updateStocks2($dataEstoque, $itemEstoque, $transaction);
 
             $this->db->trans_complete();
 
@@ -2233,10 +2263,18 @@ class Invoices_model extends App_Model
                 throw new Exception('Erro ao remover item do carrinho');
             }
 
+            // Verifica se o estoque foi atualizado corretamente
+            $this->db->where('id', $data['item_id']);
+            $this->db->where('warehouse_id', $data['warehouse_id']);
+            $updated_item = $this->db->get(db_prefix() . 'items')->row();
+
+            if ($updated_item->stock != ($item->stock + $cart_item->quantity)) {
+                throw new Exception('Erro ao restaurar estoque');
+            }
+
             return true;
         } catch (Exception $e) {
             $this->db->trans_rollback();
-            log_message('error', 'Erro ao remover item do carrinho: ' . $e->getMessage());
             throw $e;
         }
     }
@@ -2255,7 +2293,7 @@ class Invoices_model extends App_Model
                 throw new Exception('Item não encontrado');
             }
 
-            // Busca o item no carrinho
+            // Busca o item no carrinho usando a mesma query do add_to_cart
             $this->db->where('item_id', $data['item_id']);
             $this->db->where('warehouse_id', $data['warehouse_id']);
             $this->db->where('user_id', $data['user_id']);
@@ -2274,18 +2312,29 @@ class Invoices_model extends App_Model
                 throw new Exception('Estoque insuficiente');
             }
 
-            // Atualiza a quantidade no carrinho
+            // Atualiza a quantidade no carrinho usando o ID do registro
             $this->db->where('id', $cart_item->id);
             $this->db->update(db_prefix() . 'ecommerce_cart', [
                 'quantity' => $data['quantity'],
                 'expires_at' => date('Y-m-d H:i:s', strtotime('+60 minutes'))
             ]);
 
-            // Atualiza o estoque
-            $this->db->where('id', $data['item_id']);
-            $this->db->where('warehouse_id', $data['warehouse_id']);
-            $this->db->set('stock', 'stock - ' . $quantity_diff, false);
-            $this->db->update(db_prefix() . 'items');
+            // Atualiza o estoque usando updateStocks2
+            $dataEstoque = [
+                'warehouse_id' => $data['warehouse_id'],
+                'user_id' => $data['user_id'],
+                'obs' => 'Ajuste de reserva de item no carrinho',
+                'hash' => md5(uniqid(rand(), true))
+            ];
+            $itemEstoque = [
+                'qty' => abs($quantity_diff),
+                'id' => $data['item_id']
+            ];
+            $transaction = [
+                'id' => 'CART_UPDATE_' . time(),
+                'cash' => $quantity_diff > 0 ? 'reserve' : 'restore'
+            ];
+            updateStocks2($dataEstoque, $itemEstoque, $transaction);
 
             $this->db->trans_complete();
 

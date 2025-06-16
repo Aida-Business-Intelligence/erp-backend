@@ -847,36 +847,25 @@ function updateStocks2($data, $item, $transaction)
 {
     $CI = &get_instance();
 
-    // Atualiza o estoque do item
+    // Busca o item atual
     $CI->db->where('id', $item['id']);
     $CI->db->where('warehouse_id', $data['warehouse_id']);
-    $current_stock = $CI->db->get(db_prefix() . 'items')->row();
+    $current_item = $CI->db->get(db_prefix() . 'items')->row();
 
-    if (!$current_stock) {
-        throw new Exception('Item não encontrado no estoque');
+    if (!$current_item) {
+        throw new Exception('Item não encontrado');
     }
 
-    // Calcula o novo estoque baseado no tipo de transação
-    if ($transaction['cash'] === 'restore' || $transaction['cash'] === 'add') {
-        // Adiciona ao estoque
-        $new_stock = $current_stock->stock + $item['qty'];
-    } else if ($transaction['cash'] === 'reserve' || $transaction['cash'] === 'debit') {
-        // Subtrai do estoque
-        $new_stock = $current_stock->stock - $item['qty'];
-        if ($new_stock < 0) {
-            throw new Exception('Estoque insuficiente para o item: ' . $current_stock->description);
-        }
-    } else {
-        throw new Exception('Tipo de transação inválido: ' . $transaction['cash']);
-    }
+    // Calcula o novo estoque
+    $new_stock = $current_item->stock - $item['qty'];
 
-    // Atualiza o estoque
+    // Atualiza o estoque do item
     $CI->db->where('id', $item['id']);
     $CI->db->where('warehouse_id', $data['warehouse_id']);
     $CI->db->update(db_prefix() . 'items', ['stock' => $new_stock]);
 
-    // Registrar o movimento no itemstocksmov
-    $data_itemstocksmov = [
+    // Registra o movimento no itemstocksmov
+    $movement_data = [
         'warehouse_id' => $data['warehouse_id'],
         'transaction_id' => $transaction['id'],
         'cash_id' => $transaction['id'],
@@ -887,7 +876,7 @@ function updateStocks2($data, $item, $transaction)
         'type_transaction' => $transaction['cash']
     ];
 
-    $CI->db->insert(db_prefix() . 'itemstocksmov', $data_itemstocksmov);
+    $CI->db->insert(db_prefix() . 'itemstocksmov', $movement_data);
 
     return true;
 }

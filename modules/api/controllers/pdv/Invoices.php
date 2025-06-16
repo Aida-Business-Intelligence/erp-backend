@@ -372,6 +372,7 @@ class Invoices extends REST_Controller
             $newitems = [];
             $total = 0;
             $purchase_need_ids = [];
+            $item_ids_to_remove = [];
 
             foreach ($_POST['items'] as $index => $item) {
                 $product = $this->db->get_where('tblitems', ['id' => $item['id']])->row();
@@ -392,6 +393,7 @@ class Invoices extends REST_Controller
                 $this->db->insert('tblpurchase_needs', $purchase_need);
                 $purchase_need_id = $this->db->insert_id();
                 $purchase_need_ids[] = $purchase_need_id;
+                $item_ids_to_remove[] = $item['id'];
 
                 $item_total = $product->cost * $item['quantity'];
                 $total += $item_total;
@@ -413,8 +415,8 @@ class Invoices extends REST_Controller
                 'number' => get_option('next_invoice_number'),
                 'date' => date('Y-m-d'),
                 'duedate' => date('Y-m-d', strtotime('+30 days')),
-                'subtotal' => $total,
-                'total' => $total,
+                'subtotal' => $_POST['total'],
+                'total' => $_POST['total'],
                 'status' => 1,
                 'clientnote' => '',
                 'adminnote' => '',
@@ -451,29 +453,14 @@ class Invoices extends REST_Controller
             foreach ($purchase_need_ids as $index => $purchase_need_id) {
                 $this->db->where('id', $purchase_need_id);
                 $this->db->update('tblpurchase_needs', ['invoice_id' => $invoice_id]);
+            }
 
-                $item = [
-                    'qty' => $_POST['items'][$index]['quantity'],
-                    'id' => $_POST['items'][$index]['id']
-                ];
-
-                $data = [
-                    'warehouse_id' => $warehouse_id,
-                    'user_id' => $user_id,
-                    'obs' => 'Removendo do estoque',
-                    'hash' => md5(uniqid(rand(), true))
-                ];
-
-                $transaction = [
-                    'id' => $invoice_id,
-                    'cash' => 'invoice'
-                ];
-
-                try {
-                    updateStocks2($data, $item, $transaction);
-                } catch (Exception $e) {
-                    throw $e;
-                }
+            // Remover os itens do carrinho do usuário logado
+            if (!empty($item_ids_to_remove)) {
+                $this->db->where('user_id', $user_id);
+                $this->db->where('warehouse_id', $warehouse_id);
+                $this->db->where_in('item_id', $item_ids_to_remove);
+                $this->db->delete('tblecommerce_cart');
             }
 
             $this->db->trans_complete();
@@ -495,9 +482,6 @@ class Invoices extends REST_Controller
 
         } catch (Exception $e) {
             $this->db->trans_rollback();
-            var_dump('Erro capturado:', $e->getMessage());
-            var_dump('Stack trace:', $e->getTraceAsString());
-
             $this->response([
                 'status' => FALSE,
                 'message' => 'Error: ' . $e->getMessage()
@@ -550,6 +534,7 @@ class Invoices extends REST_Controller
                     $purchase_need_ids = [];
                     $clientid = $order['clientid'] ?? 0;
                     $supplier_id = $order['supplier_id'] ?? 0;
+                    $item_ids_to_remove = [];
 
                     foreach ($order['items'] as $item) {
                         $this->db->where('id', $item['id']);
@@ -572,6 +557,7 @@ class Invoices extends REST_Controller
 
                         $purchase_need_id = $this->db->insert_id();
                         $purchase_need_ids[] = $purchase_need_id;
+                        $item_ids_to_remove[] = $item['id'];
 
                         $item_total = $item_price * $item['quantity'];
                         $total += $item_total;
@@ -593,8 +579,8 @@ class Invoices extends REST_Controller
                         'number' => get_option('next_invoice_number'),
                         'date' => date('Y-m-d'),
                         'duedate' => date('Y-m-d', strtotime('+30 days')),
-                        'subtotal' => $total,
-                        'total' => $total,
+                        'subtotal' => $order['total'],
+                        'total' => $order['total'],
                         'status' => 1,
                         'clientnote' => '',
                         'adminnote' => '',
@@ -634,26 +620,14 @@ class Invoices extends REST_Controller
                             'invoice_id' => $invoice_id,
                             'status' => 1
                         ]);
+                    }
 
-                        // Atualizar estoque
-                        $item = [
-                            'qty' => $order['items'][$index]['quantity'],
-                            'id' => $order['items'][$index]['id']
-                        ];
-
-                        $data = [
-                            'warehouse_id' => $warehouse_id,
-                            'user_id' => $user_id,
-                            'obs' => 'Removendo do estoque',
-                            'hash' => md5(uniqid(rand(), true))
-                        ];
-
-                        $transaction = [
-                            'id' => $invoice_id,
-                            'cash' => 'invoice'
-                        ];
-
-                        updateStocks2($data, $item, $transaction);
+                    // Remover os itens do carrinho do usuário logado
+                    if (!empty($item_ids_to_remove)) {
+                        $this->db->where('user_id', $user_id);
+                        $this->db->where('warehouse_id', $warehouse_id);
+                        $this->db->where_in('item_id', $item_ids_to_remove);
+                        $this->db->delete('tblecommerce_cart');
                     }
 
                     $results[] = [
@@ -1579,6 +1553,25 @@ class Invoices extends REST_Controller
                 'status' => false,
                 'message' => $e->getMessage()
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function remove_expired_items_post()
+    {
+        $this->load->model('invoices_model');
+        $result = $this->invoices_model->remove_expired_cart_items();
+
+        if ($result['status']) {
+            $this->response([
+                'status' => true,
+                'message' => $result['message'],
+                'removed_items' => $result['removed_items']
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => false,
+                'message' => $result['message']
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 

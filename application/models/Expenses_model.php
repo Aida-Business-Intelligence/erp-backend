@@ -1131,7 +1131,8 @@ class Expenses_model extends App_Model
             ' . db_prefix() . 'taxes.name as tax_name,
             ' . db_prefix() . 'taxes.taxrate as taxrate,
             ' . db_prefix() . 'taxes_2.name as tax_name2,
-            ' . db_prefix() . 'taxes_2.taxrate as taxrate2
+            ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
+            ' . db_prefix() . 'payment_modes.name as payment_mode_name,
         ');
 
         $this->db->from(db_prefix() . 'expenses e');
@@ -1139,6 +1140,8 @@ class Expenses_model extends App_Model
         $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
         $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
+        $this->db->join(db_prefix() . 'payment_modes', db_prefix() . 'payment_modes.id = e.paymentmode', 'left');
+
 
         $this->db->where('e.warehouse_id', $warehouse_id);
         $this->db->where('e.type', 'despesa');

@@ -8,6 +8,26 @@ use Illuminate\Support\Collection;
 defined('BASEPATH') or exit('No direct script access allowed');
 header('Content-Type: text/html; charset=utf-8');
 
+
+function get_staff_user()
+{
+    $CI = &get_instance();
+    $CI->load->model('Authentication_model');
+
+    $authHeader = $CI->input->get_request_header('Authorization');
+
+    if (!$authHeader || stripos($authHeader, 'Bearer ') !== 0) {
+        log_message('error', 'Authorization header not found or invalid format');
+        return false;
+    }
+
+    $token_jwt = trim(substr($authHeader, 7));
+    $decodedToken = $CI->authservice->decodeToken($token_jwt);
+    $decodedData = $decodedToken['data'];
+
+    return $decodedData->user;
+}
+
 /**
  * Load custom lang for the given language
  *
@@ -587,7 +607,7 @@ function _l($line, $label = '', $log_errors = true)
         if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
             try {
                 $_line = sprintf($CI->lang->line(trim($line), $log_errors), $label);
-            } catch (ValueError|ArgumentCountError $e) {
+            } catch (ValueError | ArgumentCountError $e) {
                 $_line = $CI->lang->line(trim($line), $log_errors);
             }
         } else {
@@ -895,50 +915,50 @@ function get_csrf_for_ajax()
  */
 function csrf_jquery_token()
 {
-    ?>
-<script>
-    if (typeof(jQuery) === 'undefined' && !window.deferAfterjQueryLoaded) {
-        window.deferAfterjQueryLoaded = [];
-        Object.defineProperty(window, "$", {
-            set: function(value) {
-                window.setTimeout(function() {
-                    $.each(window.deferAfterjQueryLoaded, function(index, fn) {
-                        fn();
+?>
+    <script>
+        if (typeof(jQuery) === 'undefined' && !window.deferAfterjQueryLoaded) {
+            window.deferAfterjQueryLoaded = [];
+            Object.defineProperty(window, "$", {
+                set: function(value) {
+                    window.setTimeout(function() {
+                        $.each(window.deferAfterjQueryLoaded, function(index, fn) {
+                            fn();
+                        });
+                    }, 0);
+                    Object.defineProperty(window, "$", {
+                        value: value
                     });
-                }, 0);
-                Object.defineProperty(window, "$", {
-                    value: value
-                });
-            },
-            configurable: true
-        });
-    }
+                },
+                configurable: true
+            });
+        }
 
-    var csrfData = <?= json_encode(get_csrf_for_ajax()); ?> ;
+        var csrfData = <?= json_encode(get_csrf_for_ajax()); ?>;
 
-    if (typeof(jQuery) == 'undefined') {
-        window.deferAfterjQueryLoaded.push(function() {
+        if (typeof(jQuery) == 'undefined') {
+            window.deferAfterjQueryLoaded.push(function() {
+                csrf_jquery_ajax_setup();
+            });
+            window.addEventListener('load', function() {
+                csrf_jquery_ajax_setup();
+            }, true);
+        } else {
             csrf_jquery_ajax_setup();
-        });
-        window.addEventListener('load', function() {
-            csrf_jquery_ajax_setup();
-        }, true);
-    } else {
-        csrf_jquery_ajax_setup();
-    }
+        }
 
-    function csrf_jquery_ajax_setup() {
-        $.ajaxSetup({
-            data: csrfData.formatted
-        });
+        function csrf_jquery_ajax_setup() {
+            $.ajaxSetup({
+                data: csrfData.formatted
+            });
 
-        $(document).ajaxError(function(event, request, settings) {
-            if (request.status === 419) {
-                alert_float('warning', 'Page expired, refresh the page make an action.')
-            }
-        });
-    }
-</script>
+            $(document).ajaxError(function(event, request, settings) {
+                if (request.status === 419) {
+                    alert_float('warning', 'Page expired, refresh the page make an action.')
+                }
+            });
+        }
+    </script>
 <?php
 }
 

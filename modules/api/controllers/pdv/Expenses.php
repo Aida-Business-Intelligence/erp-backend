@@ -1271,7 +1271,8 @@ class Expenses extends REST_Controller
                 db_prefix() . 'taxes.name as tax_name,' .
                 db_prefix() . 'taxes.taxrate as taxrate,' .
                 db_prefix() . 'taxes_2.name as tax_name2,' .
-                db_prefix() . 'taxes_2.taxrate as taxrate2'
+                db_prefix() . 'taxes_2.taxrate as taxrate2,'.
+                db_prefix() . 'payment_modes.name as payment_mode_name'
         );
 
         $this->db->from(db_prefix() . 'expenses');
@@ -1279,6 +1280,7 @@ class Expenses extends REST_Controller
         $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
         $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category', 'left');
+        $this->db->join(db_prefix() . 'payment_modes', db_prefix() . 'payment_modes.id = expenses.paymentmode', 'left');
 
         $this->db->where(db_prefix() . 'expenses.id', $id);
 
@@ -1291,8 +1293,6 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
             return;
         }
-
-        $expense->payment_mode_name = $this->get_payment_mode_name($expense->payment_mode);
 
         $expense->recurring_info = ($expense->recurring == 1) ? [
             'recurring' => true,

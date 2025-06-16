@@ -285,12 +285,11 @@ class Expenses extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
-    public function list_post()
-    {
+    public function list_post() {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
-
+    
         $warehouse_id = $this->post('warehouse_id');
-
+    
         if (empty($warehouse_id)) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -298,133 +297,44 @@ class Expenses extends REST_Controller
             );
             return;
         }
-
+    
+        // Prepare parameters
+        $params = [
+            'warehouse_id' => $warehouse_id,
+            'search' => $this->post('search') ?: '',
+            'sortField' => $this->post('sortField') ?: 'id',
+            'sortOrder' => $this->post('sortOrder'),
+            'startDate' => $this->post('startDate'),
+            'endDate' => $this->post('endDate'),
+            'category' => $this->post('category'),
+            'status' => $this->post('status'),
+            'type' => $this->post('type'),
+        ];
+    
+        // Pagination
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $search = $this->post('search') ?: '';
-        $sortField = $this->post('sortField') ?: 'id';
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
-        $startDate = $this->post('startDate');
-        $endDate = $this->post('endDate');
-        $category = $this->post('category');
-        $status = $this->post('status');
-        $type = $this->post('type');
-
-        log_activity('Received parameters: ' . json_encode([
-            'page' => $page,
-            'limit' => $limit,
-            'search' => $search,
-            'sortField' => $sortField,
-            'sortOrder' => $sortOrder,
-            'startDate' => $startDate,
-            'endDate' => $endDate,
-            'category' => $category,
-            'status' => $status,
-            'type' => $type,
-            'warehouse_id' => $warehouse_id
-        ]));
-
         $page = $page + 1;
         $offset = ($page - 1) * $limit;
-
-        $this->db->select('
-        e.id,
-        e.category,
-        e.currency,
-        e.amount,
-        e.tax,
-        e.tax2,
-        e.reference_no,
-        e.note,
-        e.expense_name,
-        e.clientid,
-        e.project_id,
-        e.billable,
-        e.invoiceid,
-        e.paymentmode,
-        e.date,
-        e.recurring_type,
-        e.repeat_every,
-        e.recurring,
-        e.cycles,
-        e.total_cycles,
-        e.custom_recurring,
-        e.last_recurring_date,
-        e.create_invoice_billable,
-        e.send_invoice_to_customer,
-        e.recurring_from,
-        e.dateadded,
-        e.addedfrom,
-        e.type,
-        e.status,
-        e.warehouse_id,
-        e.file,
-        ' . db_prefix() . 'expenses_categories.name as category_name,
-        ' . db_prefix() . 'clients.company as company,
-        ' . db_prefix() . 'taxes.name as tax_name,
-        ' . db_prefix() . 'taxes.taxrate as taxrate,
-        ' . db_prefix() . 'taxes_2.name as tax_name2,
-        ' . db_prefix() . 'taxes_2.taxrate as taxrate2
-    ');
-
-        $this->db->from(db_prefix() . 'expenses e');
-        $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
-        $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
-        $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
-        $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
-
-        $this->db->where('e.warehouse_id', $warehouse_id);
-        $this->db->where('e.type', 'despesa');
-        if (!empty($startDate) && $startDate !== 'null') {
-            $this->db->where('e.date >=', $startDate);
-        }
-        if (!empty($endDate) && $endDate !== 'null') {
-            $this->db->where('e.date <=', $endDate);
-        }
-
-        if (!empty($category) && $category !== 'null') {
-            $this->db->where('e.category', $category);
-        }
-
-        if ($status !== null && $status !== '' && $status !== 'null') {
-            $this->db->where('e.status', $status);
-        }
-
-        if ($type !== null && $type !== '' && $type !== 'null') {
-            $this->db->where('e.type', $type);
-        }
-
-        if (!empty($search) && $search !== 'null') {
-            $this->db->group_start();
-            $this->db->like('e.note', $search);
-            $this->db->or_like('e.amount', $search);
-            $this->db->group_end();
-        }
-
-        $this->db->order_by($sortField, $sortOrder);
-
-        $total_query = clone $this->db;
-        $total = $total_query->count_all_results();
-
-        $this->db->limit($limit, $offset);
-
-        $data = $this->db->get()->result_array();
-
-        $response = [
-            'status' => TRUE,
-            'total' => $total,
-            'page' => $page,
-            'limit' => $limit,
-            'total_pages' => ceil($total / $limit),
-            'data' => []
-        ];
-
+        
+        $params['limit'] = $limit;
+        $params['offset'] = $offset;
+    
+        // Log parameters
+        log_activity('Received parameters: ' . json_encode($params));
+    
+        // Get data from model
+        $result = $this->Expenses_model->get_filtered_expenses($params);
+        $data = $result['data'];
+        $total = $result['total'];
+    
+        // Process results
         if (!empty($data)) {
             foreach ($data as &$expense) {
-                $expense['payment_mode_name'] = $this->get_payment_mode_name($expense['paymentmode']);
-
+                $expense['payment_mode_name'] = $this->Expenses_model->get_payment_mode_name($expense['paymentmode']);
+    
                 if ($expense['recurring'] == 1) {
-                    $expense['recurring_info'] = array(
+                    $expense['recurring_info'] = [
                         'recurring' => true,
                         'recurring_type' => $expense['recurring_type'],
                         'repeat_every' => $expense['repeat_every'],
@@ -432,14 +342,22 @@ class Expenses extends REST_Controller
                         'total_cycles' => $expense['total_cycles'],
                         'custom_recurring' => $expense['custom_recurring'] == 1,
                         'last_recurring_date' => $expense['last_recurring_date'],
-                    );
+                    ];
                 } else {
                     $expense['recurring_info'] = null;
                 }
             }
-            $response['data'] = $data;
         }
-
+    
+        $response = [
+            'status' => TRUE,
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'total_pages' => ceil($total / $limit),
+            'data' => $data
+        ];
+    
         $this->response($response, REST_Controller::HTTP_OK);
     }
 

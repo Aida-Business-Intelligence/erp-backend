@@ -668,6 +668,9 @@ class Produto extends REST_Controller
 
             $update_data = $this->input->post();
             $this->load->model('Invoice_items_model');
+               unset($update_data['warehouse_id']);
+                        unset($update_data['images_base64']);
+                        unset($update_data['packaging']);
 
             if (count($warehouses) > 1) {
 
@@ -679,9 +682,7 @@ class Produto extends REST_Controller
                     foreach ($warehouses as $warehouse) {
 
 
-                        unset($update_data['warehouse_id']);
-                         unset($update_data['images_base64']);
-                        unset($update_data['packaging']);
+                     
 
                         if ($warehouse['type'] != 'distribuidor') {
                             unset($update_data['sku_code']);

@@ -163,7 +163,7 @@ class Expenses extends REST_Controller
 
         $input = [
             'category' => $_POST['category'] ?? null,
-            'currency' => $_POST['currency'] ?? null,
+            'currency' => $_POST['currency'] ?? 1,
             'amount' => $_POST['amount'] ?? null,
             'tax' => $_POST['tax'] ?? null,
             'tax2' => $_POST['tax2'] ?? 0,

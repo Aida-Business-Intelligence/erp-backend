@@ -9,7 +9,6 @@ class Authentication extends ClientsController
         parent::__construct();
         hooks()->do_action('clients_authentication_constructor', $this);
     }
-
     public function index()
     {
         $this->login();

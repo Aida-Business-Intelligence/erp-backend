@@ -1197,4 +1197,70 @@ class Expenses_model extends App_Model
         $result = $this->db->get()->row();
         return $result ? $result->name : null;
     }
+
+    public function get_expense_detailed($id)
+    {
+        if (empty($id)) return null;
+
+        $this->db->select(
+            'e.id,
+        e.category,
+        e.currency,
+        e.amount,
+        e.tax,
+        e.tax2,
+        e.reference_no,
+        e.note,
+        e.expense_name,
+        e.clientid,
+        e.project_id,
+        e.billable,
+        e.invoiceid,
+        e.paymentmode,
+        e.date,
+        e.recurring_type,
+        e.repeat_every,
+        e.recurring,
+        e.cycles,
+        e.total_cycles,
+        e.custom_recurring,
+        e.last_recurring_date,
+        e.create_invoice_billable,
+        e.send_invoice_to_customer,
+        e.recurring_from,
+        e.dateadded,
+        e.addedfrom,
+        e.perfex_saas_tenant_id,
+        e.type,
+        e.status,
+        e.warehouse_id,
+        e.file,
+        e.comprovante,
+
+        c.userid as userid,
+        c.company as company,
+        c.vat,
+        c.phonenumber,
+        c.address,
+        c.email_default,
+
+        cat.name as category_name,
+        e.paymentmode as payment_mode,
+        t1.name as tax_name,
+        t1.taxrate as taxrate,
+        t2.name as tax_name2,
+        t2.taxrate as taxrate2,
+        pm.name as payment_mode_name'
+        );
+
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'taxes t1', 't1.id = e.tax', 'left');
+        $this->db->join(db_prefix() . 'taxes t2', 't2.id = e.tax2', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
+        $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
+        $this->db->where('e.id', $id);
+
+        return $this->db->get()->row();
+    }
 }

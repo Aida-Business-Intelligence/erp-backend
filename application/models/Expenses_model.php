@@ -1263,4 +1263,61 @@ class Expenses_model extends App_Model
 
         return $this->db->get()->row();
     }
+
+    public function get_expenses_by_date($params)
+{
+    $page = $params['page'] ?? 1;
+    $limit = $params['pageSize'] ?? 10;
+    $offset = ($page - 1) * $limit;
+
+    $this->db->select('
+        e.*, 
+        e.id as id, 
+        e.id as expenseid, 
+        e.addedfrom as addedfrom,
+        cat.name as category_name,
+        pm.name as payment_mode_name,
+        t1.name as tax_name, 
+        t1.taxrate as taxrate,
+        t2.name as tax_name2, 
+        t2.taxrate as taxrate2
+    ');
+    $this->db->from(db_prefix() . 'expenses e');
+    $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+    $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
+    $this->db->join(db_prefix() . 'taxes t1', 't1.id = e.tax', 'left');
+    $this->db->join(db_prefix() . 'taxes t2', 't2.id = e.tax2', 'left');
+    $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
+
+    $this->db->where('e.warehouse_id', $params['warehouse_id']);
+    $this->db->where('e.type', 'despesa');
+
+    if (!empty($params['start_date'])) {
+        $this->db->where('e.date >=', $params['start_date']);
+    }
+    if (!empty($params['end_date'])) {
+        $this->db->where('e.date <=', $params['end_date']);
+    }
+    if (!empty($params['search'])) {
+        $this->db->group_start();
+        $this->db->like('e.note', $params['search']);
+        $this->db->or_like('e.amount', $params['search']);
+        $this->db->group_end();
+    }
+
+    $this->db->order_by($params['sortField'], $params['sortOrder']);
+
+    // Contar total sem limite
+    $total_query = clone $this->db;
+    $total = $total_query->count_all_results();
+
+    $this->db->limit($limit, $offset);
+    $data = $this->db->get()->result_array();
+
+    return [
+        'data' => $data,
+        'total' => $total
+    ];
+}
+
 }

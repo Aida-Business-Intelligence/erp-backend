@@ -366,7 +366,6 @@ class Expenses extends REST_Controller
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $warehouse_id = $this->post('warehouse_id');
-
         if (empty($warehouse_id)) {
             $this->response([
                 'status' => FALSE,
@@ -375,89 +374,43 @@ class Expenses extends REST_Controller
             return;
         }
 
-        $page = $this->post('page') ? (int) $this->post('page') : 1;
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $offset = ($page - 1) * $limit;
-
-        $search = $this->post('search') ?: '';
-        $sortField = $this->post('sortField') ?: db_prefix() . 'expenses.id';
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
-
-        $start_date = $this->post('start_date');
-        $end_date = $this->post('end_date');
-
-        $this->db->select('*,' . db_prefix() . 'expenses.id as id,' .
-            db_prefix() . 'expenses_categories.name as category_name,' .
-            db_prefix() . 'payment_modes.name as payment_mode_name,' .
-            db_prefix() . 'taxes.name as tax_name, ' .
-            db_prefix() . 'taxes.taxrate as taxrate,' .
-            db_prefix() . 'taxes_2.name as tax_name2, ' .
-            db_prefix() . 'taxes_2.taxrate as taxrate2, ' .
-            db_prefix() . 'expenses.id as expenseid,' .
-            db_prefix() . 'expenses.addedfrom as addedfrom');
-
-        $this->db->from(db_prefix() . 'expenses');
-        $this->db->join(db_prefix() . 'clients', '' . db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses.clientid', 'left');
-        $this->db->join(db_prefix() . 'payment_modes', '' . db_prefix() . 'payment_modes.id = ' . db_prefix() . 'expenses.paymentmode', 'left');
-        $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
-        $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
-        $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category', 'left');
-
-        $this->db->where(db_prefix() . 'expenses.warehouse_id', $warehouse_id);
-        $this->db->where(db_prefix() . 'expenses.type', 'despesa');
-
-        if (!empty($start_date)) {
-            $this->db->where('date >=', $start_date);
-        }
-        if (!empty($end_date)) {
-            $this->db->where('date <=', $end_date);
-        }
-
-        if (!empty($search)) {
-            $this->db->group_start();
-            $this->db->like('expenses.note', $search);
-            $this->db->or_like('expenses.amount', $search);
-            $this->db->group_end();
-        }
-
-        $this->db->order_by($sortField, $sortOrder);
-
-        $total_query = clone $this->db;
-        $total = $total_query->count_all_results();
-
-        $this->db->limit($limit, $offset);
-        $expenses = $this->db->get()->result_array();
-
-        $response = [
-            'status' => TRUE,
-            'total' => $total,
-            'page' => $page,
-            'limit' => $limit,
-            'total_pages' => ceil($total / $limit),
-            'data' => []
+        $params = [
+            'warehouse_id' => $warehouse_id,
+            'page' => (int) ($this->post('page') ?: 1),
+            'pageSize' => (int) ($this->post('pageSize') ?: 10),
+            'search' => $this->post('search') ?: '',
+            'sortField' => $this->post('sortField') ?: db_prefix() . 'expenses.id',
+            'sortOrder' => $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC',
+            'start_date' => $this->post('start_date'),
+            'end_date' => $this->post('end_date')
         ];
 
-        if (!empty($expenses)) {
-            foreach ($expenses as &$expense) {
-                if ($expense['recurring'] == 1) {
-                    $expense['recurring_info'] = array(
-                        'recurring' => true,
-                        'recurring_type' => $expense['recurring_type'],
-                        'repeat_every' => $expense['repeat_every'],
-                        'cycles_completed' => $expense['cycles'],
-                        'total_cycles' => $expense['total_cycles'],
-                        'custom_recurring' => $expense['custom_recurring'] == 1,
-                        'last_recurring_date' => $expense['last_recurring_date']
-                    );
-                } else {
-                    $expense['recurring_info'] = null;
-                }
-            }
-            $response['data'] = $expenses;
+        $this->load->model('expenses_model');
+        $result = $this->Expenses_model->get_expenses_by_date($params);
+
+        // Enriquecer com informações de recorrência no controller (opcional)
+        foreach ($result['data'] as &$expense) {
+            $expense['recurring_info'] = ($expense['recurring'] == 1) ? [
+                'recurring' => true,
+                'recurring_type' => $expense['recurring_type'],
+                'repeat_every' => $expense['repeat_every'],
+                'cycles_completed' => $expense['cycles'],
+                'total_cycles' => $expense['total_cycles'],
+                'custom_recurring' => $expense['custom_recurring'] == 1,
+                'last_recurring_date' => $expense['last_recurring_date'],
+            ] : null;
         }
 
-        $this->response($response, REST_Controller::HTTP_OK);
+        $this->response([
+            'status' => true,
+            'total' => $result['total'],
+            'page' => $params['page'],
+            'limit' => $params['pageSize'],
+            'total_pages' => ceil($result['total'] / $params['pageSize']),
+            'data' => $result['data']
+        ], REST_Controller::HTTP_OK);
     }
+
 
     private function calculate_recurring_dates($start_date, $recurring_type, $repeat_every, $range_start, $range_end, $total_cycles, $cycles_completed)
     {

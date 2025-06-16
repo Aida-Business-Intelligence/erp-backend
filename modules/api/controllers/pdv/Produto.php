@@ -252,7 +252,8 @@ class Produto extends REST_Controller
                         unset($productData['itemType']);
                         
 
-                      
+                      $productData['cost'] = $productData['price_franquia'];
+
 
 
             $dataToValidate = array_merge($productData, $warehouse);
@@ -668,6 +669,10 @@ class Produto extends REST_Controller
 
             $update_data = $this->input->post();
             $this->load->model('Invoice_items_model');
+               unset($update_data['warehouse_id']);
+                        unset($update_data['images_base64']);
+                        unset($update_data['packaging']);
+                          $update_data['cost'] = $update_data['price_franquia'];
 
             if (count($warehouses) > 1) {
 
@@ -679,9 +684,7 @@ class Produto extends REST_Controller
                     foreach ($warehouses as $warehouse) {
 
 
-                        unset($update_data['warehouse_id']);
-                         unset($update_data['images_base64']);
-                        unset($update_data['packaging']);
+                     
 
                         if ($warehouse['type'] != 'distribuidor') {
                             unset($update_data['sku_code']);

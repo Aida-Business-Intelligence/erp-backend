@@ -817,6 +817,7 @@ class Invoices extends REST_Controller
         c.company as supplier_name,
         c.vat as supplier_document,
         c.phonenumber as supplier_phone,
+        GROUP_CONCAT(DISTINCT itm.description) as products,
         COUNT(DISTINCT pn.id) as total_items,
         SUM(pn.qtde) as total_quantity
     ';
@@ -874,7 +875,6 @@ class Invoices extends REST_Controller
         $this->db->limit($limit, ($page - 1) * $limit);
 
         $invoices = $this->db->get()->result_array();
-
 
         foreach ($invoices as &$invoice) {
             $this->db->select('

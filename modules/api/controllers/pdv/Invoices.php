@@ -681,7 +681,7 @@ class Invoices extends REST_Controller
         $limit = $this->post('limit') ? (int) $this->post('limit') : 10;
         $search = $this->post('search') ?: '';
         $sortField = $this->post('sortField') ?: 'datecreated';
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'asc' : 'desc';
         $start_date = $this->post('start_date');
         $end_date = $this->post('end_date');
         $status = $this->post('status');
@@ -800,7 +800,7 @@ class Invoices extends REST_Controller
         $limit = $this->post('limit') ? (int) $this->post('limit') : 10;
         $search = $this->post('search') ?: '';
         $sortField = $this->post('sortField') ?: 'datecreated';
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'asc' : 'desc';
         $start_date = $this->post('start_date');
         $end_date = $this->post('end_date');
         $status = $this->post('status');
@@ -903,7 +903,6 @@ class Invoices extends REST_Controller
             'data' => $invoices
         ], REST_Controller::HTTP_OK);
     }
-
 
     public function dispute_post()
     {

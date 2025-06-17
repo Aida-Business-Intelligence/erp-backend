@@ -149,6 +149,7 @@ class Clients_model extends App_Model
             'inscricao_estadual' => $data['inscricao_estadual'] ?? null,
             'inscricao_municipal' => $data['inscricao_municipal'] ?? null,
             'code' => $data['code'] ?? null,
+            'profile_image' => $data['profile_image'] ?? null,
         ];
 
         $this->db->where('userid', $id);

@@ -296,28 +296,77 @@ class Suppliers extends REST_Controller
       ], REST_Controller::HTTP_BAD_REQUEST);
     }
 
-    $data = $this->put();
+    $raw_body = $this->input->raw_input_stream;
+    $headers = $this->input->request_headers();
+    $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? null;
 
-    // Adicione logs para depuração
-    log_activity('Supplier Update Payload: ' . print_r($data, true));
+    try {
+      $this->db->trans_start();
 
-    $this->load->model('Clients_model');
-    $updated = $this->Clients_model->update_supplier($id, $data);
+      $_PUT = json_decode($raw_body, true);
+      if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Invalid JSON input');
+      }
 
-    if (!$updated) {
-      log_activity('Failed to update supplier ID: ' . $id);
+      // Processar imagem se existir
+      $profile_image = null;
+      if (!empty($_PUT['image'])) {
+        $image_data = $_PUT['image'];
+
+        if (preg_match('/^data:image\/(\w+);base64,/', $image_data, $type)) {
+          $image_data = substr($image_data, strpos($image_data, ',') + 1);
+          $type = strtolower($type[1]);
+
+          if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
+            throw new Exception('Tipo de imagem inválido');
+          }
+
+          $image_data = base64_decode($image_data);
+          if ($image_data === false) {
+            throw new Exception('Falha ao decodificar a imagem');
+          }
+
+          $upload_path = FCPATH . '/uploads/suppliers/';
+          if (!is_dir($upload_path)) {
+            mkdir($upload_path, 0755, true);
+          }
+
+          $filename = 'supplier_' . time() . '_' . uniqid() . '.' . $type;
+          $file_path = $upload_path . $filename;
+
+          if (file_put_contents($file_path, $image_data)) {
+            $profile_image = 'uploads/suppliers/' . $filename;
+            $_PUT['profile_image'] = $profile_image; // incluir no payload para update
+          } else {
+            throw new Exception('Falha ao salvar a imagem no servidor');
+          }
+        }
+      }
+
+      log_activity('Supplier Update Payload: ' . print_r($_PUT, true));
+
+      $this->load->model('Clients_model');
+      $updated = $this->Clients_model->update_supplier($id, $_PUT);
+
+      $this->db->trans_complete();
+      if ($this->db->trans_status() === FALSE || !$updated) {
+        throw new Exception('Failed to update supplier');
+      }
+
+      log_activity('Supplier updated successfully ID: ' . $id);
+      return $this->response([
+        'status' => TRUE,
+        'message' => 'Supplier updated successfully',
+        'supplier_id' => $id,
+        'image_url' => $profile_image ? base_url($profile_image) : null
+      ], REST_Controller::HTTP_OK);
+    } catch (Exception $e) {
+      $this->db->trans_rollback();
       return $this->response([
         'status' => FALSE,
-        'message' => 'Failed to update supplier'
+        'message' => 'Error: ' . $e->getMessage()
       ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
-
-    log_activity('Supplier updated successfully ID: ' . $id);
-    return $this->response([
-      'status' => TRUE,
-      'message' => 'Supplier updated successfully',
-      'data' => $data // Retorna os dados atualizados para verificação
-    ], REST_Controller::HTTP_OK);
   }
 
 

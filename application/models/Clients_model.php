@@ -319,7 +319,7 @@ class Clients_model extends App_Model
             'max_payment_term' => isset($supplier['max_payment_term']) ? (int) $supplier['max_payment_term'] : null,
             'min_order_value' => isset($supplier['min_order_value']) ? (float) $supplier['min_order_value'] : null,
             'max_order_value' => isset($supplier['max_order_value']) ? (float) $supplier['max_order_value'] : null,
-
+            'image_url' => !empty($supplier['profile_image']) ? base_url($supplier['profile_image']) : null,
         ];
     }
 

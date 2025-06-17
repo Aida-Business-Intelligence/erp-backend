@@ -106,9 +106,19 @@ class Suppliers extends REST_Controller
 
   public function create_post()
   {
-    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    $raw_body = $this->input->raw_input_stream;
+    $headers = $this->input->request_headers();
+    $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? null;
+
     try {
       $this->db->trans_start();
+
+      // Decodificar o JSON do corpo da requisição
+      $_POST = json_decode($raw_body, true);
+      if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Invalid JSON input');
+      }
+
       $primary_contact = $_POST['contacts'][0] ?? null;
       $primary_document = $_POST['documents'][0] ?? null;
       if (!$primary_contact || !$primary_document) {
@@ -135,22 +145,25 @@ class Suppliers extends REST_Controller
             throw new Exception('Falha ao decodificar a imagem');
           }
 
-          // Opção 1: Salvar como string base64 no banco
-          $profile_image = $_POST['image']; // mantém o formato data:image/...
+          // Criar diretório de uploads se não existir
+          $upload_path = FCPATH . '../uploads/suppliers/';
+          if (!is_dir($upload_path)) {
+            mkdir($upload_path, 0755, true);
+          }
 
-          // Opção 2: Salvar no sistema de arquivos (recomendado para imagens grandes)
-          /*
-                $upload_path = FCPATH . 'uploads/clients/' . $client_id . '/';
-                if (!is_dir($upload_path)) {
-                    mkdir($upload_path, 0755, true);
-                }
-                $filename = 'profile_' . time() . '.' . $type;
-                file_put_contents($upload_path . $filename, $image_data);
-                $profile_image = 'uploads/clients/' . $client_id . '/' . $filename;
-                */
+          // Gerar nome único para o arquivo
+          $filename = 'supplier_' . time() . '_' . uniqid() . '.' . $type;
+          $file_path = $upload_path . $filename;
+
+          // Salvar a imagem no sistema de arquivos
+          if (file_put_contents($file_path, $image_data)) {
+            // Armazenar apenas o caminho relativo no banco de dados
+            $profile_image = 'uploads/suppliers/' . $filename;
+          } else {
+            throw new Exception('Falha ao salvar a imagem no servidor');
+          }
         }
       }
-
 
       $required_fields = ['name', 'address', 'city', 'state', 'country', 'company_type', 'business_type', 'segment', 'company_size'];
       foreach ($required_fields as $field) {
@@ -158,18 +171,21 @@ class Suppliers extends REST_Controller
           throw new Exception("Field {$field} is required");
         }
       }
+
       $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
       foreach ($percentage_fields as $field) {
         if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
           throw new Exception("Field {$field} must be between 0 and 100");
         }
       }
+
       $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
       foreach ($due_day_fields as $field) {
         if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
           throw new Exception("Field {$field} must be between 1 and 31");
         }
       }
+
       $supplier_data = [
         'company' => $_POST['name'],
         'address' => $_POST['address'],
@@ -209,15 +225,15 @@ class Suppliers extends REST_Controller
         'max_payment_term' => isset($_POST['max_payment_term']) ? (int)$_POST['max_payment_term'] : null,
         'min_order_value' => isset($_POST['min_order_value']) ? (float)$_POST['min_order_value'] : null,
         'max_order_value' => isset($_POST['max_order_value']) ? (float)$_POST['max_order_value'] : null,
-
-        
-
-
+        'profile_image' => $profile_image // Armazena o caminho relativo da imagem
       ];
+
       $supplier_id = $this->Clients_model->add($supplier_data);
       if (!$supplier_id) {
         throw new Exception('Failed to create supplier');
       }
+
+      // Processar documentos adicionais
       for ($i = 1; $i < count($_POST['documents']); $i++) {
         $document = $_POST['documents'][$i];
         $doc_data = [
@@ -227,8 +243,9 @@ class Suppliers extends REST_Controller
         ];
         $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
       }
-      for ($i = 1; $i < count($_POST['contacts']); $i++) {
 
+      // Processar contatos adicionais
+      for ($i = 1; $i < count($_POST['contacts']); $i++) {
         $contact = $_POST['contacts'][$i];
 
         $nome = trim($contact['name']);
@@ -249,14 +266,17 @@ class Suppliers extends REST_Controller
         ];
         $this->Clients_model->add_contact($contact_data, $supplier_id, false);
       }
+
       $this->db->trans_complete();
       if ($this->db->trans_status() === FALSE) {
         throw new Exception('Transaction failed');
       }
+
       $this->response([
         'status' => TRUE,
         'message' => 'Supplier created successfully',
-        'supplier_id' => $supplier_id
+        'supplier_id' => $supplier_id,
+        'image_url' => $profile_image ? base_url($profile_image) : null // Retorna a URL completa da imagem
       ], REST_Controller::HTTP_OK);
     } catch (Exception $e) {
       $this->db->trans_rollback();

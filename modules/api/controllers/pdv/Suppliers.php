@@ -308,6 +308,11 @@ class Suppliers extends REST_Controller
         throw new Exception('Invalid JSON input');
       }
 
+      // Carrega o supplier existente para verificar a imagem atual
+      $this->load->model('Clients_model');
+      $current_supplier = $this->Clients_model->get($id);
+      $old_image_path = null;
+
       // Processar imagem se existir
       $profile_image = null;
       if (!empty($_PUT['image'])) {
@@ -331,21 +336,40 @@ class Suppliers extends REST_Controller
             mkdir($upload_path, 0755, true);
           }
 
+          // Verifica e remove a imagem antiga se existir
+          if (!empty($current_supplier->profile_image)) {
+            $old_image_path = FCPATH . $current_supplier->profile_image;
+          }
+
           $filename = 'supplier_' . time() . '_' . uniqid() . '.' . $type;
           $file_path = $upload_path . $filename;
 
           if (file_put_contents($file_path, $image_data)) {
             $profile_image = 'uploads/suppliers/' . $filename;
-            $_PUT['profile_image'] = $profile_image; // incluir no payload para update
+            $_PUT['profile_image'] = $profile_image;
+
+            // Remove a imagem antiga após salvar a nova com sucesso
+            if ($old_image_path && file_exists($old_image_path)) {
+              unlink($old_image_path);
+            }
           } else {
             throw new Exception('Falha ao salvar a imagem no servidor');
+          }
+        }
+      } else if (isset($_PUT['remove_image']) && $_PUT['remove_image'] === true) {
+        // Caso o cliente queira remover a imagem existente
+        if (!empty($current_supplier->profile_image)) {
+          $old_image_path = FCPATH . $current_supplier->profile_image;
+          $_PUT['profile_image'] = null;
+
+          if (file_exists($old_image_path)) {
+            unlink($old_image_path);
           }
         }
       }
 
       log_activity('Supplier Update Payload: ' . print_r($_PUT, true));
 
-      $this->load->model('Clients_model');
       $updated = $this->Clients_model->update_supplier($id, $_PUT);
 
       $this->db->trans_complete();

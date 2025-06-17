@@ -146,7 +146,7 @@ class Suppliers extends REST_Controller
           }
 
           // Criar diretório de uploads se não existir
-          $upload_path = FCPATH . '../uploads/suppliers/';
+          $upload_path = FCPATH . '/uploads/suppliers/';
           if (!is_dir($upload_path)) {
             mkdir($upload_path, 0755, true);
           }

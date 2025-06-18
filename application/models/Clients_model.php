@@ -280,6 +280,7 @@ class Clients_model extends App_Model
         // resposta final
         return [
             'userid' => $supplier['userid'],
+            'code' => $supplier['code'],
             'name' => $supplier['company'],
             'address' => $supplier['address'],
             'cep' => $supplier['zip'], // se você quiser incluir o CEP corretamente

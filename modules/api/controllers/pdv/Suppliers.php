@@ -190,6 +190,7 @@ class Suppliers extends REST_Controller
         'company' => $_POST['name'],
         'address' => $_POST['address'],
         'city' => $_POST['city'],
+        'code' => $_POST['code'],
         'state' => $_POST['state'],
         'country' => $_POST['country'],
         'cep' => $_POST['cep'] ?? null,

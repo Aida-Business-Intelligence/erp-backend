@@ -220,7 +220,7 @@ class Suppliers extends REST_Controller
         'agent_commission_base_percentage' => isset($_POST['agent_commission_base_percentage']) ? (float)$_POST['agent_commission_base_percentage'] : 0,
         'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
         'agent_commission_due_day' => isset($_POST['agent_commission_due_day']) ? (int)$_POST['agent_commission_due_day'] : null,
-        'tipo_frete' => $_POST['freight_type'] ?? null,
+        'tipo_frete' => $_POST['tipo_frete'] ?? null,
         'freight_value' => isset($_POST['freight_value']) ? (float)$_POST['freight_value'] : 0,
         'min_payment_term' => isset($_POST['min_payment_term']) ? (int)$_POST['min_payment_term'] : null,
         'max_payment_term' => isset($_POST['max_payment_term']) ? (int)$_POST['max_payment_term'] : null,

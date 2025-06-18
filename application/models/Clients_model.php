@@ -141,7 +141,7 @@ class Clients_model extends App_Model
             'agent_commission_base_percentage' => isset($data['agent_commission_base_percentage']) ? (float)$data['agent_commission_base_percentage'] : 0,
             'agent_commission_payment_type' => $data['agent_commission_payment_type'] ?? null,
             'agent_commission_due_day' => isset($data['agent_commission_due_day']) ? (int)$data['agent_commission_due_day'] : null,
-            'tipo_frete' => $data['freight_type'] ?? 'na',
+            'tipo_frete' => $data['tipo_frete'] ?? 'na',
             'freight_value' => isset($data['freight_value']) ? (float)$data['freight_value'] : null,
             'min_payment_term' => isset($data['min_payment_term']) ? (int)$data['min_payment_term'] : null,
             'max_payment_term' => isset($data['max_payment_term']) ? (int)$data['max_payment_term'] : null,

@@ -289,111 +289,116 @@ class Suppliers extends REST_Controller
   }
 
   public function update_put($id = '')
-{
-  if (empty($id) || !is_numeric($id)) {
-    return $this->response([
-      'status' => FALSE,
-      'message' => 'Invalid supplier ID'
-    ], REST_Controller::HTTP_BAD_REQUEST);
-  }
-
-  $raw_body = $this->input->raw_input_stream;
-  $headers = $this->input->request_headers();
-  $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? null;
-
-  try {
-    $this->db->trans_start();
-
-    $_PUT = json_decode($raw_body, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-      throw new Exception('Invalid JSON input');
+  {
+    if (empty($id) || !is_numeric($id)) {
+      return $this->response([
+        'status' => FALSE,
+        'message' => 'Invalid supplier ID'
+      ], REST_Controller::HTTP_BAD_REQUEST);
     }
 
-    // Buscar caminho da imagem atual direto do banco
-    $query = $this->db->select('profile_image')
-      ->from('tblclients')
-      ->where('userid', $id)
-      ->get();
+    $raw_body = $this->input->raw_input_stream;
+    $headers = $this->input->request_headers();
+    $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? null;
 
-    if ($query->num_rows() === 0) {
-      throw new Exception('Supplier not found');
-    }
+    try {
+      $this->db->trans_start();
 
-    $profile_image_db = $query->row()->profile_image;
-    $old_image_path = !empty($profile_image_db) ? FCPATH . ltrim($profile_image_db, '/') : null;
+      $_PUT = json_decode($raw_body, true);
+      if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Invalid JSON input');
+      }
 
-    // Processar nova imagem se enviada
-    $profile_image = null;
-    if (!empty($_PUT['image'])) {
-      $image_data = $_PUT['image'];
+      // Buscar dados atuais do fornecedor
+      $current_supplier = $this->db->select('profile_image')
+        ->from('tblclients')
+        ->where('userid', $id)
+        ->get()
+        ->row();
 
-      if (preg_match('/^data:image\/(\w+);base64,/', $image_data, $type)) {
-        $image_data = substr($image_data, strpos($image_data, ',') + 1);
-        $type = strtolower($type[1]);
+      if (!$current_supplier) {
+        throw new Exception('Supplier not found');
+      }
 
-        if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
-          throw new Exception('Tipo de imagem inválido');
-        }
+      $old_image_path = !empty($current_supplier->profile_image) ? FCPATH . ltrim($current_supplier->profile_image, '/') : null;
 
-        $image_data = base64_decode($image_data);
-        if ($image_data === false) {
-          throw new Exception('Falha ao decodificar a imagem');
-        }
+      // Processar nova imagem se enviada
+      $profile_image = $current_supplier->profile_image; // Mantém a imagem atual por padrão
 
-        $upload_path = FCPATH . 'uploads/suppliers/';
-        if (!is_dir($upload_path)) {
-          mkdir($upload_path, 0755, true);
-        }
+      if (!empty($_PUT['image'])) {
+        $image_data = $_PUT['image'];
 
-        $filename = 'supplier_' . time() . '_' . uniqid() . '.' . $type;
-        $file_path = $upload_path . $filename;
+        if (preg_match('/^data:image\/(\w+);base64,/', $image_data, $type)) {
+          $image_data = substr($image_data, strpos($image_data, ',') + 1);
+          $type = strtolower($type[1]);
 
-        if (file_put_contents($file_path, $image_data)) {
-          $profile_image = 'uploads/suppliers/' . $filename;
-          $_PUT['profile_image'] = $profile_image;
-
-          // Apagar imagem antiga com segurança
-          if ($old_image_path && file_exists($old_image_path)) {
-            unlink($old_image_path);
+          if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
+            throw new Exception('Tipo de imagem inválido');
           }
-        } else {
-          throw new Exception('Falha ao salvar a imagem no servidor');
+
+          $image_data = base64_decode($image_data);
+          if ($image_data === false) {
+            throw new Exception('Falha ao decodificar a imagem');
+          }
+
+          $upload_path = FCPATH . 'uploads/suppliers/';
+          if (!is_dir($upload_path)) {
+            mkdir($upload_path, 0755, true);
+          }
+
+          $filename = 'supplier_' . time() . '_' . uniqid() . '.' . $type;
+          $file_path = $upload_path . $filename;
+
+          if (file_put_contents($file_path, $image_data)) {
+            $profile_image = 'uploads/suppliers/' . $filename;
+            $_PUT['profile_image'] = $profile_image;
+
+            // Apagar imagem antiga com segurança
+            if ($old_image_path && file_exists($old_image_path)) {
+              unlink($old_image_path);
+            }
+          } else {
+            throw new Exception('Falha ao salvar a imagem no servidor');
+          }
         }
+      } elseif (isset($_PUT['remove_image']) && $_PUT['remove_image'] === true) {
+        // Apenas remover imagem se instruído
+        $_PUT['profile_image'] = null;
+        $profile_image = null;
+
+        if ($old_image_path && file_exists($old_image_path)) {
+          unlink($old_image_path);
+        }
+      } else {
+        // Se não foi enviada nova imagem nem instrução para remover, mantém a atual
+        $_PUT['profile_image'] = $current_supplier->profile_image;
       }
-    } elseif (isset($_PUT['remove_image']) && $_PUT['remove_image'] === true) {
-      // Apenas remover imagem se instruído
-      $_PUT['profile_image'] = null;
 
-      if ($old_image_path && file_exists($old_image_path)) {
-        unlink($old_image_path);
+      log_activity('Supplier Update Payload: ' . print_r($_PUT, true));
+
+      $this->load->model('Clients_model');
+      $updated = $this->Clients_model->update_supplier($id, $_PUT);
+
+      $this->db->trans_complete();
+      if ($this->db->trans_status() === FALSE || !$updated) {
+        throw new Exception('Failed to update supplier');
       }
+
+      log_activity('Supplier updated successfully ID: ' . $id);
+      return $this->response([
+        'status' => TRUE,
+        'message' => 'Supplier updated successfully',
+        'supplier_id' => $id,
+        'image_url' => $profile_image ? base_url($profile_image) : null
+      ], REST_Controller::HTTP_OK);
+    } catch (Exception $e) {
+      $this->db->trans_rollback();
+      return $this->response([
+        'status' => FALSE,
+        'message' => 'Error: ' . $e->getMessage()
+      ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
-
-    log_activity('Supplier Update Payload: ' . print_r($_PUT, true));
-
-    $this->load->model('Clients_model');
-    $updated = $this->Clients_model->update_supplier($id, $_PUT);
-
-    $this->db->trans_complete();
-    if ($this->db->trans_status() === FALSE || !$updated) {
-      throw new Exception('Failed to update supplier');
-    }
-
-    log_activity('Supplier updated successfully ID: ' . $id);
-    return $this->response([
-      'status' => TRUE,
-      'message' => 'Supplier updated successfully',
-      'supplier_id' => $id,
-      'image_url' => $profile_image ? base_url($profile_image) : null
-    ], REST_Controller::HTTP_OK);
-  } catch (Exception $e) {
-    $this->db->trans_rollback();
-    return $this->response([
-      'status' => FALSE,
-      'message' => 'Error: ' . $e->getMessage()
-    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
   }
-}
 
 
   public function get_get($id = '')

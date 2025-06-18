@@ -256,8 +256,7 @@ class Clients_model extends App_Model
             [$supplier['email_default']],
             array_column($additional_emails, 'email')
         );
-
-        // contatos
+        
         // contatos
         $this->db->where('userid', $id);
         $this->db->where('is_primary !=', 1); // evita duplicar o contato padrão

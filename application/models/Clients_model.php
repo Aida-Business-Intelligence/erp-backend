@@ -447,7 +447,6 @@ class Clients_model extends App_Model
             $this->db->where('warehouse_id', $warehouse_id);
         }
 
-        // Tratamento do status como array
         if (!empty($status)) {
             $statusValues = array_map(function ($s) {
                 return $s === 'active' ? 1 : 0;
@@ -473,19 +472,13 @@ class Clients_model extends App_Model
             $this->db->group_end();
         }
 
-        // Primeiro obtemos o total
         $total = $this->db->count_all_results('', FALSE);
 
-        // Depois aplicamos ordenação e paginação
         $this->db->order_by($sortField, $sortOrder);
         $this->db->limit($limit, ($page - 1) * $limit);
 
         $suppliers = $this->db->get()->result_array();
 
-        // Debug: Verifique a query gerada
-        log_message('debug', 'Last suppliers query: ' . $this->db->last_query());
-
-        // Format data for response
         $formattedData = [];
         foreach ($suppliers as $supplier) {
             $formattedData[] = [
@@ -497,6 +490,7 @@ class Clients_model extends App_Model
                 'payment_terms' => $supplier['payment_terms'] ?: '-',
                 'status' => $supplier['active'] ? 'active' : 'inactive',
                 'created_at' => $supplier['datecreated'],
+                'email_default' => $supplier['email_default'] ?? null,
                 'documents' => [
                     [
                         'type' => 'cnpj',

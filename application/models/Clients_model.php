@@ -120,6 +120,7 @@ class Clients_model extends App_Model
             'address' => $data['address'] ?? null,
             'city' => $data['city'] ?? null,
             'state' => $data['state'] ?? null,
+            'cep' => $data['cep'] ?? null,
             'country' => isset($data['country']) ? (int)$data['country'] : 0,
             'zip' => $data['cep'] ?? null, // Note que na tabela o campo é 'zip' mas no payload é 'cep'
             'active' => ($data['status'] === 'active') ? 1 : 0,
@@ -283,7 +284,7 @@ class Clients_model extends App_Model
             'code' => $supplier['code'],
             'name' => $supplier['company'],
             'address' => $supplier['address'],
-            'cep' => $supplier['zip'], // se você quiser incluir o CEP corretamente
+            'cep' => $supplier['cep'],
             'city' => $supplier['city'],
             'state' => $supplier['state'],
             'country' => $supplier['country'],

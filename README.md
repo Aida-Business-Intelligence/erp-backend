@@ -7,10 +7,24 @@ Este projeto configura o **build e deploy automático**
 - **VPS** para execução do container via SSH.
 
 
-# Ambientes Existentes
-- **HML:**      http://31.97.17.80:8081/ 
-- **imperio:**  http://31.97.17.80:8082/  
-- **lojas7:**   http://31.97.17.80:8083/ 
+### Tabela de Portas por Cliente
+
+| Cliente  | Porta |
+|----------|-------|
+| hml      | 8081  |
+| imperio  | 8082  |
+| lojas7   | 8083  |
+| gringa   | 8085  |
+
+---
+
+### Ambientes Existentes
+
+- **hml**: [https://pdv-arvis-seven.vercel.app/](https://pdv-arvis-seven.vercel.app/)
+- **imperio**: [https://www.imperiomult-arvis.com.br/](https://www.imperiomult-arvis.com.br/)
+- **lojas7**: [https://www.lojas7-arvis.com.br/](https://www.lojas7-arvis.com.br/)
+- **gringa**: [https://www.gringa-arvis.com.br/](https://www.gringa-arvis.com.br/)
+
 
 ## Fluxo implementado
 

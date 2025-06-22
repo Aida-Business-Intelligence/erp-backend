@@ -152,6 +152,10 @@ function staff_can($capability, $feature = null, $staff_id = '')
         $permissions = $GLOBALS['current_user']->permissions;
     }
 
+    if ($permissions == null) {
+        $permissions = get_staff_permissions();
+    }
+
     /**
      * Not current user?
      * Get permissions for this staff

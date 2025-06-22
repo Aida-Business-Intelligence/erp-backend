@@ -17,15 +17,38 @@ function get_staff_user()
     $authHeader = $CI->input->get_request_header('Authorization');
 
     if (!$authHeader || stripos($authHeader, 'Bearer ') !== 0) {
-        log_message('error', 'Authorization header not found or invalid format');
-        return false;
+        echo json_encode([
+            'success' => false,
+            'message' => 'Authorization header not found or invalid format',
+        ]);
+        exit;
     }
 
     $token_jwt = trim(substr($authHeader, 7));
     $decodedToken = $CI->authservice->decodeToken($token_jwt);
+
+    if (!$decodedToken || !isset($decodedToken['data']) || !isset($decodedToken['data']->user)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Invalid token or user data not found in token',
+        ]);
+        exit;
+    }
+
     $decodedData = $decodedToken['data'];
 
     return $decodedData->user;
+}
+
+function get_staff_permissions()
+{
+    $user = get_staff_user();
+
+    $CI = &get_instance();
+    $CI->load->model('Staff_model');
+    $permissions = $CI->Staff_model->get_staff_permissions($user->staffid);
+
+    return $permissions;
 }
 
 /**
@@ -482,7 +505,12 @@ function access_denied($permission = '')
     if (isset($_SERVER['HTTP_REFERER']) && ! empty($_SERVER['HTTP_REFERER'])) {
         redirect($_SERVER['HTTP_REFERER']);
     } else {
-        redirect(admin_url('access_denied'));
+        echo json_encode([
+            'success' => false,
+            'message' => 'Acesso negado',
+        ]);
+        exit;
+        //redirect(admin_url('access_denied'));
     }
 }
 /**

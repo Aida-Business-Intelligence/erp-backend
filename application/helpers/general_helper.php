@@ -499,19 +499,19 @@ function blank_page($message = '', $alert = 'danger')
 function access_denied($permission = '')
 {
     set_alert('danger', _l('access_denied'));
-
     log_activity('Tried to access page where don\'t have permission' . ($permission != '' ? ' [' . $permission . ']' : ''));
 
     if (isset($_SERVER['HTTP_REFERER']) && ! empty($_SERVER['HTTP_REFERER'])) {
-        redirect($_SERVER['HTTP_REFERER']);
+        //redirect($_SERVER['HTTP_REFERER']);
     } else {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Acesso negado',
-        ]);
-        exit;
         //redirect(admin_url('access_denied'));
     }
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Acesso negado',
+    ]);
+    exit;
 }
 /**
  * Throws header 401 not authorized, used for ajax requests

@@ -267,10 +267,6 @@ class Settings extends REST_Controller
                 'type' => 'boolean',
                 'required' => false
             ],
-            'pdv_nfe_cartao' => [
-                'type' => 'boolean',
-                'required' => false
-            ],
             'pdv_senha_gerente_close_cash' => [
                 'type' => 'boolean',
                 'required' => false

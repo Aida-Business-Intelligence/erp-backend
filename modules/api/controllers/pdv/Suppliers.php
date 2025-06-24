@@ -400,7 +400,6 @@ class Suppliers extends REST_Controller
     }
   }
 
-
   public function get_get($id = '')
   {
     if (empty($id) || !is_numeric($id)) {
@@ -426,7 +425,158 @@ class Suppliers extends REST_Controller
       'data' => $supplier
     ], REST_Controller::HTTP_OK);
   }
+  
+public function list_get()
+  {
+    $page = $this->get('page') ? (int) $this->get('page') : 1;
+    $limit = $this->get('limit') ? (int) $this->get('limit') : 10;
+    $search = $this->get('search') ?: '';
+    $status = $this->get('status');
+    $sortField = $this->get('sortField') ?: 'userid';
+    $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+    $startDate = $this->get('startDate');
+    $endDate = $this->get('endDate');
+    $warehouse_id = $this->get('warehouse_id') ?: 0;
 
+    $this->db->select('c.userid, c.company, c.vat, c.phonenumber, c.city, c.state, 
+      c.country, c.active, c.datecreated, c.email_default, c.payment_terms,
+      c.person_type, c.business_type, c.segment, c.company_size,
+      c.inscricao_estadual, c.inscricao_municipal, c.observations,
+      c.commission, c.commercial_conditions, c.commission_type,
+      c.commission_base_percentage, c.commission_payment_type,
+      c.commission_due_day, c.agent_commission_type,
+      c.agent_commission_base_percentage, c.agent_commission_payment_type,
+      c.agent_commission_due_day, c.address,
+      c.zip,
+      c.documentType,
+      GROUP_CONCAT(DISTINCT ds.document) as additional_documents,
+      GROUP_CONCAT(DISTINCT es.email) as additional_emails,
+      COUNT(DISTINCT co.id) as contacts_count', false);
+    $this->db->from(db_prefix() . 'clients c');
+    $this->db->join(db_prefix() . 'document_supplier ds', 'ds.supplier_id = c.userid', 'left');
+    $this->db->join(db_prefix() . 'email_supplier es', 'es.supplier_id = c.userid', 'left');
+    $this->db->join(db_prefix() . 'contacts co', 'co.userid = c.userid', 'left');
+    $this->db->where('c.is_supplier', 1);
+    $this->db->where('c.warehouse_id', $warehouse_id);
+    if (!empty($search)) {
+      $this->db->group_start();
+      $this->db->like('c.company', $search);
+      $this->db->or_like('c.vat', $search);
+      $this->db->or_like('c.email_default', $search);
+      $this->db->or_like('ds.document', $search);
+      $this->db->or_like('es.email', $search);
+      $this->db->group_end();
+    }
+
+    if ($status === 'active') {
+      $this->db->where('c.active', 1);
+    } else if ($status === 'inactive') {
+      $this->db->where('c.active', 0);
+    }
+
+    if (!empty($startDate)) {
+      $this->db->where('DATE(c.datecreated) >=', date('Y-m-d', strtotime($startDate)));
+    }
+    if (!empty($endDate)) {
+      $this->db->where('DATE(c.datecreated) <=', date('Y-m-d', strtotime($endDate)));
+    }
+
+    $this->db->group_by('c.userid');
+
+    $validSortFields = [
+      'userid' => 'c.userid',
+      'name' => 'c.company',
+      'company' => 'c.company',
+      'city' => 'c.city',
+      'state' => 'c.state',
+      'country' => 'c.country',
+      'created_at' => 'c.datecreated',
+      'status' => 'c.active'
+    ];
+
+    $sortFieldDB = isset($validSortFields[$sortField]) ? $validSortFields[$sortField] : 'c.company';
+    $this->db->order_by($sortFieldDB, $sortOrder);
+
+    $total = $this->db->count_all_results('', false);
+
+    $this->db->limit($limit, ($page - 1) * $limit);
+    $suppliers = $this->db->get()->result_array();
+
+    foreach ($suppliers as &$supplier) {
+      $this->db->select('firstname as name, phonenumber as phone');
+      $this->db->where('userid', $supplier['userid']);
+      $contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
+
+      $supplier['contacts'] = array_merge(
+        [
+          [
+            'name' => $supplier['company'],
+            'phone' => $supplier['phonenumber']
+          ]
+        ],
+        $contacts
+      );
+    }
+
+    $this->response([
+      'status' => TRUE,
+      'total' => (int) $total,
+      'page' => (int) $page,
+      'limit' => (int) $limit,
+      'data' => array_map(function ($supplier) {
+        return [
+          'userid' => $supplier['userid'],
+          'company' => $supplier['company'],
+          'documents' => array_merge(
+            [
+              [
+                'type' => $supplier['documentType'] ?? 'cnpj',
+                'number' => $supplier['vat']
+              ]
+            ],
+            array_map(function ($doc) use ($supplier) {
+              return [
+                'type' => $supplier['documentType'] ?? 'cnpj',
+                'number' => $doc
+              ];
+            }, $supplier['additional_documents'] ? explode(',', $supplier['additional_documents']) : [])
+          ),
+          'address' => $supplier['address'] ?? null,
+          'city' => $supplier['city'] ?? null,
+          'zip' => $supplier['zip'] ?? null,
+          'state' => $supplier['state'] ?? null,
+          'country' => $supplier['country'] ?? null,
+          'payment_terms' => $supplier['payment_terms'] ?? null,
+          'emails' => array_filter(array_merge(
+            [$supplier['email_default']],
+            $supplier['additional_emails'] ? explode(',', $supplier['additional_emails']) : []
+          )),
+          'contacts' => $supplier['contacts'] ?? [],
+          'contacts_count' => (int) ($supplier['contacts_count'] ?? 0),
+          'status' => $supplier['active'] ? 'active' : 'inactive',
+          'created_at' => $supplier['datecreated'] ?? null,
+          'inscricao_estadual' => $supplier['inscricao_estadual'] ?? null,
+          'inscricao_municipal' => $supplier['inscricao_municipal'] ?? null,
+
+          'company_type' => $supplier['company_type'] ?? null,
+          'business_type' => $supplier['business_type'] ?? null,
+          'segment' => $supplier['segment'] ?? null,
+          'company_size' => $supplier['company_size'] ?? null,
+          'observations' => $supplier['observations'] ?? null,
+          'commission' => !empty($supplier['commission']) ? (float) $supplier['commission'] : 0,
+          'commercial_conditions' => $supplier['commercial_conditions'] ?? null,
+          'commission_type' => $supplier['commission_type'] ?? null,
+          'commission_base_percentage' => !empty($supplier['commission_base_percentage']) ? (float) $supplier['commission_base_percentage'] : 0,
+          'commission_payment_type' => $supplier['commission_payment_type'] ?? null,
+          'commission_due_day' => !empty($supplier['commission_due_day']) ? (int) $supplier['commission_due_day'] : 0,
+          'agent_commission_type' => $supplier['agent_commission_type'] ?? null,
+          'agent_commission_base_percentage' => !empty($supplier['agent_commission_base_percentage']) ? (float) $supplier['agent_commission_base_percentage'] : 0,
+          'agent_commission_payment_type' => $supplier['agent_commission_payment_type'] ?? null,
+          'agent_commission_due_day' => !empty($supplier['agent_commission_due_day']) ? (int) $supplier['agent_commission_due_day'] : 0
+        ];
+      }, $suppliers)
+    ], REST_Controller::HTTP_OK);
+  }
 
   public function list_post()
   {
@@ -575,6 +725,7 @@ class Suppliers extends REST_Controller
         'active' => 1,
         'is_supplier' => 1,
         'datecreated' => date('Y-m-d H:i:s'),
+        'warehouse_id' => $_POST['warehouse_id'] ?? 0,
       ];
 
       $supplier_id = $this->Clients_model->add($supplier_data);

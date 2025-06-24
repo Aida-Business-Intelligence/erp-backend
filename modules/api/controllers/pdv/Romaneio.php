@@ -800,7 +800,7 @@ class Romaneio extends REST_Controller {
         $total_query = $this->db->get_compiled_select();
         $total = $this->db->query("SELECT COUNT(*) as count FROM ($total_query) as subquery")->row()->count;
 
-        $this->db->select('id, sku_code as code, description, cost, price_cliente_final as price');
+        $this->db->select('id, sku_code as code, description, cost, rate as price');
         $this->db->from(db_prefix() . 'items');
         if ('WAR' != substr($supplier_id, 0, 3)) {
             $this->db->where('userid', $supplier_id);

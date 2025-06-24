@@ -29,7 +29,6 @@ class Expenses extends REST_Controller
                 'success' => true,
                 'data' => $categories
             ], REST_Controller::HTTP_OK);
-
         } catch (Exception $e) {
             $this->response([
                 'success' => false,
@@ -47,7 +46,6 @@ class Expenses extends REST_Controller
                 'success' => true,
                 'data' => $currencies
             ], REST_Controller::HTTP_OK);
-
         } catch (Exception $e) {
             $this->response([
                 'success' => false,
@@ -65,7 +63,6 @@ class Expenses extends REST_Controller
                 'success' => true,
                 'data' => $taxes
             ], REST_Controller::HTTP_OK);
-
         } catch (Exception $e) {
             $this->response([
                 'success' => false,
@@ -83,7 +80,6 @@ class Expenses extends REST_Controller
                 'success' => true,
                 'data' => $paymentModes
             ], REST_Controller::HTTP_OK);
-
         } catch (Exception $e) {
             $this->response([
                 'success' => false,
@@ -106,7 +102,6 @@ class Expenses extends REST_Controller
                 'success' => true,
                 'data' => $clients
             ], REST_Controller::HTTP_OK);
-
         } catch (Exception $e) {
             $this->response([
                 'success' => false,
@@ -134,7 +129,6 @@ class Expenses extends REST_Controller
                 'success' => true,
                 'data' => $projects
             ], REST_Controller::HTTP_OK);
-
         } catch (Exception $e) {
             $this->response([
                 'success' => false,
@@ -163,7 +157,7 @@ class Expenses extends REST_Controller
 
         $input = [
             'category' => $_POST['category'] ?? null,
-            'currency' => $_POST['currency'] ?? null,
+            'currency' => $_POST['currency'] ?? 1,
             'amount' => $_POST['amount'] ?? null,
             'tax' => $_POST['tax'] ?? null,
             'tax2' => $_POST['tax2'] ?? 0,
@@ -236,7 +230,6 @@ class Expenses extends REST_Controller
                 'success' => true,
                 'filename' => $result['filename']
             ], REST_Controller::HTTP_OK);
-
         } catch (Exception $e) {
             $this->response([
                 'success' => false,
@@ -255,7 +248,6 @@ class Expenses extends REST_Controller
                 'success' => true,
                 'data' => $warehouses
             ], REST_Controller::HTTP_OK);
-
         } catch (Exception $e) {
             $this->response([
                 'success' => false,
@@ -295,6 +287,7 @@ class Expenses extends REST_Controller
 
     public function list_post()
     {
+
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $warehouse_id = $this->post('warehouse_id');
@@ -307,132 +300,41 @@ class Expenses extends REST_Controller
             return;
         }
 
+        // Prepare parameters
+        $params = [
+            'warehouse_id' => $warehouse_id,
+            'search' => $this->post('search') ?: '',
+            'sortField' => $this->post('sortField') ?: 'id',
+            'sortOrder' => $this->post('sortOrder'),
+            'startDate' => $this->post('startDate'),
+            'endDate' => $this->post('endDate'),
+            'category' => $this->post('category'),
+            'status' => $this->post('status'),
+            'type' => $this->post('type'),
+        ];
+
+        // Pagination
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $search = $this->post('search') ?: '';
-        $sortField = $this->post('sortField') ?: 'id';
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
-        $startDate = $this->post('startDate');
-        $endDate = $this->post('endDate');
-        $category = $this->post('category');
-        $status = $this->post('status');
-        $type = $this->post('type');
-
-        log_activity('Received parameters: ' . json_encode([
-                'page' => $page,
-                'limit' => $limit,
-                'search' => $search,
-                'sortField' => $sortField,
-                'sortOrder' => $sortOrder,
-                'startDate' => $startDate,
-                'endDate' => $endDate,
-                'category' => $category,
-                'status' => $status,
-                'type' => $type,
-                'warehouse_id' => $warehouse_id
-            ]));
-
         $page = $page + 1;
         $offset = ($page - 1) * $limit;
 
-        $this->db->select('
-        e.id,
-        e.category,
-        e.currency,
-        e.amount,
-        e.tax,
-        e.tax2,
-        e.reference_no,
-        e.note,
-        e.expense_name,
-        e.clientid,
-        e.project_id,
-        e.billable,
-        e.invoiceid,
-        e.paymentmode,
-        e.date,
-        e.recurring_type,
-        e.repeat_every,
-        e.recurring,
-        e.cycles,
-        e.total_cycles,
-        e.custom_recurring,
-        e.last_recurring_date,
-        e.create_invoice_billable,
-        e.send_invoice_to_customer,
-        e.recurring_from,
-        e.dateadded,
-        e.addedfrom,
-        e.type,
-        e.status,
-        e.warehouse_id,
-        e.file,
-        ' . db_prefix() . 'expenses_categories.name as category_name,
-        ' . db_prefix() . 'clients.company as company,
-        ' . db_prefix() . 'taxes.name as tax_name,
-        ' . db_prefix() . 'taxes.taxrate as taxrate,
-        ' . db_prefix() . 'taxes_2.name as tax_name2,
-        ' . db_prefix() . 'taxes_2.taxrate as taxrate2
-    ');
+        $params['limit'] = $limit;
+        $params['offset'] = $offset;
 
-        $this->db->from(db_prefix() . 'expenses e');
-        $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
-        $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
-        $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
-        $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
+        // Log parameters
+        log_activity('Received parameters: ' . json_encode($params));
 
-        $this->db->where('e.warehouse_id', $warehouse_id);
-        $this->db->where('e.type', 'despesa');
-        if (!empty($startDate) && $startDate !== 'null') {
-            $this->db->where('e.date >=', $startDate);
-        }
-        if (!empty($endDate) && $endDate !== 'null') {
-            $this->db->where('e.date <=', $endDate);
-        }
+        // Get data from model
+        $result = $this->Expenses_model->get_filtered_expenses($params);
+        $data = $result['data'];
+        $total = $result['total'];
 
-        if (!empty($category) && $category !== 'null') {
-            $this->db->where('e.category', $category);
-        }
-
-        if ($status !== null && $status !== '' && $status !== 'null') {
-            $this->db->where('e.status', $status);
-        }
-
-        if ($type !== null && $type !== '' && $type !== 'null') {
-            $this->db->where('e.type', $type);
-        }
-
-        if (!empty($search) && $search !== 'null') {
-            $this->db->group_start();
-            $this->db->like('e.note', $search);
-            $this->db->or_like('e.amount', $search);
-            $this->db->group_end();
-        }
-
-        $this->db->order_by($sortField, $sortOrder);
-
-        $total_query = clone $this->db;
-        $total = $total_query->count_all_results();
-
-        $this->db->limit($limit, $offset);
-
-        $data = $this->db->get()->result_array();
-
-        $response = [
-            'status' => TRUE,
-            'total' => $total,
-            'page' => $page,
-            'limit' => $limit,
-            'total_pages' => ceil($total / $limit),
-            'data' => []
-        ];
-
+        // Process results
         if (!empty($data)) {
             foreach ($data as &$expense) {
-                $expense['payment_mode_name'] = $this->get_payment_mode_name($expense['paymentmode']);
-
                 if ($expense['recurring'] == 1) {
-                    $expense['recurring_info'] = array(
+                    $expense['recurring_info'] = [
                         'recurring' => true,
                         'recurring_type' => $expense['recurring_type'],
                         'repeat_every' => $expense['repeat_every'],
@@ -440,13 +342,21 @@ class Expenses extends REST_Controller
                         'total_cycles' => $expense['total_cycles'],
                         'custom_recurring' => $expense['custom_recurring'] == 1,
                         'last_recurring_date' => $expense['last_recurring_date'],
-                    );
+                    ];
                 } else {
                     $expense['recurring_info'] = null;
                 }
             }
-            $response['data'] = $data;
         }
+
+        $response = [
+            'status' => TRUE,
+            'total' => $total,
+            'page' => $page,
+            'limit' => $limit,
+            'total_pages' => ceil($total / $limit),
+            'data' => $data
+        ];
 
         $this->response($response, REST_Controller::HTTP_OK);
     }
@@ -456,7 +366,6 @@ class Expenses extends REST_Controller
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $warehouse_id = $this->post('warehouse_id');
-
         if (empty($warehouse_id)) {
             $this->response([
                 'status' => FALSE,
@@ -465,89 +374,43 @@ class Expenses extends REST_Controller
             return;
         }
 
-        $page = $this->post('page') ? (int) $this->post('page') : 1;
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $offset = ($page - 1) * $limit;
-
-        $search = $this->post('search') ?: '';
-        $sortField = $this->post('sortField') ?: db_prefix() . 'expenses.id';
-        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
-
-        $start_date = $this->post('start_date');
-        $end_date = $this->post('end_date');
-
-        $this->db->select('*,' . db_prefix() . 'expenses.id as id,' .
-            db_prefix() . 'expenses_categories.name as category_name,' .
-            db_prefix() . 'payment_modes.name as payment_mode_name,' .
-            db_prefix() . 'taxes.name as tax_name, ' .
-            db_prefix() . 'taxes.taxrate as taxrate,' .
-            db_prefix() . 'taxes_2.name as tax_name2, ' .
-            db_prefix() . 'taxes_2.taxrate as taxrate2, ' .
-            db_prefix() . 'expenses.id as expenseid,' .
-            db_prefix() . 'expenses.addedfrom as addedfrom');
-
-        $this->db->from(db_prefix() . 'expenses');
-        $this->db->join(db_prefix() . 'clients', '' . db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses.clientid', 'left');
-        $this->db->join(db_prefix() . 'payment_modes', '' . db_prefix() . 'payment_modes.id = ' . db_prefix() . 'expenses.paymentmode', 'left');
-        $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
-        $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
-        $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category', 'left');
-
-        $this->db->where(db_prefix() . 'expenses.warehouse_id', $warehouse_id);
-        $this->db->where(db_prefix() . 'expenses.type', 'despesa');
-
-        if (!empty($start_date)) {
-            $this->db->where('date >=', $start_date);
-        }
-        if (!empty($end_date)) {
-            $this->db->where('date <=', $end_date);
-        }
-
-        if (!empty($search)) {
-            $this->db->group_start();
-            $this->db->like('expenses.note', $search);
-            $this->db->or_like('expenses.amount', $search);
-            $this->db->group_end();
-        }
-
-        $this->db->order_by($sortField, $sortOrder);
-
-        $total_query = clone $this->db;
-        $total = $total_query->count_all_results();
-
-        $this->db->limit($limit, $offset);
-        $expenses = $this->db->get()->result_array();
-
-        $response = [
-            'status' => TRUE,
-            'total' => $total,
-            'page' => $page,
-            'limit' => $limit,
-            'total_pages' => ceil($total / $limit),
-            'data' => []
+        $params = [
+            'warehouse_id' => $warehouse_id,
+            'page' => (int) ($this->post('page') ?: 1),
+            'pageSize' => (int) ($this->post('pageSize') ?: 10),
+            'search' => $this->post('search') ?: '',
+            'sortField' => $this->post('sortField') ?: db_prefix() . 'expenses.id',
+            'sortOrder' => $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC',
+            'start_date' => $this->post('start_date'),
+            'end_date' => $this->post('end_date')
         ];
 
-        if (!empty($expenses)) {
-            foreach ($expenses as &$expense) {
-                if ($expense['recurring'] == 1) {
-                    $expense['recurring_info'] = array(
-                        'recurring' => true,
-                        'recurring_type' => $expense['recurring_type'],
-                        'repeat_every' => $expense['repeat_every'],
-                        'cycles_completed' => $expense['cycles'],
-                        'total_cycles' => $expense['total_cycles'],
-                        'custom_recurring' => $expense['custom_recurring'] == 1,
-                        'last_recurring_date' => $expense['last_recurring_date']
-                    );
-                } else {
-                    $expense['recurring_info'] = null;
-                }
-            }
-            $response['data'] = $expenses;
+        $this->load->model('expenses_model');
+        $result = $this->Expenses_model->get_expenses_by_date($params);
+
+        // Enriquecer com informações de recorrência no controller (opcional)
+        foreach ($result['data'] as &$expense) {
+            $expense['recurring_info'] = ($expense['recurring'] == 1) ? [
+                'recurring' => true,
+                'recurring_type' => $expense['recurring_type'],
+                'repeat_every' => $expense['repeat_every'],
+                'cycles_completed' => $expense['cycles'],
+                'total_cycles' => $expense['total_cycles'],
+                'custom_recurring' => $expense['custom_recurring'] == 1,
+                'last_recurring_date' => $expense['last_recurring_date'],
+            ] : null;
         }
 
-        $this->response($response, REST_Controller::HTTP_OK);
+        $this->response([
+            'status' => true,
+            'total' => $result['total'],
+            'page' => $params['page'],
+            'limit' => $params['pageSize'],
+            'total_pages' => ceil($result['total'] / $params['pageSize']),
+            'data' => $result['data']
+        ], REST_Controller::HTTP_OK);
     }
+
 
     private function calculate_recurring_dates($start_date, $recurring_type, $repeat_every, $range_start, $range_end, $total_cycles, $cycles_completed)
     {
@@ -1304,102 +1167,44 @@ class Expenses extends REST_Controller
     }
 
     public function get_get($id = '')
-{
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    if (empty($id)) {
+        if (empty($id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $expense = $this->Expenses_model->get_expense_detailed($id);
+
+        if (!$expense) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Expense not found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        // Processar recorrência (pode permanecer aqui se for apenas lógica de exibição)
+        $expense->recurring_info = ($expense->recurring == 1) ? [
+            'recurring' => true,
+            'recurring_type' => $expense->recurring_type,
+            'repeat_every' => $expense->repeat_every,
+            'cycles_completed' => $expense->cycles,
+            'total_cycles' => $expense->total_cycles,
+            'custom_recurring' => $expense->custom_recurring == 1,
+            'last_recurring_date' => $expense->last_recurring_date,
+        ] : null;
+
         $this->response([
-            'status' => FALSE,
-            'message' => 'ID is required'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-        return;
+            'status' => TRUE,
+            'data' => $expense
+        ], REST_Controller::HTTP_OK);
     }
 
-    $this->db->select(
-        db_prefix() . 'expenses.id as id,' .
-        db_prefix() . 'expenses.category,' .
-        db_prefix() . 'expenses.currency,' .
-        db_prefix() . 'expenses.amount,' .
-        db_prefix() . 'expenses.tax,' .
-        db_prefix() . 'expenses.tax2,' .
-        db_prefix() . 'expenses.reference_no,' .
-        db_prefix() . 'expenses.note,' .
-        db_prefix() . 'expenses.expense_name,' .
-        db_prefix() . 'expenses.clientid,' .
-        db_prefix() . 'expenses.project_id,' .
-        db_prefix() . 'expenses.billable,' .
-        db_prefix() . 'expenses.invoiceid,' .
-        db_prefix() . 'expenses.paymentmode,' .
-        db_prefix() . 'expenses.date,' .
-        db_prefix() . 'expenses.recurring_type,' .
-        db_prefix() . 'expenses.repeat_every,' .
-        db_prefix() . 'expenses.recurring,' .
-        db_prefix() . 'expenses.cycles,' .
-        db_prefix() . 'expenses.total_cycles,' .
-        db_prefix() . 'expenses.custom_recurring,' .
-        db_prefix() . 'expenses.last_recurring_date,' .
-        db_prefix() . 'expenses.create_invoice_billable,' .
-        db_prefix() . 'expenses.send_invoice_to_customer,' .
-        db_prefix() . 'expenses.recurring_from,' .
-        db_prefix() . 'expenses.dateadded,' .
-        db_prefix() . 'expenses.addedfrom,' .
-        db_prefix() . 'expenses.perfex_saas_tenant_id,' .
-        db_prefix() . 'expenses.type,' . // <- campo correto
-        db_prefix() . 'expenses.status,' .
-        db_prefix() . 'expenses.warehouse_id,' .
-        db_prefix() . 'expenses.file,' .
-        db_prefix() . 'expenses.comprovante,' .
-
-        db_prefix() . 'clients.userid as userid,' .
-        db_prefix() . 'clients.company as company,' .
-        db_prefix() . 'clients.vat,' .
-        db_prefix() . 'clients.phonenumber,' .
-        db_prefix() . 'clients.address,' .
-        db_prefix() . 'clients.email_default,'.
-
-        db_prefix() . 'expenses_categories.name as category_name,' .
-        db_prefix() . 'expenses.paymentmode as payment_mode,' .
-        db_prefix() . 'taxes.name as tax_name,' .
-        db_prefix() . 'taxes.taxrate as taxrate,' .
-        db_prefix() . 'taxes_2.name as tax_name2,' .
-        db_prefix() . 'taxes_2.taxrate as taxrate2'
-    );
-
-    $this->db->from(db_prefix() . 'expenses');
-    $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses.clientid', 'left');
-    $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
-    $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
-    $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category', 'left');
-
-    $this->db->where(db_prefix() . 'expenses.id', $id);
-
-    $expense = $this->db->get()->row();
-
-    if (!$expense) {
-        $this->response([
-            'status' => FALSE,
-            'message' => 'Expense not found'
-        ], REST_Controller::HTTP_NOT_FOUND);
-        return;
-    }
-
-    $expense->payment_mode_name = $this->get_payment_mode_name($expense->payment_mode);
-
-    $expense->recurring_info = ($expense->recurring == 1) ? [
-        'recurring' => true,
-        'recurring_type' => $expense->recurring_type,
-        'repeat_every' => $expense->repeat_every,
-        'cycles_completed' => $expense->cycles,
-        'total_cycles' => $expense->total_cycles,
-        'custom_recurring' => $expense->custom_recurring == 1,
-        'last_recurring_date' => $expense->last_recurring_date,
-    ] : null;
-
-    $this->response([
-        'status' => TRUE,
-        'data' => $expense
-    ], REST_Controller::HTTP_OK);
-}
 
     public function financial_report_post()
     {
@@ -1621,213 +1426,222 @@ class Expenses extends REST_Controller
     }
 
     public function summary_post()
-{
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    $warehouse_id = $this->post('warehouse_id');
+        $warehouse_id = $this->post('warehouse_id');
 
-    if (empty($warehouse_id)) {
-        return $this->response([
-            'status' => false,
-            'message' => 'warehouse_id é obrigatório'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-    }
-
-    $summary = $this->Expenses_model->get_expenses_summary($warehouse_id);
-
-    $total = $summary['paid'] + $summary['to_pay'] + $summary['overdue'];
-    $paid_percent = $total > 0 ? round(($summary['paid'] / $total) * 100, 1) : 0;
-
-    return $this->response([
-        'status' => true,
-        'data' => [
-            'paid' => $summary['paid'],
-            'paid_count' => $summary['paid_count'],
-            'paid_today' => $summary['paid_today'],
-            'paid_today_count' => $summary['paid_today_count'],
-            'to_pay' => $summary['to_pay'],
-            'to_pay_count' => $summary['to_pay_count'],
-            'to_pay_month' => $summary['to_pay_month'],
-            'to_pay_month_count' => $summary['to_pay_month_count'],
-            'overdue' => $summary['overdue'],
-            'overdue_count' => $summary['overdue_count'],
-            'paid_percent' => $paid_percent
-        ],
-    ], REST_Controller::HTTP_OK);
-}
-
-public function delete_post()
-{
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-    $id = $this->post('id');
-    $rows = $this->post('rows');
-    $warehouse_id = $this->post('warehouse_id');
-    $type = $this->post('type');
-
-    if (!empty($rows) && is_array($rows)) {
-        $success = 0;
-        $fail = 0;
-        foreach ($rows as $rowId) {
-            $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id, $type);
-            if ($deleted) {
-                $success++;
-            } else {
-                $fail++;
-            }
+        if (empty($warehouse_id)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'warehouse_id é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        return $this->response([
-            'status' => $fail === 0,
-            'message' => $fail === 0 ? 'Registros deletados com sucesso' : "Alguns registros não foram deletados",
-            'success_count' => $success,
-            'fail_count' => $fail
-        ], $fail === 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_PARTIAL_CONTENT);
-    }
 
-    if (empty($id)) {
-        return $this->response([
-            'status' => false,
-            'message' => 'ID é obrigatório para deletar'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-    }
+        $summary = $this->Expenses_model->get_expenses_summary($warehouse_id);
 
-    $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id, $type);
+        $total = $summary['paid'] + $summary['to_pay'] + $summary['overdue'];
+        $paid_percent = $total > 0 ? round(($summary['paid'] / $total) * 100, 1) : 0;
 
-    if ($deleted) {
         return $this->response([
             'status' => true,
-            'message' => 'Registro deletado com sucesso'
+            'data' => [
+                'paid' => $summary['paid'],
+                'paid_count' => $summary['paid_count'],
+                'paid_today' => $summary['paid_today'],
+                'paid_today_count' => $summary['paid_today_count'],
+                'to_pay' => $summary['to_pay'],
+                'to_pay_count' => $summary['to_pay_count'],
+                'to_pay_month' => $summary['to_pay_month'],
+                'to_pay_month_count' => $summary['to_pay_month_count'],
+                'overdue' => $summary['overdue'],
+                'overdue_count' => $summary['overdue_count'],
+                'paid_percent' => $paid_percent
+            ],
         ], REST_Controller::HTTP_OK);
-    } else {
-        return $this->response([
-            'status' => false,
-            'message' => 'Falha ao deletar o registro'
-        ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-    }
-}
-public function updatetwo_post($id = '')
-{
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-    if (empty($id)) {
-        return $this->response([
-            'status' => false,
-            'message' => 'ID is required'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-    }
-    $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-    $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
-
-    if ($is_multipart) {
-        $_POST = $this->input->post();
-    } else {
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
     }
 
-    if (empty($_POST)) {
-        return $this->response([
-            'status' => false,
-            'message' => 'Invalid input data'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-    }
+    public function delete_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    $fields = [
-        'expense_name', 'type', 'category', 'amount', 'date',
-        'paymentmode', 'clientid', 'note', 'billable',
-        'send_invoice_to_customer', 'status', 'recurring',
-        'warehouse_id', 'reference_no',
-        'recurring_type', 'repeat_every', 'cycles', 'total_cycles',
-        'custom_recurring', 'last_recurring_date', 'create_invoice_billable',
-        'recurring_from'
-    ];
+        $id = $this->post('id');
+        $rows = $this->post('rows');
+        $warehouse_id = $this->post('warehouse_id');
+        $type = $this->post('type');
 
-    $updateData = [];
-
-    foreach ($fields as $field) {
-        if (isset($_POST[$field])) {
-            if (in_array($field, ['billable', 'send_invoice_to_customer', 'recurring', 'custom_recurring', 'create_invoice_billable'])) {
-                $updateData[$field] = (!empty($_POST[$field]) && $_POST[$field] !== 'false') ? 1 : 0;
-            } 
-            elseif (in_array($field, ['repeat_every', 'cycles', 'total_cycles'])) {
-                $updateData[$field] = is_numeric($_POST[$field]) ? $_POST[$field] : 0;
+        if (!empty($rows) && is_array($rows)) {
+            $success = 0;
+            $fail = 0;
+            foreach ($rows as $rowId) {
+                $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id, $type);
+                if ($deleted) {
+                    $success++;
+                } else {
+                    $fail++;
+                }
             }
-            elseif (in_array($field, ['last_recurring_date'])) {
-                $updateData[$field] = !empty($_POST[$field]) ? $_POST[$field] : null;
-            }
-            else {
-                $updateData[$field] = $_POST[$field];
-            }
+            return $this->response([
+                'status' => $fail === 0,
+                'message' => $fail === 0 ? 'Registros deletados com sucesso' : "Alguns registros não foram deletados",
+                'success_count' => $success,
+                'fail_count' => $fail
+            ], $fail === 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_PARTIAL_CONTENT);
+        }
+
+        if (empty($id)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'ID é obrigatório para deletar'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id, $type);
+
+        if ($deleted) {
+            return $this->response([
+                'status' => true,
+                'message' => 'Registro deletado com sucesso'
+            ], REST_Controller::HTTP_OK);
+        } else {
+            return $this->response([
+                'status' => false,
+                'message' => 'Falha ao deletar o registro'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+    public function updatetwo_post($id = '')
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    $success = $this->Expenses_model->updatetwo($updateData, $id);
+        if (empty($id)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
 
-    if (!$success) {
+        if ($is_multipart) {
+            $_POST = $this->input->post();
+        } else {
+            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        }
+
+        if (empty($_POST)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Invalid input data'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $fields = [
+            'expense_name',
+            'type',
+            'category',
+            'amount',
+            'date',
+            'paymentmode',
+            'clientid',
+            'note',
+            'billable',
+            'send_invoice_to_customer',
+            'status',
+            'recurring',
+            'warehouse_id',
+            'reference_no',
+            'recurring_type',
+            'repeat_every',
+            'cycles',
+            'total_cycles',
+            'custom_recurring',
+            'last_recurring_date',
+            'create_invoice_billable',
+            'recurring_from'
+        ];
+
+        $updateData = [];
+
+        foreach ($fields as $field) {
+            if (isset($_POST[$field])) {
+                if (in_array($field, ['billable', 'send_invoice_to_customer', 'recurring', 'custom_recurring', 'create_invoice_billable'])) {
+                    $updateData[$field] = (!empty($_POST[$field]) && $_POST[$field] !== 'false') ? 1 : 0;
+                } elseif (in_array($field, ['repeat_every', 'cycles', 'total_cycles'])) {
+                    $updateData[$field] = is_numeric($_POST[$field]) ? $_POST[$field] : 0;
+                } elseif (in_array($field, ['last_recurring_date'])) {
+                    $updateData[$field] = !empty($_POST[$field]) ? $_POST[$field] : null;
+                } else {
+                    $updateData[$field] = $_POST[$field];
+                }
+            }
+        }
+
+        $success = $this->Expenses_model->updatetwo($updateData, $id);
+
+        if (!$success) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Failed to update expense/receita or no changes made'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
         return $this->response([
-            'status' => false,
-            'message' => 'Failed to update expense/receita or no changes made'
-        ], REST_Controller::HTTP_BAD_REQUEST);
+            'status' => true,
+            'message' => 'Despesa/Receita atualizada com sucesso',
+            'data' => $this->Expenses_model->gettwo($id)
+        ], REST_Controller::HTTP_OK);
     }
 
-    return $this->response([
-        'status' => true,
-        'message' => 'Despesa/Receita atualizada com sucesso',
-        'data' => $this->Expenses_model->gettwo($id)
-    ], REST_Controller::HTTP_OK);
-}
+    public function client_get($expenseId = '')
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-public function client_get($expenseId = '')
-{
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
+        if (empty($expenseId) || !is_numeric($expenseId)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Expense ID is required and must be numeric'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
 
-    if (empty($expenseId) || !is_numeric($expenseId)) {
+        $client = $this->Expenses_model->get_client_by_expense_id($expenseId);
+
+        if (!$client) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Client not found for this expense'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+
         return $this->response([
-            'status' => false,
-            'message' => 'Expense ID is required and must be numeric'
-        ], REST_Controller::HTTP_BAD_REQUEST);
+            'status' => true,
+            'data' => $client
+        ], REST_Controller::HTTP_OK);
     }
 
-    $client = $this->Expenses_model->get_client_by_expense_id($expenseId);
+    public function categorytwo_get($id = '')
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-    if (!$client) {
+        if (empty($id)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $data = $this->Expenses_model->get_expense_category($id);
+
+        if (!$data) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Categoria não encontrada para esta despesa/receita.'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+
         return $this->response([
-            'status' => false,
-            'message' => 'Client not found for this expense'
-        ], REST_Controller::HTTP_NOT_FOUND);
+            'status' => true,
+            'data' => $data,
+        ], REST_Controller::HTTP_OK);
     }
-
-    return $this->response([
-        'status' => true,
-        'data' => $client
-    ], REST_Controller::HTTP_OK);
-}
-
-public function categorytwo_get($id = '')
-{
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-    if (empty($id)) {
-        return $this->response([
-            'status' => false,
-            'message' => 'ID is required'
-        ], REST_Controller::HTTP_BAD_REQUEST);
-    }
-
-    $data = $this->Expenses_model->get_expense_category($id);
-
-    if (!$data) {
-        return $this->response([
-            'status' => false,
-            'message' => 'Categoria não encontrada para esta despesa/receita.'
-        ], REST_Controller::HTTP_NOT_FOUND);
-    }
-
-    return $this->response([
-        'status' => true,
-        'data' => $data,
-    ], REST_Controller::HTTP_OK);
-}
-
-
-
 }

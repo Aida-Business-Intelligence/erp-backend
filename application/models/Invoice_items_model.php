@@ -265,6 +265,16 @@ class Invoice_items_model extends App_Model
 
             if ($item) {
 
+                if (is_object($item)) {
+                    $this->db->where('product_id', $item->id);
+                    $packaging = $this->db->get(db_prefix() . 'product_packaging')->result_array();
+                    $item->packaging = $packaging;
+                } else {
+                    $this->db->where('product_id', $item['id']);
+                    $packaging = $this->db->get(db_prefix() . 'product_packaging')->result_array();
+                    $item['packaging'] = $packaging;
+                }
+
                 if ($send == 'pdv') {
                     return ['data' => $item, 'total' => 1];
                 } else {
@@ -369,7 +379,7 @@ class Invoice_items_model extends App_Model
 
         $items = $this->db->get()->result_array();
 
-        //  var_dump($this->db->last_query());
+        //var_dump($this->db->last_query());
 
         return ['data' => $items, 'total' => $total];
     }
@@ -785,6 +795,7 @@ class Invoice_items_model extends App_Model
         $updated = false;
         $data = hooks()->apply_filters('before_update_item', $data, $itemid);
         $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
+     
 
         $this->db->where('sku_code', $itemid);
         $this->db->where('warehouse_id', $warehouse_id);
@@ -962,5 +973,409 @@ class Invoice_items_model extends App_Model
     {
         $this->db->where('id', $id);
         return $this->db->delete(db_prefix() . 'wh_sub_group');
+    }
+
+    
+    public function bulk_create_products($products, $warehouse_id, $edit_product_id = null)
+    {
+        if ((empty($warehouse_id) && !$edit_product_id) || empty($products) || !is_array($products)) {
+            return [
+                'status' => false,
+                'message' => 'Invalid input data',
+                'created' => 0,
+                'failed' => 0
+            ];
+        }
+
+        $this->db->trans_begin();
+        
+        $success_count = 0;
+        $failed_products = [];
+        $created_products = [];
+        
+        try {
+            foreach ($products as $index => $product_data) {
+                
+                $input_image_singular_b64 = $product_data['image_base64'] ?? null;
+                $input_images_array_b64 = $product_data['images_base64'] ?? [];
+                $input_primary_index = isset($product_data['primary_image_index']) ? (int)$product_data['primary_image_index'] : null;
+
+                unset($product_data['image_base64'], $product_data['images_base64'], $product_data['primary_image_index']);
+                
+                $packaging_data = null;
+                if (isset($product_data['packagings'])) {
+                    $packaging_data = $product_data['packagings'];
+                    unset($product_data['packagings']);
+                } else if (isset($product_data['packaging'])) {
+                    $packaging_data = $product_data['packaging'];
+                    unset($product_data['packaging']);
+                }
+                
+                $field_mappings = [
+                    'productName' => 'description',
+                    'sku' => 'sku_code',
+                    'category' => 'group_id',
+                    'subcategory' => 'sub_group',
+                    'unit_id' => 'unit_id',
+                    'unitsPerBox' => 'defaultPurchaseQuantity',
+                    'barcode' => 'commodity_barcode',
+                    'status' => 'status',
+                    
+                    'cost' => 'cost',
+                    'costAC' => 'cost_ac',
+                    'costAO' => 'cost_ao',
+                    'franchiseProfitPercent' => 'franchise_profit_percent',
+                    'franchisePrice' => 'franchise_price',
+                    'franchiseNfePrice' => 'franchise_nfe_price',
+                    'promoPrice' => 'promoPrice', 
+                    'maxDiscount' => 'maxDiscount',
+                    'promoStart' => 'promoStart',
+                    'promoEnd' => 'promoEnd',
+                    
+                    'stock' => 'stock',
+                    'minStock' => 'minStock',
+                    'reservedStock' => 'reserved_stock',
+                    'defaultPurchaseQuantity' => 'defaultPurchaseQuantity',
+                    'location' => 'location', 
+                    'rpaEnabled' => 'rpaEnabled', 
+                    'show_on_pdv' => 'show_on_pdv',
+                    
+                    'length' => 'length',
+                    'width' => 'width',
+                    'height' => 'height',
+                    'cubage' => 'cubage',
+                    'weight' => 'net_weight',
+                    'grossWeight' => 'gross_weight',
+                    
+                    'tags' => 'tags',
+                    'origin' => 'origin',
+                    'itemType' => 'item_type',
+                    'ncm' => 'ncm',
+                    'cest' => 'cest',
+                    'cfop' => 'cfop',
+                    'tax_percent' => 'tax_percent',
+                    'tax_group' => 'tax_group',
+                    'tax_icms_base' => 'tax_icms_base',
+                    'tax_icms_st' => 'tax_icms_st',
+                    'tax_icms_proprio' => 'tax_icms_proprio',
+                    'tax_ipi_exception' => 'tax_ipi_exception',
+                    'tax_pis' => 'tax_pis',
+                    'tax_cofins' => 'tax_cofins',
+                    'tax_additional_info' => 'tax_additional_info'
+                ];
+                
+                $cleaned_product_data = [];
+                foreach ($field_mappings as $form_field => $db_field) {
+                    if (isset($product_data[$form_field])) {
+                        $value = $product_data[$form_field];
+                        
+                        if ($form_field === 'status' || $form_field === 'active') {
+                            $value = ($value == '1' || $value === true) ? 'active' : 'inactive';
+                        }
+                        
+                        if (in_array($form_field, ['rpaEnabled', 'show_on_pdv'])) {
+                            $value = ($value == '1' || $value === true) ? 1 : 0;
+                        }
+                        
+                        if (in_array($form_field, ['promoStart', 'promoEnd']) && !empty($value)) {
+                            $date = new DateTime($value);
+                            $value = $date->format('Y-m-d');
+                        }
+                        
+                        if (in_array($form_field, [
+                            'cost', 'costAC', 'costAO', 'franchiseProfitPercent', 'franchisePrice', 'franchiseNfePrice', 
+                            'promoPrice', 'maxDiscount', 'stock', 'minStock', 'reservedStock', 'defaultPurchaseQuantity',
+                            'length', 'width', 'height', 'cubage', 'weight', 'grossWeight'
+                        ])) {
+                            if ($value !== null && $value !== '') {
+                                $value = is_numeric($value) ? (float)$value : 0;
+                            }
+                        }
+                        
+                        if ($value !== null) {
+                            $cleaned_product_data[$db_field] = $this->security->xss_clean($value);
+                        }
+                        
+                        unset($product_data[$form_field]);
+                    }
+                }
+                
+                foreach ($product_data as $key => $value) {
+                    if ($value !== null && !is_array($value)) {
+                        $cleaned_product_data[$key] = $this->security->xss_clean($value);
+                    }
+                }
+                
+                if (!$edit_product_id) {
+                    $cleaned_product_data['warehouse_id'] = $warehouse_id;
+                }
+                
+                if (!isset($cleaned_product_data['status'])) {
+                    $cleaned_product_data['status'] = 'active';
+                }
+                
+                if (!isset($cleaned_product_data['rate']) && isset($cleaned_product_data['franchise_price'])) {
+                    $cleaned_product_data['rate'] = $cleaned_product_data['franchise_price'];
+                }
+                
+                if (!isset($cleaned_product_data['cubage']) && 
+                    isset($cleaned_product_data['length']) && 
+                    isset($cleaned_product_data['width']) && 
+                    isset($cleaned_product_data['height'])) {
+                    $cleaned_product_data['cubage'] = 
+                        ($cleaned_product_data['length'] * 
+                         $cleaned_product_data['width'] * 
+                         $cleaned_product_data['height']) / 1000000;
+                }
+                
+                if ($edit_product_id) {
+                    $cleaned_product_data['updatedAt'] = date('Y-m-d H:i:s');
+                    
+                    if (!isset($cleaned_product_data['description'])) {
+                        $existing = $this->get_item($edit_product_id);
+                        if ($existing && $existing->description) {
+                            $cleaned_product_data['description'] = $existing->description;
+                        }
+                    }
+                    
+                    $result = $this->edit($cleaned_product_data, $edit_product_id);
+                    if (!$result) {
+                        $failed_products[] = [
+                            'index' => $index,
+                            'error' => 'Failed to update product'
+                        ];
+                        continue;
+                    }
+                    $product_id = $edit_product_id;
+                } else {
+                    if (empty($cleaned_product_data['description'])) {
+                        $failed_products[] = [
+                            'index' => $index,
+                            'error' => 'Description is required'
+                        ];
+                        continue;
+                    }
+                    
+                    $cleaned_product_data['createdAt'] = date('Y-m-d H:i:s');
+                    $cleaned_product_data['updatedAt'] = date('Y-m-d H:i:s');
+
+                    $product_id = $this->add($cleaned_product_data);
+
+                    if (!$product_id) {
+                        $failed_products[] = [
+                            'index' => $index,
+                            'error' => 'Failed to create product'
+                        ];
+                        continue;
+                    }
+                }
+                
+                if ($packaging_data && is_array($packaging_data) && !empty($packaging_data)) {
+                    $this->db->where('product_id', $product_id);
+                    $this->db->delete(db_prefix() . 'product_packaging');
+                    
+                    foreach ($packaging_data as $package) {
+                        $package_data = [
+                            'product_id' => $product_id,
+                            'name' => $this->security->xss_clean($package['name'] ?? ''),
+                            'units' => (int)($package['units'] ?? 0),
+                            'length' => (float)($package['length'] ?? 0),
+                            'width' => (float)($package['width'] ?? 0),
+                            'height' => (float)($package['height'] ?? 0),
+                            'cubage' => (float)($package['cubage'] ?? 0),
+                            'is_open' => isset($package['isOpen']) ? (int)$package['isOpen'] : 0,
+                            'created_at' => date('Y-m-d H:i:s')
+                        ];
+                        
+                        if (empty($package_data['cubage']) && 
+                            !empty($package_data['length']) && 
+                            !empty($package_data['width']) && 
+                            !empty($package_data['height'])) {
+                            $package_data['cubage'] = 
+                                ($package_data['length'] * 
+                                 $package_data['width'] * 
+                                 $package_data['height']) / 1000000;
+                        }
+                        
+                        $this->db->insert(db_prefix() . 'product_packaging', $package_data);
+                    }
+                }
+
+                $final_image_db_updates = [];
+                if ($product_id) { 
+                        $upload_dir = './uploads/items/' . $product_id . '/';
+
+                    if ((!empty($input_images_array_b64) && is_array($input_images_array_b64)) || !empty($input_image_singular_b64)) {
+                        if (!file_exists($upload_dir)) {
+                            if (!mkdir($upload_dir, 0777, true)) {
+                                log_activity('Failed to create upload directory for product ID ' . $product_id);
+                            }
+                        }
+                    }
+
+                    $uploaded_primary_url = null;
+                    $images_for_other_slots_b64 = [];
+                    if (is_array($input_images_array_b64)) {
+                        $images_for_other_slots_b64 = $input_images_array_b64;
+                    }
+
+
+                    if ($input_primary_index !== null && isset($input_images_array_b64[$input_primary_index]) && !empty($input_images_array_b64[$input_primary_index])) {
+                        $b64 = $input_images_array_b64[$input_primary_index];
+                        $url = null; $img_data_h=null; $img_type_h='jpg'; if(preg_match('/^data:image\/(\w+);base64,(.*)$/s',$b64,$m)){$img_type_h=strtolower($m[1]);$img_data_h=base64_decode($m[2],true);}else{$img_data_h=base64_decode($b64,true);} if($img_data_h && file_exists($upload_dir)){$fn_h=uniqid().'.'.$img_type_h;$fp_h=$upload_dir.$fn_h;if(file_put_contents($fp_h,$img_data_h)){$s_h=base_url();$r_h=str_replace('./','',$fp_h);$url=rtrim($s_h,'/').'/'.$r_h;}}
+                        if ($url) {
+                            $final_image_db_updates['image'] = $url;
+                            $uploaded_primary_url = $url;
+                            if(isset($images_for_other_slots_b64[$input_primary_index])) {
+                                unset($images_for_other_slots_b64[$input_primary_index]);
+                            }
+                            }
+                        }
+                        
+                    if (!$uploaded_primary_url && !empty($images_for_other_slots_b64)) {
+                        foreach ($images_for_other_slots_b64 as $key => $b64_val) {
+                            if (!empty($b64_val)) {
+                                $url = null; $img_data_h=null; $img_type_h='jpg'; if(preg_match('/^data:image\/(\w+);base64,(.*)$/s',$b64_val,$m)){$img_type_h=strtolower($m[1]);$img_data_h=base64_decode($m[2],true);}else{$img_data_h=base64_decode($b64_val,true);} if($img_data_h && file_exists($upload_dir)){$fn_h=uniqid().'.'.$img_type_h;$fp_h=$upload_dir.$fn_h;if(file_put_contents($fp_h,$img_data_h)){$s_h=base_url();$r_h=str_replace('./','',$fp_h);$url=rtrim($s_h,'/').'/'.$r_h;}}
+                                if ($url) {
+                                    $final_image_db_updates['image'] = $url;
+                                    $uploaded_primary_url = $url;
+                                    unset($images_for_other_slots_b64[$key]);
+                                }
+                                break; 
+                            }
+                    }
+                }
+
+                    if (!$uploaded_primary_url && !empty($input_image_singular_b64)) {
+                        $url = null; $img_data_h=null; $img_type_h='jpg'; if(preg_match('/^data:image\/(\w+);base64,(.*)$/s',$input_image_singular_b64,$m)){$img_type_h=strtolower($m[1]);$img_data_h=base64_decode($m[2],true);}else{$img_data_h=base64_decode($input_image_singular_b64,true);} if($img_data_h && file_exists($upload_dir)){$fn_h=uniqid().'.'.$img_type_h;$fp_h=$upload_dir.$fn_h;if(file_put_contents($fp_h,$img_data_h)){$s_h=base_url();$r_h=str_replace('./','',$fp_h);$url=rtrim($s_h,'/').'/'.$r_h;}}
+                        if ($url) {
+                            $final_image_db_updates['image'] = $url;
+                        }
+                        }
+
+                    $other_image_fields_map = ['image2', 'image3', 'image4', 'image5'];
+                    $current_other_idx = 0;
+                    foreach ($images_for_other_slots_b64 as $b64) {
+                        if (empty($b64)) continue;
+                        if ($current_other_idx >= count($other_image_fields_map)) break;
+
+                        $url = null; $img_data_h=null; $img_type_h='jpg'; if(preg_match('/^data:image\/(\w+);base64,(.*)$/s',$b64,$m)){$img_type_h=strtolower($m[1]);$img_data_h=base64_decode($m[2],true);}else{$img_data_h=base64_decode($b64,true);} if($img_data_h && file_exists($upload_dir)){$fn_h=uniqid().'.'.$img_type_h;$fp_h=$upload_dir.$fn_h;if(file_put_contents($fp_h,$img_data_h)){$s_h=base_url();$r_h=str_replace('./','',$fp_h);$url=rtrim($s_h,'/').'/'.$r_h;}}
+                        if ($url) {
+                            $final_image_db_updates[$other_image_fields_map[$current_other_idx]] = $url;
+                            $current_other_idx++;
+                        }
+                    }
+                    
+                    if (!empty($final_image_db_updates)) {
+                        $this->db->where('id', $product_id);
+                        $this->db->update(db_prefix() . 'items', $final_image_db_updates);
+                    }
+                }
+
+                $success_count++;
+                $created_product = $this->get_item($product_id);
+                
+                if (!empty($packaging_data)) {
+                    $this->db->where('product_id', $product_id);
+                    $packaging_result = $this->db->get(db_prefix() . 'product_packaging')->result_array();
+                    $created_product->packaging = $packaging_result;
+                }
+                
+                $created_products[] = $created_product;
+            }
+
+            if ($success_count > 0) {
+                $this->db->trans_commit();
+                
+                $message = $edit_product_id ? 
+                    $success_count . ' products updated successfully' : 
+                    $success_count . ' products created successfully';
+                
+                return [
+                    'status' => true,
+                    'message' => $message,
+                    'created' => $success_count,
+                    'failed' => count($failed_products),
+                    'failed_products' => $failed_products,
+                    'data' => $created_products
+                ];
+            } else {
+                $this->db->trans_rollback();
+                $message = $edit_product_id ? 
+                    'Failed to update any products' : 
+                    'Failed to create any products';
+                
+                return [
+                    'status' => false,
+                    'message' => $message,
+                    'created' => 0,
+                    'failed' => count($failed_products),
+                    'failed_products' => $failed_products
+                ];
+            }
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            return [
+                'status' => false,
+                'message' => 'Error during bulk operation: ' . $e->getMessage(),
+                'created' => $success_count,
+                'failed' => count($products) - $success_count
+            ];
+        }
+    }
+
+    /**
+     * Get NCM (Nomenclatura Comum do Mercosul) data with filtering and pagination
+     * 
+     * @param string $search Search term
+     * @param int $page Page number
+     * @param int $limit Items per page
+     * @param string $category Category filter
+     * @param string $sortField Field to sort by
+     * @param string $sortOrder Sort direction (ASC or DESC)
+     * @return array Data with NCM records, total count, and categories
+     */
+    public function get_ncm($search = '', $page = 1, $limit = 10, $category = '', $sortField = 'code', $sortOrder = 'ASC')
+    {
+        $this->db->select('*');
+        $this->db->from(db_prefix() . 'ncm');
+        
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('code', $search);
+            $this->db->or_like('description', $search);
+            $this->db->or_like('category', $search);
+            $this->db->or_like('subcategory', $search);
+            $this->db->group_end();
+        }
+        
+        if (!empty($category)) {
+            $this->db->where('category', $category);
+        }
+        
+        $total = $this->db->count_all_results('', false);
+        
+        $allowedSortFields = ['code', 'description', 'category', 'subcategory'];
+        $sortField = in_array($sortField, $allowedSortFields) ? $sortField : 'code';
+        $sortOrder = strtoupper($sortOrder) === 'DESC' ? 'DESC' : 'ASC';
+        
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+        
+        $ncms = $this->db->get()->result_array();
+        
+        $this->db->select('DISTINCT(category)');
+        $this->db->from(db_prefix() . 'ncm');
+        $this->db->order_by('category', 'ASC');
+        $categories = $this->db->get()->result_array();
+        $categories = array_column($categories, 'category');
+        
+        return [
+            'total' => $total,
+            'data' => $ncms,
+            'categories' => $categories,
+            'page' => $page,
+            'pageSize' => $limit
+        ];
     }
 }

@@ -2073,4 +2073,420 @@ class Invoices_model extends App_Model
         $this->db->set('status', $status);
         return $this->db->update('tblinvoices');
     }
+
+    // Entrega o/os pedidos - expedition
+    public function update_entrega($ids, $status)
+    {
+        $this->db->where_in('id', $ids);
+        $this->db->set('status', $status);
+        return $this->db->update('tblinvoices');
+    }
+
+    public function update_order_item_quantity($updates)
+    {
+        $this->db->trans_begin();
+
+        try {
+            foreach ($updates as $update) {
+                $order_id = $update['order_id'];
+                $item_id = $update['item_id'];
+                $quantity = $update['quantity'];
+
+                // Atualiza a quantidade
+                $this->db->where('invoice_id', $order_id);
+                $this->db->where('id', $item_id);
+                $this->db->update(db_prefix() . 'purchase_needs', [
+                    'qtde' => $quantity
+                ]);
+
+                // Recalcula o total do pedido
+                $this->recalculate_order_total($order_id);
+            }
+
+            if ($this->db->trans_status() === FALSE) {
+                $this->db->trans_rollback();
+                return false;
+            }
+
+            $this->db->trans_commit();
+            return true;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            return false;
+        }
+    }
+
+    private function recalculate_order_total($order_id)
+    {
+        $this->db->select('pn.qtde, i.rate as unit_price');
+        $this->db->from(db_prefix() . 'purchase_needs pn');
+        $this->db->join(db_prefix() . 'items i', 'i.id = pn.item_id');
+        $this->db->where('pn.invoice_id', $order_id);
+        $items = $this->db->get()->result_array();
+
+        $total = 0;
+        foreach ($items as $item) {
+            $total += $item['qtde'] * $item['unit_price'];
+        }
+
+        $this->db->where('id', $order_id);
+        $this->db->update(db_prefix() . 'invoices', [
+            'subtotal' => $total,
+            'total' => $total
+        ]);
+    }
+
+    public function add_to_cart($data)
+    {
+        try {
+            $this->db->trans_start();
+
+            // Verifica se o item existe e tem estoque suficiente
+            $this->db->where('id', $data['item_id']);
+            $this->db->where('warehouse_id', $data['warehouse_id']);
+            $item = $this->db->get(db_prefix() . 'items')->row();
+
+            if (!$item) {
+                throw new Exception('Item não encontrado');
+            }
+
+            if ($item->stock < $data['quantity']) {
+                throw new Exception('Estoque insuficiente');
+            }
+
+            // Verifica se já existe uma reserva para este item
+            $this->db->where('item_id', $data['item_id']);
+            $this->db->where('warehouse_id', $data['warehouse_id']);
+            $this->db->where('user_id', $data['user_id']);
+            $this->db->where('status', 'reserved');
+            $existing_reservation = $this->db->get(db_prefix() . 'ecommerce_cart')->row();
+
+            if ($existing_reservation) {
+                // Atualiza a quantidade da reserva existente
+                $this->db->where('id', $existing_reservation->id);
+                $this->db->update(db_prefix() . 'ecommerce_cart', [
+                    'quantity' => $existing_reservation->quantity + $data['quantity'],
+                    'expires_at' => date('Y-m-d H:i:s', strtotime('+60 minutes'))
+                ]);
+            } else {
+                // Cria uma nova reserva
+                $this->db->insert(db_prefix() . 'ecommerce_cart', [
+                    'item_id' => $data['item_id'],
+                    'warehouse_id' => $data['warehouse_id'],
+                    'user_id' => $data['user_id'],
+                    'quantity' => $data['quantity'],
+                    'status' => 'reserved',
+                    'reserved_at' => date('Y-m-d H:i:s'),
+                    'expires_at' => date('Y-m-d H:i:s', strtotime('+60 minutes'))
+                ]);
+            }
+
+            // Atualiza o estoque usando updateStocks2
+            $dataEstoque = [
+                'warehouse_id' => $data['warehouse_id'],
+                'user_id' => $data['user_id'],
+                'obs' => 'Reserva de item no carrinho',
+                'hash' => md5(uniqid(rand(), true))
+            ];
+            $itemEstoque = [
+                'qty' => $data['quantity'],
+                'id' => $data['item_id']
+            ];
+            $transaction = [
+                'id' => 'CART_' . time(),
+                'cash' => 'reserve'
+            ];
+
+            updateStocks2($dataEstoque, $itemEstoque, $transaction);
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Erro ao adicionar item ao carrinho');
+            }
+
+            return true;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            throw $e;
+        }
+    }
+
+    public function remove_from_cart($data)
+    {
+        try {
+            $this->db->trans_start();
+
+            // Busca o item no carrinho (independente do status)
+            $this->db->where('item_id', $data['item_id']);
+            $this->db->where('warehouse_id', $data['warehouse_id']);
+            $cart_item = $this->db->get(db_prefix() . 'ecommerce_cart')->row();
+
+            if (!$cart_item) {
+                return [
+                    'status' => false,
+                    'message' => 'Item não encontrado no carrinho'
+                ];
+            }
+
+            // Busca o item no estoque
+            $this->db->where('id', $data['item_id']);
+            $this->db->where('warehouse_id', $data['warehouse_id']);
+            $item = $this->db->get(db_prefix() . 'items')->row();
+
+            if (!$item) {
+                throw new Exception('Item não encontrado no estoque');
+            }
+
+            // Restaura o estoque independente do status
+            $new_stock = $item->stock + $cart_item->quantity;
+
+            // Atualiza o estoque
+            $this->db->where('id', $data['item_id']);
+            $this->db->where('warehouse_id', $data['warehouse_id']);
+            $update_result = $this->db->update(db_prefix() . 'items', ['stock' => $new_stock]);
+
+            if (!$update_result) {
+                throw new Exception('Erro ao atualizar estoque');
+            }
+
+            // Remove o item do carrinho
+            $this->db->where('id', $cart_item->id);
+            $delete_result = $this->db->delete(db_prefix() . 'ecommerce_cart');
+
+            if (!$delete_result) {
+                throw new Exception('Erro ao remover item do carrinho');
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Erro na transação');
+            }
+
+            return [
+                'status' => true,
+                'message' => 'Item removido do carrinho com sucesso'
+            ];
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            return [
+                'status' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function update_cart_item($data)
+    {
+        try {
+            $this->db->trans_start();
+
+            // Verifica se o item existe e tem estoque suficiente
+            $this->db->where('id', $data['item_id']);
+            $this->db->where('warehouse_id', $data['warehouse_id']);
+            $item = $this->db->get(db_prefix() . 'items')->row();
+
+            if (!$item) {
+                throw new Exception('Item não encontrado');
+            }
+
+            // Busca o item no carrinho usando a mesma query do add_to_cart
+            $this->db->where('item_id', $data['item_id']);
+            $this->db->where('warehouse_id', $data['warehouse_id']);
+            $this->db->where('user_id', $data['user_id']);
+            $this->db->where('status', 'reserved');
+            $cart_item = $this->db->get(db_prefix() . 'ecommerce_cart')->row();
+
+            if (!$cart_item) {
+                throw new Exception('Item não encontrado no carrinho');
+            }
+
+            // Calcula a diferença de quantidade
+            $quantity_diff = $data['quantity'] - $cart_item->quantity;
+
+            // Verifica se tem estoque suficiente para a nova quantidade
+            if ($item->stock < $quantity_diff) {
+                throw new Exception('Estoque insuficiente');
+            }
+
+            // Atualiza a quantidade no carrinho usando o ID do registro
+            $this->db->where('id', $cart_item->id);
+            $this->db->update(db_prefix() . 'ecommerce_cart', [
+                'quantity' => $data['quantity'],
+                'expires_at' => date('Y-m-d H:i:s', strtotime('+60 minutes'))
+            ]);
+
+            // Atualiza o estoque usando updateStocks2
+            $dataEstoque = [
+                'warehouse_id' => $data['warehouse_id'],
+                'user_id' => $data['user_id'],
+                'obs' => 'Ajuste de reserva de item no carrinho',
+                'hash' => md5(uniqid(rand(), true))
+            ];
+            $itemEstoque = [
+                'qty' => abs($quantity_diff),
+                'id' => $data['item_id']
+            ];
+            $transaction = [
+                'id' => 'CART_UPDATE_' . time(),
+                'cash' => $quantity_diff > 0 ? 'reserve' : 'restore'
+            ];
+            updateStocks2($dataEstoque, $itemEstoque, $transaction);
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Erro ao atualizar item no carrinho');
+            }
+
+            return true;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            log_message('error', 'Erro ao atualizar item no carrinho: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    public function get_cart_items($user_id, $warehouse_id)
+    {
+        try {
+            $this->db->select('c.*, i.description, i.sku_code, i.image, i.rate as price, i.stock');
+            $this->db->from(db_prefix() . 'ecommerce_cart c');
+            $this->db->join(db_prefix() . 'items i', 'i.id = c.item_id');
+            $this->db->where('c.user_id', $user_id);
+            $this->db->where('c.warehouse_id', $warehouse_id);
+            $this->db->where('c.status', 'reserved');
+            $this->db->where('c.expires_at >', date('Y-m-d H:i:s'));
+
+            $items = $this->db->get()->result_array();
+
+            // Remove itens expirados
+            foreach ($items as $item) {
+                if (strtotime($item['expires_at']) < time()) {
+                    $this->db->where('id', $item['id']);
+                    $this->db->update(db_prefix() . 'ecommerce_cart', ['status' => 'released']);
+
+                    // Restaura o estoque
+                    $this->db->where('id', $item['item_id']);
+                    $this->db->where('warehouse_id', $warehouse_id);
+                    $this->db->set('stock', 'stock + ' . $item['quantity'], false);
+                    $this->db->update(db_prefix() . 'items');
+                }
+            }
+
+            // Busca novamente os itens válidos
+            $this->db->select('c.*, i.description, i.sku_code, i.image, i.rate as price, i.stock');
+            $this->db->from(db_prefix() . 'ecommerce_cart c');
+            $this->db->join(db_prefix() . 'items i', 'i.id = c.item_id');
+            $this->db->where('c.user_id', $user_id);
+            $this->db->where('c.warehouse_id', $warehouse_id);
+            $this->db->where('c.status', 'reserved');
+            $this->db->where('c.expires_at >', date('Y-m-d H:i:s'));
+
+            return $this->db->get()->result_array();
+
+        } catch (Exception $e) {
+            log_message('error', 'Erro ao buscar itens do carrinho: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    public function clear_cart($user_id, $warehouse_id)
+    {
+        try {
+            $this->db->trans_start();
+
+            // Busca todos os itens do carrinho
+            $this->db->where('user_id', $user_id);
+            $this->db->where('warehouse_id', $warehouse_id);
+            $cart_items = $this->db->get(db_prefix() . 'ecommerce_cart')->result();
+
+            // Para cada item no carrinho, restaura o estoque
+            foreach ($cart_items as $cart_item) {
+                // Busca o item no estoque
+                $this->db->where('id', $cart_item->item_id);
+                $this->db->where('warehouse_id', $warehouse_id);
+                $item = $this->db->get(db_prefix() . 'items')->row();
+
+                if ($item) {
+                    // Restaura o estoque
+                    $new_stock = $item->stock + $cart_item->quantity;
+
+                    // Atualiza o estoque
+                    $this->db->where('id', $cart_item->item_id);
+                    $this->db->where('warehouse_id', $warehouse_id);
+                    $this->db->update(db_prefix() . 'items', ['stock' => $new_stock]);
+                }
+            }
+
+            // Remove todos os itens do carrinho
+            $this->db->where('user_id', $user_id);
+            $this->db->where('warehouse_id', $warehouse_id);
+            $this->db->delete(db_prefix() . 'ecommerce_cart');
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Erro ao limpar carrinho');
+            }
+
+            return true;
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            return false;
+        }
+    }
+
+    public function remove_expired_cart_items()
+    {
+        try {
+            $this->db->trans_start();
+
+            // Busca todos os itens expirados
+            $this->db->where('expires_at <', date('Y-m-d H:i:s'));
+            $expired_items = $this->db->get(db_prefix() . 'ecommerce_cart')->result();
+
+            // Para cada item expirado, restaura o estoque
+            foreach ($expired_items as $cart_item) {
+                // Busca o item no estoque
+                $this->db->where('id', $cart_item->item_id);
+                $this->db->where('warehouse_id', $cart_item->warehouse_id);
+                $item = $this->db->get(db_prefix() . 'items')->row();
+
+                if ($item) {
+                    // Restaura o estoque
+                    $new_stock = $item->stock + $cart_item->quantity;
+
+                    // Atualiza o estoque
+                    $this->db->where('id', $cart_item->item_id);
+                    $this->db->where('warehouse_id', $cart_item->warehouse_id);
+                    $this->db->update(db_prefix() . 'items', ['stock' => $new_stock]);
+                }
+            }
+
+            // Remove todos os itens expirados do carrinho
+            $this->db->where('expires_at <', date('Y-m-d H:i:s'));
+            $this->db->delete(db_prefix() . 'ecommerce_cart');
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Erro ao remover itens expirados');
+            }
+
+            return [
+                'status' => true,
+                'message' => 'Itens expirados removidos com sucesso',
+                'removed_items' => count($expired_items)
+            ];
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            return [
+                'status' => false,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
 }

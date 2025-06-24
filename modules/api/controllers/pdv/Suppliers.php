@@ -25,7 +25,7 @@ class Suppliers extends REST_Controller
   {
     // Construct the parent class
     parent::__construct();
-    $this->load->model('clients_model');
+    $this->load->model('Clients_model');
   }
 
   public function data_get($id = '')
@@ -36,7 +36,7 @@ class Suppliers extends REST_Controller
     $search = $this->get('search') ?: ''; // Parâmetro de busca, se fornecido
     $sortField = $this->get('sortField') ?: 'userid'; // Campo para ordenação, padrão 'id'
     $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-    $data = $this->clients_model->get_supplier($id, $page, $limit, $search, $sortField, $sortOrder);
+    $data = $this->Clients_model->get_supplier($id, $page, $limit, $search, $sortField, $sortOrder);
 
     if ($data) {
       $this->response(['total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
@@ -58,7 +58,7 @@ class Suppliers extends REST_Controller
     } elseif (is_array($_POST) && isset($_POST[0]) && is_array($_POST[0])) {
       // Se for um array de objetos
       foreach ($_POST as $representante) {
-        $output = $this->clients_model->add($representante);
+        $output = $this->Clients_model->add($representante);
       }
 
       $message = array('status' => TRUE, 'message' => 'Import add successful.', 'data' => []);
@@ -72,9 +72,9 @@ class Suppliers extends REST_Controller
       } else {
         $groups_in = $this->Api_model->value($this->input->post('groups_in', TRUE));
 
-        $output = $this->clients_model->add($insert_data);
+        $output = $this->Clients_model->add($insert_data);
         if ($output > 0 && !empty($output)) {
-          $message = array('status' => TRUE, 'message' => 'Client add successful.', 'data' => $this->clients_model->get($output));
+          $message = array('status' => TRUE, 'message' => 'Client add successful.', 'data' => $this->Clients_model->get($output));
           $this->response($message, REST_Controller::HTTP_OK);
         } else {
           $message = array('status' => FALSE, 'message' => 'Client add fail.');
@@ -84,7 +84,6 @@ class Suppliers extends REST_Controller
     }
   }
 
-
   public function data_delete($id = '')
   {
     $id = $this->security->xss_clean($id);
@@ -92,8 +91,8 @@ class Suppliers extends REST_Controller
       $message = array('status' => FALSE, 'message' => 'Invalid Customer ID');
       $this->response($message, REST_Controller::HTTP_NOT_FOUND);
     } else {
-      $this->load->model('clients_model');
-      $output = $this->clients_model->delete($id);
+      $this->load->model('Clients_model');
+      $output = $this->Clients_model->delete($id);
       if ($output === TRUE) {
         $message = array('status' => TRUE, 'message' => 'Customer Delete Successful.');
         $this->response($message, REST_Controller::HTTP_OK);
@@ -107,18 +106,63 @@ class Suppliers extends REST_Controller
 
   public function create_post()
   {
-
-
-    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    $raw_body = $this->input->raw_input_stream;
+    $headers = $this->input->request_headers();
+    $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? null;
 
     try {
       $this->db->trans_start();
 
+      // Decodificar o JSON do corpo da requisição
+      $_POST = json_decode($raw_body, true);
+      if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Invalid JSON input');
+      }
+
       $primary_contact = $_POST['contacts'][0] ?? null;
       $primary_document = $_POST['documents'][0] ?? null;
-
       if (!$primary_contact || !$primary_document) {
         throw new Exception('Primary contact and document are required');
+      }
+
+      // Processar a imagem se existir
+      $profile_image = null;
+      if (!empty($_POST['image'])) {
+        $image_data = $_POST['image'];
+
+        // Verificar se é uma string base64 válida
+        if (preg_match('/^data:image\/(\w+);base64,/', $image_data, $type)) {
+          $image_data = substr($image_data, strpos($image_data, ',') + 1);
+          $type = strtolower($type[1]); // jpg, png, gif
+
+          if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
+            throw new Exception('Tipo de imagem inválido');
+          }
+
+          $image_data = base64_decode($image_data);
+
+          if ($image_data === false) {
+            throw new Exception('Falha ao decodificar a imagem');
+          }
+
+          // Criar diretório de uploads se não existir
+          $upload_path = FCPATH . '/uploads/suppliers/';
+          if (!is_dir($upload_path)) {
+            mkdir($upload_path, 0755, true);
+          }
+
+          // Gerar nome único para o arquivo
+          $filename = 'supplier_' . time() . '_' . uniqid() . '.' . $type;
+          $file_path = $upload_path . $filename;
+
+          // Salvar a imagem no sistema de arquivos
+          if (file_put_contents($file_path, $image_data)) {
+            // Armazenar apenas o caminho relativo no banco de dados
+            $profile_image = 'uploads/suppliers/' . $filename;
+          } else {
+            throw new Exception('Falha ao salvar a imagem no servidor');
+          }
+        }
       }
 
       $required_fields = ['name', 'address', 'city', 'state', 'country', 'company_type', 'business_type', 'segment', 'company_size'];
@@ -146,43 +190,51 @@ class Suppliers extends REST_Controller
         'company' => $_POST['name'],
         'address' => $_POST['address'],
         'city' => $_POST['city'],
+        'code' => $_POST['code'],
         'state' => $_POST['state'],
         'country' => $_POST['country'],
-        'payment_terms' => $_POST['paymentTerm'],
-        'active' => $_POST['status'] === 'active' ? 1 : 0,
+        'cep' => $_POST['cep'] ?? null,
+        'payment_terms' => $_POST['paymentTerm'] ?? null,
+        'active' => ($_POST['status'] === 'active') ? 1 : 0,
         'is_supplier' => 1,
         'datecreated' => date('Y-m-d H:i:s'),
         'phonenumber' => $primary_contact['phone'],
         'vat' => $primary_document['number'],
         'documentType' => strtoupper($primary_document['type']),
-        'email_default' => $_POST['emails'][0] ?? null,
+        'email_default' => $primary_contact['email'] ?? null,
         'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
         'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
         'warehouse_id' => $_POST['warehouse_id'] ?? 0,
-        'company_type' => $_POST['company_type'] ?? null,
-        'business_type' => $_POST['business_type'] ?? null,
-        'segment' => $_POST['segment'] ?? null,
-        'company_size' => $_POST['company_size'] ?? null,
+        'company_type' => $_POST['company_type'],
+        'business_type' => $_POST['business_type'],
+        'segment' => $_POST['segment'],
+        'company_size' => $_POST['company_size'],
         'observations' => $_POST['observations'] ?? null,
-        'commission' => !empty($_POST['commission']) ? (float) $_POST['commission'] : 0,
+        'commission' => isset($_POST['commission']) ? (float)$_POST['commission'] : 0,
         'commercial_conditions' => $_POST['commercial_conditions'] ?? null,
         'commission_type' => $_POST['commission_type'] ?? null,
-        'commission_base_percentage' => !empty($_POST['commission_base_percentage']) ? (float) $_POST['commission_base_percentage'] : 0,
+        'commission_base_percentage' => isset($_POST['commission_base_percentage']) ? (float)$_POST['commission_base_percentage'] : 0,
         'commission_payment_type' => $_POST['commission_payment_type'] ?? null,
-        'commission_due_day' => !empty($_POST['commission_due_day']) ? (int) $_POST['commission_due_day'] : 0,
+        'commission_due_day' => isset($_POST['commission_due_day']) ? (int)$_POST['commission_due_day'] : null,
         'agent_commission_type' => $_POST['agent_commission_type'] ?? null,
-        'agent_commission_base_percentage' => !empty($_POST['agent_commission_base_percentage']) ? (float) $_POST['agent_commission_base_percentage'] : 0,
+        'agent_commission_base_percentage' => isset($_POST['agent_commission_base_percentage']) ? (float)$_POST['agent_commission_base_percentage'] : 0,
         'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
-        'agent_commission_due_day' => !empty($_POST['agent_commission_due_day']) ? (int) $_POST['agent_commission_due_day'] : 0
-
+        'agent_commission_due_day' => isset($_POST['agent_commission_due_day']) ? (int)$_POST['agent_commission_due_day'] : null,
+        'tipo_frete' => $_POST['tipo_frete'] ?? null,
+        'freight_value' => isset($_POST['freight_value']) ? (float)$_POST['freight_value'] : 0,
+        'min_payment_term' => isset($_POST['min_payment_term']) ? (int)$_POST['min_payment_term'] : null,
+        'max_payment_term' => isset($_POST['max_payment_term']) ? (int)$_POST['max_payment_term'] : null,
+        'min_order_value' => isset($_POST['min_order_value']) ? (float)$_POST['min_order_value'] : null,
+        'max_order_value' => isset($_POST['max_order_value']) ? (float)$_POST['max_order_value'] : null,
+        'profile_image' => $profile_image // Armazena o caminho relativo da imagem
       ];
 
-      $supplier_id = $this->clients_model->add($supplier_data);
-
+      $supplier_id = $this->Clients_model->add($supplier_data);
       if (!$supplier_id) {
         throw new Exception('Failed to create supplier');
       }
 
+      // Processar documentos adicionais
       for ($i = 1; $i < count($_POST['documents']); $i++) {
         $document = $_POST['documents'][$i];
         $doc_data = [
@@ -190,37 +242,33 @@ class Suppliers extends REST_Controller
           'document' => $document['number'],
           'type' => strtoupper($document['type'])
         ];
-
         $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
       }
 
-      for ($i = 1; $i < count($_POST['emails']); $i++) {
-        $email = $_POST['emails'][$i];
-        if (!empty($email)) {
-          $email_data = [
-            'supplier_id' => $supplier_id,
-            'email' => $email
-          ];
-
-          $this->db->insert(db_prefix() . 'email_supplier', $email_data);
-        }
-      }
-
+      // Processar contatos adicionais
       for ($i = 1; $i < count($_POST['contacts']); $i++) {
         $contact = $_POST['contacts'][$i];
+
+        $nome = trim($contact['name']);
+        $partes = explode(' ', $nome);
+
+        $firstname = $partes[0] ?? 'Contato';
+        $lastname = isset($partes[1]) ? implode(' ', array_slice($partes, 1)) : 'N/A';
+
         $contact_data = [
           'userid' => $supplier_id,
-          'firstname' => $contact['name'],
-          'phonenumber' => $contact['phone'],
+          'firstname' => $firstname,
+          'lastname' => $lastname,
+          'phonenumber' => $contact['phone'] ?? 'N/A',
+          'email' => $contact['email'] ?? 'N/A',
           'active' => 1,
-          'datecreated' => date('Y-m-d H:i:s')
+          'is_primary' => 0,
+          'datecreated' => date('Y-m-d H:i:s'),
         ];
-
-        $this->clients_model->add_contact($contact_data, $supplier_id);
+        $this->Clients_model->add_contact($contact_data, $supplier_id, false);
       }
 
       $this->db->trans_complete();
-
       if ($this->db->trans_status() === FALSE) {
         throw new Exception('Transaction failed');
       }
@@ -228,11 +276,11 @@ class Suppliers extends REST_Controller
       $this->response([
         'status' => TRUE,
         'message' => 'Supplier created successfully',
-        'supplier_id' => $supplier_id
+        'supplier_id' => $supplier_id,
+        'image_url' => $profile_image ? base_url($profile_image) : null // Retorna a URL completa da imagem
       ], REST_Controller::HTTP_OK);
     } catch (Exception $e) {
       $this->db->trans_rollback();
-
       $this->response([
         'status' => FALSE,
         'message' => 'Error: ' . $e->getMessage()
@@ -240,221 +288,112 @@ class Suppliers extends REST_Controller
     }
   }
 
-  public function update_put($id)
+  public function update_put($id = '')
   {
     if (empty($id) || !is_numeric($id)) {
-      $this->response([
+      return $this->response([
         'status' => FALSE,
         'message' => 'Invalid supplier ID'
       ], REST_Controller::HTTP_BAD_REQUEST);
-      return;
     }
 
-    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    $raw_body = $this->input->raw_input_stream;
+    $headers = $this->input->request_headers();
+    $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? null;
 
     try {
       $this->db->trans_start();
 
-      $primary_contact = $_POST['contacts'][0] ?? null;
-      $primary_document = $_POST['documents'][0] ?? null;
-
-      if (!$primary_contact || !$primary_document) {
-        throw new Exception('Primary contact and document are required');
+      $_PUT = json_decode($raw_body, true);
+      if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Invalid JSON input');
       }
 
-      $required_fields = ['name', 'address', 'city', 'state', 'country', 'company_type', 'business_type', 'segment', 'company_size'];
-      foreach ($required_fields as $field) {
-        if (empty($_POST[$field])) {
-          throw new Exception("Field {$field} is required");
+      // Buscar dados atuais do fornecedor
+      $current_supplier = $this->db->select('profile_image')
+        ->from('tblclients')
+        ->where('userid', $id)
+        ->get()
+        ->row();
+
+      if (!$current_supplier) {
+        throw new Exception('Supplier not found');
+      }
+
+      $old_image_path = !empty($current_supplier->profile_image) ? FCPATH . ltrim($current_supplier->profile_image, '/') : null;
+
+      // Processar nova imagem se enviada
+      $profile_image = $current_supplier->profile_image; // Mantém a imagem atual por padrão
+
+      if (!empty($_PUT['image'])) {
+        $image_data = $_PUT['image'];
+
+        if (preg_match('/^data:image\/(\w+);base64,/', $image_data, $type)) {
+          $image_data = substr($image_data, strpos($image_data, ',') + 1);
+          $type = strtolower($type[1]);
+
+          if (!in_array($type, ['jpg', 'jpeg', 'png', 'gif'])) {
+            throw new Exception('Tipo de imagem inválido');
+          }
+
+          $image_data = base64_decode($image_data);
+          if ($image_data === false) {
+            throw new Exception('Falha ao decodificar a imagem');
+          }
+
+          $upload_path = FCPATH . 'uploads/suppliers/';
+          if (!is_dir($upload_path)) {
+            mkdir($upload_path, 0755, true);
+          }
+
+          $filename = 'supplier_' . time() . '_' . uniqid() . '.' . $type;
+          $file_path = $upload_path . $filename;
+
+          if (file_put_contents($file_path, $image_data)) {
+            $profile_image = 'uploads/suppliers/' . $filename;
+            $_PUT['profile_image'] = $profile_image;
+
+            // Apagar imagem antiga com segurança
+            if ($old_image_path && file_exists($old_image_path)) {
+              unlink($old_image_path);
+            }
+          } else {
+            throw new Exception('Falha ao salvar a imagem no servidor');
+          }
         }
-      }
+      } elseif (isset($_PUT['remove_image']) && $_PUT['remove_image'] === true) {
+        // Apenas remover imagem se instruído
+        $_PUT['profile_image'] = null;
+        $profile_image = null;
 
-      $percentage_fields = ['commission', 'commission_base_percentage', 'agent_commission_base_percentage'];
-      foreach ($percentage_fields as $field) {
-        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 0 || $_POST[$field] > 100)) {
-          throw new Exception("Field {$field} must be between 0 and 100");
+        if ($old_image_path && file_exists($old_image_path)) {
+          unlink($old_image_path);
         }
+      } else {
+        // Se não foi enviada nova imagem nem instrução para remover, mantém a atual
+        $_PUT['profile_image'] = $current_supplier->profile_image;
       }
 
-      $due_day_fields = ['commission_due_day', 'agent_commission_due_day'];
-      foreach ($due_day_fields as $field) {
-        if (isset($_POST[$field]) && $_POST[$field] !== '' && $_POST[$field] !== null && ($_POST[$field] < 1 || $_POST[$field] > 31)) {
-          throw new Exception("Field {$field} must be between 1 and 31");
-        }
-      }
+      log_activity('Supplier Update Payload: ' . print_r($_PUT, true));
 
-      $supplier_data = [
-        'company' => $_POST['name'],
-        'address' => $_POST['address'],
-        'city' => $_POST['city'],
-        'state' => $_POST['state'],
-        'country' => $_POST['country'],
-        'payment_terms' => $_POST['paymentTerm'],
-        'active' => $_POST['status'] === 'active' ? 1 : 0,
-        'phonenumber' => $primary_contact['phone'],
-        'vat' => $primary_document['number'],
-        'documentType' => strtoupper($primary_document['type']),
-        'email_default' => $_POST['emails'][0] ?? null,
-        'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
-        'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
-        'company_type' => $_POST['company_type'] ?? null,
-        'business_type' => $_POST['business_type'] ?? null,
-        'segment' => $_POST['segment'] ?? null,
-        'company_size' => $_POST['company_size'] ?? null,
-        'observations' => $_POST['observations'] ?? null,
-        'commission' => !empty($_POST['commission']) ? (float) $_POST['commission'] : 0,
-        'commercial_conditions' => $_POST['commercial_conditions'] ?? null,
-        'commission_type' => $_POST['commission_type'] ?? null,
-        'commission_base_percentage' => !empty($_POST['commission_base_percentage']) ? (float) $_POST['commission_base_percentage'] : 0,
-        'commission_payment_type' => $_POST['commission_payment_type'] ?? null,
-        'commission_due_day' => !empty($_POST['commission_due_day']) ? (int) $_POST['commission_due_day'] : 0,
-        'agent_commission_type' => $_POST['agent_commission_type'] ?? null,
-        'agent_commission_base_percentage' => !empty($_POST['agent_commission_base_percentage']) ? (float) $_POST['agent_commission_base_percentage'] : 0,
-        'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
-        'agent_commission_due_day' => !empty($_POST['agent_commission_due_day']) ? (int) $_POST['agent_commission_due_day'] : 0
-      ];
-
-      $this->clients_model->update($supplier_data, $id);
-
-      $this->db->where('supplier_id', $id);
-      $this->db->delete(db_prefix() . 'document_supplier');
-
-      for ($i = 1; $i < count($_POST['documents']); $i++) {
-        $document = $_POST['documents'][$i];
-        $doc_data = [
-          'supplier_id' => $id,
-          'document' => $document['number'],
-          'type' => strtoupper($document['type'])
-        ];
-
-        $this->db->insert(db_prefix() . 'document_supplier', $doc_data);
-      }
-
-      $this->db->where('supplier_id', $id);
-      $this->db->delete(db_prefix() . 'email_supplier');
-
-      for ($i = 1; $i < count($_POST['emails']); $i++) {
-        $email = $_POST['emails'][$i];
-        if (!empty($email)) {
-          $email_data = [
-            'supplier_id' => $id,
-            'email' => $email
-          ];
-
-          $this->db->insert(db_prefix() . 'email_supplier', $email_data);
-        }
-      }
-
-      $this->db->where('userid', $id);
-      $this->db->delete(db_prefix() . 'contacts');
-
-      for ($i = 1; $i < count($_POST['contacts']); $i++) {
-        $contact = $_POST['contacts'][$i];
-        $contact_data = [
-          'userid' => $id,
-          'firstname' => $contact['name'],
-          'phonenumber' => $contact['phone'],
-          'active' => 1,
-          'datecreated' => date('Y-m-d H:i:s')
-        ];
-
-        $this->clients_model->add_contact($contact_data, $id);
-      }
+      $this->load->model('Clients_model');
+      $updated = $this->Clients_model->update_supplier($id, $_PUT);
 
       $this->db->trans_complete();
-
-      if ($this->db->trans_status() === FALSE) {
-        throw new Exception('Transaction failed');
+      if ($this->db->trans_status() === FALSE || !$updated) {
+        throw new Exception('Failed to update supplier');
       }
 
-      $this->db->where('userid', $id);
-      $this->db->where('is_supplier', 1);
-      $updated_supplier = $this->db->get(db_prefix() . 'clients')->row_array();
-
-      $this->db->where('supplier_id', $id);
-      $updated_documents = $this->db->get(db_prefix() . 'document_supplier')->result_array();
-
-      $this->db->where('supplier_id', $id);
-      $updated_emails = $this->db->get(db_prefix() . 'email_supplier')->result_array();
-
-      $this->db->where('userid', $id);
-      $updated_contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
-
-      $all_documents = array_merge(
-        [
-          [
-            'type' => $updated_supplier['documentType'] ?? 'cnpj',
-            'number' => $updated_supplier['vat']
-          ]
-        ],
-        array_map(function ($doc) use ($updated_supplier) {
-          return [
-            'type' => $updated_supplier['documentType'] ?? 'cnpj',
-            'number' => $doc['document']
-          ];
-        }, $updated_documents)
-      );
-
-      $all_emails = array_merge(
-        [$updated_supplier['email_default']],
-        array_column($updated_emails, 'email')
-      );
-
-      $all_contacts = array_merge(
-        [
-          [
-            'name' => $updated_supplier['company'],
-            'phone' => $updated_supplier['phonenumber']
-          ]
-        ],
-        array_map(function ($contact) {
-          return [
-            'name' => $contact['firstname'],
-            'phone' => $contact['phonenumber']
-          ];
-        }, $updated_contacts)
-      );
-
-      $response_data = [
-        'userid' => $updated_supplier['userid'],
-        'name' => $updated_supplier['company'],
-        'address' => $updated_supplier['address'],
-        'city' => $updated_supplier['city'],
-        'state' => $updated_supplier['state'],
-        'country' => $updated_supplier['country'],
-        'paymentTerm' => $updated_supplier['payment_terms'],
-        'status' => $updated_supplier['active'] ? 'active' : 'inactive',
-        'documents' => $all_documents,
-        'emails' => array_filter($all_emails),
-        'contacts' => $all_contacts,
-        'inscricao_estadual' => $updated_supplier['inscricao_estadual'],
-        'inscricao_municipal' => $updated_supplier['inscricao_municipal'],
-        'company_type' => $updated_supplier['company_type'],
-        'business_type' => $updated_supplier['business_type'],
-        'segment' => $updated_supplier['segment'],
-        'company_size' => $updated_supplier['company_size'],
-        'observations' => $updated_supplier['observations'],
-        'commission' => (float) $updated_supplier['commission'],
-        'commercial_conditions' => $updated_supplier['commercial_conditions'],
-        'commission_type' => $updated_supplier['commission_type'],
-        'commission_base_percentage' => (float) $updated_supplier['commission_base_percentage'],
-        'commission_payment_type' => $updated_supplier['commission_payment_type'],
-        'commission_due_day' => (int) $updated_supplier['commission_due_day'],
-        'agent_commission_type' => $updated_supplier['agent_commission_type'],
-        'agent_commission_base_percentage' => (float) $updated_supplier['agent_commission_base_percentage'],
-        'agent_commission_payment_type' => $updated_supplier['agent_commission_payment_type'],
-        'agent_commission_due_day' => (int) $updated_supplier['agent_commission_due_day']
-      ];
-
-      $this->response([
+      log_activity('Supplier updated successfully ID: ' . $id);
+      return $this->response([
         'status' => TRUE,
         'message' => 'Supplier updated successfully',
-        'data' => $response_data
+        'supplier_id' => $id,
+        'image_url' => $profile_image ? base_url($profile_image) : null
       ], REST_Controller::HTTP_OK);
     } catch (Exception $e) {
       $this->db->trans_rollback();
-
-      $this->response([
+      return $this->response([
         'status' => FALSE,
         'message' => 'Error: ' . $e->getMessage()
       ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
@@ -464,107 +403,30 @@ class Suppliers extends REST_Controller
   public function get_get($id = '')
   {
     if (empty($id) || !is_numeric($id)) {
-      $this->response([
+      return $this->response([
         'status' => FALSE,
         'message' => 'Invalid supplier ID'
       ], REST_Controller::HTTP_BAD_REQUEST);
-      return;
     }
 
-    $this->db->where('userid', $id);
-    $this->db->where('is_supplier', 1);
-    $supplier = $this->db->get(db_prefix() . 'clients')->row_array();
+    $this->load->model('Clients_model');
+
+    $supplier = $this->Clients_model->get($id);
 
     if (!$supplier) {
-      $this->response([
+      return $this->response([
         'status' => FALSE,
         'message' => 'Supplier not found'
       ], REST_Controller::HTTP_NOT_FOUND);
-      return;
     }
 
-    $this->db->where('supplier_id', $id);
-    $documents = $this->db->get(db_prefix() . 'document_supplier')->result_array();
-
-    $this->db->where('supplier_id', $id);
-    $additional_emails = $this->db->get(db_prefix() . 'email_supplier')->result_array();
-
-    $this->db->where('userid', $id);
-    $additional_contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
-
-    $all_documents = array_merge(
-      [
-        [
-          'type' => $supplier['documentType'] ?? 'cnpj',
-          'number' => $supplier['vat']
-        ]
-      ],
-      array_map(function ($doc) use ($supplier) {
-        return [
-          'type' => $supplier['documentType'] ?? 'cnpj',
-          'number' => $doc['document']
-        ];
-      }, $documents)
-    );
-
-    $all_emails = array_merge(
-      [$supplier['email_default']],
-      array_column($additional_emails, 'email')
-    );
-
-    $all_contacts = array_merge(
-      [
-        [
-          'name' => $supplier['company'],
-          'phone' => $supplier['phonenumber']
-        ]
-      ],
-      array_map(function ($contact) {
-        return [
-          'name' => $contact['firstname'],
-          'phone' => $contact['phonenumber']
-        ];
-      }, $additional_contacts)
-    );
-
-    $response_data = [
-      'userid' => $supplier['userid'],
-      'name' => $supplier['company'],
-      'address' => $supplier['address'],
-      'city' => $supplier['city'],
-      'state' => $supplier['state'],
-      'country' => $supplier['country'],
-      'paymentTerm' => $supplier['payment_terms'],
-      'status' => $supplier['active'] ? 'active' : 'inactive',
-      'documents' => $all_documents,
-      'emails' => array_filter($all_emails),
-      'contacts' => $all_contacts,
-      'inscricao_estadual' => $supplier['inscricao_estadual'],
-      'inscricao_municipal' => $supplier['inscricao_municipal'],
-      'company_type' => $supplier['company_type'],
-      'business_type' => $supplier['business_type'],
-      'segment' => $supplier['segment'],
-      'company_size' => $supplier['company_size'],
-      'observations' => $supplier['observations'],
-      'commission' => (float) $supplier['commission'],
-      'commercial_conditions' => $supplier['commercial_conditions'],
-      'commission_type' => $supplier['commission_type'],
-      'commission_base_percentage' => (float) $supplier['commission_base_percentage'],
-      'commission_payment_type' => $supplier['commission_payment_type'],
-      'commission_due_day' => (int) $supplier['commission_due_day'],
-      'agent_commission_type' => $supplier['agent_commission_type'],
-      'agent_commission_base_percentage' => (float) $supplier['agent_commission_base_percentage'],
-      'agent_commission_payment_type' => $supplier['agent_commission_payment_type'],
-      'agent_commission_due_day' => (int) $supplier['agent_commission_due_day']
-    ];
-
-    $this->response([
+    return $this->response([
       'status' => TRUE,
-      'data' => $response_data
+      'data' => $supplier
     ], REST_Controller::HTTP_OK);
   }
-
-  public function list_get()
+  
+public function list_get()
   {
     $page = $this->get('page') ? (int) $this->get('page') : 1;
     $limit = $this->get('limit') ? (int) $this->get('limit') : 10;
@@ -716,6 +578,34 @@ class Suppliers extends REST_Controller
     ], REST_Controller::HTTP_OK);
   }
 
+  public function list_post()
+  {
+    $page = $this->post('page') ? (int) $this->post('page') : 1; // Já começa em 1 agora
+    $limit = $this->post('limit') ? (int) $this->post('limit') : 10; // Mudei de pageSize para limit
+    $search = $this->post('search') ?: '';
+    $sortField = $this->post('sortField') ?: 'userid';
+    $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC';
+    $status = $this->post('status') ? (array) $this->post('status') : []; // Agora trata como array
+    $startDate = $this->post('startDate') ?: '';
+    $endDate = $this->post('endDate') ?: '';
+    $warehouse_id = $this->post('warehouse_id') ? (int) $this->post('warehouse_id') : 0;
+
+    $data = $this->Clients_model->get_api('', $page, $limit, $search, $sortField, $sortOrder, $status, $startDate, $endDate, $warehouse_id);
+
+    if (empty($data['data'])) {
+      // Adicione um log para debug
+      log_message('debug', 'Suppliers query returned empty. Params: ' . json_encode($this->post()));
+      $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
+    } else {
+      $this->response([
+        'status' => TRUE,
+        'total' => $data['total'],
+        'data' => $data['data']
+      ], REST_Controller::HTTP_OK);
+    }
+  }
+
+
   public function remove_post()
   {
     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -838,7 +728,7 @@ class Suppliers extends REST_Controller
         'warehouse_id' => $_POST['warehouse_id'] ?? 0,
       ];
 
-      $supplier_id = $this->clients_model->add($supplier_data);
+      $supplier_id = $this->Clients_model->add($supplier_data);
 
       if (!$supplier_id) {
         throw new Exception('Falha ao criar fornecedor');
@@ -853,7 +743,7 @@ class Suppliers extends REST_Controller
         'datecreated' => date('Y-m-d H:i:s')
       ];
 
-      $this->clients_model->add_contact($contact_data, $supplier_id);
+      $this->Clients_model->add_contact($contact_data, $supplier_id);
 
       $this->db->trans_complete();
 
@@ -878,7 +768,6 @@ class Suppliers extends REST_Controller
           'email_default' => $created_supplier['email_default'],
         ]
       ], REST_Controller::HTTP_OK);
-
     } catch (Exception $e) {
       $this->db->trans_rollback();
 

@@ -378,15 +378,22 @@ class Settings extends REST_Controller
             if ($this->db->affected_rows() > 0) {
                 $updated++;
             } else {
-                $this->db->insert(db_prefix() . 'options', [
-                    'name' => $update['name'],
-                    'value' => $update['value'],
-                    'autoload' => 1,
-                    'type' => $update['type'],
-                    'warehouse_id' => $update['warehouse_id']
-                ]);
-                if ($this->db->affected_rows() > 0) {
-                    $created++;
+                // Verifica se já existe o registro
+                $this->db->where('name', $update['name']);
+                $this->db->where('warehouse_id', $warehouse_id);
+                $exists = $this->db->get(db_prefix() . 'options')->row();
+
+                if (!$exists) {
+                    $this->db->insert(db_prefix() . 'options', [
+                        'name' => $update['name'],
+                        'value' => $update['value'],
+                        'autoload' => 1,
+                        'type' => $update['type'],
+                        'warehouse_id' => $update['warehouse_id']
+                    ]);
+                    if ($this->db->affected_rows() > 0) {
+                        $created++;
+                    }
                 }
             }
         }

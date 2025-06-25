@@ -275,6 +275,14 @@ class Settings extends REST_Controller
                 'type' => 'boolean',
                 'required' => false
             ],
+            'pdv_senha_deletar_produto' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'pdv_senha_editar_produto' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
             'purchase_needs_enabled' => [
                 'type' => 'boolean',
                 'required' => false

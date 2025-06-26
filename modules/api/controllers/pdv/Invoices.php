@@ -1562,6 +1562,7 @@ class Invoices extends REST_Controller
         }
     }
 
+    // funcao para remover item do carrinho depois de expirar - CRON JOB
     public function remove_expired_items_post()
     {
         $this->load->model('invoices_model');

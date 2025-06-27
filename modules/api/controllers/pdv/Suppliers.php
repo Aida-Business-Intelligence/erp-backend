@@ -121,8 +121,11 @@ class Suppliers extends REST_Controller
 
       $primary_contact = $_POST['contacts'][0] ?? null;
       $primary_document = $_POST['documents'][0] ?? null;
-      if (!$primary_contact || !$primary_document) {
-        throw new Exception('Primary contact and document are required');
+      if (!$primary_document || empty($primary_document['number'])) {
+        throw new Exception('Primary document is required');
+      }
+      if (empty($_POST['name'])) {
+        throw new Exception('Field name is required');
       }
 
       // Processar a imagem se existir
@@ -162,13 +165,6 @@ class Suppliers extends REST_Controller
           } else {
             throw new Exception('Falha ao salvar a imagem no servidor');
           }
-        }
-      }
-
-      $required_fields = ['name', 'address', 'city', 'state', 'country', 'company_type', 'business_type', 'segment', 'company_size'];
-      foreach ($required_fields as $field) {
-        if (empty($_POST[$field])) {
-          throw new Exception("Field {$field} is required");
         }
       }
 
@@ -307,6 +303,14 @@ class Suppliers extends REST_Controller
       $_PUT = json_decode($raw_body, true);
       if (json_last_error() !== JSON_ERROR_NONE) {
         throw new Exception('Invalid JSON input');
+      }
+
+      // Validação: apenas 'name' e 'vat' obrigatórios
+      if (empty($_PUT['name'])) {
+        throw new Exception('Field name is required');
+      }
+      if (empty($_PUT['vat'])) {
+        throw new Exception('Field vat (document number) is required');
       }
 
       // Buscar dados atuais do fornecedor

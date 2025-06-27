@@ -590,19 +590,94 @@ public function list_get()
     $endDate = $this->post('endDate') ?: '';
     $warehouse_id = $this->post('warehouse_id') ? (int) $this->post('warehouse_id') : 0;
 
-    $data = $this->Clients_model->get_api('', $page, $limit, $search, $sortField, $sortOrder, $status, $startDate, $endDate, $warehouse_id);
+    // Primeiro, conte o total de fornecedores (sem joins)
+    $this->db->from('tblclients');
+    $this->db->where('is_supplier', 1);
+    // ... outros filtros (search, status, etc)
+    $total = $this->db->count_all_results();
 
-    if (empty($data['data'])) {
-      // Adicione um log para debug
-      log_message('debug', 'Suppliers query returned empty. Params: ' . json_encode($this->post()));
-      $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
-    } else {
-      $this->response([
-        'status' => TRUE,
-        'total' => $data['total'],
-        'data' => $data['data']
-      ], REST_Controller::HTTP_OK);
+    // Depois, faça a query com joins e group_by para buscar os dados paginados
+    $this->db->select('c.userid, c.company, c.vat, c.phonenumber, c.city, c.state, 
+      c.country, c.active, c.datecreated, c.email_default, c.payment_terms,
+      c.person_type, c.business_type, c.segment, c.company_size,
+      c.inscricao_estadual, c.inscricao_municipal, c.observations,
+      c.commission, c.commercial_conditions, c.commission_type,
+      c.commission_base_percentage, c.commission_payment_type,
+      c.commission_due_day, c.agent_commission_type,
+      c.agent_commission_base_percentage, c.agent_commission_payment_type,
+      c.agent_commission_due_day, c.address,
+      c.zip,
+      c.documentType,
+      GROUP_CONCAT(DISTINCT ds.document) as additional_documents,
+      GROUP_CONCAT(DISTINCT es.email) as additional_emails,
+      COUNT(DISTINCT co.id) as contacts_count', false);
+    $this->db->from(db_prefix() . 'clients c');
+    $this->db->join(db_prefix() . 'document_supplier ds', 'ds.supplier_id = c.userid', 'left');
+    $this->db->join(db_prefix() . 'email_supplier es', 'es.supplier_id = c.userid', 'left');
+    $this->db->join(db_prefix() . 'contacts co', 'co.userid = c.userid', 'left');
+    $this->db->where('c.is_supplier', 1);
+    $this->db->where('c.warehouse_id', $warehouse_id);
+    if (!empty($search)) {
+      $this->db->group_start();
+      $this->db->like('c.company', $search);
+      $this->db->or_like('c.vat', $search);
+      $this->db->or_like('c.email_default', $search);
+      $this->db->or_like('ds.document', $search);
+      $this->db->or_like('es.email', $search);
+      $this->db->group_end();
     }
+
+    if (!empty($status)) {
+      $this->db->where_in('c.active', $status);
+    }
+
+    if (!empty($startDate)) {
+      $this->db->where('DATE(c.datecreated) >=', date('Y-m-d', strtotime($startDate)));
+    }
+    if (!empty($endDate)) {
+      $this->db->where('DATE(c.datecreated) <=', date('Y-m-d', strtotime($endDate)));
+    }
+
+    $this->db->group_by('c.userid');
+
+    $validSortFields = [
+      'userid' => 'c.userid',
+      'name' => 'c.company',
+      'company' => 'c.company',
+      'city' => 'c.city',
+      'state' => 'c.state',
+      'country' => 'c.country',
+      'created_at' => 'c.datecreated',
+      'status' => 'c.active'
+    ];
+
+    $sortFieldDB = isset($validSortFields[$sortField]) ? $validSortFields[$sortField] : 'c.company';
+    $this->db->order_by($sortFieldDB, $sortOrder);
+
+    $this->db->limit($limit, ($page - 1) * $limit);
+    $data = $this->db->get()->result_array();
+
+    foreach ($data as &$supplier) {
+      $this->db->select('firstname as name, phonenumber as phone');
+      $this->db->where('userid', $supplier['userid']);
+      $contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
+
+      $supplier['contacts'] = array_merge(
+        [
+          [
+            'name' => $supplier['company'],
+            'phone' => $supplier['phonenumber']
+          ]
+        ],
+        $contacts
+      );
+    }
+
+    $this->response([
+      'status' => TRUE,
+      'total' => (int) $total,
+      'data' => $data
+    ], REST_Controller::HTTP_OK);
   }
 
 

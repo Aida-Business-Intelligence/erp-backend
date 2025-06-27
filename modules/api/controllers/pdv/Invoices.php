@@ -1582,4 +1582,27 @@ class Invoices extends REST_Controller
         }
     }
 
+    // Endpoint para retornar o estoque atual de um item
+    public function get_stock_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['item_id']) || !isset($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'item_id e warehouse_id são obrigatórios'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $item_id = $_POST['item_id'];
+        $warehouse_id = $_POST['warehouse_id'];
+        $stock = $this->Invoices_model->get_stock($item_id, $warehouse_id);
+
+        $this->response([
+            'status' => TRUE,
+            'stock' => $stock
+        ], REST_Controller::HTTP_OK);
+    }
+
 }

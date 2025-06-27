@@ -602,7 +602,7 @@ public function list_get()
 
     // Depois, faça a query com joins e group_by para buscar os dados paginados
     $this->db->select('c.userid, c.company, c.vat, c.phonenumber, c.city, c.state, 
-      c.country, c.active, c.datecreated, c.email_default, c.payment_terms,
+      c.country, c.active, c.datecreated, c.email_default, c.active, c.payment_terms,
       c.person_type, c.business_type, c.segment, c.company_size,
       c.inscricao_estadual, c.inscricao_municipal, c.observations,
       c.commission, c.commercial_conditions, c.commission_type,

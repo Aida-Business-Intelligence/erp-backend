@@ -292,6 +292,21 @@ class Settings extends REST_Controller
                 'required' => false,
                 'max_length' => 100
             ],
+            'ecommerce_settings' => [
+                'type' => 'string',
+                'required' => false,
+                'max_length' => 10000
+            ],
+            'ecommerce_rep_settings' => [
+                'type' => 'string',
+                'required' => false,
+                'max_length' => 10000
+            ],
+            'order_settings' => [
+                'type' => 'string',
+                'required' => false,
+                'max_length' => 10000
+            ],
         ];
 
         $updates = [];

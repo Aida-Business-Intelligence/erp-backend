@@ -420,10 +420,7 @@ class Settings extends REST_Controller
     public function create_menu_post()
     {
 
-        ini_set('display_errors', 1);
-		ini_set('display_startup_erros', 1);
-		error_reporting(E_ALL);
-
+      
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 

@@ -159,6 +159,7 @@ class Authentication_model extends App_Model
 
                 $data_user = [
                     'user_id' => $user->staffid,
+                    'admin' => $user->admin,
                     'staffid' => $user->staffid,
                     'firstname' => $user->firstname,
                     'lastname' => $user->lastname,

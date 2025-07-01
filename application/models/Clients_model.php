@@ -2205,4 +2205,173 @@ class Clients_model extends App_Model
 
         return $this->db->get(db_prefix() . 'contacts')->result_array();
     }
+
+    // Lista clients que são Franchisees
+
+    public function get_api_franchisee_client($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $status = [], $startDate = '', $endDate = '', $warehouse_id = 0)
+    {
+        $allowedSortFields = [
+            'userid',
+            'company',
+            'vat',
+            'city',
+            'state',
+            'payment_terms',
+            'active',
+            'datecreated'
+        ];
+
+        if (!in_array($sortField, $allowedSortFields)) {
+            $sortField = 'userid';
+        }
+
+        $this->db->select('*');
+        $this->db->from(db_prefix() . 'clients');
+        $this->db->where('is_supplier', 0); // supplier = 0 cliente e franchisee = 1 é franquia
+        $this->db->where('is_franchisee', 1);
+
+        if ($warehouse_id > 0) {
+            $this->db->where('warehouse_id', $warehouse_id);
+        }
+
+        if (!empty($status)) {
+            $statusValues = array_map(function ($s) {
+                return $s === 'active' ? 1 : 0;
+            }, $status);
+            $this->db->where_in('active', $statusValues);
+        }
+
+        if (!empty($startDate) && !empty($endDate)) {
+            $this->db->where('datecreated >=', $startDate . ' 00:00:00');
+            $this->db->where('datecreated <=', $endDate . ' 23:59:59');
+        }
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like(db_prefix() . 'clients.company', $search);
+            $this->db->or_like(db_prefix() . 'clients.vat', $search);
+            $this->db->or_like(db_prefix() . 'clients.city', $search);
+            $this->db->or_like(db_prefix() . 'clients.state', $search);
+            $this->db->or_like(db_prefix() . 'clients.address', $search);
+            $this->db->or_like(db_prefix() . 'clients.cep', $search);
+            $this->db->or_like(db_prefix() . 'clients.nome_fantasia', $search);
+            $this->db->or_like(db_prefix() . 'clients.inscricao_estadual', $search);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results('', FALSE);
+
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $suppliers = $this->db->get()->result_array();
+
+        $formattedData = [];
+        foreach ($suppliers as $supplier) {
+            $formattedData[] = [
+                'userid' => $supplier['userid'],
+                'company' => $supplier['company'],
+                'vat' => $supplier['vat'],
+                'city' => $supplier['city'] ?: '-',
+                'state' => $supplier['state'] ?: '-',
+                'payment_terms' => $supplier['payment_terms'] ?: '-',
+                'status' => $supplier['active'] ? 'active' : 'inactive',
+                'created_at' => $supplier['datecreated'],
+                'email_default' => $supplier['email_default'] ?? null,
+                'documents' => [
+                    [
+                        'type' => 'cnpj',
+                        'number' => $supplier['vat']
+                    ]
+                ],
+                'contacts_count' => 0
+            ];
+        }
+
+        return ['data' => $formattedData, 'total' => $total];
+    }
+
+    // Lista fornecedores que são Franchisees
+    public function get_api_franchisee_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $status = [], $startDate = '', $endDate = '', $warehouse_id = 0)
+    {
+        $allowedSortFields = [
+            'userid',
+            'company',
+            'vat',
+            'city',
+            'state',
+            'payment_terms',
+            'active',
+            'datecreated'
+        ];
+
+        if (!in_array($sortField, $allowedSortFields)) {
+            $sortField = 'userid';
+        }
+
+        $this->db->select('*');
+        $this->db->from(db_prefix() . 'clients');
+        $this->db->where('is_supplier', 1); // supplier = 0 cliente e franchisee = 1 é franquia
+        $this->db->where('is_franchisee', 1); // supplier = 0 cliente e franchisee = 1 é franquia
+
+        if ($warehouse_id > 0) {
+            $this->db->where('warehouse_id', $warehouse_id);
+        }
+
+        if (!empty($status)) {
+            $statusValues = array_map(function ($s) {
+                return $s === 'active' ? 1 : 0;
+            }, $status);
+            $this->db->where_in('active', $statusValues);
+        }
+
+        if (!empty($startDate) && !empty($endDate)) {
+            $this->db->where('datecreated >=', $startDate . ' 00:00:00');
+            $this->db->where('datecreated <=', $endDate . ' 23:59:59');
+        }
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like(db_prefix() . 'clients.company', $search);
+            $this->db->or_like(db_prefix() . 'clients.vat', $search);
+            $this->db->or_like(db_prefix() . 'clients.city', $search);
+            $this->db->or_like(db_prefix() . 'clients.state', $search);
+            $this->db->or_like(db_prefix() . 'clients.address', $search);
+            $this->db->or_like(db_prefix() . 'clients.cep', $search);
+            $this->db->or_like(db_prefix() . 'clients.nome_fantasia', $search);
+            $this->db->or_like(db_prefix() . 'clients.inscricao_estadual', $search);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results('', FALSE);
+
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $suppliers = $this->db->get()->result_array();
+
+        $formattedData = [];
+        foreach ($suppliers as $supplier) {
+            $formattedData[] = [
+                'userid' => $supplier['userid'],
+                'company' => $supplier['company'],
+                'vat' => $supplier['vat'],
+                'city' => $supplier['city'] ?: '-',
+                'state' => $supplier['state'] ?: '-',
+                'payment_terms' => $supplier['payment_terms'] ?: '-',
+                'status' => $supplier['active'] ? 'active' : 'inactive',
+                'created_at' => $supplier['datecreated'],
+                'email_default' => $supplier['email_default'] ?? null,
+                'documents' => [
+                    [
+                        'type' => 'cnpj',
+                        'number' => $supplier['vat']
+                    ]
+                ],
+                'contacts_count' => 0
+            ];
+        }
+
+        return ['data' => $formattedData, 'total' => $total];
+    }
 }

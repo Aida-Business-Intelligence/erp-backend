@@ -387,6 +387,7 @@ abstract class REST_Controller extends CI_Controller {
         
         $this->authservice = new AuthService();
         $this->token_jwt  = $this->input->get_request_header('Authorization');
+       
       
         
              

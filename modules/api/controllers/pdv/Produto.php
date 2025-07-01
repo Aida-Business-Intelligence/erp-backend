@@ -30,6 +30,51 @@ class Produto extends REST_Controller
         $this->load->model('Settings_model');
     }
 
+    public function get_by_sku_or_commodity_post()
+    {
+
+                $id = $this->post('sku_code');
+        $warehouse_id = $this->post('warehouse_id');
+
+
+        if (empty($warehouse_id)) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+        $data = $this->Invoice_items_model->get_by_sku_or_commodity(
+            $id,
+            $warehouse_id
+           
+        );
+
+    
+
+        if ($data) {
+          
+            $this->response(
+                [
+                    'status' => true,
+                    'total' => 1,
+                    'data' => $data
+                ],
+                REST_Controller::HTTP_OK
+            );
+        } else {
+            $this->response(
+                [
+                    'status' => false,
+                    'message' => 'Produto não encontrado',
+                    'total' => $data['total'] ?? 0,
+                    'data' => $data['data'] ?? []
+                ],
+                REST_Controller::HTTP_NOT_FOUND
+            );
+        }
+    }
+
     public function list_post($id = '')
     {
         $warehouse_id = $this->post('warehouse_id');
@@ -556,8 +601,6 @@ class Produto extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
-
-
 
     public function remove_post()
     {

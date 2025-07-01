@@ -2489,4 +2489,15 @@ class Invoices_model extends App_Model
         }
     }
 
+    // Retorna o estoque atual de um item em um warehouse
+    public function get_stock($item_id, $warehouse_id)
+    {
+        $this->db->select('stock');
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where('id', $item_id);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $row = $this->db->get()->row();
+        return $row ? (int) $row->stock : 0;
+    }
+
 }

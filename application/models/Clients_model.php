@@ -222,7 +222,6 @@ class Clients_model extends App_Model
         return $this->db->affected_rows() > 0;
     }
 
-
     public function get($id)
     {
         $this->db->where('userid', $id);

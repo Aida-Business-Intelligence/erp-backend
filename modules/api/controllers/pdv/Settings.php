@@ -387,6 +387,38 @@ class Settings extends REST_Controller
             'orders_relatorios_estatisticas' => ['type' => 'boolean', 'required' => false],
             'orders_relatorios_itens_detalhados' => ['type' => 'boolean', 'required' => false],
             'orders_relatorios_destacar_atrasados' => ['type' => 'boolean', 'required' => false],
+            'backup_auto' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'backup_frequency' => [
+                'type' => 'string',
+                'required' => false
+            ],
+            'backup_retention_days' => [
+                'type' => 'integer',
+                'required' => false
+            ],
+            'backup_compress' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'backup_to_cloud' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'backup_storage_type' => [
+                'type' => 'string',
+                'required' => false
+            ],
+            'backup_modules' => [
+                'type' => 'string', // JSON
+                'required' => false
+            ],
+            'backup_time' => [
+                'type' => 'string',
+                'required' => false
+            ],
         ];
 
         $updates = [];
@@ -423,16 +455,25 @@ class Settings extends REST_Controller
 
             if ($is_valid) {
                 if ($config['type'] === 'boolean') {
-                    $processed_value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                    if ($processed_value === null) {
-                        $errors[] = "Configuration '{$key}' must be a boolean value (true/false or 1/0)";
-                        $is_valid = false;
+                    // Função robusta para booleano
+                    if (is_bool($value)) {
+                        $processed_value = $value ? 1 : 0;
+                    } elseif (is_numeric($value)) {
+                        $processed_value = ((int)$value) ? 1 : 0;
+                    } elseif (is_string($value)) {
+                        $v = strtolower(trim($value));
+                        $processed_value = ($v === '1' || $v === 'true') ? 1 : 0;
                     } else {
-                        $processed_value = $processed_value ? 1 : 0;
+                        $processed_value = $value ? 1 : 0;
                     }
                 } elseif ($config['type'] === 'string') {
                     if (isset($config['max_length']) && strlen($value) > $config['max_length']) {
                         $errors[] = "Configuration '{$key}' exceeds maximum length of {$config['max_length']} characters";
+                        $is_valid = false;
+                    }
+                } elseif ($config['type'] === 'integer') {
+                    if (!is_numeric($value)) {
+                        $errors[] = "Configuration '{$key}' must be an integer";
                         $is_valid = false;
                     }
                 }

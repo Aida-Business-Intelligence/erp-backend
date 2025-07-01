@@ -9,6 +9,7 @@ class Romaneio extends REST_Controller {
         parent::__construct();
         $this->load->model('clients_model');
         $this->load->model('warehouse_model');
+        $this->decodedToken = $this->authservice->decodeToken($this->token_jwt);
     }
 
     public function list_get() {
@@ -32,6 +33,7 @@ class Romaneio extends REST_Controller {
         $endDate = $this->get('endDate');
         $customerId = $this->get('customerId');
         $supplierId = $this->get('supplierId');
+        $type= $this->get('type');
 
         if (!$this->db->table_exists(db_prefix() . 'romaneios') ||
                 !$this->db->table_exists(db_prefix() . 'romaneio_orders')) {
@@ -48,6 +50,7 @@ class Romaneio extends REST_Controller {
             $this->db->from(db_prefix() . 'romaneios r');
             $this->db->join(db_prefix() . 'romaneio_orders o', 'o.romaneio_id = r.id', 'left');
             $this->db->where('r.warehouse_id', $warehouse_id);
+            $this->db->where('r.type', $type);
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -92,6 +95,7 @@ class Romaneio extends REST_Controller {
             $this->db->from(db_prefix() . 'romaneios r');
             $this->db->join(db_prefix() . 'romaneio_orders o', 'o.romaneio_id = r.id', 'left');
             $this->db->where('r.warehouse_id', $warehouse_id);
+            $this->db->where('r.type', $type);
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -206,6 +210,9 @@ class Romaneio extends REST_Controller {
     public function create_post() {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
+       
+
+
         if (empty($_POST['warehouse_id'])) {
             $this->response(
                     ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -282,6 +289,8 @@ class Romaneio extends REST_Controller {
             'notes' => $_POST['notes'] ?? null,
             'created_by' => $this->session->userdata('staff_user_id') ?? 1,
             'warehouse_id' => $_POST['warehouse_id'],
+            'user_id' => $this->decodedToken['data']->user->staffid,
+            'user_name' => $this->decodedToken['data']->user->firstname. ' '.$this->decodedToken['data']->user->lastname,
         ];
 
         $this->db->insert(db_prefix() . 'romaneios', $romaneio_data);
@@ -420,7 +429,9 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
             'notes' => $_PUT['notes'] ?? $romaneio['notes'],
             'date_updated' => date('Y-m-d H:i:s'),
             'customer_id' => $_PUT['customer']['id'],
-             'customer_name' => $_PUT['customer']['name']
+            'customer_name' => $_PUT['customer']['name'],
+            'user_id' => $this->decodedToken['data']->user->staffid,
+            'user_name' => $this->decodedToken['data']->user->firstname. ' '.$this->decodedToken['data']->user->lastname,
         ];
 
 
@@ -525,6 +536,19 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
 
        $this->db->where('id', $id);
        return $this->db->update(db_prefix() . 'romaneios', $romaneio_data);
+
+    }
+
+     public function update_status_patch() {
+
+
+       $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+       $id = $_POST['romaneio_id'];
+       $status =  $_POST['status'];
+
+       $this->db->where('id', $id);
+       return $this->db->update(db_prefix() . 'romaneios', array('status'=>$status));
 
     }
 

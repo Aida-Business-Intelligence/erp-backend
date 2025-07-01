@@ -84,6 +84,14 @@ function admin_url($url = '')
  */
 function staff_cant($capability, $feature = null, $staff_id = '')
 {
+    if (empty($staff_id)) {
+        $user = get_staff_user();
+
+        if ($user) {
+            $staff_id = $user->staffid;
+        }
+    }
+
     return ! staff_can($capability, $feature, $staff_id);
 }
 
@@ -109,6 +117,14 @@ function staff_can($capability, $feature = null, $staff_id = '')
 {
     $staff_id = empty($staff_id) ? get_staff_user_id() : $staff_id;
 
+    if (empty($staff_id)) {
+        $user = get_staff_user();
+
+        if ($user) {
+            $staff_id = $user->staffid;
+        }
+    }
+
     /**
      * Maybe permission is function?
      * Example is_admin or is_staff_member
@@ -122,6 +138,7 @@ function staff_can($capability, $feature = null, $staff_id = '')
      * Admins have all permissions
      */
     if (is_admin($staff_id)) {
+        
         return true;
     }
 
@@ -134,6 +151,10 @@ function staff_can($capability, $feature = null, $staff_id = '')
      */
     if ((string) $staff_id === (string) get_staff_user_id() && isset($GLOBALS['current_user'])) {
         $permissions = $GLOBALS['current_user']->permissions;
+    }
+
+    if ($permissions == null) {
+        $permissions = get_staff_permissions();
     }
 
     /**
@@ -156,8 +177,10 @@ function staff_can($capability, $feature = null, $staff_id = '')
     }
 
     foreach ($permissions as $permission) {
-        if ($feature == $permission['feature']
-            && $capability == $permission['capability']) {
+        if (
+            $feature == $permission['feature']
+            && $capability == $permission['capability']
+        ) {
             return hooks()->apply_filters('staff_can', true, $capability, $feature, $staff_id);
         }
     }
@@ -224,8 +247,10 @@ function load_admin_language($staff_id = '')
     $language = get_option('active_language');
     if ((is_staff_logged_in() || $staff_id != '') && ! is_language_disabled()) {
         $staff_language = get_staff_default_language($staff_id);
-        if (! empty($staff_language)
-            && file_exists(APPPATH . 'language/' . $staff_language)) {
+        if (
+            ! empty($staff_language)
+            && file_exists(APPPATH . 'language/' . $staff_language)
+        ) {
             $language = $staff_language;
         }
     }

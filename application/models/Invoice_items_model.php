@@ -162,9 +162,6 @@ class Invoice_items_model extends App_Model
         return $this->db->get()->result_array();
     }
 
-
-
-
     public function get_item($id = '')
     {
         $this->db->select(db_prefix() . 'items.*, ' . db_prefix() . 'clients.company');
@@ -179,6 +176,20 @@ class Invoice_items_model extends App_Model
     {
         $this->db->from(db_prefix() . 'items');
         $this->db->where(db_prefix() . 'items.sku_code', $id);
+
+        return $this->db->get()->row();
+    }
+
+   public function get_by_sku_or_commodity($id, $warehouse_id)
+    {
+        $this->db->from(db_prefix() . 'items');
+        
+        $this->db->group_start()
+                ->where(db_prefix() . 'items.sku_code', $id)
+                ->or_where(db_prefix() . 'items.commodity_code', $id)
+                ->group_end();
+        
+        $this->db->where(db_prefix() . 'items.warehouse_id', $warehouse_id);
 
         return $this->db->get()->row();
     }

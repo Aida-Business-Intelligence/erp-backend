@@ -138,6 +138,7 @@ function staff_can($capability, $feature = null, $staff_id = '')
      * Admins have all permissions
      */
     if (is_admin($staff_id)) {
+        
         return true;
     }
 

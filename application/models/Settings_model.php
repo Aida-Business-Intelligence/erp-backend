@@ -260,6 +260,8 @@ class Settings_model extends App_Model
     {
         $user = get_staff_user();
 
+     
+
         $permissions = $this->db
             ->distinct()
             ->select('menu_id')
@@ -271,13 +273,28 @@ class Settings_model extends App_Model
         $grantedMenuIds = array_column($permissions, 'menu_id');
 
         $menus = [];
+          if($user->admin == 1){
+
+                $menus = $this->db
+                        ->get('tblmenu')
+                        ->result_array();
+            
+                }else{
 
         if (!empty($grantedMenuIds)) {
-            $menus = $this->db
-                ->where_in('id', $grantedMenuIds)
-                ->get('tblmenu')
-                ->result_array();
-        }
+
+
+             
+                    $menus = $this->db
+                        ->where_in('id', $grantedMenuIds)
+                        ->get('tblmenu')
+                        ->result_array();
+
+                }
+            }
+
+        
+      
 
         return $menus;
     }

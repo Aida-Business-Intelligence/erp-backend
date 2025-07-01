@@ -650,9 +650,11 @@ class Cashs_model extends App_Model
                 $this->db->insert(db_prefix() . 'cashpaymentrecords', $data_payment);
             }
 
+            $detalhes_caixa->type="cash";
+
             foreach ($items as $item) {
 
-                $$this->db->insert(db_prefix() . 'itemcash', [
+                $data_item_cash = [
                     'description' => $item['description'],
                     'long_description' => nl2br($item['description']),
                     'qty' => $item['qty'],
@@ -661,9 +663,10 @@ class Cashs_model extends App_Model
                     'cash_id' => $detalhes_caixa->id,
                     'item_order' => $item['item_order'],
                     'unit' => $item['unit']
-                ]);
+                ];
+                $this->db->insert(db_prefix() . 'itemcash', $data_item_cash);
 
-                updateStock($data, $item, $detalhes_caixa);
+                updateStock($data, $item, (array)$detalhes_caixa);
                
             }
 
@@ -676,9 +679,11 @@ class Cashs_model extends App_Model
                
                 $nfce = false;
 
-                foreach ($data['form_payments'] as $payment) {
-                    if (!$nfce && strtolower($payment['type']) === 'dinheiro') {
-                        gerarNFC($data);
+           
+
+                 foreach (json_decode($data['form_payments']) as $payment) {
+                    if (!$nfce && strtolower($payment->type) != 'dinheiro') {
+                     //   gerarNFC($data);
                         $nfce = true; // garante que não será chamado novamente
                     }
                  

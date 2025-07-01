@@ -757,7 +757,7 @@ if (!function_exists('gerarNFC')) {
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'http://localhost/aida/nfe/gerador/Emissor.php',
+            CURLOPT_URL => 'https://nfe.arvis.com.br/gerador/Emissor.php',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -784,18 +784,18 @@ if (!function_exists('updateStock')) {
     function updateStock($data, $item, $transaction, $type = 'debit')
     {
         $CI = &get_instance();
-        $id_itemstocks = $CI->update_itemstocks($item['qty'], $item['id'], $data['warehouse_id'], $type);
+        $id_itemstocks = update_itemstocks($item['qty'], $item['id'], $data['warehouse_id'], $type);
+
 
         $data_itemstocksmov = [
             'warehouse_id' => $data['warehouse_id'],
-            'transaction_id' => $id_itemstocks,
             'cash_id' => $transaction['id'], //$data['cash_id'],
             'qtde' => $item['qty'],
             'transaction_id' => $transaction['id'],
             'hash' => $data['hash'],
             'user_id' => $data['user_id'],
             'obs' => 'pagamento',
-            'type_transaction' => $transaction['cash']
+            'type_transaction' => $transaction['type']
         ];
         $CI->db->insert(db_prefix() . 'itemstocksmov', $data_itemstocksmov);
     }

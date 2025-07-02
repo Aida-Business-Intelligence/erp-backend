@@ -77,6 +77,19 @@ class Settings extends REST_Controller
         }
         $formattedOutput['warehouses'] = $warehouses;
 
+        // Conversão explícita de campos booleanos
+        $boolean_fields = [
+            'backup_auto',
+            'backup_compress',
+            'backup_to_cloud',
+            // Adicione outros campos booleanos relevantes aqui
+        ];
+        foreach ($boolean_fields as $field) {
+            if (isset($formattedOutput[$field])) {
+                $formattedOutput[$field] = ($formattedOutput[$field] == '1' || $formattedOutput[$field] === 1 || $formattedOutput[$field] === true);
+            }
+        }
+
         if (!empty($formattedOutput)) {
             $this->response($formattedOutput, REST_Controller::HTTP_OK);
         } else {

@@ -419,6 +419,7 @@ class Invoices extends REST_Controller
                 'duedate' => date('Y-m-d', strtotime('+30 days')),
                 'subtotal' => $_POST['total'],
                 'total' => $_POST['total'],
+                'expense_id' => $_POST['expense_id'],
                 'status' => 1,
                 'clientnote' => '',
                 'adminnote' => '',
@@ -584,6 +585,7 @@ class Invoices extends REST_Controller
                         'duedate' => date('Y-m-d', strtotime('+30 days')),
                         'subtotal' => $order['total'],
                         'total' => $order['total'],
+                        'expense_id' => $_POST['expense_id'],
                         'status' => 1,
                         'clientnote' => '',
                         'adminnote' => '',
@@ -696,6 +698,7 @@ class Invoices extends REST_Controller
         i.total,
         i.status as invoice_status,
         i.ecommerce,
+        i.expense_id,
         i.datecreated,
         i.warehouse_id,
         IF(i.status = 12, i.clientnote, NULL) as dispute_message,
@@ -707,7 +710,6 @@ class Invoices extends REST_Controller
         COUNT(DISTINCT pn.id) as total_items,
         SUM(pn.qtde) as total_quantity
     ';
-
 
         $this->db->select($select);
         $this->db->from(db_prefix() . 'invoices i');
@@ -816,6 +818,7 @@ class Invoices extends REST_Controller
         i.total,
         i.status as invoice_status,
         i.ecommerce,
+        i.expense_id,
         i.datecreated,
         i.warehouse_id,
         IF(i.status = 12, i.clientnote, NULL) as dispute_message,
@@ -1266,6 +1269,7 @@ class Invoices extends REST_Controller
             i.total,
             i.status as invoice_status,
             i.ecommerce,
+            i.expense_id,
             i.datecreated,
             i.warehouse_id,
             IF(i.status = 12, i.clientnote, NULL) as dispute_message,
@@ -1603,6 +1607,57 @@ class Invoices extends REST_Controller
             'status' => TRUE,
             'stock' => $stock
         ], REST_Controller::HTTP_OK);
+    }
+
+    public function update_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invoice ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $invoice_id = $_POST['id'];
+        $update_data = [];
+
+        // Campos que podem ser atualizados
+        if (isset($_POST['expense_id'])) {
+            $update_data['expense_id'] = $_POST['expense_id'];
+        }
+
+        if (empty($update_data)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No valid fields to update'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            $this->db->where('id', $invoice_id);
+            $this->db->update(db_prefix() . 'invoices', $update_data);
+
+            if ($this->db->affected_rows() > 0) {
+                $this->response([
+                    'status' => TRUE,
+                    'message' => 'Invoice updated successfully'
+                ], REST_Controller::HTTP_OK);
+            } else {
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Invoice not found or no changes made'
+                ], REST_Controller::HTTP_NOT_FOUND);
+            }
+        } catch (Exception $e) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error updating invoice: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
 }

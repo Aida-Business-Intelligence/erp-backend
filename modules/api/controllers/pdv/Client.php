@@ -76,6 +76,8 @@ class Client extends REST_Controller
    */
   public function list_post($id = '')
   {
+
+
     $page = $this->post('page') ? (int) $this->post('page') : 0;
     $page = $page + 1;
 

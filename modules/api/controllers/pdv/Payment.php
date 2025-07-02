@@ -111,11 +111,11 @@ class Payment extends REST_Controller
     {
          
          $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+         $client_id = isset($_POST['client_id'])?$_POST['client_id']:0;
          $payments = $_POST['payments'];
          $doc =  $_POST['cpf'];
          $discount =  $_POST['discount'];
          $itens=  $_POST['cart'];
-         $client_id=  $_POST['client_id'];
          $cash_id=  $_POST['cashId'];
          $warehouse_id = $_POST['warehouseId'];
          $user_id = $this->authservice->user->staffid;
@@ -130,7 +130,7 @@ class Payment extends REST_Controller
                  'qty'=>$item['quantidade'],
                  'rate'=>$item['precoUnitario'],
                  'subtotal'=>$item['subtotal'],
-                 'discount'=>$item['desconto'],
+                 'discount'=>isset($item['desconto'])?$item['desconto']:0,
                  'barcode'=>$item['commodity_barcode'],
                  'unit'=>'UN',
                  'item_order'=>$item_order,

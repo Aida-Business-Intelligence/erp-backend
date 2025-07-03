@@ -792,6 +792,7 @@ class Invoices extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
+    // Lista os pedidos transmitidos
     public function list_transmitidos_post()
     {
         $warehouse_id = $this->post('warehouse_id');

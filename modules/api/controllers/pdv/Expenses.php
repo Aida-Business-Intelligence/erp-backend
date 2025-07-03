@@ -266,7 +266,6 @@ class Expenses extends REST_Controller
                 'type' => $data['type'] ?? 'despesa',
                 'status' => $data['status'] ?? 'pending',
                 'warehouse_id' => $data['warehouse_id'] ?? 0,
-                'expense_document' => $expenses_document,
                 'expenses_document' => $expenses_document,
             ];
 

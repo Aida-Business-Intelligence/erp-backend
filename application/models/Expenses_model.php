@@ -1236,6 +1236,7 @@ class Expenses_model extends App_Model
         e.warehouse_id,
         e.file,
         e.comprovante,
+        e.expenses_document,
 
         c.userid as userid,
         c.company as company,

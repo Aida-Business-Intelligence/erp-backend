@@ -835,6 +835,97 @@ class Expenses extends REST_Controller
             }
         }
 
+        // Processar o documento se existir
+        if (!empty($update_data['expenses_document'])) {
+            // Buscar o registro atual para pegar o caminho do arquivo antigo
+            $current = $this->Expenses_model->gettwo($expense_id);
+            $old_document = $current && isset($current->expenses_document) ? $current->expenses_document : null;
+
+            $document_data = $update_data['expenses_document'];
+            if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
+                $mime_type = $matches[1];
+                $document_data = substr($document_data, strpos($document_data, ',') + 1);
+
+                // Validar tipos de arquivo permitidos
+                $allowed_types = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'image/jpeg',
+                    'image/jpg',
+                    'image/png'
+                ];
+
+                if (!in_array($mime_type, $allowed_types)) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+
+                $document_data = base64_decode($document_data);
+
+                if ($document_data === false) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Falha ao decodificar o documento'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+
+                // Verificar tamanho do arquivo (5MB)
+                if (strlen($document_data) > 5 * 1024 * 1024) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+
+                // Apagar o arquivo antigo, se existir e não for base64
+                if ($old_document && strpos($old_document, 'data:') !== 0) {
+                    $old_path = FCPATH . ltrim($old_document, '/');
+                    if (file_exists($old_path)) {
+                        @unlink($old_path);
+                    }
+                }
+
+                // Criar diretório de uploads se não existir
+                $upload_path = FCPATH . 'uploads/expenses/';
+                if (!is_dir($upload_path)) {
+                    mkdir($upload_path, 0755, true);
+                }
+
+                // Determinar extensão baseada no MIME type
+                $extension_map = [
+                    'application/pdf' => 'pdf',
+                    'application/msword' => 'doc',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                    'image/jpeg' => 'jpg',
+                    'image/jpg' => 'jpg',
+                    'image/png' => 'png'
+                ];
+
+                $extension = $extension_map[$mime_type] ?? 'bin';
+
+                // Gerar nome único para o arquivo
+                $filename = 'expense_' . time() . '_' . uniqid() . '.' . $extension;
+                $file_path = $upload_path . $filename;
+
+                // Salvar o documento no sistema de arquivos
+                if (file_put_contents($file_path, $document_data)) {
+                    $update_data['expenses_document'] = 'uploads/expenses/' . $filename;
+                } else {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Falha ao salvar o documento no servidor'
+                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            }
+            // Se não for base64, mas vier um caminho relativo, atualize também
+            else if (!empty($update_data['expenses_document']) && !preg_match('/^data:(.+);base64,/', $update_data['expenses_document'])) {
+                $update_data['expenses_document'] = $update_data['expenses_document'];
+            }
+        }
+
         $this->load->model('Expenses_model');
         $output = $this->Expenses_model->update($update_data, $expense_id);
 
@@ -1134,7 +1225,8 @@ class Expenses extends REST_Controller
         if ($is_multipart) {
             $input = $this->input->post();
         } else {
-            $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+            $raw_input = file_get_contents("php://input");
+            $input = json_decode($raw_input, true);
         }
 
         if (empty($input['id']) || empty($input['status'])) {
@@ -1550,6 +1642,11 @@ class Expenses extends REST_Controller
             $success = 0;
             $fail = 0;
             foreach ($rows as $rowId) {
+                // Buscar documento antes de deletar
+                $expense = $this->Expenses_model->get($rowId);
+                if ($expense && !empty($expense->expenses_document)) {
+                    $this->delete_expense_document_file($expense->expenses_document);
+                }
                 $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id, $type);
                 if ($deleted) {
                     $success++;
@@ -1572,6 +1669,12 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
+        // Buscar documento antes de deletar
+        $expense = $this->Expenses_model->get($id);
+        if ($expense && !empty($expense->expenses_document)) {
+            $this->delete_expense_document_file($expense->expenses_document);
+        }
+
         $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id, $type);
 
         if ($deleted) {
@@ -1586,6 +1689,19 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    // Função auxiliar para deletar arquivo físico se não for base64
+    private function delete_expense_document_file($document) {
+        if (strpos($document, 'data:') === 0) {
+            // Documento em base64, nada a deletar
+            return;
+        }
+        $filePath = FCPATH . ltrim($document, '/');
+        if (file_exists($filePath)) {
+            @unlink($filePath);
+        }
+    }
+
     public function updatetwo_post($id = '')
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -1600,12 +1716,13 @@ class Expenses extends REST_Controller
         $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
 
         if ($is_multipart) {
-            $_POST = $this->input->post();
+            $input = $this->input->post();
         } else {
-            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+            $raw_input = file_get_contents("php://input");
+            $input = json_decode($raw_input, true);
         }
 
-        if (empty($_POST)) {
+        if (empty($input)) {
             return $this->response([
                 'status' => false,
                 'message' => 'Invalid input data'
@@ -1640,16 +1757,107 @@ class Expenses extends REST_Controller
         $updateData = [];
 
         foreach ($fields as $field) {
-            if (isset($_POST[$field])) {
+            if (isset($input[$field])) {
                 if (in_array($field, ['billable', 'send_invoice_to_customer', 'recurring', 'custom_recurring', 'create_invoice_billable'])) {
-                    $updateData[$field] = (!empty($_POST[$field]) && $_POST[$field] !== 'false') ? 1 : 0;
+                    $updateData[$field] = (!empty($input[$field]) && $input[$field] !== 'false') ? 1 : 0;
                 } elseif (in_array($field, ['repeat_every', 'cycles', 'total_cycles'])) {
-                    $updateData[$field] = is_numeric($_POST[$field]) ? $_POST[$field] : 0;
+                    $updateData[$field] = is_numeric($input[$field]) ? $input[$field] : 0;
                 } elseif (in_array($field, ['last_recurring_date'])) {
-                    $updateData[$field] = !empty($_POST[$field]) ? $_POST[$field] : null;
+                    $updateData[$field] = !empty($input[$field]) ? $input[$field] : null;
                 } else {
-                    $updateData[$field] = $_POST[$field];
+                    $updateData[$field] = $input[$field];
                 }
+            }
+        }
+
+        // Processar o documento se existir
+        if (!empty($input['expenses_document'])) {
+            // Buscar o registro atual para pegar o caminho do arquivo antigo
+            $current = $this->Expenses_model->gettwo($id);
+            $old_document = $current && isset($current->expenses_document) ? $current->expenses_document : null;
+
+            $document_data = $input['expenses_document'];
+            if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
+                $mime_type = $matches[1];
+                $document_data = substr($document_data, strpos($document_data, ',') + 1);
+
+                // Validar tipos de arquivo permitidos
+                $allowed_types = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'image/jpeg',
+                    'image/jpg',
+                    'image/png'
+                ];
+
+                if (!in_array($mime_type, $allowed_types)) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+
+                $document_data = base64_decode($document_data);
+
+                if ($document_data === false) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Falha ao decodificar o documento'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+
+                // Verificar tamanho do arquivo (5MB)
+                if (strlen($document_data) > 5 * 1024 * 1024) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+
+                // Apagar o arquivo antigo, se existir e não for base64
+                if ($old_document && strpos($old_document, 'data:') !== 0) {
+                    $old_path = FCPATH . ltrim($old_document, '/');
+                    if (file_exists($old_path)) {
+                        @unlink($old_path);
+                    }
+                }
+
+                // Criar diretório de uploads se não existir
+                $upload_path = FCPATH . 'uploads/expenses/';
+                if (!is_dir($upload_path)) {
+                    mkdir($upload_path, 0755, true);
+                }
+
+                // Determinar extensão baseada no MIME type
+                $extension_map = [
+                    'application/pdf' => 'pdf',
+                    'application/msword' => 'doc',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                    'image/jpeg' => 'jpg',
+                    'image/jpg' => 'jpg',
+                    'image/png' => 'png'
+                ];
+
+                $extension = $extension_map[$mime_type] ?? 'bin';
+
+                // Gerar nome único para o arquivo
+                $filename = 'expense_' . time() . '_' . uniqid() . '.' . $extension;
+                $file_path = $upload_path . $filename;
+
+                // Salvar o documento no sistema de arquivos
+                if (file_put_contents($file_path, $document_data)) {
+                    $updateData['expenses_document'] = 'uploads/expenses/' . $filename;
+                } else {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Falha ao salvar o documento no servidor'
+                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            }
+            // Se não for base64, mas vier um caminho relativo, atualize também
+            else if (!empty($input['expenses_document']) && !preg_match('/^data:(.+);base64,/', $input['expenses_document'])) {
+                $updateData['expenses_document'] = $input['expenses_document'];
             }
         }
 

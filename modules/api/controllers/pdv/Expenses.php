@@ -227,7 +227,7 @@ class Expenses extends REST_Controller
 
                     // Salvar o documento no sistema de arquivos
                     if (file_put_contents($file_path, $document_data)) {
-                        $expenses_document = base_url('uploads/expenses/' . $filename);
+                        $expenses_document = 'uploads/expenses/' . $filename;
                     } else {
                         throw new Exception('Falha ao salvar o documento no servidor');
                     }
@@ -912,7 +912,7 @@ class Expenses extends REST_Controller
 
                 // Salvar o documento no sistema de arquivos
                 if (file_put_contents($file_path, $document_data)) {
-                    $update_data['expenses_document'] = base_url('uploads/expenses/' . $filename);
+                    $update_data['expenses_document'] = 'uploads/expenses/' . $filename;
                 } else {
                     return $this->response([
                         'status' => false,
@@ -1696,15 +1696,7 @@ class Expenses extends REST_Controller
             // Documento em base64, nada a deletar
             return;
         }
-        // Se for uma URL absoluta, extrai o caminho relativo a partir de /uploads/
-        if (filter_var($document, FILTER_VALIDATE_URL)) {
-            $parsed = parse_url($document, PHP_URL_PATH);
-            // Remove a barra inicial se existir
-            $relativePath = ltrim($parsed, '/');
-            $filePath = FCPATH . $relativePath;
-        } else {
-            $filePath = FCPATH . ltrim($document, '/');
-        }
+        $filePath = FCPATH . ltrim($document, '/');
         if (file_exists($filePath)) {
             @unlink($filePath);
         }
@@ -1855,7 +1847,7 @@ class Expenses extends REST_Controller
 
                 // Salvar o documento no sistema de arquivos
                 if (file_put_contents($file_path, $document_data)) {
-                    $updateData['expenses_document'] = base_url('uploads/expenses/' . $filename);
+                    $updateData['expenses_document'] = 'uploads/expenses/' . $filename;
                 } else {
                     return $this->response([
                         'status' => false,

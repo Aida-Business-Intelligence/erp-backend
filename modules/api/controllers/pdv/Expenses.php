@@ -1696,7 +1696,15 @@ class Expenses extends REST_Controller
             // Documento em base64, nada a deletar
             return;
         }
-        $filePath = FCPATH . ltrim($document, '/');
+        // Se for uma URL absoluta, extrai o caminho relativo a partir de /uploads/
+        if (filter_var($document, FILTER_VALIDATE_URL)) {
+            $parsed = parse_url($document, PHP_URL_PATH);
+            // Remove a barra inicial se existir
+            $relativePath = ltrim($parsed, '/');
+            $filePath = FCPATH . $relativePath;
+        } else {
+            $filePath = FCPATH . ltrim($document, '/');
+        }
         if (file_exists($filePath)) {
             @unlink($filePath);
         }

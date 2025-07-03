@@ -141,69 +141,174 @@ class Expenses extends REST_Controller
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+        try {
+            // Obter o conteúdo raw da requisição
+            $raw_input = file_get_contents("php://input");
 
-        if ($is_multipart) {
-            $_POST = $this->input->post();
-        } else {
-            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+            // Log do input bruto para debug
+            log_message('error', 'RAW_INPUT: ' . $raw_input);
+
+            // Decodificar o JSON
+            $data = json_decode($raw_input, true);
+
+            // Verificar erros na decodificação
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new Exception('JSON inválido: ' . json_last_error_msg());
+            }
+
+            // Verificar se os dados foram recebidos
+            if (empty($data)) {
+                throw new Exception('Nenhum dado recebido');
+            }
+
+            // Log dos dados decodificados
+            log_message('error', 'DECODED_DATA: ' . print_r($data, true));
+
+            $this->db->trans_start();
+
+            // Processar o documento se existir
+            $expenses_document = null;
+            $document_field = !empty($data['expenses_document']) ? 'expenses_document' : (!empty($data['expense_document']) ? 'expense_document' : null);
+
+            if ($document_field && !empty($data[$document_field])) {
+                $document_data = $data[$document_field];
+
+                // Verificar se é uma string base64 válida
+                if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
+                    $mime_type = $matches[1];
+                    $document_data = substr($document_data, strpos($document_data, ',') + 1);
+
+                    // Validar tipos de arquivo permitidos
+                    $allowed_types = [
+                        'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'image/jpeg',
+                        'image/jpg',
+                        'image/png'
+                    ];
+
+                    if (!in_array($mime_type, $allowed_types)) {
+                        throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG');
+                    }
+
+                    $document_data = base64_decode($document_data);
+
+                    if ($document_data === false) {
+                        throw new Exception('Falha ao decodificar o documento');
+                    }
+
+                    // Verificar tamanho do arquivo (5MB)
+                    if (strlen($document_data) > 5 * 1024 * 1024) {
+                        throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+                    }
+
+                    // Criar diretório de uploads se não existir
+                    $upload_path = FCPATH . 'uploads/expenses/';
+                    if (!is_dir($upload_path)) {
+                        mkdir($upload_path, 0755, true);
+                    }
+
+                    // Determinar extensão baseada no MIME type
+                    $extension_map = [
+                        'application/pdf' => 'pdf',
+                        'application/msword' => 'doc',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                        'image/jpeg' => 'jpg',
+                        'image/jpg' => 'jpg',
+                        'image/png' => 'png'
+                    ];
+
+                    $extension = $extension_map[$mime_type] ?? 'bin';
+
+                    // Gerar nome único para o arquivo
+                    $filename = 'expense_' . time() . '_' . uniqid() . '.' . $extension;
+                    $file_path = $upload_path . $filename;
+
+                    // Salvar o documento no sistema de arquivos
+                    if (file_put_contents($file_path, $document_data)) {
+                        $expenses_document = 'uploads/expenses/' . $filename;
+                    } else {
+                        throw new Exception('Falha ao salvar o documento no servidor');
+                    }
+                }
+            }
+
+            // Preparar os dados para inserção
+            $input = [
+                'category' => $data['category'] ?? null,
+                'currency' => $data['currency'] ?? 1,
+                'amount' => $data['amount'] ?? null,
+                'tax' => $data['tax'] ?? null,
+                'tax2' => $data['tax2'] ?? 0,
+                'reference_no' => $data['reference_no'] ?? null,
+                'note' => $data['note'] ?? null,
+                'expense_name' => $data['expense_name'] ?? null,
+                'clientid' => $data['clientid'] ?? null,
+                'project_id' => $data['project_id'] ?? null,
+                'billable' => isset($data['billable']) ? ($data['billable'] ? 1 : 0) : 0,
+                'invoiceid' => $data['invoiceid'] ?? null,
+                'paymentmode' => $data['paymentmode'] ?? null,
+                'date' => $data['date'] ?? date('Y-m-d'),
+                'recurring_type' => $data['recurring_type'] ?? null,
+                'repeat_every' => $data['repeat_every'] ?? null,
+                'recurring' => isset($data['recurring']) ? ($data['recurring'] ? 1 : 0) : 0,
+                'cycles' => $data['cycles'] ?? 0,
+                'total_cycles' => $data['total_cycles'] ?? 0,
+                'custom_recurring' => isset($data['custom_recurring']) ? ($data['custom_recurring'] ? 1 : 0) : 0,
+                'last_recurring_date' => $data['last_recurring_date'] ?? null,
+                'create_invoice_billable' => isset($data['create_invoice_billable']) ? ($data['create_invoice_billable'] ? 1 : 0) : 0,
+                'send_invoice_to_customer' => isset($data['send_invoice_to_customer']) ? ($data['send_invoice_to_customer'] ? 1 : 0) : 0,
+                'recurring_from' => $data['recurring_from'] ?? null,
+                'dateadded' => date('Y-m-d H:i:s'),
+                'addedfrom' => get_staff_user_id() ?? 1,
+                'perfex_saas_tenant_id' => 'master',
+                'type' => $data['type'] ?? 'despesa',
+                'status' => $data['status'] ?? 'pending',
+                'warehouse_id' => $data['warehouse_id'] ?? 0,
+                'expense_document' => $expenses_document,
+                'expenses_document' => $expenses_document,
+            ];
+
+            // Remover valores nulos
+            $input = array_filter($input, function ($value) {
+                return $value !== null;
+            });
+
+            // Inserir no banco de dados
+            $expense_id = $this->Expenses_model->addtwo($input);
+
+            if (!$expense_id) {
+                throw new Exception('Falha ao criar a despesa/receita');
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Falha na transação do banco de dados');
+            }
+
+            $this->response([
+                'status' => true,
+                'message' => $input['type'] === 'receita' ? 'Receita criada com sucesso' : 'Despesa criada com sucesso',
+                'data' => [
+                    'id' => $expense_id,
+                    'document_url' => $expenses_document ? base_url($expenses_document) : null
+                ]
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            log_message('error', 'ERROR_CREATETWO: ' . $e->getMessage());
+
+            $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+                'debug' => [
+                    'input' => isset($raw_input) ? $raw_input : null,
+                    'decoded' => isset($data) ? $data : null
+                ]
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        if (empty($_POST)) {
-            $this->response(['status' => false, 'message' => 'Invalid input data'], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $input = [
-            'category' => $_POST['category'] ?? null,
-            'currency' => $_POST['currency'] ?? 1,
-            'amount' => $_POST['amount'] ?? null,
-            'tax' => $_POST['tax'] ?? null,
-            'tax2' => $_POST['tax2'] ?? 0,
-            'reference_no' => $_POST['reference_no'] ?? null,
-            'note' => $_POST['note'] ?? null,
-            'expense_name' => $_POST['expense_name'] ?? null,
-            'clientid' => $_POST['clientid'] ?? 0,
-            'project_id' => $_POST['project_id'] ?? 0,
-            'billable' => $_POST['billable'] ?? 0,
-            'invoiceid' => $_POST['invoiceid'] ?? null,
-            'paymentmode' => $_POST['paymentmode'] ?? null,
-            'date' => $_POST['date'] ?? null,
-            'recurring_type' => $_POST['recurring_type'] ?? null,
-            'repeat_every' => $_POST['repeat_every'] ?? null,
-            'recurring' => $_POST['recurring'] ?? 0,
-            'cycles' => $_POST['cycles'] ?? 0,
-            'total_cycles' => $_POST['total_cycles'] ?? 0,
-            'custom_recurring' => $_POST['custom_recurring'] ?? 0,
-            'last_recurring_date' => $_POST['last_recurring_date'] ?? null,
-            'create_invoice_billable' => $_POST['create_invoice_billable'] ?? 0,
-            'send_invoice_to_customer' => $_POST['send_invoice_to_customer'] ?? 0,
-            'recurring_from' => $_POST['recurring_from'] ?? null,
-            'dateadded' => date('Y-m-d H:i:s'),
-            'addedfrom' => get_staff_user_id() ?? 1,
-            'perfex_saas_tenant_id' => 'master',
-            'type' => $_POST['type'] ?? 'despesa',
-            'status' => $_POST['status'] ?? 'pending',
-            'warehouse_id' => $_POST['warehouse_id'] ?? 0,
-        ];
-
-        $input['send_invoice_to_customer'] = (!empty($_POST['send_invoice_to_customer']) && $_POST['send_invoice_to_customer'] !== 'false') ? 1 : 0;
-
-        $expense_id = $this->Expenses_model->addtwo($input);
-
-        if (!$expense_id) {
-            $this->response(['status' => false, 'message' => 'Failed to create expense'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-            return;
-        }
-
-        $this->Expenses_model->handle_file_uploads($expense_id, $_FILES);
-
-        $this->response([
-            'status' => true,
-            'message' => 'Expense created successfully',
-            'data' => ['id' => $expense_id]
-        ], REST_Controller::HTTP_OK);
     }
 
     public function upload_post()
@@ -1232,27 +1337,9 @@ class Expenses extends REST_Controller
       COUNT(id) as transaction_count
     ');
         $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('DATE(date)', $today);
         $this->db->where('warehouse_id', $warehouse_id);
-        $today_data = $this->db->get()->row_array();
-
-        $this->db->select('
-      COALESCE(SUM(amount), 0) as total_expenses,
-      COUNT(id) as transaction_count
-    ');
-        $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('DATE(date)', $yesterday);
-        $this->db->where('warehouse_id', $warehouse_id);
-        $yesterday_data = $this->db->get()->row_array();
-
-        $this->db->select('
-      COALESCE(SUM(amount), 0) as total_expenses,
-      COUNT(id) as transaction_count
-    ');
-        $this->db->from(db_prefix() . 'expenses');
         $this->db->where('date >=', $current_month_start);
         $this->db->where('date <=', $current_month_end);
-        $this->db->where('warehouse_id', $warehouse_id);
         $current_month_data = $this->db->get()->row_array();
 
         $this->db->select('
@@ -1265,26 +1352,16 @@ class Expenses extends REST_Controller
         $this->db->where('warehouse_id', $warehouse_id);
         $previous_month_data = $this->db->get()->row_array();
 
-        $today_data = $today_data ?: ['total_expenses' => 0, 'transaction_count' => 0];
-        $yesterday_data = $yesterday_data ?: ['total_expenses' => 0, 'transaction_count' => 0];
         $current_month_data = $current_month_data ?: ['total_expenses' => 0, 'transaction_count' => 0];
         $previous_month_data = $previous_month_data ?: ['total_expenses' => 0, 'transaction_count' => 0];
 
-        $total_change_percent = $yesterday_data['total_expenses'] > 0
-            ? (($today_data['total_expenses'] - $yesterday_data['total_expenses']) / $yesterday_data['total_expenses']) * 100
+        $total_change_percent = $previous_month_data['total_expenses'] > 0
+            ? (($current_month_data['total_expenses'] - $previous_month_data['total_expenses']) / $previous_month_data['total_expenses']) * 100
             : 0;
 
 
         $response = [
             'status' => true,
-            'daily_performance' => [
-                'total_expenses' => [
-                    'current' => floatval($today_data['total_expenses']),
-                    'previous' => floatval($yesterday_data['total_expenses']),
-                    'change_percent' => round($total_change_percent, 1),
-                    'transaction_count' => (int) $today_data['transaction_count']
-                ]
-            ],
             'monthly_performance' => [
                 'current_month' => [
                     'total_expenses' => floatval($current_month_data['total_expenses']),

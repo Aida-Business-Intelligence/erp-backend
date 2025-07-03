@@ -1638,12 +1638,13 @@ class Expenses extends REST_Controller
         $warehouse_id = $this->post('warehouse_id');
         $type = $this->post('type');
 
+        // Exclusão em lote
         if (!empty($rows) && is_array($rows)) {
             $success = 0;
             $fail = 0;
             foreach ($rows as $rowId) {
                 // Buscar documento antes de deletar
-                $expense = $this->Expenses_model->get($rowId);
+                $expense = $this->Expenses_model->gettwo($rowId);
                 if ($expense && !empty($expense->expenses_document)) {
                     $this->delete_expense_document_file($expense->expenses_document);
                 }
@@ -1662,6 +1663,7 @@ class Expenses extends REST_Controller
             ], $fail === 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_PARTIAL_CONTENT);
         }
 
+        // Exclusão unitária
         if (empty($id)) {
             return $this->response([
                 'status' => false,
@@ -1670,7 +1672,7 @@ class Expenses extends REST_Controller
         }
 
         // Buscar documento antes de deletar
-        $expense = $this->Expenses_model->get($id);
+        $expense = $this->Expenses_model->gettwo($id);
         if ($expense && !empty($expense->expenses_document)) {
             $this->delete_expense_document_file($expense->expenses_document);
         }

@@ -227,7 +227,7 @@ class Expenses extends REST_Controller
 
                     // Salvar o documento no sistema de arquivos
                     if (file_put_contents($file_path, $document_data)) {
-                        $expenses_document = 'uploads/expenses/' . $filename;
+                        $expenses_document = base_url('uploads/expenses/' . $filename);
                     } else {
                         throw new Exception('Falha ao salvar o documento no servidor');
                     }
@@ -912,7 +912,7 @@ class Expenses extends REST_Controller
 
                 // Salvar o documento no sistema de arquivos
                 if (file_put_contents($file_path, $document_data)) {
-                    $update_data['expenses_document'] = 'uploads/expenses/' . $filename;
+                    $update_data['expenses_document'] = base_url('uploads/expenses/' . $filename);
                 } else {
                     return $this->response([
                         'status' => false,
@@ -1847,7 +1847,7 @@ class Expenses extends REST_Controller
 
                 // Salvar o documento no sistema de arquivos
                 if (file_put_contents($file_path, $document_data)) {
-                    $updateData['expenses_document'] = 'uploads/expenses/' . $filename;
+                    $updateData['expenses_document'] = base_url('uploads/expenses/' . $filename);
                 } else {
                     return $this->response([
                         'status' => false,

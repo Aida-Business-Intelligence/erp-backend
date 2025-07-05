@@ -914,6 +914,250 @@ class Invoices extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
+    // Lista os pedidos expedidos
+    public function list_expedidos_post()
+    {
+        $warehouse_id = $this->post('warehouse_id');
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('limit') ? (int) $this->post('limit') : 10;
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'datecreated';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'asc' : 'desc';
+        $start_date = $this->post('start_date');
+        $end_date = $this->post('end_date');
+        $status = $this->post('status');
+        $supplier_id = $this->post('supplier_id');
+
+        $select = '
+        i.id,
+        i.total,
+        i.status as invoice_status,
+        i.ecommerce,
+        i.expense_id,
+        i.datecreated,
+        i.warehouse_id,
+        IF(i.status = 12, i.clientnote, NULL) as dispute_message,
+        IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
+        c.company as supplier_name,
+        c.vat as supplier_document,
+        c.phonenumber as supplier_phone,
+        GROUP_CONCAT(DISTINCT itm.description) as products,
+        COUNT(DISTINCT pn.id) as total_items,
+        SUM(pn.qtde) as total_quantity
+    ';
+
+        $this->db->select($select);
+        $this->db->from(db_prefix() . 'invoices i');
+        $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.invoice_id = i.id', 'left');
+        $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.clientid', 'left');
+
+        $this->db->where('pn.id IS NOT NULL');
+        $this->db->where('i.warehouse_id', $warehouse_id);
+        $this->db->where_in('i.status', [3, 4, 6]);
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('i.id', $search);
+            $this->db->or_like('c.company', $search);
+            $this->db->or_like('c.vat', $search);
+            $this->db->or_like('itm.description', $search);
+            $this->db->group_end();
+        }
+
+        if (!empty($start_date)) {
+            $this->db->where('DATE(i.datecreated) >=', date('Y-m-d', strtotime($start_date)));
+        }
+
+        if (!empty($end_date)) {
+            $this->db->where('DATE(i.datecreated) <=', date('Y-m-d', strtotime($end_date)));
+        }
+
+        if (!empty($status)) {
+            if (is_array($status)) {
+                $this->db->where_in('i.status', $status);
+            } else {
+                $this->db->where('i.status', $status);
+            }
+        }
+
+        if (!empty($supplier_id)) {
+            $this->db->where('i.clientid', $supplier_id);
+        }
+
+        $this->db->group_by('i.id');
+
+        $countQuery = clone $this->db;
+        $total = $countQuery->get()->num_rows();
+
+        if ($sortField === 'datecreated') {
+            $this->db->order_by('i.' . $sortField, $sortOrder);
+        } else {
+            $this->db->order_by($sortField, $sortOrder);
+        }
+
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $invoices = $this->db->get()->result_array();
+
+        foreach ($invoices as &$invoice) {
+            $this->db->select('
+            pn.id as purchase_need_id,
+            pn.qtde,
+            pn.status as purchase_status,
+            itm.description as product_name,
+            itm.sku_code,
+            itm.image,
+            itm.rate as unit_price, 
+            (pn.qtde * itm.rate) as total_price
+        ');
+            $this->db->from(db_prefix() . 'purchase_needs pn');
+            $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+            $this->db->where('pn.invoice_id', $invoice['id']);
+            $this->db->where('pn.warehouse_id', $warehouse_id);
+
+            $invoice['items'] = $this->db->get()->result_array();
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'total' => (int) $total,
+            'page' => (int) $page,
+            'limit' => (int) $limit,
+            'data' => $invoices
+        ], REST_Controller::HTTP_OK);
+    }
+
+    // Lista os pedidos conferidos
+    public function list_conferidos_post()
+    {
+        $warehouse_id = $this->post('warehouse_id');
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('limit') ? (int) $this->post('limit') : 10;
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'datecreated';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'asc' : 'desc';
+        $start_date = $this->post('start_date');
+        $end_date = $this->post('end_date');
+        $status = $this->post('status');
+        $supplier_id = $this->post('supplier_id');
+
+        $select = '
+        i.id,
+        i.total,
+        i.status as invoice_status,
+        i.ecommerce,
+        i.expense_id,
+        i.datecreated,
+        i.warehouse_id,
+        IF(i.status = 12, i.clientnote, NULL) as dispute_message,
+        IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
+        c.company as supplier_name,
+        c.vat as supplier_document,
+        c.phonenumber as supplier_phone,
+        GROUP_CONCAT(DISTINCT itm.description) as products,
+        COUNT(DISTINCT pn.id) as total_items,
+        SUM(pn.qtde) as total_quantity
+    ';
+
+        $this->db->select($select);
+        $this->db->from(db_prefix() . 'invoices i');
+        $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.invoice_id = i.id', 'left');
+        $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.clientid', 'left');
+
+        $this->db->where('pn.id IS NOT NULL');
+        $this->db->where('i.warehouse_id', $warehouse_id);
+        $this->db->where_in('i.status', [6]);
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('i.id', $search);
+            $this->db->or_like('c.company', $search);
+            $this->db->or_like('c.vat', $search);
+            $this->db->or_like('itm.description', $search);
+            $this->db->group_end();
+        }
+
+        if (!empty($start_date)) {
+            $this->db->where('DATE(i.datecreated) >=', date('Y-m-d', strtotime($start_date)));
+        }
+
+        if (!empty($end_date)) {
+            $this->db->where('DATE(i.datecreated) <=', date('Y-m-d', strtotime($end_date)));
+        }
+
+        if (!empty($status)) {
+            if (is_array($status)) {
+                $this->db->where_in('i.status', $status);
+            } else {
+                $this->db->where('i.status', $status);
+            }
+        }
+
+        if (!empty($supplier_id)) {
+            $this->db->where('i.clientid', $supplier_id);
+        }
+
+        $this->db->group_by('i.id');
+
+        $countQuery = clone $this->db;
+        $total = $countQuery->get()->num_rows();
+
+        if ($sortField === 'datecreated') {
+            $this->db->order_by('i.' . $sortField, $sortOrder);
+        } else {
+            $this->db->order_by($sortField, $sortOrder);
+        }
+
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $invoices = $this->db->get()->result_array();
+
+        foreach ($invoices as &$invoice) {
+            $this->db->select('
+            pn.id as purchase_need_id,
+            pn.qtde,
+            pn.status as purchase_status,
+            itm.description as product_name,
+            itm.sku_code,
+            itm.image,
+            itm.rate as unit_price, 
+            (pn.qtde * itm.rate) as total_price
+        ');
+            $this->db->from(db_prefix() . 'purchase_needs pn');
+            $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+            $this->db->where('pn.invoice_id', $invoice['id']);
+            $this->db->where('pn.warehouse_id', $warehouse_id);
+
+            $invoice['items'] = $this->db->get()->result_array();
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'total' => (int) $total,
+            'page' => (int) $page,
+            'limit' => (int) $limit,
+            'data' => $invoices
+        ], REST_Controller::HTTP_OK);
+    }
+
     public function dispute_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -1873,8 +2117,9 @@ class Invoices extends REST_Controller
         $update_data = [];
 
         // Campos que podem ser atualizados
-        if (isset($_POST['expense_id'])) {
+        if (isset($_POST['expense_id']) || isset($_POST['status'])) {
             $update_data['expense_id'] = $_POST['expense_id'];
+            $update_data['status'] = $_POST['status'];
         }
 
         if (empty($update_data)) {

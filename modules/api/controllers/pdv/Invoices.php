@@ -366,6 +366,7 @@ class Invoices extends REST_Controller
             $warehouse_id = $_POST['warehouse_id'];
             $clientid = $_POST['clientid'] ?? 0;
             $supplier_id = $_POST['supplier_id'] ?? 0;
+            $status = $_POST['status'] ?? 1;
 
             if (empty($user_id)) {
                 throw new Exception('User ID not found in token');
@@ -420,7 +421,7 @@ class Invoices extends REST_Controller
                 'subtotal' => $_POST['total'],
                 'total' => $_POST['total'],
                 'expense_id' => $_POST['expense_id'],
-                'status' => 1,
+                'status' => $status,
                 'clientnote' => '',
                 'adminnote' => '',
                 'currency' => get_base_currency()->id,
@@ -452,6 +453,12 @@ class Invoices extends REST_Controller
 
             if (!$invoice_id) {
                 throw new Exception('Failed to create invoice');
+            }
+
+            // Se o status foi especificamente definido pelo usuário, não deixar que seja alterado
+            if (isset($_POST['status']) && $_POST['status'] != 1) {
+                $this->db->where('id', $invoice_id);
+                $this->db->update('tblinvoices', ['status' => $status]);
             }
 
             foreach ($purchase_need_ids as $index => $purchase_need_id) {
@@ -586,7 +593,7 @@ class Invoices extends REST_Controller
                         'subtotal' => $order['total'],
                         'total' => $order['total'],
                         'expense_id' => $_POST['expense_id'],
-                        'status' => 1,
+                        'status' => $order['status'],
                         'clientnote' => '',
                         'adminnote' => '',
                         'currency' => get_base_currency()->id,
@@ -618,6 +625,12 @@ class Invoices extends REST_Controller
 
                     if (!$invoice_id) {
                         throw new Exception('Failed to create invoice');
+                    }
+
+                    // Se o status foi especificamente definido pelo usuário, não deixar que seja alterado
+                    if (isset($order['status']) && $order['status'] != 1) {
+                        $this->db->where('id', $invoice_id);
+                        $this->db->update('tblinvoices', ['status' => $order['status']]);
                     }
 
                     foreach ($purchase_need_ids as $index => $need_id) {
@@ -2117,8 +2130,11 @@ class Invoices extends REST_Controller
         $update_data = [];
 
         // Campos que podem ser atualizados
-        if (isset($_POST['expense_id']) || isset($_POST['status'])) {
+        if (isset($_POST['expense_id'])) {
             $update_data['expense_id'] = $_POST['expense_id'];
+        }
+
+        if (isset($_POST['status'])) {
             $update_data['status'] = $_POST['status'];
         }
 
@@ -2131,13 +2147,75 @@ class Invoices extends REST_Controller
         }
 
         try {
+            // Desabilitar temporariamente os hooks para evitar interferência
+            $this->db->trans_start();
+
+            // Usar atualização direta no banco para evitar hooks que alteram o status
             $this->db->where('id', $invoice_id);
             $this->db->update(db_prefix() . 'invoices', $update_data);
 
             if ($this->db->affected_rows() > 0) {
+                // Se estamos atualizando o status, garantir que ele não seja alterado por hooks
+                if (isset($_POST['status'])) {
+                    // Forçar a atualização do status novamente para garantir que não foi alterado
+                    $this->db->where('id', $invoice_id);
+                    $this->db->update(db_prefix() . 'invoices', ['status' => $_POST['status']]);
+                }
+
+                $this->db->trans_complete();
+
                 $this->response([
                     'status' => TRUE,
                     'message' => 'Invoice updated successfully'
+                ], REST_Controller::HTTP_OK);
+            } else {
+                $this->db->trans_rollback();
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Invoice not found or no changes made'
+                ], REST_Controller::HTTP_NOT_FOUND);
+            }
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error updating invoice: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function update_expense_id_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invoice ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['expense_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Expense ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $invoice_id = $_POST['id'];
+        $expense_id = $_POST['expense_id'];
+
+        try {
+            // Usar atualização direta no banco para evitar hooks que alteram o status
+            $this->db->where('id', $invoice_id);
+            $this->db->update(db_prefix() . 'invoices', ['expense_id' => $expense_id]);
+
+            if ($this->db->affected_rows() > 0) {
+                $this->response([
+                    'status' => TRUE,
+                    'message' => 'Invoice expense_id updated successfully'
                 ], REST_Controller::HTTP_OK);
             } else {
                 $this->response([

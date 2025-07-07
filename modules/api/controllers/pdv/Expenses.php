@@ -145,28 +145,18 @@ class Expenses extends REST_Controller
             // Obter o conteúdo raw da requisição
             $raw_input = file_get_contents("php://input");
 
-            // Log do input bruto para debug
-            log_message('error', 'RAW_INPUT: ' . $raw_input);
-
-            // Decodificar o JSON
             $data = json_decode($raw_input, true);
 
-            // Verificar erros na decodificação
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new Exception('JSON inválido: ' . json_last_error_msg());
             }
 
-            // Verificar se os dados foram recebidos
             if (empty($data)) {
                 throw new Exception('Nenhum dado recebido');
             }
 
-            // Log dos dados decodificados
-            log_message('error', 'DECODED_DATA: ' . print_r($data, true));
-
             $this->db->trans_start();
 
-            // Processar o documento se existir
             $expenses_document = null;
             $document_field = !empty($data['expenses_document']) ? 'expenses_document' : (!empty($data['expense_document']) ? 'expense_document' : null);
 
@@ -198,18 +188,15 @@ class Expenses extends REST_Controller
                         throw new Exception('Falha ao decodificar o documento');
                     }
 
-                    // Verificar tamanho do arquivo (5MB)
                     if (strlen($document_data) > 5 * 1024 * 1024) {
                         throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
                     }
 
-                    // Criar diretório de uploads se não existir
                     $upload_path = FCPATH . 'uploads/expenses/';
                     if (!is_dir($upload_path)) {
                         mkdir($upload_path, 0755, true);
                     }
 
-                    // Determinar extensão baseada no MIME type
                     $extension_map = [
                         'application/pdf' => 'pdf',
                         'application/msword' => 'doc',
@@ -221,11 +208,9 @@ class Expenses extends REST_Controller
 
                     $extension = $extension_map[$mime_type] ?? 'bin';
 
-                    // Gerar nome único para o arquivo
                     $filename = 'expense_' . time() . '_' . uniqid() . '.' . $extension;
                     $file_path = $upload_path . $filename;
 
-                    // Salvar o documento no sistema de arquivos
                     if (file_put_contents($file_path, $document_data)) {
                         $expenses_document = 'uploads/expenses/' . $filename;
                     } else {
@@ -234,7 +219,6 @@ class Expenses extends REST_Controller
                 }
             }
 
-            // Preparar os dados para inserção
             $input = [
                 'category' => $data['category'] ?? null,
                 'currency' => $data['currency'] ?? 1,
@@ -268,7 +252,6 @@ class Expenses extends REST_Controller
                 'status' => $data['status'] ?? 'pending',
                 'warehouse_id' => $data['warehouse_id'] ?? 0,
                 'expenses_document' => $expenses_document,
-                // CAMPOS EXTRAS
                 'order_number' => $data['order_number'] ?? null,
                 'installment_number' => $data['installment_number'] ?? null,
                 'nfe_key' => $data['nfe_key'] ?? null,
@@ -276,12 +259,10 @@ class Expenses extends REST_Controller
                 'origin' => $data['origin'] ?? null,
             ];
 
-            // Remover valores nulos
             $input = array_filter($input, function ($value) {
                 return $value !== null;
             });
 
-            // Inserir no banco de dados
             $expense_id = $this->Expenses_model->addtwo($input);
 
             if (!$expense_id) {

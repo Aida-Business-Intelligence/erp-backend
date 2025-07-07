@@ -243,13 +243,15 @@ class Expenses extends REST_Controller
                 'tax2' => $data['tax2'] ?? 0,
                 'reference_no' => $data['reference_no'] ?? null,
                 'note' => $data['note'] ?? null,
-                'expense_name' => $data['expense_name'] ?? null,
+                'payment_number' => $data['payment_number'] ?? null,
                 'clientid' => $data['clientid'] ?? null,
                 'project_id' => $data['project_id'] ?? null,
                 'billable' => isset($data['billable']) ? ($data['billable'] ? 1 : 0) : 0,
                 'invoiceid' => $data['invoiceid'] ?? null,
                 'paymentmode' => $data['paymentmode'] ?? null,
                 'date' => $data['date'] ?? date('Y-m-d'),
+                'due_date' => $data['due_date'] ?? null,
+                'reference_date' => $data['reference_date'] ?? null,
                 'recurring_type' => $data['recurring_type'] ?? null,
                 'repeat_every' => $data['repeat_every'] ?? null,
                 'recurring' => isset($data['recurring']) ? ($data['recurring'] ? 1 : 0) : 0,
@@ -267,6 +269,12 @@ class Expenses extends REST_Controller
                 'status' => $data['status'] ?? 'pending',
                 'warehouse_id' => $data['warehouse_id'] ?? 0,
                 'expenses_document' => $expenses_document,
+                // CAMPOS EXTRAS
+                'order_number' => $data['order_number'] ?? null,
+                'installment_number' => $data['installment_number'] ?? null,
+                'nfe_key' => $data['nfe_key'] ?? null,
+                'barcode' => $data['barcode'] ?? null,
+                'origin' => $data['origin'] ?? null,
             ];
 
             // Remover valores nulos

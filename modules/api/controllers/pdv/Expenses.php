@@ -1551,15 +1551,15 @@ class Expenses extends REST_Controller
         $today = date('Y-m-d');
 
         $this->db->select('
-      DATE(date) as expense_date,
+      DATE(due_date) as expense_date,
       status,
       COUNT(*) as expense_count
     ');
         $this->db->from(db_prefix() . 'expenses');
         $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('date >=', $start_date);
-        $this->db->where('date <=', $end_date);
-        $this->db->group_by('DATE(date), status');
+        $this->db->where('due_date >=', $start_date);
+        $this->db->where('due_date <=', $end_date);
+        $this->db->group_by('DATE(due_date), status');
         $results = $this->db->get()->result_array();
 
         $calendar_days = [];

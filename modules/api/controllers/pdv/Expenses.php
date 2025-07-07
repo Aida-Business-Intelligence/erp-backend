@@ -265,7 +265,6 @@ class Expenses extends REST_Controller
                 'dateadded' => date('Y-m-d H:i:s'),
                 'addedfrom' => get_staff_user_id() ?? 1,
                 'perfex_saas_tenant_id' => 'master',
-                'type' => $data['type'] ?? 'despesa',
                 'status' => $data['status'] ?? 'pending',
                 'warehouse_id' => $data['warehouse_id'] ?? 0,
                 'expenses_document' => $expenses_document,
@@ -297,7 +296,7 @@ class Expenses extends REST_Controller
 
             $this->response([
                 'status' => true,
-                'message' => $input['type'] === 'receita' ? 'Receita criada com sucesso' : 'Despesa criada com sucesso',
+                'message' => 'Despesa criada com sucesso',
                 'data' => [
                     'id' => $expense_id,
                     'document_url' => $expenses_document ? base_url($expenses_document) : null

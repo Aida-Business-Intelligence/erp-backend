@@ -224,8 +224,7 @@ class Receivables extends REST_Controller
             'type' => 'receita',
             'status' => $input['status'] ?? 'pending',
             'warehouse_id' => $input['warehouse_id'],
-            'expenses_document' => $input['expenses_document'] ?? null,
-            'expense_document' => $input['expense_document'] ?? null,
+            'receivables_document' => $input['receivables_document'] ?? null,
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
         $this->db->insert(db_prefix() . 'receivables', $data);
@@ -261,7 +260,10 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
         $this->db->where('id', $id);
-        $this->db->update(db_prefix() . 'receivables', $input);
+        if (isset($input['receivables_document'])) {
+            $updateData['receivables_document'] = $input['receivables_document'];
+        }
+        $this->db->update(db_prefix() . 'receivables', $updateData);
         if ($this->db->affected_rows() > 0) {
             return $this->response([
                 'status' => true,

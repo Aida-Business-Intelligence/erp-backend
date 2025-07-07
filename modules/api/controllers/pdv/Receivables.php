@@ -185,6 +185,64 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
+        $receivables_document = null;
+        if (!empty($input['receivables_document'])) {
+            $document_data = $input['receivables_document'];
+            if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
+                $mime_type = $matches[1];
+                $document_data = substr($document_data, strpos($document_data, ',') + 1);
+                $allowed_types = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'image/jpeg',
+                    'image/jpg',
+                    'image/png'
+                ];
+                if (!in_array($mime_type, $allowed_types)) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $document_data = base64_decode($document_data);
+                if ($document_data === false) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Falha ao decodificar o documento'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                if (strlen($document_data) > 5 * 1024 * 1024) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $upload_path = FCPATH . 'uploads/receivables/';
+                if (!is_dir($upload_path)) {
+                    mkdir($upload_path, 0755, true);
+                }
+                $extension_map = [
+                    'application/pdf' => 'pdf',
+                    'application/msword' => 'doc',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                    'image/jpeg' => 'jpg',
+                    'image/jpg' => 'jpg',
+                    'image/png' => 'png'
+                ];
+                $extension = $extension_map[$mime_type] ?? 'bin';
+                $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
+                $file_path = $upload_path . $filename;
+                if (file_put_contents($file_path, $document_data)) {
+                    $receivables_document = 'uploads/receivables/' . $filename;
+                } else {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Falha ao salvar o documento no servidor'
+                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            }
+        }
         $data = [
             'category' => $input['category'],
             'currency' => $input['currency'] ?? 1,
@@ -224,7 +282,7 @@ class Receivables extends REST_Controller
             'type' => 'receita',
             'status' => $input['status'] ?? 'pending',
             'warehouse_id' => $input['warehouse_id'],
-            'receivables_document' => $input['receivables_document'] ?? null,
+            'receivables_document' => $receivables_document,
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
         $this->db->insert(db_prefix() . 'receivables', $data);
@@ -259,10 +317,65 @@ class Receivables extends REST_Controller
                 'message' => 'Dados inválidos'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        $this->db->where('id', $id);
+        $updateData = $input;
         if (isset($input['receivables_document'])) {
-            $updateData['receivables_document'] = $input['receivables_document'];
+            $document_data = $input['receivables_document'];
+            if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
+                $mime_type = $matches[1];
+                $document_data = substr($document_data, strpos($document_data, ',') + 1);
+                $allowed_types = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'image/jpeg',
+                    'image/jpg',
+                    'image/png'
+                ];
+                if (!in_array($mime_type, $allowed_types)) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $document_data = base64_decode($document_data);
+                if ($document_data === false) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Falha ao decodificar o documento'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                if (strlen($document_data) > 5 * 1024 * 1024) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $upload_path = FCPATH . 'uploads/receivables/';
+                if (!is_dir($upload_path)) {
+                    mkdir($upload_path, 0755, true);
+                }
+                $extension_map = [
+                    'application/pdf' => 'pdf',
+                    'application/msword' => 'doc',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                    'image/jpeg' => 'jpg',
+                    'image/jpg' => 'jpg',
+                    'image/png' => 'png'
+                ];
+                $extension = $extension_map[$mime_type] ?? 'bin';
+                $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
+                $file_path = $upload_path . $filename;
+                if (file_put_contents($file_path, $document_data)) {
+                    $updateData['receivables_document'] = 'uploads/receivables/' . $filename;
+                } else {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Falha ao salvar o documento no servidor'
+                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            }
         }
+        $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'receivables', $updateData);
         if ($this->db->affected_rows() > 0) {
             return $this->response([

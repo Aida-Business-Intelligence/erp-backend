@@ -133,6 +133,10 @@ class Invoice_items_model extends App_Model
             "$items_table.unit",
             "$items_table.sku_code",
             "$items_table.image",
+            "$items_table.image2",
+            "$items_table.image3",
+            "$items_table.image4",
+            "$items_table.image5",
             "$items_table.commodity_barcode",
             "$items_table.status",
             "$items_table.cost",
@@ -183,6 +187,8 @@ class Invoice_items_model extends App_Model
    public function get_by_sku_or_commodity($id, $warehouse_id)
     {
         $this->db->from(db_prefix() . 'items');
+
+ 
         
         $this->db->group_start()
                 ->where(db_prefix() . 'items.sku_code', $id)
@@ -740,8 +746,13 @@ class Invoice_items_model extends App_Model
         $data = hooks()->apply_filters('before_update_item', $data, $itemid);
         $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
 
+
+       
+
         $this->db->where('id', $itemid);
         $this->db->update('items', $data);
+
+     
 
         if ($this->db->affected_rows() > 0) {
             $updated = true;

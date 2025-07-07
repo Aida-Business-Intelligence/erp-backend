@@ -662,6 +662,8 @@ class Settings extends REST_Controller
     {
         // Fetch all items from the tbmmenu table using the model
         $menus = $this->Settings_model->get_menus();
+
+      
     
         if (empty($menus)) {
             $this->response(['status' => FALSE, 'message' => 'No menu items found.'], REST_Controller::HTTP_NOT_FOUND);

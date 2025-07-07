@@ -107,14 +107,107 @@ class Clients_model extends App_Model
      */
     public function update_supplier($id, $data)
     {
-        $data['is_supplier'] = 1;
-
-        // Update the supplier
+        // Primeiro verifica se o supplier existe
         $this->db->where('userid', $id);
-        $this->db->update(db_prefix() . 'clients', $data);
+        $supplier = $this->db->get(db_prefix() . 'clients')->row();
+        if (!$supplier) {
+            return false;
+        }
 
-        return $this->db->affected_rows() > 0;
+        // Atualiza dados principais
+        $mainData = [
+            'company' => $data['name'] ?? null,
+            'address' => $data['address'] ?? null,
+            'city' => $data['city'] ?? null,
+            'state' => $data['state'] ?? null,
+            'cep' => $data['cep'] ?? null,
+            'country' => isset($data['country']) ? (int)$data['country'] : 0,
+            'zip' => $data['cep'] ?? null, // Note que na tabela o campo é 'zip' mas no payload é 'cep'
+            'active' => ($data['status'] === 'active') ? 1 : 0,
+            'documentType' => isset($data['document_type']) ? strtoupper($data['document_type']) : null,
+            'vat' => $data['document_number'] ?? null, // Mapeando document_number para vat
+            'warehouse_id' => $data['warehouse_id'] ?? 0,
+            'company_type' => $data['company_type'] ?? null,
+            'business_type' => $data['business_type'] ?? null,
+            'segment' => $data['segment'] ?? null,
+            'company_size' => $data['company_size'] ?? null,
+            'observations' => $data['observations'] ?? null,
+            'commercial_conditions' => $data['commercial_conditions'] ?? null,
+            'commission_type' => $data['commission_type'] ?? null,
+            'commission_base_percentage' => isset($data['commission_base_percentage']) ? (float)$data['commission_base_percentage'] : 0,
+            'commission_payment_type' => $data['commission_payment_type'] ?? null,
+            'commission_due_day' => isset($data['commission_due_day']) ? (int)$data['commission_due_day'] : null,
+            'agent_commission_type' => $data['agent_commission_type'] ?? null,
+            'agent_commission_base_percentage' => isset($data['agent_commission_base_percentage']) ? (float)$data['agent_commission_base_percentage'] : 0,
+            'agent_commission_payment_type' => $data['agent_commission_payment_type'] ?? null,
+            'agent_commission_due_day' => isset($data['agent_commission_due_day']) ? (int)$data['agent_commission_due_day'] : null,
+            'tipo_frete' => $data['tipo_frete'] ?? 'na',
+            'freight_value' => isset($data['freight_value']) ? (float)$data['freight_value'] : null,
+            'min_payment_term' => isset($data['min_payment_term']) ? (int)$data['min_payment_term'] : null,
+            'max_payment_term' => isset($data['max_payment_term']) ? (int)$data['max_payment_term'] : null,
+            'min_order_value' => isset($data['min_order_value']) ? (float)$data['min_order_value'] : null,
+            'max_order_value' => isset($data['max_order_value']) ? (float)$data['max_order_value'] : null,
+            'inscricao_estadual' => $data['inscricao_estadual'] ?? null,
+            'inscricao_municipal' => $data['inscricao_municipal'] ?? null,
+            'code' => $data['code'] ?? null,
+            'profile_image' => $data['profile_image'] ?? null,
+        ];
+
+        $this->db->where('userid', $id);
+        $updated = $this->db->update(db_prefix() . 'clients', $mainData);
+
+        if (!$updated) {
+            return false;
+        }
+
+        // Atualiza contatos
+        $this->db->where('userid', $id)->delete(db_prefix() . 'contacts');
+        if (!empty($data['contacts']) && is_array($data['contacts'])) {
+            $contactsData = [];
+            foreach ($data['contacts'] as $contact) {
+                $contactsData[] = [
+                    'userid' => $id,
+                    'firstname' => $contact['name'] ?? '',
+                    'phonenumber' => $contact['phone'] ?? '',
+                    'email' => $contact['email'] ?? '',
+                    'is_primary' => $contact['is_primary'] ?? 0,
+                ];
+
+                // Se for o contato primário, atualiza também os dados principais
+                if (!empty($contact['is_primary'])) {
+                    $this->db->where('userid', $id);
+                    $this->db->update(db_prefix() . 'clients', [
+                        'phonenumber' => $contact['phone'] ?? null,
+                        'email_default' => $contact['email'] ?? null,
+                    ]);
+                }
+            }
+
+            if (!empty($contactsData)) {
+                $this->db->insert_batch(db_prefix() . 'contacts', $contactsData);
+            }
+        }
+
+        // Atualiza documentos
+        $this->db->where('supplier_id', $id)->delete(db_prefix() . 'document_supplier');
+        if (!empty($data['documents']) && is_array($data['documents'])) {
+            $documentsData = [];
+            foreach ($data['documents'] as $doc) {
+                $documentsData[] = [
+                    'supplier_id' => $id,
+                    'type' => $doc['type'] ?? '',
+                    'document' => $doc['number'] ?? '',
+                ];
+            }
+
+            if (!empty($documentsData)) {
+                $this->db->insert_batch(db_prefix() . 'document_supplier', $documentsData);
+            }
+        }
+
+        return true;
     }
+
 
     /**
      * Delete a supplier
@@ -129,34 +222,105 @@ class Clients_model extends App_Model
         return $this->db->affected_rows() > 0;
     }
 
-
-    public function get($id = '', $where = [])
+    public function get($id)
     {
-        $this->db->select(implode(',', prefixed_table_fields_array(db_prefix() . 'clients')) . ',' . get_sql_select_client_company());
+        $this->db->where('userid', $id);
+        $this->db->where('is_supplier', 1);
+        $supplier = $this->db->get(db_prefix() . 'clients')->row_array();
 
-        $this->db->join(db_prefix() . 'countries', '' . db_prefix() . 'countries.country_id = ' . db_prefix() . 'clients.country', 'left');
-        $this->db->join(db_prefix() . 'contacts', '' . db_prefix() . 'contacts.userid = ' . db_prefix() . 'clients.userid AND is_primary = 1', 'left');
+        if (!$supplier) return null;
 
-        if ((is_array($where) && count($where) > 0) || (is_string($where) && $where != '')) {
-            $this->db->where($where);
-        }
+        // documentos
+        $this->db->where('supplier_id', $id);
+        $documents = $this->db->get(db_prefix() . 'document_supplier')->result_array();
 
-        if (is_numeric($id)) {
-            $this->db->where(db_prefix() . 'clients.userid', $id);
-            $client = $this->db->get(db_prefix() . 'clients')->row();
+        $all_documents = array_merge(
+            [[
+                'type' => strtolower($supplier['documentType']),
+                'number' => $supplier['vat']
+            ]],
+            array_map(function ($doc) {
+                return [
+                    'type' => strtolower($doc['type']),
+                    'number' => $doc['document']
+                ];
+            }, $documents)
+        );
 
-            if ($client && get_option('company_requires_vat_number_field') == 0) {
-                $client->vat = null;
-            }
+        // emails
+        $this->db->where('supplier_id', $id);
+        $additional_emails = $this->db->get(db_prefix() . 'email_supplier')->result_array();
 
-            $GLOBALS['client'] = $client;
+        $all_emails = array_merge(
+            [$supplier['email_default']],
+            array_column($additional_emails, 'email')
+        );
 
-            return $client;
-        }
+        // contatos
+        $this->db->where('userid', $id);
+        $this->db->where('is_primary !=', 1); // evita duplicar o contato padrão
+        $contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
 
-        $this->db->order_by('company', 'asc');
+        $all_contacts = array_merge(
+            [[
+                'name' => $supplier['company'],
+                'phone' => $supplier['phonenumber'],
+                'email' => $supplier['email_default'] ?? null,
+            ]],
+            array_map(function ($c) {
+                return [
+                    'name' => trim($c['firstname'] . ' ' . $c['lastname']),
+                    'phone' => $c['phonenumber'],
+                    'email' => $c['email'],
+                ];
+            }, $contacts)
+        );
 
-        return $this->db->get(db_prefix() . 'clients')->result_array();
+        // resposta final
+        return [
+            'userid' => $supplier['userid'],
+            'code' => $supplier['code'],
+            'name' => $supplier['company'],
+            'address' => $supplier['address'],
+            'cep' => $supplier['cep'],
+            'city' => $supplier['city'],
+            'state' => $supplier['state'],
+            'country' => $supplier['country'],
+            'phonenumber' => $supplier['phonenumber'],
+            'vat' => $supplier['vat'],
+            'documentType' => $supplier['documentType'],
+            'email_default' => $supplier['email_default'],
+            'paymentTerm' => $supplier['payment_terms'],
+            'status' => $supplier['active'] ? 'active' : 'inactive',
+            'documents' => $all_documents,
+            'emails' => array_filter($all_emails),
+            'contacts' => $all_contacts,
+            'warehouse_id' => $supplier['warehouse_id'],
+            'inscricao_estadual' => $supplier['inscricao_estadual'],
+            'inscricao_municipal' => $supplier['inscricao_municipal'],
+            'company_type' => $supplier['company_type'],
+            'business_type' => $supplier['business_type'],
+            'segment' => $supplier['segment'],
+            'company_size' => $supplier['company_size'],
+            'observations' => $supplier['observations'],
+            'commission' => (float) $supplier['commission'],
+            'commercial_conditions' => $supplier['commercial_conditions'],
+            'commission_type' => $supplier['commission_type'],
+            'commission_base_percentage' => (float) $supplier['commission_base_percentage'],
+            'commission_payment_type' => $supplier['commission_payment_type'],
+            'commission_due_day' => (int) $supplier['commission_due_day'],
+            'agent_commission_type' => $supplier['agent_commission_type'],
+            'agent_commission_base_percentage' => (float) $supplier['agent_commission_base_percentage'],
+            'agent_commission_payment_type' => $supplier['agent_commission_payment_type'],
+            'agent_commission_due_day' => (int) $supplier['agent_commission_due_day'],
+            'tipo_frete' => isset($supplier['tipo_frete']) ? $supplier['tipo_frete'] : 'na',
+            'freight_value' => isset($supplier['freight_value']) ? (float) $supplier['freight_value'] : null,
+            'min_payment_term' => isset($supplier['min_payment_term']) ? (int) $supplier['min_payment_term'] : null,
+            'max_payment_term' => isset($supplier['max_payment_term']) ? (int) $supplier['max_payment_term'] : null,
+            'min_order_value' => isset($supplier['min_order_value']) ? (float) $supplier['min_order_value'] : null,
+            'max_order_value' => isset($supplier['max_order_value']) ? (float) $supplier['max_order_value'] : null,
+            'image_url' => !empty($supplier['profile_image']) ? base_url($supplier['profile_image']) : null,
+        ];
     }
 
     public function get_api_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
@@ -200,118 +364,147 @@ class Clients_model extends App_Model
 
 
     //    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
-//    {
-//
-//        if (!is_numeric($id)) {
-//            // Adicionar condições de busca
-//            if (!empty($search)) {
-//                $this->db->group_start(); // Começa um agrupamento de condição
-//                $this->db->like('company', $search); // Busca pelo campo 'company'
-//                $this->db->or_like('billing_city', $search);
-//                $this->db->or_like('billing_state', $search);
-//                $this->db->or_like('vat', $search); // Busca pelo campo 'vat'
-//                // Pesquisa o CNPJ sem formatação
-//                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
-//                $this->db->group_end(); // Fecha o agrupamento de condição
-//            }
-//
-//            // Implementar lógica para ordenação
-//            $this->db->order_by($sortField, $sortOrder);
-//
-//            // Implementar a limitação e o deslocamento
-//            $this->db->limit($limit, ($page - 1) * $limit);
-//
-//            // Obtenha todos os clientes
-//            $clients = $this->db->get(db_prefix() . 'clients')->result_array();
-//
-//            // Contar o total de clientes (considerando a busca)
-//            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
-//
-//            if (!empty($search)) {
-//                // Condições de busca para contar os resultados
-//                $this->db->group_start(); // Começa um agrupamento de condição
-//                $this->db->like('company', $search);
-//                $this->db->or_like('billing_city', $search);
-//                $this->db->or_like('billing_state', $search);
-//                $this->db->or_like('vat', $search);
-//                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
-//                $this->db->group_end(); // Fecha o agrupamento de condição
-//            }
-//
-//            // Seleciona o total de clientes
-//            $this->db->select('COUNT(*) as total');
-//            $total = $this->db->get(db_prefix() . 'clients')->row()->total;
-//
-//            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
-//        } else {
-//
-//            $client = $this->get($id);
-//            $total = 0;
-//            if ($client) {
-//                $total = 1;
-//            }
-//
-//            return ['data' => (array) $client, 'total' => $total];
-//        }
-//
-//        // (O resto do código existente para quando $id é válido)
-//
+    //    {
+    //
+    //        if (!is_numeric($id)) {
+    //            // Adicionar condições de busca
+    //            if (!empty($search)) {
+    //                $this->db->group_start(); // Começa um agrupamento de condição
+    //                $this->db->like('company', $search); // Busca pelo campo 'company'
+    //                $this->db->or_like('billing_city', $search);
+    //                $this->db->or_like('billing_state', $search);
+    //                $this->db->or_like('vat', $search); // Busca pelo campo 'vat'
+    //                // Pesquisa o CNPJ sem formatação
+    //                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+    //                $this->db->group_end(); // Fecha o agrupamento de condição
+    //            }
+    //
+    //            // Implementar lógica para ordenação
+    //            $this->db->order_by($sortField, $sortOrder);
+    //
+    //            // Implementar a limitação e o deslocamento
+    //            $this->db->limit($limit, ($page - 1) * $limit);
+    //
+    //            // Obtenha todos os clientes
+    //            $clients = $this->db->get(db_prefix() . 'clients')->result_array();
+    //
+    //            // Contar o total de clientes (considerando a busca)
+    //            $this->db->reset_query(); // Resetar consulta para evitar contagem duplicada
+    //
+    //            if (!empty($search)) {
+    //                // Condições de busca para contar os resultados
+    //                $this->db->group_start(); // Começa um agrupamento de condição
+    //                $this->db->like('company', $search);
+    //                $this->db->or_like('billing_city', $search);
+    //                $this->db->or_like('billing_state', $search);
+    //                $this->db->or_like('vat', $search);
+    //                $this->db->or_where("REPLACE(REPLACE(REPLACE(REPLACE(vat, '.', ''), '/', ''), '-', ''), ' ', '') LIKE '%" . $this->db->escape_like_str($search) . "%'");
+    //                $this->db->group_end(); // Fecha o agrupamento de condição
+    //            }
+    //
+    //            // Seleciona o total de clientes
+    //            $this->db->select('COUNT(*) as total');
+    //            $total = $this->db->get(db_prefix() . 'clients')->row()->total;
+    //
+    //            return ['data' => $clients, 'total' => $total]; // Retorne os clientes e o total
+    //        } else {
+    //
+    //            $client = $this->get($id);
+    //            $total = 0;
+    //            if ($client) {
+    //                $total = 1;
+    //            }
+    //
+    //            return ['data' => (array) $client, 'total' => $total];
+    //        }
+    //
+    //        // (O resto do código existente para quando $id é válido)
+    //
 
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC', $warehouse_id = 0)
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $status = [], $startDate = '', $endDate = '', $warehouse_id = 0)
     {
+        $allowedSortFields = [
+            'userid',
+            'company',
+            'vat',
+            'city',
+            'state',
+            'payment_terms',
+            'active',
+            'datecreated'
+        ];
 
-        $this->db->where('is_supplier', 0);
-        if (!is_numeric($id)) {
-            $this->db->select('*'); // Seleciona todos os campos
-            $this->db->from(db_prefix() . 'clients'); // Define a tabela
-            $this->db->where('clients.warehouse_id', value: $warehouse_id);
-
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like(db_prefix() . 'clients.company', $search);
-                $this->db->or_like(db_prefix() . 'clients.phonenumber', $search);
-                $this->db->or_like(db_prefix() . 'clients.email_default', $search);
-                $this->db->or_like(db_prefix() . 'clients.vat', $search);
-                $this->db->group_end();
-            }
-
-            $this->db->order_by($sortField, $sortOrder);
-            $this->db->limit($limit, ($page - 1) * $limit);
-
-            $clients = $this->db->get()->result_array();
-
-            // Contagem de total de registros
-            $this->db->reset_query();
-            $this->db->from(db_prefix() . 'clients');
-            $this->db->where('clients.warehouse_id', $warehouse_id);
-
-            $this->db->where('is_supplier', 0);
-
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like(db_prefix() . 'clients.company', $search);
-                $this->db->or_like(db_prefix() . 'clients.phonenumber', $search);
-                $this->db->or_like(db_prefix() . 'clients.email_default', $search);
-                $this->db->or_like(db_prefix() . 'clients.vat', $search);
-                $this->db->group_end();
-            }
-
-            $total = $this->db->count_all_results(); // Contagem correta
-
-            return ['data' => $clients, 'total' => $total];
-        } else {
-            $this->db->select('*');
-            $this->db->from(db_prefix() . 'clients');
-            $this->db->where(db_prefix() . 'clients.userid', $id);
-            $this->db->where('clients.warehouse_id', value: $warehouse_id);
-
-            $client = $this->db->get()->row();
-            $total = $client ? 1 : 0;
-
-            return ['data' => (array) $client, 'total' => $total];
+        if (!in_array($sortField, $allowedSortFields)) {
+            $sortField = 'userid';
         }
+
+        $this->db->select('*');
+        $this->db->from(db_prefix() . 'clients');
+        $this->db->where('is_supplier', 1);
+
+        if ($warehouse_id > 0) {
+            $this->db->where('warehouse_id', $warehouse_id);
+        }
+
+        if (!empty($status)) {
+            $statusValues = array_map(function ($s) {
+                return $s === 'active' ? 1 : 0;
+            }, $status);
+            $this->db->where_in('active', $statusValues);
+        }
+
+        if (!empty($startDate) && !empty($endDate)) {
+            $this->db->where('datecreated >=', $startDate . ' 00:00:00');
+            $this->db->where('datecreated <=', $endDate . ' 23:59:59');
+        }
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like(db_prefix() . 'clients.company', $search);
+            $this->db->or_like(db_prefix() . 'clients.vat', $search);
+            $this->db->or_like(db_prefix() . 'clients.city', $search);
+            $this->db->or_like(db_prefix() . 'clients.state', $search);
+            $this->db->or_like(db_prefix() . 'clients.address', $search);
+            $this->db->or_like(db_prefix() . 'clients.cep', $search);
+            $this->db->or_like(db_prefix() . 'clients.nome_fantasia', $search);
+            $this->db->or_like(db_prefix() . 'clients.inscricao_estadual', $search);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results('', FALSE);
+
+        $this->db->order_by($sortField, $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $suppliers = $this->db->get()->result_array();
+
+        $formattedData = [];
+        foreach ($suppliers as $supplier) {
+            $formattedData[] = [
+                'userid' => $supplier['userid'],
+                'company' => $supplier['company'],
+                'vat' => $supplier['vat'],
+                'city' => $supplier['city'] ?: '-',
+                'state' => $supplier['state'] ?: '-',
+                'payment_terms' => $supplier['payment_terms'] ?: '-',
+                'status' => $supplier['active'] ? 'active' : 'inactive',
+                'created_at' => $supplier['datecreated'],
+                'email_default' => $supplier['email_default'] ?? null,
+                'documents' => [
+                    [
+                        'type' => 'cnpj',
+                        'number' => $supplier['vat']
+                    ]
+                ],
+                'contacts_count' => 0
+            ];
+        }
+
+        return ['data' => $formattedData, 'total' => $total];
     }
+
+
 
     // Busca por cidade
     public function get_api_by_city($page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC')
@@ -2204,174 +2397,5 @@ class Clients_model extends App_Model
         }
 
         return $this->db->get(db_prefix() . 'contacts')->result_array();
-    }
-
-    // Lista clients que são Franchisees
-
-    public function get_api_franchisee_client($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $status = [], $startDate = '', $endDate = '', $warehouse_id = 0)
-    {
-        $allowedSortFields = [
-            'userid',
-            'company',
-            'vat',
-            'city',
-            'state',
-            'payment_terms',
-            'active',
-            'datecreated'
-        ];
-
-        if (!in_array($sortField, $allowedSortFields)) {
-            $sortField = 'userid';
-        }
-
-        $this->db->select('*');
-        $this->db->from(db_prefix() . 'clients');
-        $this->db->where('is_supplier', 0); // supplier = 0 cliente e franchisee = 1 é franquia
-        $this->db->where('is_franchisee', 1);
-
-        if ($warehouse_id > 0) {
-            $this->db->where('warehouse_id', $warehouse_id);
-        }
-
-        if (!empty($status)) {
-            $statusValues = array_map(function ($s) {
-                return $s === 'active' ? 1 : 0;
-            }, $status);
-            $this->db->where_in('active', $statusValues);
-        }
-
-        if (!empty($startDate) && !empty($endDate)) {
-            $this->db->where('datecreated >=', $startDate . ' 00:00:00');
-            $this->db->where('datecreated <=', $endDate . ' 23:59:59');
-        }
-
-        if (!empty($search)) {
-            $this->db->group_start();
-            $this->db->like(db_prefix() . 'clients.company', $search);
-            $this->db->or_like(db_prefix() . 'clients.vat', $search);
-            $this->db->or_like(db_prefix() . 'clients.city', $search);
-            $this->db->or_like(db_prefix() . 'clients.state', $search);
-            $this->db->or_like(db_prefix() . 'clients.address', $search);
-            $this->db->or_like(db_prefix() . 'clients.cep', $search);
-            $this->db->or_like(db_prefix() . 'clients.nome_fantasia', $search);
-            $this->db->or_like(db_prefix() . 'clients.inscricao_estadual', $search);
-            $this->db->group_end();
-        }
-
-        $total = $this->db->count_all_results('', FALSE);
-
-        $this->db->order_by($sortField, $sortOrder);
-        $this->db->limit($limit, ($page - 1) * $limit);
-
-        $suppliers = $this->db->get()->result_array();
-
-        $formattedData = [];
-        foreach ($suppliers as $supplier) {
-            $formattedData[] = [
-                'userid' => $supplier['userid'],
-                'company' => $supplier['company'],
-                'vat' => $supplier['vat'],
-                'city' => $supplier['city'] ?: '-',
-                'state' => $supplier['state'] ?: '-',
-                'payment_terms' => $supplier['payment_terms'] ?: '-',
-                'status' => $supplier['active'] ? 'active' : 'inactive',
-                'created_at' => $supplier['datecreated'],
-                'email_default' => $supplier['email_default'] ?? null,
-                'documents' => [
-                    [
-                        'type' => 'cnpj',
-                        'number' => $supplier['vat']
-                    ]
-                ],
-                'contacts_count' => 0
-            ];
-        }
-
-        return ['data' => $formattedData, 'total' => $total];
-    }
-
-    // Lista fornecedores que são Franchisees
-    public function get_api_franchisee_supplier($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $status = [], $startDate = '', $endDate = '', $warehouse_id = 0)
-    {
-        $allowedSortFields = [
-            'userid',
-            'company',
-            'vat',
-            'city',
-            'state',
-            'payment_terms',
-            'active',
-            'datecreated'
-        ];
-
-        if (!in_array($sortField, $allowedSortFields)) {
-            $sortField = 'userid';
-        }
-
-        $this->db->select('*');
-        $this->db->from(db_prefix() . 'clients');
-        $this->db->where('is_supplier', 1); // supplier = 0 cliente e franchisee = 1 é franquia
-        $this->db->where('is_franchisee', 1); // supplier = 0 cliente e franchisee = 1 é franquia
-
-        if ($warehouse_id > 0) {
-            $this->db->where('warehouse_id', $warehouse_id);
-        }
-
-        if (!empty($status)) {
-            $statusValues = array_map(function ($s) {
-                return $s === 'active' ? 1 : 0;
-            }, $status);
-            $this->db->where_in('active', $statusValues);
-        }
-
-        if (!empty($startDate) && !empty($endDate)) {
-            $this->db->where('datecreated >=', $startDate . ' 00:00:00');
-            $this->db->where('datecreated <=', $endDate . ' 23:59:59');
-        }
-
-        if (!empty($search)) {
-            $this->db->group_start();
-            $this->db->like(db_prefix() . 'clients.company', $search);
-            $this->db->or_like(db_prefix() . 'clients.vat', $search);
-            $this->db->or_like(db_prefix() . 'clients.city', $search);
-            $this->db->or_like(db_prefix() . 'clients.state', $search);
-            $this->db->or_like(db_prefix() . 'clients.address', $search);
-            $this->db->or_like(db_prefix() . 'clients.cep', $search);
-            $this->db->or_like(db_prefix() . 'clients.nome_fantasia', $search);
-            $this->db->or_like(db_prefix() . 'clients.inscricao_estadual', $search);
-            $this->db->group_end();
-        }
-
-        $total = $this->db->count_all_results('', FALSE);
-
-        $this->db->order_by($sortField, $sortOrder);
-        $this->db->limit($limit, ($page - 1) * $limit);
-
-        $suppliers = $this->db->get()->result_array();
-
-        $formattedData = [];
-        foreach ($suppliers as $supplier) {
-            $formattedData[] = [
-                'userid' => $supplier['userid'],
-                'company' => $supplier['company'],
-                'vat' => $supplier['vat'],
-                'city' => $supplier['city'] ?: '-',
-                'state' => $supplier['state'] ?: '-',
-                'payment_terms' => $supplier['payment_terms'] ?: '-',
-                'status' => $supplier['active'] ? 'active' : 'inactive',
-                'created_at' => $supplier['datecreated'],
-                'email_default' => $supplier['email_default'] ?? null,
-                'documents' => [
-                    [
-                        'type' => 'cnpj',
-                        'number' => $supplier['vat']
-                    ]
-                ],
-                'contacts_count' => 0
-            ];
-        }
-
-        return ['data' => $formattedData, 'total' => $total];
     }
 }

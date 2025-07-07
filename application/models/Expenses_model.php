@@ -1057,6 +1057,7 @@ class Expenses_model extends App_Model
             e.invoiceid,
             e.paymentmode,
             e.date,
+            e.due_date,
             e.recurring_type,
             e.repeat_every,
             e.recurring,

@@ -160,9 +160,6 @@ class Expenses_model extends App_Model
         $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category');
 
-        // Adicione esta linha para filtrar apenas despesas
-        $this->db->where(db_prefix() . 'expenses.type', 'despesa');
-
         $this->db->where($where);
 
         if (is_numeric($id)) {
@@ -419,52 +416,6 @@ class Expenses_model extends App_Model
         }
         $_result['currency_switcher'] = $currency_switcher;
         $_result['currencyid']        = $currencyid;
-
-        // All expenses
-        /*   $this->db->select('amount,tax');
-        $this->db->where('currency',$currencyid);
-
-
-        $this->db->select('amount,tax,invoiceid');
-        $this->db->where('currency',$currencyid);
-        $this->db->where('billable',1);
-        $this->db->where('invoiceid IS NOT NULL');
-
-        $all_expenses = $this->db->get(db_prefix().'expenses')->result_array();
-        $_total_all = array();
-        foreach($all_expenses as $expense){
-        $_total = 0;
-        if(total_rows(db_prefix().'invoices',array('status'=>2,'id'=>$expense['invoiceid'])) > 0){
-        $_total = $expense['amount'];
-        if($expense['tax'] != 0){
-        $tax = get_tax_by_id($expense['tax']);
-        $_total += ($_total / 100 * $tax->taxrate);
-        }
-        }
-        array_push($_total_all,$_total);
-        }
-        $_result['billed']['total'] = app_format_money(array_sum($_total_all), $currency);
-
-        $this->db->select('amount,tax,invoiceid');
-        $this->db->where('currency',$currencyid);
-        $this->db->where('billable',1);
-        $this->db->where('invoiceid IS NOT NULL');
-
-        $all_expenses = $this->db->get(db_prefix().'expenses')->result_array();
-        $_total_all = array();
-        foreach($all_expenses as $expense){
-        $_total = 0;
-        if(total_rows(db_prefix().'invoices','status NOT IN(2,5) AND id ='.$expense['invoiceid']) > 0){
-        echo $this->db->last_query();
-        $_total = $expense['amount'];
-        if($expense['tax'] != 0){
-        $tax = get_tax_by_id($expense['tax']);
-        $_total += ($_total / 100 * $tax->taxrate);
-        }
-        }
-        array_push($_total_all,$_total);
-        }
-        $_result['unbilled']['total'] = app_format_money(array_sum($_total_all), $currency);*/
 
         return $_result;
     }
@@ -955,7 +906,6 @@ class Expenses_model extends App_Model
     {
         $this->db->select_sum('amount');
         $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('type', 'despesa');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
 
@@ -973,7 +923,6 @@ class Expenses_model extends App_Model
     private function count_expenses_by_status($status, $warehouse_id, $date_operator = null, $specific_date = null)
     {
         $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('type', 'despesa');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
 
@@ -992,7 +941,6 @@ class Expenses_model extends App_Model
     {
         $this->db->select_sum('amount');
         $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('type', 'despesa');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
         $this->db->where('MONTH(date)', $month);
@@ -1004,7 +952,6 @@ class Expenses_model extends App_Model
     private function count_expenses_in_month($status, $warehouse_id, $month, $year)
     {
         $this->db->from(db_prefix() . 'expenses');
-        $this->db->where('type', 'despesa');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
         $this->db->where('MONTH(date)', $month);
@@ -1122,8 +1069,6 @@ class Expenses_model extends App_Model
             e.recurring_from,
             e.dateadded,
             e.addedfrom,
-            e.type,
-            e.status,
             e.warehouse_id,
             e.file,
             ' . db_prefix() . 'expenses_categories.name as category_name,
@@ -1144,7 +1089,6 @@ class Expenses_model extends App_Model
 
 
         $this->db->where('e.warehouse_id', $warehouse_id);
-        $this->db->where('e.type', 'despesa');
 
         if (!empty($startDate) && $startDate !== 'null') {
             $this->db->where('e.date >=', $startDate);
@@ -1159,10 +1103,6 @@ class Expenses_model extends App_Model
 
         if ($status !== null && $status !== '' && $status !== 'null') {
             $this->db->where('e.status', $status);
-        }
-
-        if ($type !== null && $type !== '' && $type !== 'null') {
-            $this->db->where('e.type', $type);
         }
 
         if (!empty($search) && $search !== 'null') {
@@ -1231,8 +1171,6 @@ class Expenses_model extends App_Model
         e.dateadded,
         e.addedfrom,
         e.perfex_saas_tenant_id,
-        e.type,
-        e.status,
         e.warehouse_id,
         e.file,
         e.comprovante,
@@ -1291,7 +1229,6 @@ class Expenses_model extends App_Model
     $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
 
     $this->db->where('e.warehouse_id', $params['warehouse_id']);
-    $this->db->where('e.type', 'despesa');
 
     if (!empty($params['start_date'])) {
         $this->db->where('e.date >=', $params['start_date']);

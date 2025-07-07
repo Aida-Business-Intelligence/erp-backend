@@ -821,9 +821,11 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
             return;
         }
 
+        
         $search = $this->get('search') ?: '';
         $limit = $this->get('limit') ? (int) $this->get('limit') : 50;
         $page = $this->get('page') ? (int) $this->get('page') : 1;
+        /*
         $this->db->select('staffid as id, CONCAT(firstname, lastname) as name, vat as document');
         $this->db->from(db_prefix() . 'staff');
         $this->db->where('active', 1);
@@ -840,6 +842,7 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
         $this->db->limit($limit);
 
         $customers = $this->db->get()->result_array();
+        */
 
         $warehouses = $this->warehouse_model->get("", "(type = 'filial' OR type = 'franquia')");
         $fornecedores = array();
@@ -851,14 +854,14 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
                 "document" => $wa['cnpj'] // Use a different key for cnpj to avoid overwriting 'name'
             );
         }
-        $combined = array_merge($customers, $fornecedores);
+       // $combined = array_merge($customers, $fornecedores);
 
         $this->response([
             'status' => TRUE,
-            'total' => count($combined), // update total count
+            'total' => count($fornecedores), // update total count
             'page' => $page,
             'limit' => $limit,
-            'data' => $combined
+            'data' => $fornecedores
                 ], REST_Controller::HTTP_OK);
     }
 

@@ -853,7 +853,7 @@ class Invoices extends REST_Controller
 
         $this->db->where('pn.id IS NOT NULL');
         $this->db->where('i.warehouse_id', $warehouse_id);
-        $this->db->where_in('i.status', [2, 3, 4]);
+        $this->db->where_in('i.status', [2, 3]);
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -1097,7 +1097,7 @@ class Invoices extends REST_Controller
 
         $this->db->where('pn.id IS NOT NULL');
         $this->db->where('i.warehouse_id', $warehouse_id);
-        $this->db->where_in('i.status', [6]);
+        $this->db->where_in('i.status', [4, 6]);
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -1576,6 +1576,7 @@ class Invoices extends REST_Controller
             '3' => 'Enviado',
             '4' => 'Faturado',
             '5' => 'Cancelado',
+            '6' => 'Aguardando faturamento',
             '11' => 'Entregue',
             '12' => 'Em contestação'
         ];

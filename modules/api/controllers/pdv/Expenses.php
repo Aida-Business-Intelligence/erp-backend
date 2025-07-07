@@ -437,7 +437,7 @@ class Expenses extends REST_Controller
         log_activity('Received parameters: ' . json_encode($params));
 
         // Get data from model
-        $result = $this->Expenses_model->get_filtered_expenses($params);
+        $result = $this->Expenses_model->get_filtered_expenses_by_due_date($params);
         $data = $result['data'];
         $total = $result['total'];
 
@@ -497,7 +497,7 @@ class Expenses extends REST_Controller
         ];
 
         $this->load->model('expenses_model');
-        $result = $this->Expenses_model->get_expenses_by_date($params);
+        $result = $this->Expenses_model->get_expenses_by_due_date($params);
 
         // Enriquecer com informações de recorrência no controller (opcional)
         foreach ($result['data'] as &$expense) {

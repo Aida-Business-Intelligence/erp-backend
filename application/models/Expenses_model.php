@@ -1259,4 +1259,162 @@ class Expenses_model extends App_Model
     ];
 }
 
+    // NOVOS MÉTODOS PARA FILTRAR POR DUE_DATE
+    public function get_filtered_expenses_by_due_date($params)
+    {
+        $warehouse_id = $params['warehouse_id'];
+        $search = $params['search'] ?? '';
+        $sortField = $params['sortField'] ?? 'id';
+        $sortOrder = $params['sortOrder'] === 'desc' ? 'DESC' : 'ASC';
+        $startDate = $params['startDate'] ?? null;
+        $endDate = $params['endDate'] ?? null;
+        $category = $params['category'] ?? null;
+        $status = $params['status'] ?? null;
+        $type = $params['type'] ?? null;
+        $limit = $params['limit'] ?? 10;
+        $offset = $params['offset'] ?? 0;
+
+        $this->db->select('
+            e.id,
+            e.category,
+            e.currency,
+            e.amount,
+            e.tax,
+            e.tax2,
+            e.reference_no,
+            e.note,
+            e.expense_name,
+            e.clientid,
+            e.project_id,
+            e.billable,
+            e.invoiceid,
+            e.paymentmode,
+            e.date,
+            e.due_date,
+            e.recurring_type,
+            e.repeat_every,
+            e.recurring,
+            e.cycles,
+            e.total_cycles,
+            e.custom_recurring,
+            e.last_recurring_date,
+            e.create_invoice_billable,
+            e.send_invoice_to_customer,
+            e.recurring_from,
+            e.dateadded,
+            e.addedfrom,
+            e.warehouse_id,
+            e.file,
+            ' . db_prefix() . 'expenses_categories.name as category_name,
+            ' . db_prefix() . 'clients.company as company,
+            ' . db_prefix() . 'taxes.name as tax_name,
+            ' . db_prefix() . 'taxes.taxrate as taxrate,
+            ' . db_prefix() . 'taxes_2.name as tax_name2,
+            ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
+            ' . db_prefix() . 'payment_modes.name as payment_mode_name,
+        ');
+
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
+        $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
+        $this->db->join(db_prefix() . 'payment_modes', db_prefix() . 'payment_modes.id = e.paymentmode', 'left');
+
+        $this->db->where('e.warehouse_id', $warehouse_id);
+
+        if (!empty($startDate) && $startDate !== 'null') {
+            $this->db->where('e.due_date >=', $startDate);
+        }
+        if (!empty($endDate) && $endDate !== 'null') {
+            $this->db->where('e.due_date <=', $endDate);
+        }
+
+        if (!empty($category) && $category !== 'null') {
+            $this->db->where('e.category', $category);
+        }
+
+        if ($status !== null && $status !== '' && $status !== 'null') {
+            $this->db->where('e.status', $status);
+        }
+
+        if (!empty($search) && $search !== 'null') {
+            $this->db->group_start();
+            $this->db->like('e.note', $search);
+            $this->db->or_like('e.amount', $search);
+            $this->db->group_end();
+        }
+
+        $this->db->order_by($sortField, $sortOrder);
+
+        // Get total count before applying limit/offset
+        $total_query = clone $this->db;
+        $total = $total_query->count_all_results();
+
+        // Apply limit/offset
+        $this->db->limit($limit, $offset);
+
+        $data = $this->db->get()->result_array();
+
+        return [
+            'data' => $data,
+            'total' => $total
+        ];
+    }
+
+    public function get_expenses_by_due_date($params)
+    {
+        $page = $params['page'] ?? 1;
+        $limit = $params['pageSize'] ?? 10;
+        $offset = ($page - 1) * $limit;
+
+        $this->db->select('
+            e.*, 
+            e.id as id, 
+            e.id as expenseid, 
+            e.addedfrom as addedfrom,
+            cat.name as category_name,
+            pm.name as payment_mode_name,
+            t1.name as tax_name, 
+            t1.taxrate as taxrate,
+            t2.name as tax_name2, 
+            t2.taxrate as taxrate2
+        ');
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
+        $this->db->join(db_prefix() . 'taxes t1', 't1.id = e.tax', 'left');
+        $this->db->join(db_prefix() . 'taxes t2', 't2.id = e.tax2', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
+
+        $this->db->where('e.warehouse_id', $params['warehouse_id']);
+
+        if (!empty($params['start_date'])) {
+            $this->db->where('e.due_date >=', $params['start_date']);
+        }
+        if (!empty($params['end_date'])) {
+            $this->db->where('e.due_date <=', $params['end_date']);
+        }
+        if (!empty($params['search'])) {
+            $this->db->group_start();
+            $this->db->like('e.note', $params['search']);
+            $this->db->or_like('e.amount', $params['search']);
+            $this->db->group_end();
+        }
+
+        $this->db->order_by($params['sortField'], $params['sortOrder']);
+
+        // Contar total sem limite
+        $total_query = clone $this->db;
+        $total = $total_query->count_all_results();
+
+        $this->db->limit($limit, $offset);
+        $data = $this->db->get()->result_array();
+
+        return [
+            'data' => $data,
+            'total' => $total
+        ];
+    }
+
 }

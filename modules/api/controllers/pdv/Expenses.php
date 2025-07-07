@@ -1813,13 +1813,11 @@ class Expenses extends REST_Controller
                     }
                 }
 
-                // Criar diretório de uploads se não existir
                 $upload_path = FCPATH . 'uploads/expenses/';
                 if (!is_dir($upload_path)) {
                     mkdir($upload_path, 0755, true);
                 }
 
-                // Determinar extensão baseada no MIME type
                 $extension_map = [
                     'application/pdf' => 'pdf',
                     'application/msword' => 'doc',
@@ -1831,11 +1829,9 @@ class Expenses extends REST_Controller
 
                 $extension = $extension_map[$mime_type] ?? 'bin';
 
-                // Gerar nome único para o arquivo
                 $filename = 'expense_' . time() . '_' . uniqid() . '.' . $extension;
                 $file_path = $upload_path . $filename;
 
-                // Salvar o documento no sistema de arquivos
                 if (file_put_contents($file_path, $document_data)) {
                     $updateData['expenses_document'] = 'uploads/expenses/' . $filename;
                 } else {
@@ -1845,7 +1841,6 @@ class Expenses extends REST_Controller
                     ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
                 }
             }
-            // Se não for base64, mas vier um caminho relativo, atualize também
             else if (!empty($input['expenses_document']) && !preg_match('/^data:(.+);base64,/', $input['expenses_document'])) {
                 $updateData['expenses_document'] = $input['expenses_document'];
             }

@@ -1,4 +1,4 @@
-name: Deploy gringa
+name: Deploy mk9
 on:
   push:
     branches: [mk9]

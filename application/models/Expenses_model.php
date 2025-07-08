@@ -1417,4 +1417,36 @@ class Expenses_model extends App_Model
         ];
     }
 
+    public function get_expenses_by_day($params)
+    {
+        $warehouse_id = $params['warehouse_id'];
+        $date = $params['date'];
+        $page = $params['page'] ?? 1;
+        $limit = $params['pageSize'] ?? 10;
+        $offset = ($page - 1) * $limit;
+
+        $this->db->select('
+            e.*, 
+            c.company as client,
+            pm.name as paymentmode
+        ');
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
+        $this->db->where('e.warehouse_id', $warehouse_id);
+        $this->db->where('DATE(e.due_date)', $date);
+
+        // Contar total sem limite
+        $total_query = clone $this->db;
+        $total = $total_query->count_all_results();
+
+        $this->db->limit($limit, $offset);
+        $data = $this->db->get()->result_array();
+
+        return [
+            'data' => $data,
+            'total' => $total
+        ];
+    }
+
 }

@@ -503,6 +503,41 @@ class Expenses extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
+    public function list_by_day_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        $warehouse_id = $this->post('warehouse_id');
+        $date = $this->post('date');
+        $page = (int) ($this->post('page') ?: 1);
+        $pageSize = (int) ($this->post('pageSize') ?: 10);
+
+        if (empty($warehouse_id) || empty($date)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'warehouse_id e date são obrigatórios'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $params = [
+            'warehouse_id' => $warehouse_id,
+            'date' => $date,
+            'page' => $page,
+            'pageSize' => $pageSize,
+        ];
+
+        $result = $this->Expenses_model->get_expenses_by_day($params);
+
+        return $this->response([
+            'status' => true,
+            'total' => $result['total'],
+            'page' => $page,
+            'limit' => $pageSize,
+            'total_pages' => ceil($result['total'] / $pageSize),
+            'data' => $result['data']
+        ], REST_Controller::HTTP_OK);
+    }
+
 
     private function calculate_recurring_dates($start_date, $recurring_type, $repeat_every, $range_start, $range_end, $total_cycles, $cycles_completed)
     {

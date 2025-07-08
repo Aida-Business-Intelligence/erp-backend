@@ -210,6 +210,21 @@ class Receivables_model extends App_Model
             ->result_array();
     }
 
+    public function get_categories($warehouse_id, $search = '', $limit = 5, $type = 'receita')
+    {
+        $this->db->select('id, name');
+        $this->db->from(db_prefix() . 'expenses_categories');
+        $this->db->where('type', $type);
+        if ($warehouse_id) {
+            $this->db->where('warehouse_id', $warehouse_id);
+        }
+        if ($search) {
+            $this->db->like('name', $search);
+        }
+        $this->db->limit($limit);
+        return $this->db->get()->result_array();
+    }
+
     // Exemplo de método para validação de duplicatas (ajuste conforme sua lógica)
     public function validate_duplicates($warehouse_id, $data, $mappedColumns)
     {

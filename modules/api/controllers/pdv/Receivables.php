@@ -205,6 +205,28 @@ class Receivables extends REST_Controller
         }
     }
 
+    public function clients_get()
+    {
+        try {
+            $warehouse_id = $this->input->get('warehouse_id') ?: 0;
+            $search = $this->input->get('search') ?: '';
+            $page = $this->input->get('page') ?: 0;
+            $limit = $this->input->get('pageSize') ?: 5;
+
+            $clients = $this->Receivables_model->get_clients($warehouse_id, $search, $limit, $page);
+
+            $this->response([
+                'success' => true,
+                'data' => $clients
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     // Métodos CRUD básicos para Receitas
     public function create_post()
     {

@@ -225,6 +225,11 @@ class Receivables_model extends App_Model
         return $this->db->get()->result_array();
     }
 
+    public function get_payment_modes()
+    {
+        return $this->db->get(db_prefix() . 'payment_modes')->result_array();
+    }
+
     // Exemplo de método para validação de duplicatas (ajuste conforme sua lógica)
     public function validate_duplicates($warehouse_id, $data, $mappedColumns)
     {

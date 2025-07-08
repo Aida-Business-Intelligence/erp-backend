@@ -166,6 +166,23 @@ class Receivables extends REST_Controller
         ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
 
+    public function payment_modes_get()
+    {
+        try {
+            $paymentModes = $this->Receivables_model->get_payment_modes();
+
+            $this->response([
+                'success' => true,
+                'data' => $paymentModes
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     public function categoriestwo_get()
     {
         try {

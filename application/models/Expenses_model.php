@@ -42,9 +42,12 @@ class Expenses_model extends App_Model
         }
     }
 
-    public function get_categories($warehouse_id, $search = '', $limit = 5)
+    public function get_categories($warehouse_id, $search = '', $limit = 5, $type = null)
     {
         $this->db->where('warehouse_id', $warehouse_id);
+        if ($type !== null) {
+            $this->db->where('type', $type);
+        }
         if (!empty($search)) {
             $this->db->like('name', $search);
         }
@@ -807,6 +810,9 @@ class Expenses_model extends App_Model
      */
     public function add_category($data)
     {
+        if (empty($data['type'])) {
+            return false;
+        }
         $data['description'] = nl2br($data['description']);
         $this->db->insert(db_prefix() . 'expenses_categories', $data);
         $insert_id = $this->db->insert_id();
@@ -827,6 +833,9 @@ class Expenses_model extends App_Model
      */
     public function update_category($data, $id)
     {
+        if (empty($data['type'])) {
+            return false;
+        }
         $data['description'] = nl2br($data['description']);
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'expenses_categories', $data);

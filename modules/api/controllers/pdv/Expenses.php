@@ -1016,19 +1016,21 @@ class Expenses extends REST_Controller
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $warehouse_id = $this->get('warehouse_id');
+        $type = $this->get('type');
 
-        if (empty($warehouse_id)) {
+        if (empty($warehouse_id) || empty($type)) {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Warehouse ID is required'
+                'message' => 'Warehouse ID e type são obrigatórios'
             ], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
 
         try {
-            $this->db->select('id, name, description, warehouse_id');
+            $this->db->select('id, name, description, warehouse_id, type');
             $this->db->from(db_prefix() . 'expenses_categories');
             $this->db->where('warehouse_id', $warehouse_id);
+            $this->db->where('type', $type);
             $categories = $this->db->get()->result_array();
 
             $this->response([
@@ -1050,10 +1052,10 @@ class Expenses extends REST_Controller
 
         $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        if (empty($input['name']) || empty($input['warehouse_id'])) {
+        if (empty($input['name']) || empty($input['warehouse_id']) || empty($input['type'])) {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Name and warehouse_id are required'
+                'message' => 'Name, warehouse_id e type são obrigatórios'
             ], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
@@ -1062,6 +1064,7 @@ class Expenses extends REST_Controller
             'name' => $input['name'],
             'description' => $input['description'] ?? '',
             'warehouse_id' => $input['warehouse_id'],
+            'type' => $input['type'],
             'perfex_saas_tenant_id' => 'master'
         ];
 
@@ -1102,10 +1105,10 @@ class Expenses extends REST_Controller
 
         $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        if (empty($input['name'])) {
+        if (empty($input['name']) || empty($input['type'])) {
             $this->response([
                 'status' => FALSE,
-                'message' => 'Name is required'
+                'message' => 'Name e type são obrigatórios'
             ], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
@@ -1113,7 +1116,8 @@ class Expenses extends REST_Controller
         $data = [
             'name' => $input['name'],
             'description' => $input['description'] ?? '',
-            'warehouse_id' => $input['warehouse_id'] ?? 0
+            'warehouse_id' => $input['warehouse_id'] ?? 0,
+            'type' => $input['type']
         ];
 
         try {

@@ -77,6 +77,19 @@ class Settings extends REST_Controller
         }
         $formattedOutput['warehouses'] = $warehouses;
 
+        // Conversão explícita de campos booleanos
+        $boolean_fields = [
+            'backup_auto',
+            'backup_compress',
+            'backup_to_cloud',
+            // Adicione outros campos booleanos relevantes aqui
+        ];
+        foreach ($boolean_fields as $field) {
+            if (isset($formattedOutput[$field])) {
+                $formattedOutput[$field] = ($formattedOutput[$field] == '1' || $formattedOutput[$field] === 1 || $formattedOutput[$field] === true);
+            }
+        }
+
         if (!empty($formattedOutput)) {
             $this->response($formattedOutput, REST_Controller::HTTP_OK);
         } else {
@@ -267,15 +280,19 @@ class Settings extends REST_Controller
                 'type' => 'boolean',
                 'required' => false
             ],
-            'pdv_nfe_cartao' => [
-                'type' => 'boolean',
-                'required' => false
-            ],
             'pdv_senha_gerente_close_cash' => [
                 'type' => 'boolean',
                 'required' => false
             ],
             'pdv_senha_gerente_open_cash' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'pdv_senha_deletar_produto' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'pdv_senha_editar_produto' => [
                 'type' => 'boolean',
                 'required' => false
             ],
@@ -287,6 +304,133 @@ class Settings extends REST_Controller
                 'type' => 'string',
                 'required' => false,
                 'max_length' => 100
+            ],
+            // E-commerce Franquias
+            'ecommerce_franquias_limite_itens_ativar' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_limite_itens_regra' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_limite_itens_valor' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_limite_itens_duracao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_limite_itens_apos_expiracao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_limite_itens_reducao_percentual' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_limite_itens_tags' => ['type' => 'string', 'required' => false, 'max_length' => 1000],
+            'ecommerce_franquias_limite_itens_categorias' => ['type' => 'string', 'required' => false, 'max_length' => 1000],
+            'ecommerce_franquias_limite_itens_subcategorias' => ['type' => 'string', 'required' => false, 'max_length' => 1000],
+            'ecommerce_franquias_timer_ativar' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_timer_duracao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_timer_resetar_remover' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_timer_visivel' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_timer_alerta_antes' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_timer_tempo_alerta' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_reserva_ativar' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_reserva_tempo' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_reserva_apos_expiracao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_reserva_tempo_extensao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_franquias_reserva_notificar_cliente' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_reserva_notificar_admin' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_b2_duplicacao_ativar' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_b2_duplicacao_preco' => ['type' => 'string', 'required' => false, 'max_length' => 20],
+            'ecommerce_franquias_b2_duplicacao_automatica' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_b2_duplicacao_copiar_anexos' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_b2_duplicacao_notificar_cliente' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_b2_duplicacao_aplicar_todos' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_franquias_b2_duplicacao_franqueados' => ['type' => 'string', 'required' => false, 'max_length' => 2000],
+            // E-commerce Representantes
+            'ecommerce_rep_max_representadas' => ['type' => 'string', 'required' => false, 'max_length' => 10],
+            'ecommerce_rep_max_clientes' => ['type' => 'string', 'required' => false, 'max_length' => 10],
+            'ecommerce_rep_max_vendedores' => ['type' => 'string', 'required' => false, 'max_length' => 10],
+            'ecommerce_rep_max_assistentes' => ['type' => 'string', 'required' => false, 'max_length' => 10],
+            'ecommerce_rep_limite_itens_ativar' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_limite_itens_regra' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_limite_itens_valor' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_limite_itens_duracao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_limite_itens_apos_expiracao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_limite_itens_reducao_percentual' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_limite_itens_tags' => ['type' => 'string', 'required' => false, 'max_length' => 1000],
+            'ecommerce_rep_limite_itens_categorias' => ['type' => 'string', 'required' => false, 'max_length' => 1000],
+            'ecommerce_rep_limite_itens_subcategorias' => ['type' => 'string', 'required' => false, 'max_length' => 1000],
+            'ecommerce_rep_timer_ativar' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_timer_duracao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_timer_resetar_remover' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_timer_visivel' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_timer_alerta_antes' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_timer_tempo_alerta' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_reserva_ativar' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_reserva_tempo' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_reserva_apos_expiracao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_reserva_tempo_extensao' => ['type' => 'string', 'required' => false, 'max_length' => 50],
+            'ecommerce_rep_reserva_notificar_cliente' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_reserva_notificar_admin' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_b2_duplicacao_ativar' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_b2_duplicacao_preco' => ['type' => 'string', 'required' => false, 'max_length' => 20],
+            'ecommerce_rep_b2_duplicacao_automatica' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_b2_duplicacao_copiar_anexos' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_b2_duplicacao_notificar_cliente' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_relacionamentos_ativar' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_relacionamentos_todas_representadas' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_relacionamentos_todos_clientes' => ['type' => 'boolean', 'required' => false],
+            'ecommerce_rep_relacionamentos_representadas' => ['type' => 'string', 'required' => false, 'max_length' => 2000],
+            'ecommerce_rep_relacionamentos_clientes' => ['type' => 'string', 'required' => false, 'max_length' => 2000],
+            // Pedidos
+            'orders_aprovacao_exigir' => ['type' => 'boolean', 'required' => false],
+            'orders_aprovacao_status_padrao' => ['type' => 'string', 'required' => false, 'max_length' => 20],
+            'orders_aprovacao_notificar_admins' => ['type' => 'boolean', 'required' => false],
+            'orders_aprovacao_notificar_vendas' => ['type' => 'boolean', 'required' => false],
+            'orders_aprovacao_tempo' => ['type' => 'string', 'required' => false, 'max_length' => 10],
+            'orders_aprovacao_auto_aprovar' => ['type' => 'boolean', 'required' => false],
+            'orders_workflow_ativar' => ['type' => 'boolean', 'required' => false],
+            'orders_workflow_etapas' => ['type' => 'string', 'required' => false, 'max_length' => 10000],
+            'orders_workflow_pular_etapas' => ['type' => 'boolean', 'required' => false],
+            'orders_workflow_comentario_pular' => ['type' => 'boolean', 'required' => false],
+            'orders_workflow_modo_dev' => ['type' => 'boolean', 'required' => false],
+            'orders_rastreamento_ativar' => ['type' => 'boolean', 'required' => false],
+            'orders_rastreamento_notificar_cliente' => ['type' => 'boolean', 'required' => false],
+            'orders_rastreamento_email' => ['type' => 'boolean', 'required' => false],
+            'orders_rastreamento_sms' => ['type' => 'boolean', 'required' => false],
+            'orders_rastreamento_mensagens_personalizadas' => ['type' => 'boolean', 'required' => false],
+            'orders_rastreamento_frequencia' => ['type' => 'string', 'required' => false, 'max_length' => 20],
+            'orders_notificacoes_alerta_pendentes' => ['type' => 'boolean', 'required' => false],
+            'orders_notificacoes_limite_pendentes' => ['type' => 'string', 'required' => false, 'max_length' => 10],
+            'orders_notificacoes_alerta_estagnados' => ['type' => 'boolean', 'required' => false],
+            'orders_notificacoes_limite_estagnados' => ['type' => 'string', 'required' => false, 'max_length' => 10],
+            'orders_notificacoes_notificar_gerentes' => ['type' => 'boolean', 'required' => false],
+            'orders_notificacoes_escalonamento_ativar' => ['type' => 'boolean', 'required' => false],
+            'orders_notificacoes_escalonamento_tempo' => ['type' => 'string', 'required' => false, 'max_length' => 10],
+            'orders_relatorios_diario' => ['type' => 'boolean', 'required' => false],
+            'orders_relatorios_destinatarios' => ['type' => 'string', 'required' => false, 'max_length' => 1000],
+            'orders_relatorios_estatisticas' => ['type' => 'boolean', 'required' => false],
+            'orders_relatorios_itens_detalhados' => ['type' => 'boolean', 'required' => false],
+            'orders_relatorios_destacar_atrasados' => ['type' => 'boolean', 'required' => false],
+            'backup_auto' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'backup_frequency' => [
+                'type' => 'string',
+                'required' => false
+            ],
+            'backup_retention_days' => [
+                'type' => 'integer',
+                'required' => false
+            ],
+            'backup_compress' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'backup_to_cloud' => [
+                'type' => 'boolean',
+                'required' => false
+            ],
+            'backup_storage_type' => [
+                'type' => 'string',
+                'required' => false
+            ],
+            'backup_modules' => [
+                'type' => 'string', // JSON
+                'required' => false
+            ],
+            'backup_time' => [
+                'type' => 'string',
+                'required' => false
             ],
         ];
 
@@ -324,16 +468,25 @@ class Settings extends REST_Controller
 
             if ($is_valid) {
                 if ($config['type'] === 'boolean') {
-                    $processed_value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                    if ($processed_value === null) {
-                        $errors[] = "Configuration '{$key}' must be a boolean value (true/false or 1/0)";
-                        $is_valid = false;
+                    // Função robusta para booleano
+                    if (is_bool($value)) {
+                        $processed_value = $value ? 1 : 0;
+                    } elseif (is_numeric($value)) {
+                        $processed_value = ((int)$value) ? 1 : 0;
+                    } elseif (is_string($value)) {
+                        $v = strtolower(trim($value));
+                        $processed_value = ($v === '1' || $v === 'true') ? 1 : 0;
                     } else {
-                        $processed_value = $processed_value ? 1 : 0;
+                        $processed_value = $value ? 1 : 0;
                     }
                 } elseif ($config['type'] === 'string') {
                     if (isset($config['max_length']) && strlen($value) > $config['max_length']) {
                         $errors[] = "Configuration '{$key}' exceeds maximum length of {$config['max_length']} characters";
+                        $is_valid = false;
+                    }
+                } elseif ($config['type'] === 'integer') {
+                    if (!is_numeric($value)) {
+                        $errors[] = "Configuration '{$key}' must be an integer";
                         $is_valid = false;
                     }
                 }
@@ -374,15 +527,22 @@ class Settings extends REST_Controller
             if ($this->db->affected_rows() > 0) {
                 $updated++;
             } else {
-                $this->db->insert(db_prefix() . 'options', [
-                    'name' => $update['name'],
-                    'value' => $update['value'],
-                    'autoload' => 1,
-                    'type' => $update['type'],
-                    'warehouse_id' => $update['warehouse_id']
-                ]);
-                if ($this->db->affected_rows() > 0) {
-                    $created++;
+                // Verifica se já existe o registro
+                $this->db->where('name', $update['name']);
+                $this->db->where('warehouse_id', $warehouse_id);
+                $exists = $this->db->get(db_prefix() . 'options')->row();
+
+                if (!$exists) {
+                    $this->db->insert(db_prefix() . 'options', [
+                        'name' => $update['name'],
+                        'value' => $update['value'],
+                        'autoload' => 1,
+                        'type' => $update['type'],
+                        'warehouse_id' => $update['warehouse_id']
+                    ]);
+                    if ($this->db->affected_rows() > 0) {
+                        $created++;
+                    }
                 }
             }
         }
@@ -502,6 +662,8 @@ class Settings extends REST_Controller
     {
         // Fetch all items from the tbmmenu table using the model
         $menus = $this->Settings_model->get_menus();
+
+      
     
         if (empty($menus)) {
             $this->response(['status' => FALSE, 'message' => 'No menu items found.'], REST_Controller::HTTP_NOT_FOUND);

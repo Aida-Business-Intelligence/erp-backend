@@ -301,7 +301,7 @@ class Receivables extends REST_Controller
                     'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
                 ], REST_Controller::HTTP_BAD_REQUEST);
             }
-            $upload_path = FCPATH . 'uploads/receivables/';
+            $upload_path = FCPATH . 'uploads/receivables/documents/';
             if (!is_dir($upload_path)) {
                 mkdir($upload_path, 0755, true);
             }
@@ -309,7 +309,7 @@ class Receivables extends REST_Controller
             $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
             $file_path = $upload_path . $filename;
             if (move_uploaded_file($file['tmp_name'], $file_path)) {
-                $receivables_document = 'uploads/receivables/' . $filename;
+                $receivables_document = 'uploads/receivables/documents/' . $filename;
             } else {
                 return $this->response([
                     'status' => false,
@@ -349,7 +349,7 @@ class Receivables extends REST_Controller
                         'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
                     ], REST_Controller::HTTP_BAD_REQUEST);
                 }
-                $upload_path = FCPATH . 'uploads/receivables/';
+                $upload_path = FCPATH . 'uploads/receivables/documents/';
                 if (!is_dir($upload_path)) {
                     mkdir($upload_path, 0755, true);
                 }
@@ -365,7 +365,7 @@ class Receivables extends REST_Controller
                 $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
                 $file_path = $upload_path . $filename;
                 if (file_put_contents($file_path, $document_data)) {
-                    $receivables_document = 'uploads/receivables/' . $filename;
+                    $receivables_document = 'uploads/receivables/documents/' . $filename;
                 } else {
                     return $this->response([
                         'status' => false,
@@ -481,7 +481,7 @@ class Receivables extends REST_Controller
                         'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
                     ], REST_Controller::HTTP_BAD_REQUEST);
                 }
-                $upload_path = FCPATH . 'uploads/receivables/';
+                $upload_path = FCPATH . 'uploads/receivables/documents/';
                 if (!is_dir($upload_path)) {
                     mkdir($upload_path, 0755, true);
                 }
@@ -497,7 +497,7 @@ class Receivables extends REST_Controller
                 $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
                 $file_path = $upload_path . $filename;
                 if (file_put_contents($file_path, $document_data)) {
-                    $updateData['receivables_document'] = 'uploads/receivables/' . $filename;
+                    $updateData['receivables_document'] = 'uploads/receivables/documents/' . $filename;
                 } else {
                     return $this->response([
                         'status' => false,

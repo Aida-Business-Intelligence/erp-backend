@@ -659,42 +659,44 @@ function determine_color_type($hexColor)
     ];
 }
 
-if (!function_exists('gerarNFE')) {
-
-    function gerarNFE($data_extract)
-    {
-
-
-    }
-}
 
 if (!function_exists('gerarNFC')) {
 
-    function gerarNFC($data_extract)
+    function gerarNFC($data)
     {
+        /*
         $CI = &get_instance();
+        $CI->load->model('Warehouse_model');
+
+$loja = $CI->Warehouse_model->get($data['warehouse_id']);
+   echo '<pre>';
+        var_dump($loja); exit;
+exit;
+
+        echo '<pre>';
+        var_dump($data); exit;
 
         // Sua string JSON
         $postData = '{
     "emitente": {
-        "atualizacao": "2025-06-06 14:30:00", 
+        "atualizacao": "'.date("Y-m-d H:i:s").'", 
         "tpAmb": 2,
-        "razaosocial": "LONGO - COMERCIO DE CONFECCOES E ACESSORIOS LTDA",
-        "cnpj": "16963143000139",
-        "fantasia": "Nome LONGO - COMERCIO DE CONFECCOES E ACESSORIOS",
-        "ie": "262920751",
-        "im": "",
-        "cnae": "4781400",
+        "razaosocial": "'.$loja->razao_social.'",
+        "cnpj": "'.$loja->.'",
+        "fantasia": "'.$loja->warehouse_name.'",
+        "ie": "'.$loja->.'",
+        "im": "'.$loja->.'",
+        "cnae": "'.$loja->.'",
         "crt": "1",
-        "rua": "AV ADOLFO SCHNEIDER",
-        "numero": "147",
-        "bairro": "Centro",
-        "cidade": "Nova Prata",
-        "ccidade": "4313300",
-        "cep": "88331438",
-        "siglaUF": "RS",
-        "codigoUF": "43",
-        "fone": "11999999999",
+        "rua": "'.$loja->.'",
+        "numero":"'.$loja->.'",
+        "bairro":"'.$loja->.'",
+        "cidade": "'.$loja->.'",
+        "ccidade": "'.$loja->.'",
+        "cep": "'.$loja->.'",
+        "siglaUF": "'.$loja->.'",
+        "codigoUF": "'.$loja->.'",
+        "fone": "'.$loja->.'",
         "schemes": "PL_009_V4",
         "versao": "4.00",
         "tokenIBPT": "1",
@@ -775,6 +777,8 @@ if (!function_exists('gerarNFC')) {
 
         curl_close($curl);
         echo $response;
+    
+        */
     }
 
 }

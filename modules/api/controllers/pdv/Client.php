@@ -188,7 +188,6 @@ class Client extends REST_Controller
 
   public function create_post()
   {
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
     // Recebendo e decodificando os dados
     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -196,17 +195,24 @@ class Client extends REST_Controller
     $_input['warehouse_id'] = $_POST['warehouse_id'] ?? null;
 
     // Outros campos do cliente
-    $_input['vat'] = $_POST['documentNumber'] ?? null;
+    $_input['vat'] = $_POST['vat'] ?? null;
     $_input['is_supplier'] = 0;
-    $_input['email_default'] = $_POST['email'] ?? null;
+    $_input['email_default'] = $_POST['email_default'] ?? null;
     $_input['phonenumber'] = $_POST['phonenumber'] ?? null;
     $_input['documentType'] = $_POST['documentType'] ?? null;
-    $_input['zip'] = $_POST['cep'] ?? null;
+    $_input['zip'] = $_POST['zip'] ?? null;
+        $_input['billing_zip'] = $_POST['zip'] ?? null;
+
+      $_input['cep'] = $_POST['zip'] ?? null;
     $_input['birthDate'] = $_POST['birthDate'] ?? null;
-    $_input['billing_street'] = $_POST['street'] ?? null;
+    $_input['billing_street'] = $_POST['billing_street'] ?? null;
+    $_input['address'] = $_POST['billing_street'] ?? null;
     $_input['gender'] = $_POST['gender'] ?? null;
     $_input['billing_city'] = $_POST['billing_city'] ?? null;
+     $_input['city'] = $_POST['billing_city'] ?? null;
     $_input['billing_state'] = $_POST['billing_state'] ?? null;
+        $_input['state'] = $_POST['billing_state'] ?? null;
+
     $_input['billing_number'] = $_POST['billing_number'] ?? null;
     $_input['billing_complement'] = $_POST['billing_complement'] ?? null;
     $_input['billing_neighborhood'] = $_POST['billing_neighborhood'] ?? null;

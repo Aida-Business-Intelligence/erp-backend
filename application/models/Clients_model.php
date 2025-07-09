@@ -288,6 +288,12 @@ class Clients_model extends App_Model
             'cep' => $supplier['zip'],
              'zip' => $supplier['zip'],
             'city' => $supplier['city'],
+             'billing_neighborhood' => $supplier['billing_neighborhood'],
+              'billing_complement' => $supplier['billing_complement'],
+                            'billing_number' => $supplier['billing_number'],
+
+               'communicationPreference' => $supplier['communicationPreference'],
+                'marketingConsent' => $supplier['marketingConsent'],
             'state' => $supplier['state'],
             'country' => $supplier['country'],
             'phonenumber' => $supplier['phonenumber'],

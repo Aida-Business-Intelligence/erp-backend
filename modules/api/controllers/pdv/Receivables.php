@@ -264,6 +264,7 @@ class Receivables extends REST_Controller
         if (!isset($input['amount']) || $input['amount'] === '' || $input['amount'] === null) $required[] = 'amount';
         if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null) $required[] = 'date';
         if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null) $required[] = 'warehouse_id';
+        if (!isset($input['origin']) || $input['origin'] === '' || $input['origin'] === null) $required[] = 'origin';
         if (!empty($required)) {
             return $this->response([
                 'status' => false,
@@ -395,7 +396,7 @@ class Receivables extends REST_Controller
             'installment_number' => $input['installment_number'] ?? null,
             'nfe_key' => $input['nfe_key'] ?? null,
             'barcode' => $input['barcode'] ?? null,
-            'origin' => $input['origin'] ?? null,
+            'origin' => $input['origin'],
             'recurring_type' => $input['recurring_type'] ?? null,
             'repeat_every' => $input['repeat_every'] ?? null,
             'recurring' => isset($input['recurring']) ? ($input['recurring'] ? 1 : 0) : 0,

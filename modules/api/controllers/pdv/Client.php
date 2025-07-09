@@ -196,22 +196,23 @@ class Client extends REST_Controller
     $_input['warehouse_id'] = $_POST['warehouse_id'] ?? null;
 
     // Outros campos do cliente
-    $_input['vat'] = $_POST['vat'] ?? null;
+    $_input['vat'] = $_POST['documentNumber'] ?? null;
     $_input['is_supplier'] = 0;
-    $_input['email_default'] = $_POST['email_default'] ?? null;
-    $_input['phonenumber'] = $_POST['phonenumber'] ?? null;
+    $_input['email_default'] = $_POST['email'] ?? null;
+    $_input['phonenumber'] = $_POST['primaryPhone'] ?? null;
     $_input['documentType'] = $_POST['documentType'] ?? null;
-    $_input['zip'] = $_POST['zip'] ?? null;
+    $_input['zip'] = $_POST['cep'] ?? null;
     $_input['birthDate'] = $_POST['birthDate'] ?? null;
-    $_input['billing_street'] = $_POST['billing_street'] ?? null;
+    $_input['billing_street'] = $_POST['street'] ?? null;
     $_input['gender'] = $_POST['gender'] ?? null;
-    $_input['billing_city'] = $_POST['billing_city'] ?? null;
-    $_input['billing_state'] = $_POST['billing_state'] ?? null;
-    $_input['billing_number'] = $_POST['billing_number'] ?? null;
-    $_input['billing_complement'] = $_POST['billing_complement'] ?? null;
-    $_input['billing_neighborhood'] = $_POST['billing_neighborhood'] ?? null;
+    $_input['billing_city'] = $_POST['city'] ?? null;
+    $_input['billing_state'] = $_POST['state'] ?? null;
+    $_input['billing_number'] = $_POST['number'] ?? null;
+    $_input['billing_complement'] = $_POST['complement'] ?? null;
+    $_input['billing_neighborhood'] = $_POST['neighborhood'] ?? null;
     $_input['company'] = $_POST['fullName'] ?? null;
     $_POST['company'] = $_POST['fullName'] ?? null;
+    $_POST['email_default'] = $_POST['email_default'] ?? null;
 
     $_input['marketingConsent'] = $_POST['marketingConsent'] ?? false;
     $_input['communicationPreference'] = $_POST['communicationPreference'] ?? null;
@@ -369,7 +370,12 @@ class Client extends REST_Controller
       return;
     }
 
+
+
+
     $client = $this->Clients_model->get($id);
+
+
 
     if ($client) {
       $this->response([

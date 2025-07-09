@@ -973,7 +973,7 @@ else {
         }
     }
 
-    public function data_post($id)
+   public function data_post($id)
 {
     if (isset($_POST['data'])) {
         $_POST = json_decode($_POST['data'], true);
@@ -994,8 +994,7 @@ else {
     // Prepare os dados para atualização
     $update_data = $_POST;
 
-
-    unset($update_data['image'],$update_data['image1'],$update_data['image2'],$update_data['image3'],$update_data['imag4'], $update_data['images_base64'], $update_data['packaging'], $update_data['packagings'], $update_data['reservedStock'], $update_data['primary_image_index'], $update_data['itemType']);
+    unset($update_data['image'], $update_data['image1'], $update_data['image2'], $update_data['image3'], $update_data['image4'], $update_data['images_base64'], $update_data['packaging'], $update_data['packagings'], $update_data['reservedStock'], $update_data['primary_image_index'], $update_data['itemType'], $update_data['total_images']);
 
     if (isset($update_data['price_franquia'])) {
         $update_data['cost'] = $update_data['price_franquia'];
@@ -1004,77 +1003,76 @@ else {
     // Atualiza os dados do produto
     $update_result = $this->Invoice_items_model->edit($update_data, $id);
 
-        // Processa as imagens, substituindo as antigas
-        $upload_dir = './uploads/items/' . $id . '/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
+    // Processa as imagens
+    $upload_dir = './uploads/items/' . $id . '/';
+    if (!file_exists($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
 
-        $file_paths = [];
+    // Remove todas as imagens antigas do banco
+    $this->db->where('item_id', $id);
+    $this->db->delete(db_prefix() . 'item_images');
 
-        if (isset($_FILES['images'])) {
-            // Igual ao seu código de upload
-            // Verifica se é array ou único arquivo
-            $files = $_FILES['images']['tmp_name'];
-            if (!is_array($files)) {
-                $files = [$files];
-                $names = [$_FILES['images']['name']];
-                $sizes = [$_FILES['images']['size']];
-                $errors = [$_FILES['images']['error']];
-            } else {
-                $names = $_FILES['images']['name'];
-                $sizes = $_FILES['images']['size'];
-                $errors = $_FILES['images']['error'];
-            }
+    // Inicializa todos os campos de imagem como null
+    $file_paths = ['image' => null, 'image2' => null, 'image3' => null, 'image4' => null, 'image5' => null];
 
-            foreach ($files as $key => $file_temp) {
-                if ($errors[$key] === UPLOAD_ERR_OK) {
-                    $file_name = $names[$key];
-                    $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-                    $unique_filename = uniqid() . '.' . $file_extension;
-                    $upload_path = $upload_dir . $unique_filename;
+    if (isset($_FILES['images'])) {
+        // Se existem imagens carregadas, processa cada uma
+        $files = $_FILES['images']['tmp_name'];
+        $names = $_FILES['images']['name'];
+        $errors = $_FILES['images']['error'];
 
-                    if (move_uploaded_file($file_temp, $upload_path)) {
-                        $server_url = base_url();
-                        $relative_path = str_replace('./', '', $upload_path);
-                        $full_url = rtrim($server_url, '/') . '/' . $relative_path;
-                        array_push($file_paths, $full_url);
+        $image_count = 0;
+        
+        foreach ($files as $key => $file_temp) {
+            if ($errors[$key] === UPLOAD_ERR_OK && $image_count < 5) {
+                $file_name = $names[$key];
+                $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
+                $unique_filename = uniqid() . '.' . $file_extension;
+                $upload_path = $upload_dir . $unique_filename;
 
-                       // Antes do foreach de upload das imagens
-                        $this->db->where('item_id', $id);
-                        $this->db->delete(db_prefix() . 'item_images');
+                if (move_uploaded_file($file_temp, $upload_path)) {
+                    $server_url = base_url();
+                    $relative_path = str_replace('./', '', $upload_path);
+                    $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+                    
+                    // Atualiza o campo correspondente baseado na posição
+                    $field_name = array_keys($file_paths)[$key];
+                    $file_paths[$field_name] = $full_url;
 
-                        // Depois, no loop de upload, insere as novas
-                        $this->db->insert(db_prefix() . 'item_images', [
-                            'item_id' => $id,
-                            'url' => $full_url,
-                            'name' => $relative_path
-                        ]);
-                    }
+                    // Inserir a imagem no banco de dados
+                    $this->db->insert(db_prefix() . 'item_images', [
+                        'item_id' => $id,
+                        'url' => $full_url,
+                        'name' => $relative_path
+                    ]);
+                    
+                    $image_count++;
+                    log_message('debug', 'Processed image ' . $image_count . ' - Field: ' . $field_name);
                 }
             }
-
-            // Opcional: apague imagens antigas se desejar
-            // Você pode fazer uma query para deletar imagens antigas relacionadas ao produto antes de inserir novas
         }
+    }
 
-        // Atualiza as colunas específicas de imagens
-        $update_cols = [];
-        if (!empty($file_paths[0])) $update_cols['image'] = $file_paths[0];
-        if (!empty($file_paths[1])) $update_cols['image2'] = $file_paths[1];
-        if (!empty($file_paths[2])) $update_cols['image3'] = $file_paths[2];
-        if (!empty($file_paths[3])) $update_cols['image4'] = $file_paths[3];
-        if (!empty($file_paths[4])) $update_cols['image5'] = $file_paths[4];
+    // Atualiza as colunas específicas de imagens
+    $update_cols = [
+        'image'  => $file_paths['image'],
+        'image2' => $file_paths['image2'],
+        'image3' => $file_paths['image3'],
+        'image4' => $file_paths['image4'],
+        'image5' => $file_paths['image5']
+    ];
 
-        if (!empty($update_cols)) {
-            $this->db->where('id', $id);
-            $this->db->update(db_prefix() . 'items', $update_cols);
-        }
+    log_message('debug', 'Updating image fields: ' . json_encode($update_cols));
+
+    // Atualiza cada campo
+    $this->db->where('id', $id);
+    $this->db->update(db_prefix() . 'items', $update_cols);
 
     // Após atualizar as imagens, podemos retornar uma mensagem de sucesso
-        $this->response(['status' => TRUE, 'message' => 'Produto atualizado com sucesso.', 'data' => $this->Invoice_items_model->get($id)], REST_Controller::HTTP_OK);
-   
+    $this->response(['status' => TRUE, 'message' => 'Produto atualizado com sucesso.', 'data' => $this->Invoice_items_model->get($id)], REST_Controller::HTTP_OK);
 }
+
 
     public function groups_post()
     {

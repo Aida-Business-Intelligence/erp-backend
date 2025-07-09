@@ -683,7 +683,7 @@ class Cashs_model extends App_Model
 
                  foreach (json_decode($data['form_payments']) as $payment) {
                     if (!$nfce && strtolower($payment->type) != 'dinheiro') {
-                     //   gerarNFC($data);
+                       // gerarNFC($data);
                         $nfce = true; // garante que não será chamado novamente
                     }
                  

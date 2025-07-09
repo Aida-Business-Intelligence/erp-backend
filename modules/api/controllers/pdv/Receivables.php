@@ -231,23 +231,92 @@ class Receivables extends REST_Controller
     public function create_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
-        $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        // Campos obrigatórios mínimos
+        // Logar Content-Type
+        $log_content_type = isset($this->input->request_headers()['Content-Type'])
+            ? $this->input->request_headers()['Content-Type']
+            : (isset($this->input->request_headers()['content-type'])
+                ? $this->input->request_headers()['content-type']
+                : null);
+        log_message('error', 'RECEIVABLES_CREATE_POST_CONTENT_TYPE: ' . $log_content_type);
+        log_message('error', 'RECEIVABLES_CREATE_POST__POST: ' . print_r($_POST, true));
+        log_message('error', 'RECEIVABLES_CREATE_POST__FILES: ' . print_r($_FILES, true));
+        $raw_input = file_get_contents('php://input');
+        log_message('error', 'RECEIVABLES_CREATE_POST_RAW_INPUT: ' . $raw_input);
+
+        // Detectar tipo de conteúdo
+        $content_type = $log_content_type;
+        $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
+
+        if ($is_multipart) {
+            $input = $this->input->post();
+        } else {
+            $input = json_decode($raw_input, true);
+        }
+
+        // Log para depuração
+        log_message('error', 'RECEIVABLES_CREATE_POST_INPUT: ' . print_r($input, true));
+        log_message('error', 'RECEIVABLES_CREATE_POST_FILES: ' . print_r($_FILES, true));
+
+        // Validação robusta dos campos obrigatórios
         $required = [];
-        if (empty($input['category'])) $required[] = 'category';
-        if (empty($input['amount'])) $required[] = 'amount';
-        if (empty($input['date'])) $required[] = 'date';
-        if (empty($input['warehouse_id'])) $required[] = 'warehouse_id';
+        if (!isset($input['category']) || $input['category'] === '' || $input['category'] === null) $required[] = 'category';
+        if (!isset($input['amount']) || $input['amount'] === '' || $input['amount'] === null) $required[] = 'amount';
+        if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null) $required[] = 'date';
+        if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null) $required[] = 'warehouse_id';
         if (!empty($required)) {
             return $this->response([
                 'status' => false,
-                'message' => 'Campos obrigatórios: ' . implode(', ', $required)
+                'message' => 'Campos obrigatórios: ' . implode(', ', $required),
+                'debug_input' => $input,
+                'debug_files' => $_FILES,
+                'debug__POST' => $_POST,
+                'debug_raw_input' => $raw_input,
+                'debug_content_type' => $log_content_type
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
         $receivables_document = null;
-        if (!empty($input['receivables_document'])) {
+        // Se for multipart, tratar upload de arquivo
+        if ($is_multipart && isset($_FILES['receivables_document']) && $_FILES['receivables_document']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['receivables_document'];
+            $allowed_types = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'image/jpeg',
+                'image/jpg',
+                'image/png'
+            ];
+            if (!in_array($file['type'], $allowed_types)) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+            if ($file['size'] > 5 * 1024 * 1024) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+            $upload_path = FCPATH . 'uploads/receivables/';
+            if (!is_dir($upload_path)) {
+                mkdir($upload_path, 0755, true);
+            }
+            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
+            $file_path = $upload_path . $filename;
+            if (move_uploaded_file($file['tmp_name'], $file_path)) {
+                $receivables_document = 'uploads/receivables/' . $filename;
+            } else {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Falha ao salvar o documento no servidor'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
+        } else if (!empty($input['receivables_document'])) {
+            // Caso seja base64 (JSON)
             $document_data = $input['receivables_document'];
             if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
                 $mime_type = $matches[1];

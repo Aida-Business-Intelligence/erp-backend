@@ -552,6 +552,9 @@ class Receivables extends REST_Controller
         try {
             $warehouse_id = $this->input->get('warehouse_id');
             $search = $this->input->get('search') ?: '';
+            $page = (int)($this->input->get('page') ?? 1);
+            $pageSize = (int)($this->input->get('pageSize') ?? 5);
+            $offset = ($page - 1) * $pageSize;
 
             if (empty($warehouse_id)) {
                 return $this->response([
@@ -566,12 +569,17 @@ class Receivables extends REST_Controller
             if ($search) {
                 $this->db->like('name', $search);
             }
+            $total = $this->db->count_all_results('', false);
             $this->db->order_by('name', 'ASC');
+            $this->db->limit($pageSize, $offset);
             $origins = $this->db->get()->result_array();
 
             return $this->response([
                 'success' => true,
-                'data' => $origins
+                'data' => $origins,
+                'total' => $total,
+                'page' => $page,
+                'pageSize' => $pageSize
             ], REST_Controller::HTTP_OK);
         } catch (Exception $e) {
             return $this->response([

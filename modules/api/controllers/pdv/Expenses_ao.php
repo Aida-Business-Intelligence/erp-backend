@@ -1558,7 +1558,13 @@ class Expenses_ao extends REST_Controller
             'custom_recurring',
             'last_recurring_date',
             'create_invoice_billable',
-            'recurring_from'
+            'recurring_from',
+            'nota_tipo_ao',
+            'num_parcelas',
+            'juros',
+            'juros_apartir',
+            'total_parcelado',
+            'due_date'
         ];
 
         $updateData = [];

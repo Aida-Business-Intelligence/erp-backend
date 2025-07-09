@@ -1241,6 +1241,11 @@ class Expenses_ao_model extends App_Model
         e.warehouse_id,
         e.file,
         e.comprovante,
+        e.num_parcelas,
+        e.juros,
+        e.juros_apartir,
+        e.total_parcelado,
+        e.nota_tipo_ao,
 
         c.userid as userid,
         c.company as company,

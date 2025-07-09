@@ -975,7 +975,7 @@ class Invoices extends REST_Controller
 
         $this->db->where('pn.id IS NOT NULL');
         $this->db->where('i.warehouse_id', $warehouse_id);
-        $this->db->where_in('i.status', [3, 4, 6]);
+        $this->db->where_in('i.status', [3, 6]);
 
         if (!empty($search)) {
             $this->db->group_start();

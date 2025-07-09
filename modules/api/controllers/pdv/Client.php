@@ -498,6 +498,37 @@ class Client extends REST_Controller
     }
   }
 
+
+   public function update_post($id = '')
+  {
+
+
+    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+    if (empty($_POST) || !isset($_POST)) {
+      $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+      $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+    }
+    $this->form_validation->set_data($_POST);
+    if (empty($id) && !is_numeric($id)) {
+      $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
+      $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+    } else {
+      $update_data = $this->input->post();
+      // update data
+      $this->load->model('clients_model');
+      $output = $this->clients_model->update($update_data, $id);
+      if ($output > 0 && !empty($output)) {
+        // success
+        $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->clients_model->get($id));
+        $this->response($message, REST_Controller::HTTP_OK);
+      } else {
+        // error
+        $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
+        $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+      }
+    }
+  }
   // Lista clients que são Franchisees
   public function list_franchisee_client_post()
   {

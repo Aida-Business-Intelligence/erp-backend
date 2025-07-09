@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     pspell snmp tidy intl bcmath
 
 #xmlrpc deu erro
-# copia o projeto
+### copia o projeto
 COPY . /var/www/html/
 WORKDIR /var/www/html
 

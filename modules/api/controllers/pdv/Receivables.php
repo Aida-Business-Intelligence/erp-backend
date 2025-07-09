@@ -544,4 +544,106 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    // Listar origens
+    public function origins_list_get()
+    {
+        try {
+            $warehouse_id = $this->input->get('warehouse_id');
+            $search = $this->input->get('search') ?: '';
+
+            if (empty($warehouse_id)) {
+                return $this->response([
+                    'success' => false,
+                    'message' => 'warehouse_id é obrigatório'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            $this->db->select('id, name, description');
+            $this->db->from(db_prefix() . 'origins');
+            $this->db->where('warehouse_id', $warehouse_id);
+            if ($search) {
+                $this->db->like('name', $search);
+            }
+            $this->db->order_by('name', 'ASC');
+            $origins = $this->db->get()->result_array();
+
+            return $this->response([
+                'success' => true,
+                'data' => $origins
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            return $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // Criar origem
+    public function origins_create_post()
+    {
+        try {
+            $input = $this->input->post();
+            if (empty($input)) {
+                $input = json_decode(file_get_contents('php://input'), true);
+            }
+            if (empty($input['name']) || empty($input['warehouse_id'])) {
+                return $this->response([
+                    'success' => false,
+                    'message' => 'Nome e warehouse_id são obrigatórios'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            $data = [
+                'name' => $input['name'],
+                'description' => $input['description'] ?? null,
+                'warehouse_id' => $input['warehouse_id'],
+            ];
+            $this->db->insert(db_prefix() . 'origins', $data);
+            $id = $this->db->insert_id();
+
+            return $this->response([
+                'success' => true,
+                'data' => ['id' => $id]
+            ], REST_Controller::HTTP_CREATED);
+        } catch (Exception $e) {
+            return $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // Excluir origem
+    public function origins_delete_post()
+    {
+        try {
+            $id = $this->input->post('id');
+            if (empty($id)) {
+                return $this->response([
+                    'success' => false,
+                    'message' => 'ID é obrigatório'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+            $this->db->where('id', $id);
+            $this->db->delete(db_prefix() . 'origins');
+            if ($this->db->affected_rows() > 0) {
+                return $this->response([
+                    'success' => true,
+                    'message' => 'Origem excluída com sucesso'
+                ], REST_Controller::HTTP_OK);
+            } else {
+                return $this->response([
+                    'success' => false,
+                    'message' => 'Falha ao excluir origem'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
+        } catch (Exception $e) {
+            return $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

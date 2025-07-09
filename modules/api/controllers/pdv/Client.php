@@ -188,7 +188,6 @@ class Client extends REST_Controller
 
   public function create_post()
   {
-    \modules\api\core\Apiinit::the_da_vinci_code('api');
     // Recebendo e decodificando os dados
     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -196,17 +195,24 @@ class Client extends REST_Controller
     $_input['warehouse_id'] = $_POST['warehouse_id'] ?? null;
 
     // Outros campos do cliente
-    $_input['vat'] = $_POST['documentNumber'] ?? null;
+    $_input['vat'] = $_POST['vat'] ?? null;
     $_input['is_supplier'] = 0;
-    $_input['email_default'] = $_POST['email'] ?? null;
+    $_input['email_default'] = $_POST['email_default'] ?? null;
     $_input['phonenumber'] = $_POST['phonenumber'] ?? null;
     $_input['documentType'] = $_POST['documentType'] ?? null;
-    $_input['zip'] = $_POST['cep'] ?? null;
+    $_input['zip'] = $_POST['zip'] ?? null;
+        $_input['billing_zip'] = $_POST['zip'] ?? null;
+
+      $_input['cep'] = $_POST['zip'] ?? null;
     $_input['birthDate'] = $_POST['birthDate'] ?? null;
-    $_input['billing_street'] = $_POST['street'] ?? null;
+    $_input['billing_street'] = $_POST['billing_street'] ?? null;
+    $_input['address'] = $_POST['billing_street'] ?? null;
     $_input['gender'] = $_POST['gender'] ?? null;
     $_input['billing_city'] = $_POST['billing_city'] ?? null;
+     $_input['city'] = $_POST['billing_city'] ?? null;
     $_input['billing_state'] = $_POST['billing_state'] ?? null;
+        $_input['state'] = $_POST['billing_state'] ?? null;
+
     $_input['billing_number'] = $_POST['billing_number'] ?? null;
     $_input['billing_complement'] = $_POST['billing_complement'] ?? null;
     $_input['billing_neighborhood'] = $_POST['billing_neighborhood'] ?? null;
@@ -498,6 +504,37 @@ class Client extends REST_Controller
     }
   }
 
+
+   public function update_post($id = '')
+  {
+
+
+    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+    if (empty($_POST) || !isset($_POST)) {
+      $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
+      $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
+    }
+    $this->form_validation->set_data($_POST);
+    if (empty($id) && !is_numeric($id)) {
+      $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
+      $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+    } else {
+      $update_data = $this->input->post();
+      // update data
+      $this->load->model('clients_model');
+      $output = $this->clients_model->update($update_data, $id);
+      if ($output > 0 && !empty($output)) {
+        // success
+        $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->clients_model->get($id));
+        $this->response($message, REST_Controller::HTTP_OK);
+      } else {
+        // error
+        $message = array('status' => FALSE, 'message' => 'Customers Update Fail.');
+        $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+      }
+    }
+  }
   // Lista clients que são Franchisees
   public function list_franchisee_client_post()
   {

@@ -69,7 +69,7 @@ jobs:
             # --- Derivar nomes e caminhos dinamicamente ---
             APP_DIR="/srv/erp/${PARAM_STORE_IDENTIFIER}"
             CONTAINER_NAME="aida-app-${PARAM_STORE_IDENTIFIER}"
-            ROLLBACK_IMAGE_TAG="${PARAM_IMAGE_BASE_NAME}:${PARAM_IMAGE_TAG_SUFFIX}" # Imagem completa para rollback
+            ROLLBACK_IMAGE_TAG="${PARAM_IMAGE_BASE_NAME}${PARAM_IMAGE_TAG_SUFFIX}" # Imagem completa para rollback
 
             echo "--- Iniciando Processo de Rollback ---"
             echo "  Loja Alvo: ${PARAM_STORE_IDENTIFIER}"

@@ -9,8 +9,8 @@ class Settings_model extends App_Model
     public function __construct()
     {
         parent::__construct();
-//        $this->load->database();
-       
+        //        $this->load->database();
+
         /*
          *  $this->load->model('payment_modes_model');
         
@@ -26,21 +26,19 @@ class Settings_model extends App_Model
          * 
          */
     }
-    public function get_options($warehouse_id){
-        
-           $this->db->select('name,value');
-            $this->db->where('type', 'pdv');
-            $this->db->where('warehouse_id', $warehouse_id);
-            return $this->db->get(db_prefix() . 'options')->result_array();
-                    
-        
-        
+
+    public function get_options($warehouse_id)
+    {
+        $this->db->select('name,value');
+        $this->db->where('type', 'pdv');
+        $this->db->where('warehouse_id', $warehouse_id);
+        return $this->db->get(db_prefix() . 'options')->result_array();
     }
-    
+
     public function get_warehouses()
-	{
-		return $this->db->query('select warehouse_id, warehouse_name as label from ' . db_prefix() . 'warehouse where display = 1 order by ' . db_prefix() . 'warehouse.order asc')->result_array();
-	}
+    {
+        return $this->db->query('select warehouse_id, warehouse_name as label from ' . db_prefix() . 'warehouse where display = 1 order by ' . db_prefix() . 'warehouse.order asc')->result_array();
+    }
 
     /**
      * Update all settings
@@ -159,8 +157,10 @@ class Settings_model extends App_Model
         }
 
         // Contact permission default none
-        if (!in_array('default_contact_permissions', $all_settings_looped)
-                && in_array('customer_settings', $all_settings_looped)) {
+        if (
+            !in_array('default_contact_permissions', $all_settings_looped)
+            && in_array('customer_settings', $all_settings_looped)
+        ) {
             $this->db->where('name', 'default_contact_permissions');
             $this->db->update(db_prefix() . 'options', [
                 'value' => serialize([]),
@@ -168,11 +168,13 @@ class Settings_model extends App_Model
             if ($this->db->affected_rows() > 0) {
                 $affectedRows++;
             }
-        } 
-        
+        }
+
         // Required register fields, nothing selected
-        if (!in_array('required_register_fields', $all_settings_looped)
-                && in_array('customer_settings', $all_settings_looped)) {
+        if (
+            !in_array('required_register_fields', $all_settings_looped)
+            && in_array('customer_settings', $all_settings_looped)
+        ) {
             $this->db->where('name', 'required_register_fields');
             $this->db->update(db_prefix() . 'options', [
                 'value' => json_encode([]),
@@ -180,10 +182,12 @@ class Settings_model extends App_Model
             if ($this->db->affected_rows() > 0) {
                 $affectedRows++;
             }
-        } 
-        
-        if (!in_array('visible_customer_profile_tabs', $all_settings_looped)
-                && in_array('customer_settings', $all_settings_looped)) {
+        }
+
+        if (
+            !in_array('visible_customer_profile_tabs', $all_settings_looped)
+            && in_array('customer_settings', $all_settings_looped)
+        ) {
             $this->db->where('name', 'visible_customer_profile_tabs');
             $this->db->update(db_prefix() . 'options', [
                 'value' => 'all',
@@ -191,10 +195,12 @@ class Settings_model extends App_Model
             if ($this->db->affected_rows() > 0) {
                 $affectedRows++;
             }
-        } 
-        
-        if (!in_array('lead_unique_validation', $all_settings_looped)
-                && in_array('_leads_settings', $all_settings_looped)) {
+        }
+
+        if (
+            !in_array('lead_unique_validation', $all_settings_looped)
+            && in_array('_leads_settings', $all_settings_looped)
+        ) {
             $this->db->where('name', 'lead_unique_validation');
             $this->db->update(db_prefix() . 'options', [
                 'value' => json_encode([]),
@@ -223,9 +229,9 @@ class Settings_model extends App_Model
 
         return false;
     }
-    
-    public function insert_settings($data) {
-   
+
+    public function insert_settings($data)
+    {
         $this->db->insert(db_prefix() . 'pdvsettings', $data);
         if ($this->db->affected_rows() > 0) {
             return $this->db->insert_id(); // Retorna o ID do registro inserido
@@ -233,8 +239,9 @@ class Settings_model extends App_Model
         return false; // Retorna falso em caso de falha
     }
 
-    public function save_menu($data) {
-   
+    public function save_menu($data)
+    {
+
         $this->db->insert(db_prefix() . 'menu', $data);
         if ($this->db->affected_rows() > 0) {
             return $this->db->insert_id(); // Retorna o ID do registro inserido
@@ -242,37 +249,68 @@ class Settings_model extends App_Model
         return false; // Retorna falso em caso de falha
     }
 
-    public function get_menus()
-	{
-	
+    public function get_menus_old()
+    {
         $this->db->select('*');
-       // $this->db->where('type', 'pdv');
+        // $this->db->where('type', 'pdv');
         return $this->db->get(db_prefix() . 'menu')->result_array();
+    }
+
+    public function get_menus()
+    {
+        $user = get_staff_user();
+
+     
+
+        $permissions = $this->db
+            ->distinct()
+            ->select('menu_id')
+            ->from('tblstaff_permissions')
+            ->where('staff_id', $user->staffid)
+            ->get()
+            ->result_array();
+
+        $grantedMenuIds = array_column($permissions, 'menu_id');
+
+        $menus = [];
+          if($user->admin == 1){
+
+                $menus = $this->db
+                        ->get('tblmenu')
+                        ->result_array();
+            
+                }else{
+
+        if (!empty($grantedMenuIds)) {
+
+
+             
+                    $menus = $this->db
+                        ->where_in('id', $grantedMenuIds)
+                        ->get('tblmenu')
+                        ->result_array();
+
+                }
+            }
+
+        
       
-    
+
+        return $menus;
     }
 
     public function update_menu($id, $data)
-	{
-	
-
-
-      
+    {
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'menu', $data);
         return $this->db->affected_rows();
-      
-    
     }
 
     public function delete_menu($id)
-	{
-	
+    {
         $this->db->where('id', $id);
         $this->db->delete(db_prefix() . 'menu');
-        
+
         return $this->db->affected_rows();
-      
-    
     }
 }

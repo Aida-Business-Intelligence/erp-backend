@@ -9,6 +9,7 @@ class Romaneio extends REST_Controller {
         parent::__construct();
         $this->load->model('clients_model');
         $this->load->model('warehouse_model');
+        $this->decodedToken = $this->authservice->decodeToken($this->token_jwt);
     }
 
     public function list_get() {
@@ -32,6 +33,7 @@ class Romaneio extends REST_Controller {
         $endDate = $this->get('endDate');
         $customerId = $this->get('customerId');
         $supplierId = $this->get('supplierId');
+        $type= $this->get('type');
 
         if (!$this->db->table_exists(db_prefix() . 'romaneios') ||
                 !$this->db->table_exists(db_prefix() . 'romaneio_orders')) {
@@ -48,6 +50,7 @@ class Romaneio extends REST_Controller {
             $this->db->from(db_prefix() . 'romaneios r');
             $this->db->join(db_prefix() . 'romaneio_orders o', 'o.romaneio_id = r.id', 'left');
             $this->db->where('r.warehouse_id', $warehouse_id);
+            $this->db->where('r.type', $type);
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -92,6 +95,7 @@ class Romaneio extends REST_Controller {
             $this->db->from(db_prefix() . 'romaneios r');
             $this->db->join(db_prefix() . 'romaneio_orders o', 'o.romaneio_id = r.id', 'left');
             $this->db->where('r.warehouse_id', $warehouse_id);
+            $this->db->where('r.type', $type);
 
             if (!empty($search)) {
                 $this->db->group_start();
@@ -206,6 +210,9 @@ class Romaneio extends REST_Controller {
     public function create_post() {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
+       
+
+
         if (empty($_POST['warehouse_id'])) {
             $this->response(
                     ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -282,6 +289,8 @@ class Romaneio extends REST_Controller {
             'notes' => $_POST['notes'] ?? null,
             'created_by' => $this->session->userdata('staff_user_id') ?? 1,
             'warehouse_id' => $_POST['warehouse_id'],
+            'user_id' => $this->decodedToken['data']->user->staffid,
+            'user_name' => $this->decodedToken['data']->user->firstname. ' '.$this->decodedToken['data']->user->lastname,
         ];
 
         $this->db->insert(db_prefix() . 'romaneios', $romaneio_data);
@@ -309,9 +318,10 @@ class Romaneio extends REST_Controller {
 
             $margin = $total_cost > 0 ? (($total_price - $total_cost) / $total_cost * 100) : 0;
 
+            $supplierIdNumber = str_replace("WAR_", "", $order['supplierId']);
             $order_data = [
                 'romaneio_id' => $romaneio_id,
-                'supplier_id' => $order['supplierId'],
+                'supplier_id' => (int)$supplierIdNumber,
                 'supplier_name' => $order['supplierName'],
                 'date_created' => date('Y-m-d H:i:s'),
                 'status' => $order['status'] ?? 'pending',
@@ -326,7 +336,7 @@ class Romaneio extends REST_Controller {
             $order_id = $this->db->insert_id();
 
             foreach ($order['products'] as $product) {
-                $product_margin = $product['cost'] > 0 ? (($product['price'] - $product['cost']) / $product['cost'] * 100) : 0;
+$product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']) * 100) / $product['price']  : 0;
 
                 $product_data = [
                     'order_id' => $order_id,
@@ -367,8 +377,9 @@ class Romaneio extends REST_Controller {
     /**
      * Update an existing romaneio
      */
-    public function update_put($id) {
+    public function update_put() {
         $_PUT = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        $id = $_PUT ['romaneio_id'];
 
         if (empty($_PUT['warehouse_id'])) {
             $this->response(
@@ -391,6 +402,18 @@ class Romaneio extends REST_Controller {
         $this->db->where('id', $id);
         $this->db->where('warehouse_id', $_PUT['warehouse_id']);
         $romaneio = $this->db->get(db_prefix() . 'romaneios')->row_array();
+        $orders = $this->get_orders_romaneio($id);
+
+   
+
+        foreach($orders as $ord){
+
+          $this->delete_orders_romaneio($ord['id']); 
+          $this->delete_itens_romaneio($ord['id']);
+
+        }
+
+
 
         if (!$romaneio) {
             $this->db->trans_rollback();
@@ -405,25 +428,73 @@ class Romaneio extends REST_Controller {
             'status' => $_PUT['status'] ?? $romaneio['status'],
             'notes' => $_PUT['notes'] ?? $romaneio['notes'],
             'date_updated' => date('Y-m-d H:i:s'),
+            'customer_id' => $_PUT['customer']['id'],
+            'customer_name' => $_PUT['customer']['name'],
+            'user_id' => $this->decodedToken['data']->user->staffid,
+            'user_name' => $this->decodedToken['data']->user->firstname. ' '.$this->decodedToken['data']->user->lastname,
         ];
 
-        $this->db->where('id', $id);
-        $this->db->update(db_prefix() . 'romaneios', $romaneio_data);
+
+
+       $this->update_romaneio($id, $romaneio_data);
 
         if (isset($_PUT['orders']) && is_array($_PUT['orders'])) {
-            foreach ($_PUT['orders'] as $order) {
+
+         foreach ($_PUT['orders'] as $order) {
+
+            $total_cost = 0;
+            $total_price = 0;
+            $total_items = 0;
+
+            
+
+               $order_data = [
+                'romaneio_id' => $id,
+                'supplier_id' => (int)$order['supplierId'],
+                'supplier_name' => $order['supplierName'],
+                'date_updated' => date('Y-m-d H:i:s'),
+                'status' => $order['status'] ?? 'pending',
+                'total_cost' => $order['totals']['cost'],
+                'total_price' => $order['totals']['price'],
+                'total_items' => $order['totals']['items'],
+                'margin' => $order['totals']['margin'],
+                'warehouse_id' => $_PUT['warehouse_id']
+            ];
+
+            $this->db->insert(db_prefix() . 'romaneio_orders', $order_data);
+             $order_id = $this->db->insert_id();
+
+             
+            foreach ($order['products'] as $product) {
+
+            $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']) * 100) / $product['price']  : 0;
+
+
+                $product_data = [
+                    'order_id' => $order_id,
+                    'product_id' => $product['productId'],
+                    'code' => $product['code'],
+                    'description' => $product['description'],
+                    'quantity' => $product['quantity'],
+                    'cost' => $product['cost'],
+                    'price' => $product['price'],
+                    'total_cost' => $product['quantity'] * $product['cost'],
+                    'total_price' => $product['quantity'] * $product['price'],
+                    'margin' => number_format($product_margin,2),
+                    'warehouse_id' => $_PUT['warehouse_id'],
+                ];
+
+                $this->db->insert(db_prefix() . 'romaneio_order_items', $product_data);
+            }
+
+
                 if (!isset($order['id']) || empty($order['id'])) {
                     continue;
                 }
 
-                $order_data = [
-                    'status' => $order['status'] ?? null,
-                    'date_updated' => date('Y-m-d H:i:s'),
-                ];
+             
 
-                $this->db->where('id', $order['id']);
-                $this->db->where('warehouse_id', $_PUT['warehouse_id']);
-                $this->db->update(db_prefix() . 'romaneio_orders', $order_data);
+
             }
         }
 
@@ -442,6 +513,51 @@ class Romaneio extends REST_Controller {
             'status' => TRUE,
             'message' => 'Romaneio updated successfully'
                 ], REST_Controller::HTTP_OK);
+    }
+
+     /**
+     * Delete a romaneio
+     */
+    public function delete_itens_romaneio($id) {
+
+                 $this->db->where('order_id', $id);
+                return $this->db->delete(db_prefix() . 'romaneio_order_items');
+
+    }
+
+    public function delete_orders_romaneio($id) {
+
+                 $this->db->where('id', $id);
+                return $this->db->delete(db_prefix() . 'romaneio_orders');
+
+    }
+
+    public function update_romaneio($id, $romaneio_data) {
+
+       $this->db->where('id', $id);
+       return $this->db->update(db_prefix() . 'romaneios', $romaneio_data);
+
+    }
+
+     public function update_status_patch() {
+
+
+       $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+       $id = $_POST['romaneio_id'];
+       $status =  $_POST['status'];
+
+       $this->db->where('id', $id);
+       return $this->db->update(db_prefix() . 'romaneios', array('status'=>$status));
+
+    }
+
+     public function get_orders_romaneio($id) {
+
+       $this->db->where('romaneio_id', $id);
+       return $this->db->get(db_prefix() . 'romaneio_orders')->result_array();
+      
+
     }
 
     /**
@@ -705,9 +821,11 @@ class Romaneio extends REST_Controller {
             return;
         }
 
+        
         $search = $this->get('search') ?: '';
         $limit = $this->get('limit') ? (int) $this->get('limit') : 50;
         $page = $this->get('page') ? (int) $this->get('page') : 1;
+        /*
         $this->db->select('staffid as id, CONCAT(firstname, lastname) as name, vat as document');
         $this->db->from(db_prefix() . 'staff');
         $this->db->where('active', 1);
@@ -724,6 +842,7 @@ class Romaneio extends REST_Controller {
         $this->db->limit($limit);
 
         $customers = $this->db->get()->result_array();
+        */
 
         $warehouses = $this->warehouse_model->get("", "(type = 'filial' OR type = 'franquia')");
         $fornecedores = array();
@@ -735,24 +854,21 @@ class Romaneio extends REST_Controller {
                 "document" => $wa['cnpj'] // Use a different key for cnpj to avoid overwriting 'name'
             );
         }
-        $combined = array_merge($customers, $fornecedores);
+       // $combined = array_merge($customers, $fornecedores);
 
         $this->response([
             'status' => TRUE,
-            'total' => count($combined), // update total count
+            'total' => count($fornecedores), // update total count
             'page' => $page,
             'limit' => $limit,
-            'data' => $combined
+            'data' => $fornecedores
                 ], REST_Controller::HTTP_OK);
     }
 
     public function supplier_products_get($supplier_id) {
         $warehouse_id = $this->get('warehouse_id');
 
-        if ('WAR' == substr($supplier_id, 0, 3)) {
-            $warehouse_id = substr($supplier_id, 4);
-        }
-
+       
 
 
         if (empty($warehouse_id)) {
@@ -779,9 +895,15 @@ class Romaneio extends REST_Controller {
 
         $this->db->select('id');
         $this->db->from(db_prefix() . 'items');
+        /*
         if ('WAR' != substr($supplier_id, 0, 3)) {
             $this->db->where('userid', $supplier_id);
         }
+            */
+         if ('WAR' == substr($supplier_id, 0, 3)) {
+            $warehouse_id = substr($supplier_id, 4);
+        }
+
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('active', 1);
 
@@ -802,9 +924,11 @@ class Romaneio extends REST_Controller {
 
         $this->db->select('id, sku_code as code, description, cost, rate as price');
         $this->db->from(db_prefix() . 'items');
+        /*
         if ('WAR' != substr($supplier_id, 0, 3)) {
             $this->db->where('userid', $supplier_id);
         }
+            */
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('active', 1);
 
@@ -827,6 +951,8 @@ class Romaneio extends REST_Controller {
         $this->db->limit($limit, $offset);
 
         $products = $this->db->get()->result_array();
+
+        //echo $this->db->last_query(); exit;
 
         foreach ($products as &$product) {
             $cost = (float) $product['cost'];

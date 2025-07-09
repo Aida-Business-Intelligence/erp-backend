@@ -192,7 +192,7 @@ class Expenses extends REST_Controller
                         throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
                     }
 
-                    $upload_path = FCPATH . 'uploads/expenses/';
+                    $upload_path = FCPATH . 'uploads/expenses/documents/';
                     if (!is_dir($upload_path)) {
                         mkdir($upload_path, 0755, true);
                     }
@@ -212,7 +212,7 @@ class Expenses extends REST_Controller
                     $file_path = $upload_path . $filename;
 
                     if (file_put_contents($file_path, $document_data)) {
-                        $expenses_document = 'uploads/expenses/' . $filename;
+                        $expenses_document = 'uploads/expenses/documents/' . $filename;
                     } else {
                         throw new Exception('Falha ao salvar o documento no servidor');
                     }
@@ -911,13 +911,11 @@ class Expenses extends REST_Controller
                     }
                 }
 
-                // Criar diretório de uploads se não existir
-                $upload_path = FCPATH . 'uploads/expenses/';
+                $upload_path = FCPATH . 'uploads/expenses/documents/';
                 if (!is_dir($upload_path)) {
                     mkdir($upload_path, 0755, true);
                 }
 
-                // Determinar extensão baseada no MIME type
                 $extension_map = [
                     'application/pdf' => 'pdf',
                     'application/msword' => 'doc',
@@ -929,13 +927,11 @@ class Expenses extends REST_Controller
 
                 $extension = $extension_map[$mime_type] ?? 'bin';
 
-                // Gerar nome único para o arquivo
                 $filename = 'expense_' . time() . '_' . uniqid() . '.' . $extension;
                 $file_path = $upload_path . $filename;
 
-                // Salvar o documento no sistema de arquivos
                 if (file_put_contents($file_path, $document_data)) {
-                    $update_data['expenses_document'] = 'uploads/expenses/' . $filename;
+                    $update_data['expenses_document'] = 'uploads/expenses/documents/' . $filename;
                 } else {
                     return $this->response([
                         'status' => false,
@@ -1726,6 +1722,8 @@ class Expenses extends REST_Controller
             return;
         }
         $filePath = FCPATH . ltrim($document, '/');
+        // Ajuste para garantir que o caminho use 'documents/'
+        $filePath = str_replace('uploads/expenses/', 'uploads/expenses/documents/', $filePath);
         if (file_exists($filePath)) {
             @unlink($filePath);
         }
@@ -1852,7 +1850,7 @@ class Expenses extends REST_Controller
                     }
                 }
 
-                $upload_path = FCPATH . 'uploads/expenses/';
+                $upload_path = FCPATH . 'uploads/expenses/documents/';
                 if (!is_dir($upload_path)) {
                     mkdir($upload_path, 0755, true);
                 }
@@ -1872,7 +1870,7 @@ class Expenses extends REST_Controller
                 $file_path = $upload_path . $filename;
 
                 if (file_put_contents($file_path, $document_data)) {
-                    $updateData['expenses_document'] = 'uploads/expenses/' . $filename;
+                    $updateData['expenses_document'] = 'uploads/expenses/documents/' . $filename;
                 } else {
                     return $this->response([
                         'status' => false,

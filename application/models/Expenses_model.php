@@ -21,7 +21,7 @@ class Expenses_model extends App_Model
     }
     public function handle_file_uploads($expense_id, $files)
     {
-        $upload_dir = './uploads/expenses/' . $expense_id . '/';
+        $upload_dir = './uploads/expenses/documents/' . $expense_id . '/';
         if (!file_exists($upload_dir)) {
             mkdir($upload_dir, 0777, true);
         }

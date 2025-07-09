@@ -656,7 +656,7 @@ class Receivables extends REST_Controller
         }
     }
 
-    // Listar recebíveis por dia (igual ao contas a pagar)
+    // Listar recebíveis por dia (por data de vencimento)
     public function list_by_day_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -665,7 +665,6 @@ class Receivables extends REST_Controller
         $date = $this->post('date');
         $page = (int)($this->post('page') ?? 1);
         $pageSize = (int)($this->post('pageSize') ?? 10);
-        $offset = ($page - 1) * $pageSize;
 
         if (empty($warehouse_id) || empty($date)) {
             return $this->response([
@@ -674,25 +673,22 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        $this->db->select('r.*, c.company as company, cat.name as category_name, pm.name as payment_mode_name');
-        $this->db->from(db_prefix() . 'receivables as r');
-        $this->db->join(db_prefix() . 'clients as c', 'r.clientid = c.userid', 'left');
-        $this->db->join(db_prefix() . 'expenses_categories  as cat', 'r.category = cat.id', 'left');
-        $this->db->join(db_prefix() . 'payment_modes as pm', 'r.paymentmode = pm.id', 'left');
-        $this->db->where('r.warehouse_id', $warehouse_id);
-        $this->db->where('r.date', $date);
-        $total = $this->db->count_all_results('', false);
-        $this->db->order_by('r.date', 'DESC');
-        $this->db->limit($pageSize, $offset);
-        $data = $this->db->get()->result();
+        $params = [
+            'warehouse_id' => $warehouse_id,
+            'date' => $date,
+            'page' => $page,
+            'pageSize' => $pageSize,
+        ];
+
+        $result = $this->Receivables_model->get_receivables_by_day($params);
 
         return $this->response([
             'status' => true,
-            'data' => $data,
-            'total' => $total,
+            'total' => $result['total'],
             'page' => $page,
             'limit' => $pageSize,
-            'total_pages' => ceil($total / $pageSize)
+            'total_pages' => ceil($result['total'] / $pageSize),
+            'data' => $result['data']
         ], REST_Controller::HTTP_OK);
     }
 }

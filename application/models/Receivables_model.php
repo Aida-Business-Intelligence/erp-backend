@@ -48,19 +48,19 @@ class Receivables_model extends App_Model
             !empty($filters['endDate']) &&
             $filters['startDate'] === $filters['endDate']
         ) {
-            $this->db->where('r.date', $filters['startDate']);
+            $this->db->where('r.due_date', $filters['startDate']);
         } else {
             if (!empty($filters['startDate'])) {
-                $this->db->where('r.date >=', $filters['startDate']);
+                $this->db->where('r.due_date >=', $filters['startDate']);
             }
             if (!empty($filters['endDate'])) {
-                $this->db->where('r.date <=', $filters['endDate']);
+                $this->db->where('r.due_date <=', $filters['endDate']);
             }
         }
 
         $allowedSortFields = [
             'id' => 'r.id',
-            'date' => 'r.date',
+            'date' => 'r.due_date',
             'amount' => 'r.amount',
             'status' => 'r.status',
             'company' => 'c.company',
@@ -101,13 +101,13 @@ class Receivables_model extends App_Model
             !empty($filters['endDate']) &&
             $filters['startDate'] === $filters['endDate']
         ) {
-            $this->db->where('r.date', $filters['startDate']);
+            $this->db->where('r.due_date', $filters['startDate']);
         } else {
             if (!empty($filters['startDate'])) {
-                $this->db->where('r.date >=', $filters['startDate']);
+                $this->db->where('r.due_date >=', $filters['startDate']);
             }
             if (!empty($filters['endDate'])) {
-                $this->db->where('r.date <=', $filters['endDate']);
+                $this->db->where('r.due_date <=', $filters['endDate']);
             }
         }
         return $this->db->count_all_results();
@@ -155,10 +155,10 @@ class Receivables_model extends App_Model
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
         if ($date_operator && !$specific_date) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
+            $this->db->where('due_date ' . $date_operator, date('Y-m-d'));
         }
         if ($specific_date) {
-            $this->db->where('date', $specific_date);
+            $this->db->where('due_date', $specific_date);
         }
         return (float) $this->db->get()->row()->amount;
     }
@@ -169,10 +169,10 @@ class Receivables_model extends App_Model
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
         if ($date_operator && !$specific_date) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
+            $this->db->where('due_date ' . $date_operator, date('Y-m-d'));
         }
         if ($specific_date) {
-            $this->db->where('date', $specific_date);
+            $this->db->where('due_date', $specific_date);
         }
         return (int) $this->db->count_all_results();
     }
@@ -183,8 +183,8 @@ class Receivables_model extends App_Model
         $this->db->from($this->table());
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
-        $this->db->where('MONTH(date)', $month);
-        $this->db->where('YEAR(date)', $year);
+        $this->db->where('MONTH(due_date)', $month);
+        $this->db->where('YEAR(due_date)', $year);
         return (float) $this->db->get()->row()->amount;
     }
 
@@ -193,8 +193,8 @@ class Receivables_model extends App_Model
         $this->db->from($this->table());
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
-        $this->db->where('MONTH(date)', $month);
-        $this->db->where('YEAR(date)', $year);
+        $this->db->where('MONTH(due_date)', $month);
+        $this->db->where('YEAR(due_date)', $year);
         return (int) $this->db->count_all_results();
     }
 
@@ -257,4 +257,41 @@ class Receivables_model extends App_Model
     }
 
     // Métodos de add, update, delete podem ser implementados conforme necessidade
+
+    public function get_receivables_by_day($params)
+    {
+        $warehouse_id = $params['warehouse_id'];
+        $date = $params['date'];
+        $page = $params['page'] ?? 1;
+        $limit = $params['pageSize'] ?? 10;
+        $offset = ($page - 1) * $limit;
+
+        $this->db->select('
+            r.*, 
+            c.company as client,
+            c.company as company,
+            cat.name as category_name,
+            pm.name as paymentmode,
+            pm.name as payment_mode_name
+        ');
+        $this->db->from($this->table() . ' as r');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = r.clientid', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = r.category', 'left');
+        $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = r.paymentmode', 'left');
+        $this->db->where('r.warehouse_id', $warehouse_id);
+        $this->db->where('DATE(r.due_date)', $date);
+        $this->db->order_by('r.due_date', 'DESC');
+
+        // Contar total sem limite
+        $total_query = clone $this->db;
+        $total = $total_query->count_all_results();
+
+        $this->db->limit($limit, $offset);
+        $data = $this->db->get()->result_array();
+
+        return [
+            'data' => $data,
+            'total' => $total
+        ];
+    }
 }

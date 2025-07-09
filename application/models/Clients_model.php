@@ -225,7 +225,7 @@ class Clients_model extends App_Model
     public function get($id)
     {
         $this->db->where('userid', $id);
-        $this->db->where('is_supplier', 1);
+    
         $supplier = $this->db->get(db_prefix() . 'clients')->row_array();
 
         if (!$supplier) return null;
@@ -280,9 +280,13 @@ class Clients_model extends App_Model
         return [
             'userid' => $supplier['userid'],
             'code' => $supplier['code'],
+            'gender'  => $supplier['gender'],
+            'phonenumber'=> $supplier['phonenumber'],
             'name' => $supplier['company'],
+            'birthDate' => $supplier['birthDate'],
             'address' => $supplier['address'],
-            'cep' => $supplier['cep'],
+            'cep' => $supplier['zip'],
+             'zip' => $supplier['zip'],
             'city' => $supplier['city'],
             'state' => $supplier['state'],
             'country' => $supplier['country'],
@@ -422,7 +426,7 @@ class Clients_model extends App_Model
     //
 
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $status = [], $startDate = '', $endDate = '', $warehouse_id = 0)
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $status = [], $startDate = '', $endDate = '', $warehouse_id = 0, $is_supplier=0)
     {
         $allowedSortFields = [
             'userid',
@@ -441,18 +445,20 @@ class Clients_model extends App_Model
 
         $this->db->select('*');
         $this->db->from(db_prefix() . 'clients');
-        $this->db->where('is_supplier', 1);
+        $this->db->where('is_supplier', $is_supplier);
 
         if ($warehouse_id > 0) {
             $this->db->where('warehouse_id', $warehouse_id);
         }
 
+        /*
         if (!empty($status)) {
             $statusValues = array_map(function ($s) {
                 return $s === 'active' ? 1 : 0;
             }, $status);
             $this->db->where_in('active', $statusValues);
         }
+            */
 
         if (!empty($startDate) && !empty($endDate)) {
             $this->db->where('datecreated >=', $startDate . ' 00:00:00');
@@ -465,6 +471,7 @@ class Clients_model extends App_Model
             $this->db->or_like(db_prefix() . 'clients.vat', $search);
             $this->db->or_like(db_prefix() . 'clients.city', $search);
             $this->db->or_like(db_prefix() . 'clients.state', $search);
+             $this->db->or_like(db_prefix() . 'clients.phonenumber', $search);
             $this->db->or_like(db_prefix() . 'clients.address', $search);
             $this->db->or_like(db_prefix() . 'clients.cep', $search);
             $this->db->or_like(db_prefix() . 'clients.nome_fantasia', $search);
@@ -481,14 +488,22 @@ class Clients_model extends App_Model
 
         $formattedData = [];
         foreach ($suppliers as $supplier) {
+
+$date = new DateTime($supplier['datecreated']);
+
+
             $formattedData[] = [
                 'userid' => $supplier['userid'],
+                'fullName' => $supplier['company'],
+                'datecreated' => $date->format('d/m/Y'),
                 'company' => $supplier['company'],
                 'vat' => $supplier['vat'],
                 'city' => $supplier['city'] ?: '-',
                 'state' => $supplier['state'] ?: '-',
                 'payment_terms' => $supplier['payment_terms'] ?: '-',
                 'status' => $supplier['active'] ? 'active' : 'inactive',
+                'phonenumber' => $supplier['phonenumber'],
+                'active' => $supplier['active'],
                 'created_at' => $supplier['datecreated'],
                 'email_default' => $supplier['email_default'] ?? null,
                 'documents' => [

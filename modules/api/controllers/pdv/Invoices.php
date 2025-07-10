@@ -366,6 +366,7 @@ class Invoices extends REST_Controller
             $warehouse_id = $_POST['warehouse_id'];
             $clientid = $_POST['clientid'] ?? 0;
             $supplier_id = $_POST['supplier_id'] ?? 0;
+            $status = $_POST['status'] ?? 1;
 
             if (empty($user_id)) {
                 throw new Exception('User ID not found in token');
@@ -419,7 +420,8 @@ class Invoices extends REST_Controller
                 'duedate' => date('Y-m-d', strtotime('+30 days')),
                 'subtotal' => $_POST['total'],
                 'total' => $_POST['total'],
-                'status' => 1,
+                'expense_id' => $_POST['expense_id'],
+                'status' => $status,
                 'clientnote' => '',
                 'adminnote' => '',
                 'currency' => get_base_currency()->id,
@@ -451,6 +453,12 @@ class Invoices extends REST_Controller
 
             if (!$invoice_id) {
                 throw new Exception('Failed to create invoice');
+            }
+
+            // Se o status foi especificamente definido pelo usuário, não deixar que seja alterado
+            if (isset($_POST['status']) && $_POST['status'] != 1) {
+                $this->db->where('id', $invoice_id);
+                $this->db->update('tblinvoices', ['status' => $status]);
             }
 
             foreach ($purchase_need_ids as $index => $purchase_need_id) {
@@ -584,7 +592,8 @@ class Invoices extends REST_Controller
                         'duedate' => date('Y-m-d', strtotime('+30 days')),
                         'subtotal' => $order['total'],
                         'total' => $order['total'],
-                        'status' => 1,
+                        'expense_id' => $_POST['expense_id'],
+                        'status' => $order['status'],
                         'clientnote' => '',
                         'adminnote' => '',
                         'currency' => get_base_currency()->id,
@@ -616,6 +625,12 @@ class Invoices extends REST_Controller
 
                     if (!$invoice_id) {
                         throw new Exception('Failed to create invoice');
+                    }
+
+                    // Se o status foi especificamente definido pelo usuário, não deixar que seja alterado
+                    if (isset($order['status']) && $order['status'] != 1) {
+                        $this->db->where('id', $invoice_id);
+                        $this->db->update('tblinvoices', ['status' => $order['status']]);
                     }
 
                     foreach ($purchase_need_ids as $index => $need_id) {
@@ -696,6 +711,7 @@ class Invoices extends REST_Controller
         i.total,
         i.status as invoice_status,
         i.ecommerce,
+        i.expense_id,
         i.datecreated,
         i.warehouse_id,
         IF(i.status = 12, i.clientnote, NULL) as dispute_message,
@@ -707,7 +723,6 @@ class Invoices extends REST_Controller
         COUNT(DISTINCT pn.id) as total_items,
         SUM(pn.qtde) as total_quantity
     ';
-
 
         $this->db->select($select);
         $this->db->from(db_prefix() . 'invoices i');
@@ -790,6 +805,7 @@ class Invoices extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
+    // Lista os pedidos transmitidos
     public function list_transmitidos_post()
     {
         $warehouse_id = $this->post('warehouse_id');
@@ -816,6 +832,7 @@ class Invoices extends REST_Controller
         i.total,
         i.status as invoice_status,
         i.ecommerce,
+        i.expense_id,
         i.datecreated,
         i.warehouse_id,
         IF(i.status = 12, i.clientnote, NULL) as dispute_message,
@@ -836,7 +853,251 @@ class Invoices extends REST_Controller
 
         $this->db->where('pn.id IS NOT NULL');
         $this->db->where('i.warehouse_id', $warehouse_id);
-        $this->db->where_in('i.status', [2, 3, 4]);
+        $this->db->where_in('i.status', [2, 3]);
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('i.id', $search);
+            $this->db->or_like('c.company', $search);
+            $this->db->or_like('c.vat', $search);
+            $this->db->or_like('itm.description', $search);
+            $this->db->group_end();
+        }
+
+        if (!empty($start_date)) {
+            $this->db->where('DATE(i.datecreated) >=', date('Y-m-d', strtotime($start_date)));
+        }
+
+        if (!empty($end_date)) {
+            $this->db->where('DATE(i.datecreated) <=', date('Y-m-d', strtotime($end_date)));
+        }
+
+        if (!empty($status)) {
+            if (is_array($status)) {
+                $this->db->where_in('i.status', $status);
+            } else {
+                $this->db->where('i.status', $status);
+            }
+        }
+
+        if (!empty($supplier_id)) {
+            $this->db->where('i.clientid', $supplier_id);
+        }
+
+        $this->db->group_by('i.id');
+
+        $countQuery = clone $this->db;
+        $total = $countQuery->get()->num_rows();
+
+        if ($sortField === 'datecreated') {
+            $this->db->order_by('i.' . $sortField, $sortOrder);
+        } else {
+            $this->db->order_by($sortField, $sortOrder);
+        }
+
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $invoices = $this->db->get()->result_array();
+
+        foreach ($invoices as &$invoice) {
+            $this->db->select('
+            pn.id as purchase_need_id,
+            pn.qtde,
+            pn.status as purchase_status,
+            itm.description as product_name,
+            itm.sku_code,
+            itm.image,
+            itm.rate as unit_price, 
+            (pn.qtde * itm.rate) as total_price
+        ');
+            $this->db->from(db_prefix() . 'purchase_needs pn');
+            $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+            $this->db->where('pn.invoice_id', $invoice['id']);
+            $this->db->where('pn.warehouse_id', $warehouse_id);
+
+            $invoice['items'] = $this->db->get()->result_array();
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'total' => (int) $total,
+            'page' => (int) $page,
+            'limit' => (int) $limit,
+            'data' => $invoices
+        ], REST_Controller::HTTP_OK);
+    }
+
+    // Lista os pedidos expedidos
+    public function list_expedidos_post()
+    {
+        $warehouse_id = $this->post('warehouse_id');
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('limit') ? (int) $this->post('limit') : 10;
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'datecreated';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'asc' : 'desc';
+        $start_date = $this->post('start_date');
+        $end_date = $this->post('end_date');
+        $status = $this->post('status');
+        $supplier_id = $this->post('supplier_id');
+
+        $select = '
+        i.id,
+        i.total,
+        i.status as invoice_status,
+        i.ecommerce,
+        i.expense_id,
+        i.datecreated,
+        i.warehouse_id,
+        IF(i.status = 12, i.clientnote, NULL) as dispute_message,
+        IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
+        c.company as supplier_name,
+        c.vat as supplier_document,
+        c.phonenumber as supplier_phone,
+        GROUP_CONCAT(DISTINCT itm.description) as products,
+        COUNT(DISTINCT pn.id) as total_items,
+        SUM(pn.qtde) as total_quantity
+    ';
+
+        $this->db->select($select);
+        $this->db->from(db_prefix() . 'invoices i');
+        $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.invoice_id = i.id', 'left');
+        $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.clientid', 'left');
+
+        $this->db->where('pn.id IS NOT NULL');
+        $this->db->where('i.warehouse_id', $warehouse_id);
+        $this->db->where_in('i.status', [3, 6]);
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('i.id', $search);
+            $this->db->or_like('c.company', $search);
+            $this->db->or_like('c.vat', $search);
+            $this->db->or_like('itm.description', $search);
+            $this->db->group_end();
+        }
+
+        if (!empty($start_date)) {
+            $this->db->where('DATE(i.datecreated) >=', date('Y-m-d', strtotime($start_date)));
+        }
+
+        if (!empty($end_date)) {
+            $this->db->where('DATE(i.datecreated) <=', date('Y-m-d', strtotime($end_date)));
+        }
+
+        if (!empty($status)) {
+            if (is_array($status)) {
+                $this->db->where_in('i.status', $status);
+            } else {
+                $this->db->where('i.status', $status);
+            }
+        }
+
+        if (!empty($supplier_id)) {
+            $this->db->where('i.clientid', $supplier_id);
+        }
+
+        $this->db->group_by('i.id');
+
+        $countQuery = clone $this->db;
+        $total = $countQuery->get()->num_rows();
+
+        if ($sortField === 'datecreated') {
+            $this->db->order_by('i.' . $sortField, $sortOrder);
+        } else {
+            $this->db->order_by($sortField, $sortOrder);
+        }
+
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $invoices = $this->db->get()->result_array();
+
+        foreach ($invoices as &$invoice) {
+            $this->db->select('
+            pn.id as purchase_need_id,
+            pn.qtde,
+            pn.status as purchase_status,
+            itm.description as product_name,
+            itm.sku_code,
+            itm.image,
+            itm.rate as unit_price, 
+            (pn.qtde * itm.rate) as total_price
+        ');
+            $this->db->from(db_prefix() . 'purchase_needs pn');
+            $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+            $this->db->where('pn.invoice_id', $invoice['id']);
+            $this->db->where('pn.warehouse_id', $warehouse_id);
+
+            $invoice['items'] = $this->db->get()->result_array();
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'total' => (int) $total,
+            'page' => (int) $page,
+            'limit' => (int) $limit,
+            'data' => $invoices
+        ], REST_Controller::HTTP_OK);
+    }
+
+    // Lista os pedidos conferidos
+    public function list_conferidos_post()
+    {
+        $warehouse_id = $this->post('warehouse_id');
+        if (empty($warehouse_id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('limit') ? (int) $this->post('limit') : 10;
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'datecreated';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'asc' : 'desc';
+        $start_date = $this->post('start_date');
+        $end_date = $this->post('end_date');
+        $status = $this->post('status');
+        $supplier_id = $this->post('supplier_id');
+
+        $select = '
+        i.id,
+        i.total,
+        i.status as invoice_status,
+        i.ecommerce,
+        i.expense_id,
+        i.datecreated,
+        i.warehouse_id,
+        IF(i.status = 12, i.clientnote, NULL) as dispute_message,
+        IF(i.status = 12, i.dispute_type, NULL) as dispute_type,
+        c.company as supplier_name,
+        c.vat as supplier_document,
+        c.phonenumber as supplier_phone,
+        GROUP_CONCAT(DISTINCT itm.description) as products,
+        COUNT(DISTINCT pn.id) as total_items,
+        SUM(pn.qtde) as total_quantity
+    ';
+
+        $this->db->select($select);
+        $this->db->from(db_prefix() . 'invoices i');
+        $this->db->join(db_prefix() . 'purchase_needs pn', 'pn.invoice_id = i.id', 'left');
+        $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = i.clientid', 'left');
+
+        $this->db->where('pn.id IS NOT NULL');
+        $this->db->where('i.warehouse_id', $warehouse_id);
+        $this->db->where_in('i.status', [4, 6]);
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -1266,6 +1527,7 @@ class Invoices extends REST_Controller
             i.total,
             i.status as invoice_status,
             i.ecommerce,
+            i.expense_id,
             i.datecreated,
             i.warehouse_id,
             IF(i.status = 12, i.clientnote, NULL) as dispute_message,
@@ -1314,6 +1576,7 @@ class Invoices extends REST_Controller
             '3' => 'Enviado',
             '4' => 'Faturado',
             '5' => 'Cancelado',
+            '6' => 'Aguardando faturamento',
             '11' => 'Entregue',
             '12' => 'Em contestação'
         ];
@@ -1339,6 +1602,253 @@ class Invoices extends REST_Controller
         $this->response([
             'status' => TRUE,
             'data' => $invoice
+        ], REST_Controller::HTTP_OK);
+    }
+
+    private function format_quantity($value)
+    {
+        $value = (float) $value;
+        return $value == floor($value) ? (int) $value : $value;
+    }
+
+    public function get_invoice_products_for_sale_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['invoice_id']) || empty($_POST['invoice_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'ID da fatura é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $invoice_id = $_POST['invoice_id'];
+
+        $this->db->where('id', $invoice_id);
+        $this->db->where('status', 3); // Only transmitted orders (transmitido)
+        $invoice = $this->db->get(db_prefix() . 'invoices')->row();
+
+        if (!$invoice) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Fatura não encontrada ou não está em status válido para venda'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        $this->db->select('
+            pn.id as purchase_need_id,
+            pn.item_id,
+            pn.qtde as order_quantity,
+            pn.qtde as available_quantity, 
+            itm.description as product_name,
+            itm.sku_code,
+            itm.rate as selling_price,
+            itm.cost as purchase_price,
+            itm.unit,
+            itm.image as product_image,
+            itm.commodity_barcode as barcode
+        ');
+        $this->db->from(db_prefix() . 'purchase_needs pn');
+        $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+        $this->db->where('pn.invoice_id', $invoice_id);
+
+        $products = $this->db->get()->result_array();
+
+        $this->response([
+            'status' => TRUE,
+            'invoice' => [
+                'id' => $invoice->id,
+                'date' => $invoice->date,
+                'status' => $invoice->status,
+                'warehouse_id' => $invoice->warehouse_id
+            ],
+            'products' => $products
+        ], REST_Controller::HTTP_OK);
+    }
+
+    public function process_sale_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['invoice_id']) || empty($_POST['invoice_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'ID da fatura é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['products']) || empty($_POST['products'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Produtos são obrigatórios'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $invoice_id = $_POST['invoice_id'];
+        $products = $_POST['products'];
+        $customer_id = isset($_POST['customer_id']) ? $_POST['customer_id'] : null;
+        $payment_method = isset($_POST['payment_method']) ? $_POST['payment_method'] : 'cash';
+        $discount = isset($_POST['discount']) ? (float) $_POST['discount'] : 0;
+
+        $this->db->trans_start();
+
+        $this->db->where('id', $invoice_id);
+        $this->db->where('status', 3); // Only transmitted orders (transmitido)
+        $invoice = $this->db->get(db_prefix() . 'invoices')->row();
+
+        if (!$invoice) {
+            $this->db->trans_rollback();
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Fatura não encontrada ou não está em status válido para venda'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        $warehouse_id = $invoice->warehouse_id;
+        $total_amount = 0;
+        $sale_items = [];
+
+        foreach ($products as $product) {
+            if (!isset($product['purchase_need_id']) || !isset($product['quantity'])) {
+                $this->db->trans_rollback();
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Dados do produto inválidos. Cada produto deve ter purchase_need_id e quantidade'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+                return;
+            }
+
+            $purchase_need_id = $product['purchase_need_id'];
+            $sale_quantity = (float) $product['quantity'];
+
+            if ($sale_quantity <= 0) {
+                continue;
+            }
+
+            $this->db->select('pn.*, itm.description, itm.rate as selling_price, itm.cost');
+            $this->db->from(db_prefix() . 'purchase_needs pn');
+            $this->db->join(db_prefix() . 'items itm', 'itm.id = pn.item_id', 'left');
+            $this->db->where('pn.id', $purchase_need_id);
+            $this->db->where('pn.invoice_id', $invoice_id);
+            $purchase_need = $this->db->get()->row();
+
+            if (!$purchase_need) {
+                $this->db->trans_rollback();
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Necessidade de compra não encontrada para ID: ' . $purchase_need_id
+                ], REST_Controller::HTTP_NOT_FOUND);
+                return;
+            }
+
+            if ($sale_quantity > $purchase_need->qtde) {
+                $this->db->trans_rollback();
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Quantidade de venda (' . $sale_quantity . ') não pode exceder quantidade do pedido (' . $purchase_need->qtde . ') para o produto: ' . $purchase_need->description
+                ], REST_Controller::HTTP_BAD_REQUEST);
+                return;
+            }
+
+            $item_discount = isset($product['discount']) ? (float) $product['discount'] : 0;
+            $item_price = $purchase_need->selling_price - $item_discount;
+            if ($item_price < 0)
+                $item_price = 0;
+
+            $line_total = $sale_quantity * $item_price;
+            $total_amount += $line_total;
+
+            $sale_items[] = [
+                'purchase_need_id' => $purchase_need_id,
+                'item_id' => $purchase_need->item_id,
+                'description' => $purchase_need->description,
+                'quantity' => $sale_quantity,
+                'price' => $item_price,
+                'cost' => $purchase_need->cost,
+                'total' => $line_total,
+                'discount' => $item_discount
+            ];
+
+            $this->db->where('id', $purchase_need_id);
+            $this->db->set('qtde_sold', 'IFNULL(qtde_sold, 0) + ' . $sale_quantity, FALSE);
+            $this->db->update(db_prefix() . 'purchase_needs');
+
+            $this->db->where('id', $purchase_need->item_id);
+            $this->db->where('warehouse_id', $warehouse_id);
+            $this->db->set('stock', 'stock - ' . $sale_quantity, FALSE);
+            $this->db->update(db_prefix() . 'items');
+        }
+
+        if (empty($sale_items)) {
+            $this->db->trans_rollback();
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Nenhum produto válido para venda'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        // Apply global discount
+        $total_after_discount = $total_amount - $discount;
+        if ($total_after_discount < 0)
+            $total_after_discount = 0;
+
+        $sale_data = [
+            'invoice_id' => $invoice_id,
+            'customer_id' => $customer_id,
+            'warehouse_id' => $warehouse_id,
+            'payment_method' => $payment_method,
+            'total_amount' => $total_after_discount,
+            'discount' => $discount,
+            'subtotal' => $total_amount,
+            'date' => date('Y-m-d H:i:s'),
+            'created_by' => $this->session->userdata('staff_user_id') ?? 1,
+            'status' => 1
+        ];
+
+        $this->db->insert(db_prefix() . 'sales', $sale_data);
+        $sale_id = $this->db->insert_id();
+
+        if (!$sale_id) {
+            $this->db->trans_rollback();
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Falha ao criar registro de venda'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        foreach ($sale_items as $item) {
+            $item['sale_id'] = $sale_id;
+            $this->db->insert(db_prefix() . 'sale_items', $item);
+        }
+
+        $this->db->where('id', $invoice_id);
+        $this->db->update(db_prefix() . 'invoices', ['status' => 4]);
+
+        $this->db->trans_complete();
+
+        if ($this->db->trans_status() === FALSE) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Falha na transação'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            return;
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'message' => 'Venda processada com sucesso',
+            'sale_id' => $sale_id,
+            'total_amount' => $total_after_discount,
+            'discount' => $discount,
+            'subtotal' => $total_amount,
+            'items_count' => count($sale_items)
         ], REST_Controller::HTTP_OK);
     }
 
@@ -1603,6 +2113,123 @@ class Invoices extends REST_Controller
             'status' => TRUE,
             'stock' => $stock
         ], REST_Controller::HTTP_OK);
+    }
+
+    public function update_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invoice ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $invoice_id = $_POST['id'];
+        $update_data = [];
+
+        // Campos que podem ser atualizados
+        if (isset($_POST['expense_id'])) {
+            $update_data['expense_id'] = $_POST['expense_id'];
+        }
+
+        if (isset($_POST['status'])) {
+            $update_data['status'] = $_POST['status'];
+        }
+
+        if (empty($update_data)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No valid fields to update'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            // Desabilitar temporariamente os hooks para evitar interferência
+            $this->db->trans_start();
+
+            // Usar atualização direta no banco para evitar hooks que alteram o status
+            $this->db->where('id', $invoice_id);
+            $this->db->update(db_prefix() . 'invoices', $update_data);
+
+            if ($this->db->affected_rows() > 0) {
+                // Se estamos atualizando o status, garantir que ele não seja alterado por hooks
+                if (isset($_POST['status'])) {
+                    // Forçar a atualização do status novamente para garantir que não foi alterado
+                    $this->db->where('id', $invoice_id);
+                    $this->db->update(db_prefix() . 'invoices', ['status' => $_POST['status']]);
+                }
+
+                $this->db->trans_complete();
+
+                $this->response([
+                    'status' => TRUE,
+                    'message' => 'Invoice updated successfully'
+                ], REST_Controller::HTTP_OK);
+            } else {
+                $this->db->trans_rollback();
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Invoice not found or no changes made'
+                ], REST_Controller::HTTP_NOT_FOUND);
+            }
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error updating invoice: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function update_expense_id_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (!isset($_POST['id']) || empty($_POST['id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invoice ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['expense_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Expense ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $invoice_id = $_POST['id'];
+        $expense_id = $_POST['expense_id'];
+
+        try {
+            // Usar atualização direta no banco para evitar hooks que alteram o status
+            $this->db->where('id', $invoice_id);
+            $this->db->update(db_prefix() . 'invoices', ['expense_id' => $expense_id]);
+
+            if ($this->db->affected_rows() > 0) {
+                $this->response([
+                    'status' => TRUE,
+                    'message' => 'Invoice expense_id updated successfully'
+                ], REST_Controller::HTTP_OK);
+            } else {
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Invoice not found or no changes made'
+                ], REST_Controller::HTTP_NOT_FOUND);
+            }
+        } catch (Exception $e) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error updating invoice: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
 }

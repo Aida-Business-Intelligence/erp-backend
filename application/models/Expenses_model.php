@@ -980,9 +980,10 @@ class Expenses_model extends App_Model
         if ($warehouse_id !== null) {
             $this->db->where('warehouse_id', $warehouse_id);
         }
-        if ($type !== null) {
-            $this->db->where('type', $type);
-        }
+        // Removendo a verificação da coluna 'type' que não existe na tabela
+        // if ($type !== null) {
+        //     $this->db->where('type', $type);
+        // }
 
         return $this->db->delete(db_prefix() . 'expenses');
     }

@@ -1659,7 +1659,8 @@ class Expenses extends REST_Controller
         $id = $this->post('id');
         $rows = $this->post('rows');
         $warehouse_id = $this->post('warehouse_id');
-        $type = $this->post('type');
+        // Removendo o parâmetro type já que a coluna não existe na tabela
+        // $type = $this->post('type');
 
         // Exclusão em lote
         if (!empty($rows) && is_array($rows)) {
@@ -1671,7 +1672,7 @@ class Expenses extends REST_Controller
                 if ($expense && !empty($expense->expenses_document)) {
                     $this->delete_expense_document_file($expense->expenses_document);
                 }
-                $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id, $type);
+                $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id);
                 if ($deleted) {
                     $success++;
                 } else {
@@ -1700,7 +1701,7 @@ class Expenses extends REST_Controller
             $this->delete_expense_document_file($expense->expenses_document);
         }
 
-        $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id, $type);
+        $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id);
 
         if ($deleted) {
             return $this->response([

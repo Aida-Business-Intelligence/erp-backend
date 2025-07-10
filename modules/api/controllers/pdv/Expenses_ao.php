@@ -9,12 +9,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
 /** @noinspection PhpIncludeInspection */
 require __DIR__ . '/../REST_Controller.php';
 
-class Expenses extends REST_Controller
+class Expenses_ao extends REST_Controller
 {
     function __construct()
     {
         parent::__construct();
-        $this->load->model('Expenses_model');
+        $this->load->model('Expenses_ao_model');
     }
 
     public function categoriestwo_get()
@@ -23,7 +23,7 @@ class Expenses extends REST_Controller
             $warehouse_id = $this->input->get('warehouse_id') ?: 0;
             $search = $this->input->get('search') ?: '';
             $pageSize = $this->input->get('pageSize') ?: 5;
-            $categories = $this->Expenses_model->get_categories($warehouse_id, $search, $pageSize);
+            $categories = $this->Expenses_ao_model->get_categories($warehouse_id, $search, $pageSize);
 
             $this->response([
                 'success' => true,
@@ -40,7 +40,7 @@ class Expenses extends REST_Controller
     public function currencies_get()
     {
         try {
-            $currencies = $this->Expenses_model->get_currencies();
+            $currencies = $this->Expenses_ao_model->get_currencies();
 
             $this->response([
                 'success' => true,
@@ -57,7 +57,7 @@ class Expenses extends REST_Controller
     public function taxes_get()
     {
         try {
-            $taxes = $this->Expenses_model->get_taxes();
+            $taxes = $this->Expenses_ao_model->get_taxes();
 
             $this->response([
                 'success' => true,
@@ -74,7 +74,7 @@ class Expenses extends REST_Controller
     public function payment_modes_get()
     {
         try {
-            $paymentModes = $this->Expenses_model->get_payment_modes();
+            $paymentModes = $this->Expenses_ao_model->get_payment_modes();
 
             $this->response([
                 'success' => true,
@@ -96,7 +96,7 @@ class Expenses extends REST_Controller
             $page = $this->input->get('page') ?: 0;
             $limit = $this->input->get('pageSize') ?: 5;
 
-            $clients = $this->Expenses_model->get_clients($warehouse_id, $search, $limit, $page);
+            $clients = $this->Expenses_ao_model->get_clients($warehouse_id, $search, $limit, $page);
 
             $this->response([
                 'success' => true,
@@ -123,7 +123,7 @@ class Expenses extends REST_Controller
                 throw new Exception('Client ID is required', REST_Controller::HTTP_BAD_REQUEST);
             }
 
-            $projects = $this->Expenses_model->get_projects($client_id, $warehouse_id, $search, $limit, $page);
+            $projects = $this->Expenses_ao_model->get_projects($client_id, $warehouse_id, $search, $limit, $page);
 
             $this->response([
                 'success' => true,
@@ -190,14 +190,14 @@ class Expenses extends REST_Controller
 
         $input['send_invoice_to_customer'] = (!empty($_POST['send_invoice_to_customer']) && $_POST['send_invoice_to_customer'] !== 'false') ? 1 : 0;
 
-        $expense_id = $this->Expenses_model->addtwo($input);
+        $expense_id = $this->Expenses_ao_model->addtwo($input);
 
         if (!$expense_id) {
             $this->response(['status' => false, 'message' => 'Failed to create expense'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             return;
         }
 
-        $this->Expenses_model->handle_file_uploads($expense_id, $_FILES);
+        $this->Expenses_ao_model->handle_file_uploads($expense_id, $_FILES);
 
         $this->response([
             'status' => true,
@@ -220,7 +220,7 @@ class Expenses extends REST_Controller
                 throw new Exception("Nenhum arquivo enviado", REST_Controller::HTTP_BAD_REQUEST);
             }
 
-            $result = $this->Expenses_model->upload_file($expense_id, $_FILES['file'], $field_name);
+            $result = $this->Expenses_ao_model->upload_file($expense_id, $_FILES['file'], $field_name);
 
             if (!$result['success']) {
                 throw new Exception("Falha ao fazer upload do arquivo", REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
@@ -242,7 +242,7 @@ class Expenses extends REST_Controller
     public function warehouselist_get()
     {
         try {
-            $warehouses = $this->Expenses_model->get_warehouses();
+            $warehouses = $this->Expenses_ao_model->get_warehouses();
 
             $this->response([
                 'success' => true,
@@ -277,7 +277,7 @@ class Expenses extends REST_Controller
         $data = $input['data'];
         $mappedColumns = $input['mappedColumns'];
 
-        $duplicates = $this->Expenses_model->validate_duplicates($warehouse_id, $data, $mappedColumns);
+        $duplicates = $this->Expenses_ao_model->validate_duplicates($warehouse_id, $data, $mappedColumns);
 
         return $this->response([
             'status' => true,
@@ -326,7 +326,7 @@ class Expenses extends REST_Controller
         log_activity('Received parameters: ' . json_encode($params));
 
         // Get data from model
-        $result = $this->Expenses_model->get_filtered_expenses($params);
+        $result = $this->Expenses_ao_model->get_filtered_expenses($params);
         $data = $result['data'];
         $total = $result['total'];
 
@@ -379,14 +379,14 @@ class Expenses extends REST_Controller
             'page' => (int) ($this->post('page') ?: 1),
             'pageSize' => (int) ($this->post('pageSize') ?: 10),
             'search' => $this->post('search') ?: '',
-            'sortField' => $this->post('sortField') ?: db_prefix() . 'expenses.id',
+            'sortField' => $this->post('sortField') ?: db_prefix() . 'expenses_ao.id',
             'sortOrder' => $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC',
             'start_date' => $this->post('start_date'),
             'end_date' => $this->post('end_date')
         ];
 
-        $this->load->model('expenses_model');
-        $result = $this->Expenses_model->get_expenses_by_date($params);
+        $this->load->model('Expenses_ao_model');
+        $result = $this->Expenses_ao_model->get_expenses_by_date($params);
 
         // Enriquecer com informações de recorrência no controller (opcional)
         foreach ($result['data'] as &$expense) {
@@ -559,7 +559,7 @@ class Expenses extends REST_Controller
         }
 
 
-        $expense_id = $this->Expenses_model->add($data);
+        $expense_id = $this->Expenses_ao_model->add($data);
 
         if (!$expense_id) {
             log_activity('Failed to create expense. DB Error: ' . $this->db->error()['message']);
@@ -577,7 +577,7 @@ class Expenses extends REST_Controller
 
             $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
             if (!in_array($file['type'], $allowed_types)) {
-                $this->Expenses_model->delete($expense_id);
+                $this->Expenses_ao_model->delete($expense_id);
                 $this->response([
                     'status' => FALSE,
                     'message' => 'Tipo de arquivo não permitido. Tipos permitidos: JPG, PNG, PDF, DOC, DOCX'
@@ -587,7 +587,7 @@ class Expenses extends REST_Controller
 
             $max_size = 5 * 1024 * 1024;
             if ($file['size'] > $max_size) {
-                $this->Expenses_model->delete($expense_id);
+                $this->Expenses_ao_model->delete($expense_id);
                 $this->response([
                     'status' => FALSE,
                     'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
@@ -610,13 +610,13 @@ class Expenses extends REST_Controller
                 $file_url = rtrim($server_url, '/') . '/' . $relative_path;
 
                 $this->db->where('id', $expense_id);
-                $this->db->update(db_prefix() . 'expenses', ['file' => $file_url]);
+                $this->db->update(db_prefix() . 'expenses_ao', ['file' => $file_url]);
             } else {
                 log_activity('Failed to move uploaded file for expense ' . $expense_id);
             }
         }
 
-        $expense = $this->Expenses_model->get($expense_id);
+        $expense = $this->Expenses_ao_model->get($expense_id);
         log_activity('Created expense: ' . json_encode($expense));
 
         $message = array(
@@ -639,8 +639,8 @@ class Expenses extends REST_Controller
             return;
         }
 
-        $this->load->model('Expenses_model');
-        $output = $this->Expenses_model->delete($id);
+        $this->load->model('Expenses_ao_model');
+        $output = $this->Expenses_ao_model->delete($id);
 
         if (!$output) {
             $message = array('status' => FALSE, 'message' => 'Expense Delete Failed');
@@ -731,8 +731,8 @@ class Expenses extends REST_Controller
             }
         }
 
-        $this->load->model('Expenses_model');
-        $output = $this->Expenses_model->update($update_data, $expense_id);
+        $this->load->model('Expenses_ao_model');
+        $output = $this->Expenses_ao_model->update($update_data, $expense_id);
 
         if (!$output || empty($output)) {
             $message = array('status' => FALSE, 'message' => 'Expenses Update Fail.');
@@ -743,7 +743,7 @@ class Expenses extends REST_Controller
         $message = array(
             'status' => TRUE,
             'message' => 'Expenses Update Successful.',
-            'data' => $this->Expenses_model->get($expense_id)
+            'data' => $this->Expenses_ao_model->get($expense_id)
         );
         $this->response($message, REST_Controller::HTTP_OK);
     }
@@ -766,7 +766,7 @@ class Expenses extends REST_Controller
         $end_date = $this->get('end_date');
 
         $this->db->select('SUM(amount) as total_amount, COUNT(*) as total_expenses');
-        $this->db->from(db_prefix() . 'expenses');
+        $this->db->from(db_prefix() . 'expenses_ao');
         $this->db->where('warehouse_id', $warehouse_id);
 
         if (!empty($start_date)) {
@@ -935,7 +935,7 @@ class Expenses extends REST_Controller
 
         try {
             $this->db->where('category', $id);
-            $expense_count = $this->db->count_all_results(db_prefix() . 'expenses');
+            $expense_count = $this->db->count_all_results(db_prefix() . 'expenses_ao');
 
             if ($expense_count > 0) {
                 $this->response([
@@ -987,7 +987,7 @@ class Expenses extends REST_Controller
                 continue;
             }
 
-            $output = $this->Expenses_model->delete($id);
+            $output = $this->Expenses_ao_model->delete($id);
             if ($output === TRUE) {
                 $success_count++;
             } else {
@@ -1049,7 +1049,7 @@ class Expenses extends REST_Controller
             return;
         }
 
-        $expense = $this->db->get_where(db_prefix() . 'expenses', ['id' => $input['id']])->row();
+        $expense = $this->db->get_where(db_prefix() . 'expenses_ao', ['id' => $input['id']])->row();
         if (!$expense) {
             $this->response([
                 'status' => FALSE,
@@ -1133,10 +1133,10 @@ class Expenses extends REST_Controller
         }
 
         $this->db->where('id', $input['id']);
-        $success = $this->db->update(db_prefix() . 'expenses', $data);
+        $success = $this->db->update(db_prefix() . 'expenses_ao', $data);
 
         if ($success) {
-            $updated_expense = $this->db->get_where(db_prefix() . 'expenses', ['id' => $input['id']])->row();
+            $updated_expense = $this->db->get_where(db_prefix() . 'expenses_ao', ['id' => $input['id']])->row();
 
             $this->response([
                 'status' => TRUE,
@@ -1178,7 +1178,7 @@ class Expenses extends REST_Controller
             return;
         }
 
-        $expense = $this->Expenses_model->get_expense_detailed($id);
+        $expense = $this->Expenses_ao_model->get_expense_detailed($id);
 
         if (!$expense) {
             $this->response([
@@ -1231,7 +1231,7 @@ class Expenses extends REST_Controller
       COALESCE(SUM(amount), 0) as total_expenses,
       COUNT(id) as transaction_count
     ');
-        $this->db->from(db_prefix() . 'expenses');
+        $this->db->from(db_prefix() . 'expenses_ao');
         $this->db->where('DATE(date)', $today);
         $this->db->where('warehouse_id', $warehouse_id);
         $today_data = $this->db->get()->row_array();
@@ -1240,7 +1240,7 @@ class Expenses extends REST_Controller
       COALESCE(SUM(amount), 0) as total_expenses,
       COUNT(id) as transaction_count
     ');
-        $this->db->from(db_prefix() . 'expenses');
+        $this->db->from(db_prefix() . 'expenses_ao');
         $this->db->where('DATE(date)', $yesterday);
         $this->db->where('warehouse_id', $warehouse_id);
         $yesterday_data = $this->db->get()->row_array();
@@ -1249,7 +1249,7 @@ class Expenses extends REST_Controller
       COALESCE(SUM(amount), 0) as total_expenses,
       COUNT(id) as transaction_count
     ');
-        $this->db->from(db_prefix() . 'expenses');
+        $this->db->from(db_prefix() . 'expenses_ao');
         $this->db->where('date >=', $current_month_start);
         $this->db->where('date <=', $current_month_end);
         $this->db->where('warehouse_id', $warehouse_id);
@@ -1259,7 +1259,7 @@ class Expenses extends REST_Controller
       COALESCE(SUM(amount), 0) as total_expenses,
       COUNT(id) as transaction_count
     ');
-        $this->db->from(db_prefix() . 'expenses');
+        $this->db->from(db_prefix() . 'expenses_ao');
         $this->db->where('date >=', $previous_month_start);
         $this->db->where('date <=', $previous_month_end);
         $this->db->where('warehouse_id', $warehouse_id);
@@ -1327,7 +1327,7 @@ class Expenses extends REST_Controller
             }
 
             $this->db->where('category', $id);
-            $expense_count = $this->db->count_all_results(db_prefix() . 'expenses');
+            $expense_count = $this->db->count_all_results(db_prefix() . 'expenses_ao');
 
             $response = [
                 'status' => TRUE,
@@ -1380,7 +1380,7 @@ class Expenses extends REST_Controller
       status,
       COUNT(*) as expense_count
     ');
-        $this->db->from(db_prefix() . 'expenses');
+        $this->db->from(db_prefix() . 'expenses_ao');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('date >=', $start_date);
         $this->db->where('date <=', $end_date);
@@ -1438,7 +1438,7 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        $summary = $this->Expenses_model->get_expenses_summary($warehouse_id);
+        $summary = $this->Expenses_ao_model->get_expenses_summary($warehouse_id);
 
         $total = $summary['paid'] + $summary['to_pay'] + $summary['overdue'];
         $paid_percent = $total > 0 ? round(($summary['paid'] / $total) * 100, 1) : 0;
@@ -1474,7 +1474,7 @@ class Expenses extends REST_Controller
             $success = 0;
             $fail = 0;
             foreach ($rows as $rowId) {
-                $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id, $type);
+                $deleted = $this->Expenses_ao_model->delete_expense($rowId, $warehouse_id, $type);
                 if ($deleted) {
                     $success++;
                 } else {
@@ -1496,7 +1496,7 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id, $type);
+        $deleted = $this->Expenses_ao_model->delete_expense($id, $warehouse_id, $type);
 
         if ($deleted) {
             return $this->response([
@@ -1583,7 +1583,7 @@ class Expenses extends REST_Controller
             }
         }
 
-        $success = $this->Expenses_model->updatetwo($updateData, $id);
+        $success = $this->Expenses_ao_model->updatetwo($updateData, $id);
 
         if (!$success) {
             return $this->response([
@@ -1595,7 +1595,7 @@ class Expenses extends REST_Controller
         return $this->response([
             'status' => true,
             'message' => 'Despesa/Receita atualizada com sucesso',
-            'data' => $this->Expenses_model->gettwo($id)
+            'data' => $this->Expenses_ao_model->gettwo($id)
         ], REST_Controller::HTTP_OK);
     }
 
@@ -1610,7 +1610,7 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        $client = $this->Expenses_model->get_client_by_expense_id($expenseId);
+        $client = $this->Expenses_ao_model->get_client_by_expense_id($expenseId);
 
         if (!$client) {
             return $this->response([
@@ -1636,7 +1636,7 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        $data = $this->Expenses_model->get_expense_category($id);
+        $data = $this->Expenses_ao_model->get_expense_category($id);
 
         if (!$data) {
             return $this->response([

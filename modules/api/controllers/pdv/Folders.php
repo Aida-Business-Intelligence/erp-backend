@@ -44,4 +44,38 @@ class Folders extends REST_Controller
             ], REST_Controller::HTTP_OK);
         }
     }
+
+    public function get_get($id)
+    {
+        $folder = $this->Folders_model->get_by_id($id);
+
+        if (!$folder) {
+            $this->response([
+                'status' => false,
+                'message' => 'Folder not found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $this->response([
+                'status' => true,
+                'data' => $folder
+            ], REST_Controller::HTTP_OK);
+        }
+    }
+
+    public function delete_delete($id)
+    {
+        $result = $this->Folders_model->delete($id);
+
+        if (!$result) {
+            $this->response([
+                'status' => false,
+                'message' => 'Failed to delete folder or folder not found'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        } else {
+            $this->response([
+                'status' => true,
+                'message' => 'Folder deleted successfully'
+            ], REST_Controller::HTTP_OK);
+        }
+    }
 }

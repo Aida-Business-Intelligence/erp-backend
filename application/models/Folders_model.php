@@ -68,4 +68,21 @@ class Folders_model extends App_Model
         ];
     }
 
+    public function get_by_id($id)
+    {
+        $this->db->select('*');
+        $this->db->from(db_prefix() . 'folders');
+        $this->db->where('id', $id);
+        $folder = $this->db->get()->row();
+
+        return $folder ? (array) $folder : null;
+    }
+
+    public function delete($id)
+    {
+        $this->db->where('id', $id);
+        $result = $this->db->delete(db_prefix() . 'folders');
+        return $result;
+    }
+
 }

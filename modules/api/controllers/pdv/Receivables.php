@@ -33,6 +33,47 @@ class Receivables extends REST_Controller
         }
     }
 
+    public function get_get($id = null)
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        log_message('error', 'RECEIVABLES_GET_GET_CALLED with ID: ' . $id);
+
+        if (empty($id)) {
+            log_message('error', 'RECEIVABLES_GET_GET_ID_EMPTY');
+            return $this->response([
+                'status' => false,
+                'message' => 'ID é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            log_message('error', 'RECEIVABLES_GET_GET_CALLING_MODEL with ID: ' . $id);
+            $receivable = $this->Receivables_model->get_receivable_by_id($id);
+            
+            log_message('error', 'RECEIVABLES_GET_GET_MODEL_RESULT: ' . print_r($receivable, true));
+            
+            if ($receivable) {
+                return $this->response([
+                    'status' => true,
+                    'data' => $receivable
+                ], REST_Controller::HTTP_OK);
+            } else {
+                log_message('error', 'RECEIVABLES_GET_GET_NOT_FOUND');
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Receita não encontrada'
+                ], REST_Controller::HTTP_NOT_FOUND);
+            }
+        } catch (Exception $e) {
+            log_message('error', 'RECEIVABLES_GET_GET_EXCEPTION: ' . $e->getMessage());
+            return $this->response([
+                'status' => false,
+                'message' => $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     public function validateduplicates_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');

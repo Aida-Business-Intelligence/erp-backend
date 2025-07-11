@@ -13,6 +13,104 @@ class Receivables_model extends App_Model
         return db_prefix() . 'receivables';
     }
 
+    public function get_receivable_by_id($id)
+    {
+        log_message('error', 'RECEIVABLES_MODEL_GET_BY_ID called with ID: ' . $id);
+        
+        // Primeiro, vamos buscar apenas os dados básicos da receita
+        $this->db->select('r.*');
+        $this->db->from($this->table() . ' as r');
+        $this->db->where('r.id', $id);
+        
+        $query = $this->db->get();
+        log_message('error', 'RECEIVABLES_MODEL_GET_BY_ID_BASIC_QUERY: ' . $this->db->last_query());
+        
+        $result = $query->row();
+        log_message('error', 'RECEIVABLES_MODEL_GET_BY_ID_BASIC_RESULT: ' . print_r($result, true));
+        
+        if (!$result) {
+            return null;
+        }
+        
+        // Agora vamos buscar os dados relacionados separadamente
+        try {
+            // Buscar dados do cliente
+            if ($result->clientid) {
+                $this->db->select('company, vat, phonenumber, email, address, city, state');
+                $this->db->from(db_prefix() . 'clients');
+                $this->db->where('userid', $result->clientid);
+                $client = $this->db->get()->row();
+                if ($client) {
+                    $result->company = $client->company;
+                    $result->vat = $client->vat;
+                    $result->phonenumber = $client->phonenumber;
+                    $result->email_default = $client->email;
+                    $result->address = $client->address;
+                    $result->city = $client->city;
+                    $result->state = $client->state;
+                }
+            }
+            
+            // Buscar nome da categoria
+            if ($result->category) {
+                $this->db->select('name');
+                $this->db->from(db_prefix() . 'expenses_categories');
+                $this->db->where('id', $result->category);
+                $category = $this->db->get()->row();
+                if ($category) {
+                    $result->category_name = $category->name;
+                }
+            }
+            
+            // Buscar nome do modo de pagamento
+            if ($result->paymentmode) {
+                $this->db->select('name');
+                $this->db->from(db_prefix() . 'payment_modes');
+                $this->db->where('id', $result->paymentmode);
+                $paymentMode = $this->db->get()->row();
+                if ($paymentMode) {
+                    $result->payment_mode_name = $paymentMode->name;
+                }
+            }
+            
+            // Buscar nome da conta bancária
+            if ($result->bank_account_id) {
+                $this->db->select('name');
+                $this->db->from(db_prefix() . 'bank_accounts');
+                $this->db->where('id', $result->bank_account_id);
+                $bankAccount = $this->db->get()->row();
+                if ($bankAccount) {
+                    $result->bank_account_name = $bankAccount->name;
+                }
+            }
+            
+            // Buscar nome da origem
+            if ($result->origin) {
+                $this->db->select('name');
+                $this->db->from(db_prefix() . 'origins');
+                $this->db->where('id', $result->origin);
+                $origin = $this->db->get()->row();
+                if ($origin) {
+                    $result->origin_name = $origin->name;
+                }
+            }
+            
+        } catch (Exception $e) {
+            log_message('error', 'RECEIVABLES_MODEL_GET_BY_ID_RELATED_DATA_ERROR: ' . $e->getMessage());
+        }
+        
+        // Converter valores booleanos
+        if ($result) {
+            $result->billable = (bool) $result->billable;
+            $result->consider_business_days = (bool) $result->consider_business_days;
+            $result->custom_recurring = (bool) $result->custom_recurring;
+            $result->create_invoice_billable = (bool) $result->create_invoice_billable;
+            $result->send_invoice_to_customer = (bool) $result->send_invoice_to_customer;
+        }
+        
+        return $result;
+    }
+
     public function get_receivables($filters = [], $page = 0, $pageSize = 10, $sortField = 'date', $sortOrder = 'DESC')
     {
         $this->db->select('

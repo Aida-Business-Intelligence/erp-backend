@@ -95,6 +95,17 @@ class Receivables_model extends App_Model
                 }
             }
             
+            // Buscar nome do warehouse
+            if ($result->warehouse_id) {
+                $this->db->select('warehouse_name');
+                $this->db->from(db_prefix() . 'warehouse');
+                $this->db->where('warehouse_id', $result->warehouse_id);
+                $warehouse = $this->db->get()->row();
+                if ($warehouse) {
+                    $result->warehouse_name = $warehouse->warehouse_name;
+                }
+            }
+            
         } catch (Exception $e) {
             log_message('error', 'RECEIVABLES_MODEL_GET_BY_ID_RELATED_DATA_ERROR: ' . $e->getMessage());
         }
@@ -117,12 +128,14 @@ class Receivables_model extends App_Model
             r.*,
             c.company as company,
             cat.name as category_name,
-            pm.name as payment_mode_name
+            pm.name as payment_mode_name,
+            w.warehouse_name
         ');
         $this->db->from($this->table() . ' as r');
         $this->db->join(db_prefix() . 'clients as c', 'r.clientid = c.userid', 'left');
         $this->db->join(db_prefix() . 'expenses_categories  as cat', 'r.category = cat.id', 'left');
         $this->db->join(db_prefix() . 'payment_modes as pm', 'r.paymentmode = pm.id', 'left');
+        $this->db->join(db_prefix() . 'warehouse as w', 'w.warehouse_id = r.warehouse_id', 'left');
 
         if (!empty($filters['warehouse_id'])) {
             $this->db->where('r.warehouse_id', $filters['warehouse_id']);
@@ -370,12 +383,14 @@ class Receivables_model extends App_Model
             c.company as company,
             cat.name as category_name,
             pm.name as paymentmode,
-            pm.name as payment_mode_name
+            pm.name as payment_mode_name,
+            w.warehouse_name
         ');
         $this->db->from($this->table() . ' as r');
         $this->db->join(db_prefix() . 'clients c', 'c.userid = r.clientid', 'left');
         $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = r.category', 'left');
         $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = r.paymentmode', 'left');
+        $this->db->join(db_prefix() . 'warehouse w', 'w.warehouse_id = r.warehouse_id', 'left');
         $this->db->where('r.warehouse_id', $warehouse_id);
         $this->db->where('DATE(r.due_date)', $date);
         $this->db->order_by('r.due_date', 'DESC');

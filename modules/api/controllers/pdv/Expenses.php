@@ -1763,6 +1763,8 @@ class Expenses extends REST_Controller
             'category',
             'amount',
             'date',
+            'due_date', // ADICIONADO
+            'reference_date', // ADICIONADO
             'paymentmode',
             'clientid',
             'note',

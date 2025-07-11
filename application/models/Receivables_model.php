@@ -36,7 +36,7 @@ class Receivables_model extends App_Model
         try {
             // Buscar dados do cliente
             if ($result->clientid) {
-                $this->db->select('company, vat, phonenumber, email, address, city, state');
+                $this->db->select('company, vat, phonenumber, email_default, address, city, state');
                 $this->db->from(db_prefix() . 'clients');
                 $this->db->where('userid', $result->clientid);
                 $client = $this->db->get()->row();
@@ -44,7 +44,7 @@ class Receivables_model extends App_Model
                     $result->company = $client->company;
                     $result->vat = $client->vat;
                     $result->phonenumber = $client->phonenumber;
-                    $result->email_default = $client->email;
+                    $result->email_default = $client->email_default;
                     $result->address = $client->address;
                     $result->city = $client->city;
                     $result->state = $client->state;
@@ -308,7 +308,7 @@ class Receivables_model extends App_Model
             ->result_array();
     }
 
-    public function get_categories($warehouse_id, $search = '', $limit = 5, $type = 'receita')
+    public function get_categories($warehouse_id, $search = '', $limit = 5, $type = 'receivable')
     {
         $this->db->select('id, name');
         $this->db->from(db_prefix() . 'expenses_categories');

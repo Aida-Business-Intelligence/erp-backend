@@ -331,6 +331,7 @@ class Invoice_items_model extends App_Model
             "$items_table.product_unit",
             "$items_table.createdAt",
             "$items_table.updatedAt",
+            "$items_table.show_ecommerce",
             "$subgroups_table.sub_group_name",
             "$subgroups_table.id as sub_group_id",
             "$items_table.warehouse_id as warehouse_id"
@@ -455,6 +456,9 @@ class Invoice_items_model extends App_Model
                 $this->db->where("$items_table.warehouse_id", $warehouse_id);
             }
 
+            // Filtro para mostrar apenas itens com show_ecommerce = 1
+            $this->db->where("$items_table.show_ecommerce", '1');
+
             if ($send == 'pdv') {
                 $this->db->where("$items_table.id", $id);
                 $this->db->or_where("$items_table.commodity_barcode", $id)->limit(1);
@@ -502,6 +506,9 @@ class Invoice_items_model extends App_Model
             "$items_table.sku_code",
             "$items_table.image",
             "$items_table.image2",
+            "$items_table.image3",
+            "$items_table.image4",
+            "$items_table.image5",
             "$items_table.commodity_barcode",
             "$items_table.status",
             "$items_table.cost",
@@ -528,17 +535,29 @@ class Invoice_items_model extends App_Model
             ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
             ->join($suppliers_table, "$suppliers_table.userid = $items_table.userid", 'left');
 
+        // Filtro para mostrar apenas itens com show_ecommerce = 1
+        $this->db->where("$items_table.show_ecommerce", '1');
+
         // Aplicando filtros
         if ($warehouse_id) {
             $this->db->where("$items_table.warehouse_id", $warehouse_id);
         }
 
-        // Filtro por categoria (group_id)
+        if (!empty($statusFilter) && is_array($statusFilter)) {
+            $this->db->where_in("$items_table.status", $statusFilter);
+        }
+
+        if (!empty($startDate)) {
+            $this->db->where("DATE($items_table.createdAt) >=", (new DateTime($startDate))->format('Y-m-d'));
+        }
+        if (!empty($endDate)) {
+            $this->db->where("DATE($items_table.createdAt) <=", (new DateTime($endDate))->format('Y-m-d'));
+        }
+
         if (!empty($category)) {
             $this->db->where("$items_table.group_id", $category);
         }
 
-        // Filtro por subcategoria
         if (!empty($subcategory)) {
             $this->db->where("$items_table.sub_group", $subcategory);
         }

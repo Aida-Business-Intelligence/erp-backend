@@ -227,7 +227,7 @@ class Expenses extends REST_Controller
                 'tax2' => $data['tax2'] ?? 0,
                 'reference_no' => $data['reference_no'] ?? null,
                 'note' => $data['note'] ?? null,
-                'payment_number' => $data['payment_number'] ?? null,
+                'expense_identifier' => $data['expense_identifier'] ?? null,
                 'clientid' => $data['clientid'] ?? null,
                 'project_id' => $data['project_id'] ?? null,
                 'billable' => isset($data['billable']) ? ($data['billable'] ? 1 : 0) : 0,
@@ -1779,7 +1779,8 @@ class Expenses extends REST_Controller
             'custom_recurring',
             'last_recurring_date',
             'create_invoice_billable',
-            'recurring_from'
+            'recurring_from',
+            'expense_identifier', // novo campo
         ];
 
         $updateData = [];

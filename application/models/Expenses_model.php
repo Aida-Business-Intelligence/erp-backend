@@ -1186,6 +1186,7 @@ class Expenses_model extends App_Model
         e.file,
         e.comprovante,
         e.expenses_document,
+        e.expense_identifier,
 
         c.userid as userid,
         c.company as company,

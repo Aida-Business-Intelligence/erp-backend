@@ -23,7 +23,8 @@ class Expenses extends REST_Controller
             $warehouse_id = $this->input->get('warehouse_id') ?: 0;
             $search = $this->input->get('search') ?: '';
             $pageSize = $this->input->get('pageSize') ?: 5;
-            $categories = $this->Expenses_model->get_categories($warehouse_id, $search, $pageSize);
+            $type = $this->input->get('type') ?: 'expense'; // Adicionar parâmetro type com default 'expense'
+            $categories = $this->Expenses_model->get_categories($warehouse_id, $search, $pageSize, $type);
 
             $this->response([
                 'success' => true,

@@ -184,10 +184,10 @@ class Receivables extends REST_Controller
         $id = $this->post('id');
         $status = $this->post('status');
 
-        if (empty($id) || !in_array($status, ['pending', 'paid'])) {
+        if (empty($id) || !in_array($status, ['pending', 'received'])) {
             return $this->response([
                 'status' => false,
-                'message' => 'ID e status são obrigatórios (pending ou paid)'
+                'message' => 'ID e status são obrigatórios (pending ou received)'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 

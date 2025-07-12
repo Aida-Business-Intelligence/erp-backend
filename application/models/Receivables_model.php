@@ -230,11 +230,11 @@ class Receivables_model extends App_Model
         $currentMonth = date('m');
         $currentYear = date('Y');
 
-        $received_today = $this->sum_receivables_amount('paid', $warehouse_id, '=', $today);
-        $received_today_count = $this->count_receivables_by_status('paid', $warehouse_id, '=', $today);
+        $received_today = $this->sum_receivables_amount('received', $warehouse_id, '=', $today);
+        $received_today_count = $this->count_receivables_by_status('received', $warehouse_id, '=', $today);
 
-        $received = $this->sum_receivables_amount('paid', $warehouse_id);
-        $received_count = $this->count_receivables_by_status('paid', $warehouse_id);
+        $received = $this->sum_receivables_amount('received', $warehouse_id);
+        $received_count = $this->count_receivables_by_status('received', $warehouse_id);
 
         $to_receive_month = $this->sum_receivables_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
         $to_receive_month_count = $this->count_receivables_in_month('pending', $warehouse_id, $currentMonth, $currentYear);

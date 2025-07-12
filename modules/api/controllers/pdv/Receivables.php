@@ -452,7 +452,6 @@ class Receivables extends REST_Controller
             'dateadded' => date('Y-m-d H:i:s'),
             'addedfrom' => get_staff_user_id() ?? 1,
             'perfex_saas_tenant_id' => 'master',
-            'type' => 'receita',
             'status' => $input['status'] ?? 'pending',
             'warehouse_id' => $input['warehouse_id'],
             'receivables_document' => $receivables_document,

@@ -150,6 +150,7 @@ class Receivables_model extends App_Model
             $this->db->group_start();
             $this->db->like('r.expense_name', $filters['search']);
             $this->db->or_like('r.reference_no', $filters['search']);
+            $this->db->or_like('r.receivable_identifier', $filters['search']);
             $this->db->or_like('r.note', $filters['search']);
             $this->db->group_end();
         }
@@ -204,6 +205,7 @@ class Receivables_model extends App_Model
             $this->db->group_start();
             $this->db->like('r.expense_name', $filters['search']);
             $this->db->or_like('r.reference_no', $filters['search']);
+            $this->db->or_like('r.receivable_identifier', $filters['search']);
             $this->db->or_like('r.note', $filters['search']);
             $this->db->group_end();
         }

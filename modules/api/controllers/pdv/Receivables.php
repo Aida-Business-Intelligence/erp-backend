@@ -306,6 +306,7 @@ class Receivables extends REST_Controller
         if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null) $required[] = 'date';
         if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null) $required[] = 'warehouse_id';
         if (!isset($input['origin']) || $input['origin'] === '' || $input['origin'] === null) $required[] = 'origin';
+        if (!isset($input['receivable_identifier']) || $input['receivable_identifier'] === '' || $input['receivable_identifier'] === null) $required[] = 'receivable_identifier';
         if (!empty($required)) {
             return $this->response([
                 'status' => false,
@@ -424,7 +425,7 @@ class Receivables extends REST_Controller
             'reference_no' => $input['reference_no'] ?? null,
             'note' => $input['note'] ?? null,
             'expense_name' => $input['expense_name'] ?? null,
-            'payment_number' => $input['payment_number'] ?? null,
+            'receivable_identifier' => $input['receivable_identifier'],
             'clientid' => $input['clientid'] ?? null,
             'project_id' => $input['project_id'] ?? 0,
             'billable' => isset($input['billable']) ? ($input['billable'] ? 1 : 0) : 0,

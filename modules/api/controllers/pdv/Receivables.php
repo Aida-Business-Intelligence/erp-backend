@@ -572,6 +572,15 @@ class Receivables extends REST_Controller
                 'message' => 'ID é obrigatório para deletar'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
+        // Buscar o documento associado
+        $this->load->model('Receivables_model');
+        $receivable = $this->Receivables_model->get_receivable_by_id($id);
+        if ($receivable && !empty($receivable->receivables_document)) {
+            $file_path = FCPATH . $receivable->receivables_document;
+            if (file_exists($file_path)) {
+                @unlink($file_path);
+            }
+        }
         $this->db->where('id', $id);
         $this->db->delete(db_prefix() . 'receivables');
         if ($this->db->affected_rows() > 0) {

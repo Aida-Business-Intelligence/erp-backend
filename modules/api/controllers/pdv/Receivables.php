@@ -482,17 +482,49 @@ class Receivables extends REST_Controller
                 'message' => 'ID é obrigatório'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        $raw_input = file_get_contents('php://input');
+        $input = json_decode($raw_input, true);
         if (empty($input)) {
             return $this->response([
                 'status' => false,
                 'message' => 'Dados inválidos'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        $updateData = $input;
-        if (isset($input['receivables_document'])) {
+        // Validação robusta dos campos obrigatórios
+        $required = [];
+        if (!isset($input['category']) || $input['category'] === '' || $input['category'] === null) $required[] = 'category';
+        if (!isset($input['amount']) || $input['amount'] === '' || $input['amount'] === null) $required[] = 'amount';
+        if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null) $required[] = 'date';
+        if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null) $required[] = 'warehouse_id';
+        if (!isset($input['origin']) || $input['origin'] === '' || $input['origin'] === null) $required[] = 'origin';
+        if (!isset($input['receivable_identifier']) || $input['receivable_identifier'] === '' || $input['receivable_identifier'] === null) $required[] = 'receivable_identifier';
+        if (!empty($required)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Campos obrigatórios: ' . implode(', ', $required),
+                'debug_input' => $input
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+        // Buscar registro atual para pegar o caminho do arquivo antigo
+        $this->load->model('Receivables_model');
+        $current = $this->Receivables_model->get_receivable_by_id($id);
+        $old_document = $current && isset($current->receivables_document) ? $current->receivables_document : null;
+        $receivables_document = $old_document;
+        $document_was_updated = false;
+        // Processar documento
+        if (array_key_exists('receivables_document', $input)) {
             $document_data = $input['receivables_document'];
-            if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
+            if (empty($document_data)) {
+                // Se veio vazio, apagar arquivo antigo
+                if ($old_document && strpos($old_document, 'data:') !== 0) {
+                    $old_path = FCPATH . ltrim($old_document, '/');
+                    if (file_exists($old_path)) {
+                        @unlink($old_path);
+                    }
+                }
+                $receivables_document = null;
+                $document_was_updated = true;
+            } else if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
                 $mime_type = $matches[1];
                 $document_data = substr($document_data, strpos($document_data, ',') + 1);
                 $allowed_types = [
@@ -522,6 +554,13 @@ class Receivables extends REST_Controller
                         'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
                     ], REST_Controller::HTTP_BAD_REQUEST);
                 }
+                // Apagar o arquivo antigo, se existir e não for base64
+                if ($old_document && strpos($old_document, 'data:') !== 0) {
+                    $old_path = FCPATH . ltrim($old_document, '/');
+                    if (file_exists($old_path)) {
+                        @unlink($old_path);
+                    }
+                }
                 $upload_path = FCPATH . 'uploads/receivables/documents/';
                 if (!is_dir($upload_path)) {
                     mkdir($upload_path, 0755, true);
@@ -538,18 +577,69 @@ class Receivables extends REST_Controller
                 $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
                 $file_path = $upload_path . $filename;
                 if (file_put_contents($file_path, $document_data)) {
-                    $updateData['receivables_document'] = 'uploads/receivables/documents/' . $filename;
+                    $receivables_document = 'uploads/receivables/documents/' . $filename;
+                    $document_was_updated = true;
                 } else {
                     return $this->response([
                         'status' => false,
                         'message' => 'Falha ao salvar o documento no servidor'
                     ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
                 }
+            } else if (is_string($document_data) && strpos($document_data, 'uploads/') === 0) {
+                // Se for caminho relativo, apenas atualiza o campo
+                $receivables_document = $document_data;
+                $document_was_updated = true;
             }
         }
+        $data = [
+            'category' => $input['category'],
+            'currency' => $input['currency'] ?? 1,
+            'amount' => $input['amount'],
+            'tax' => $input['tax'] ?? null,
+            'tax2' => $input['tax2'] ?? 0,
+            'reference_no' => $input['reference_no'] ?? null,
+            'note' => $input['note'] ?? null,
+            'expense_name' => $input['expense_name'] ?? null,
+            'receivable_identifier' => $input['receivable_identifier'],
+            'clientid' => $input['clientid'] ?? null,
+            'project_id' => $input['project_id'] ?? 0,
+            'billable' => isset($input['billable']) ? ($input['billable'] ? 1 : 0) : 0,
+            'invoiceid' => $input['invoiceid'] ?? null,
+            'paymentmode' => $input['paymentmode'] ?? 0,
+            'date' => $input['date'],
+            'due_date' => $input['due_date'] ?? null,
+            'reference_date' => $input['reference_date'] ?? null,
+            'order_number' => $input['order_number'] ?? null,
+            'installment_number' => $input['installment_number'] ?? null,
+            'nfe_key' => $input['nfe_key'] ?? null,
+            'barcode' => $input['barcode'] ?? null,
+            'origin' => $input['origin'],
+            'recurring_type' => $input['recurring_type'] ?? null,
+            'repeat_every' => $input['repeat_every'] ?? null,
+            'recurring' => isset($input['recurring']) ? ($input['recurring'] ? 1 : 0) : 0,
+            'cycles' => $input['cycles'] ?? 0,
+            'total_cycles' => $input['total_cycles'] ?? 0,
+            'custom_recurring' => isset($input['custom_recurring']) ? ($input['custom_recurring'] ? 1 : 0) : 0,
+            'last_recurring_date' => $input['last_recurring_date'] ?? null,
+            'create_invoice_billable' => isset($input['create_invoice_billable']) ? ($input['create_invoice_billable'] ? 1 : 0) : 0,
+            'send_invoice_to_customer' => isset($input['send_invoice_to_customer']) ? ($input['send_invoice_to_customer'] ? 1 : 0) : 0,
+            'recurring_from' => $input['recurring_from'] ?? null,
+            'warehouse_id' => $input['warehouse_id'],
+            'receivables_document' => $receivables_document,
+            'due_day' => $input['due_day'] ?? null,
+            'due_day_2' => $input['due_day_2'] ?? null,
+            'installments' => $input['installments'] ?? null,
+            'consider_business_days' => $input['consider_business_days'] ?? null,
+            'week_day' => $input['week_day'] ?? null,
+            'end_date' => $input['end_date'] ?? null,
+            'boleto_number' => $input['boleto_number'] ?? null,
+            'nfe_number' => $input['nfe_number'] ?? null,
+            'bank_account_id' => $input['bank_account_id'] ?? null,
+        ];
+        $data = array_filter($data, function ($v) { return $v !== null; });
         $this->db->where('id', $id);
-        $this->db->update(db_prefix() . 'receivables', $updateData);
-        if ($this->db->affected_rows() > 0) {
+        $this->db->update(db_prefix() . 'receivables', $data);
+        if ($this->db->affected_rows() > 0 || $document_was_updated) {
             return $this->response([
                 'status' => true,
                 'message' => 'Receita atualizada com sucesso'

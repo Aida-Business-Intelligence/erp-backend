@@ -1724,8 +1724,6 @@ class Expenses extends REST_Controller
             return;
         }
         $filePath = FCPATH . ltrim($document, '/');
-        // Ajuste para garantir que o caminho use 'documents/'
-        $filePath = str_replace('uploads/expenses/', 'uploads/expenses/documents/', $filePath);
         if (file_exists($filePath)) {
             @unlink($filePath);
         }

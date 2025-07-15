@@ -286,7 +286,7 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_OK);
         } catch (Exception $e) {
             $this->db->trans_rollback();
-            log_message('error', 'ERROR_CREATETWO: ' . $e->getMessage());
+            // log_message('error', 'ERROR_CREATETWO: ' . $e->getMessage());
 
             $this->response([
                 'status' => false,
@@ -416,7 +416,7 @@ class Expenses extends REST_Controller
         $params['offset'] = $offset;
 
         // Log parameters
-        log_activity('Received parameters: ' . json_encode($params));
+        // log_activity('Received parameters: ' . json_encode($params));
 
         // Get data from model
         $result = $this->Expenses_model->get_filtered_expenses_by_due_date($params);
@@ -613,10 +613,10 @@ class Expenses extends REST_Controller
         if ($is_multipart) {
             $input = $this->input->post();
 
-            log_activity('Expense Create Input (multipart): ' . json_encode($input));
+            // log_activity('Expense Create Input (multipart): ' . json_encode($input));
         } else {
             $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-            log_activity('Expense Create Input (json): ' . json_encode($input));
+            // log_activity('Expense Create Input (json): ' . json_encode($input));
         }
 
         $required_fields = [];
@@ -690,7 +690,7 @@ class Expenses extends REST_Controller
         $expense_id = $this->Expenses_model->add($data);
 
         if (!$expense_id) {
-            log_activity('Failed to create expense. DB Error: ' . $this->db->error()['message']);
+            // log_activity('Failed to create expense. DB Error: ' . $this->db->error()['message']);
 
             $message = array(
                 'status' => FALSE,
@@ -740,12 +740,12 @@ class Expenses extends REST_Controller
                 $this->db->where('id', $expense_id);
                 $this->db->update(db_prefix() . 'expenses', ['file' => $file_url]);
             } else {
-                log_activity('Failed to move uploaded file for expense ' . $expense_id);
+                // log_activity('Failed to move uploaded file for expense ' . $expense_id);
             }
         }
 
         $expense = $this->Expenses_model->get($expense_id);
-        log_activity('Created expense: ' . json_encode($expense));
+        // log_activity('Created expense: ' . json_encode($expense));
 
         $message = array(
             'status' => TRUE,
@@ -795,10 +795,10 @@ class Expenses extends REST_Controller
 
         if ($is_multipart) {
             $_POST = $this->input->post();
-            log_activity('Expense Update Input (multipart): ' . json_encode($_POST));
+            // log_activity('Expense Update Input (multipart): ' . json_encode($_POST));
         } else {
             $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-            log_activity('Expense Update Input (json): ' . json_encode($_POST));
+            // log_activity('Expense Update Input (json): ' . json_encode($_POST));
         }
 
         if (empty($_POST) || !isset($_POST)) {
@@ -855,7 +855,7 @@ class Expenses extends REST_Controller
 
                 $update_data['file'] = $file_url;
             } else {
-                log_activity('Failed to move uploaded file for expense ' . $expense_id);
+                // log_activity('Failed to move uploaded file for expense ' . $expense_id);
             }
         }
 
@@ -1327,7 +1327,7 @@ class Expenses extends REST_Controller
                     $file_url = rtrim($server_url, '/') . '/' . $relative_path;
                     $data['comprovante'] = $file_url;
                 } else {
-                    log_activity('Failed to move uploaded payment receipt for expense ' . $input['id']);
+                    // log_activity('Failed to move uploaded payment receipt for expense ' . $input['id']);
                     $this->response([
                         'status' => FALSE,
                         'message' => 'Failed to upload payment receipt'

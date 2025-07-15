@@ -42,6 +42,20 @@ class Expenses_model extends App_Model
         }
     }
 
+    public function get_categories($warehouse_id, $search = '', $limit = 5, $type = null)
+    {
+        $this->db->where('warehouse_id', $warehouse_id);
+        if ($type !== null) {
+            $this->db->where('type', $type);
+        }
+        if (!empty($search)) {
+            $this->db->like('name', $search);
+        }
+        $this->db->order_by('name', 'asc');
+        $this->db->limit($limit);
+        return $this->db->get(db_prefix() . 'expenses_categories')->result_array();
+    }
+
     public function get_currencies()
     {
         return $this->db->get(db_prefix() . 'currencies')->result_array();
@@ -1010,6 +1024,17 @@ class Expenses_model extends App_Model
         $this->db->where('e.id', $expenseId);
 
         return $this->db->get()->row();
+    }
+
+    public function get_expense_category($expenseId)
+    {
+        $this->db->select('cat.id AS id_categoria, cat.name AS nome_categoria');
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'expenses_categories cat', 'e.category = cat.id', 'left');
+        $this->db->where('e.id', $expenseId);
+        $this->db->where('cat.warehouse_id = e.warehouse_id'); // Garante correspondência entre categoria e warehouse
+
+        return $this->db->get()->row_array();
     }
 
     public function get_filtered_expenses($params)

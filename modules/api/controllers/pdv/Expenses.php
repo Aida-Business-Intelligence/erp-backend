@@ -17,6 +17,27 @@ class Expenses extends REST_Controller
         $this->load->model('Expenses_model');
     }
 
+    public function categoriestwo_get()
+    {
+        try {
+            $warehouse_id = $this->input->get('warehouse_id') ?: 0;
+            $search = $this->input->get('search') ?: '';
+            $pageSize = $this->input->get('pageSize') ?: 5;
+            $type = $this->input->get('type') ?: 'expense'; // Adicionar parâmetro type com default 'expense'
+            $categories = $this->Expenses_model->get_categories($warehouse_id, $search, $pageSize, $type);
+
+            $this->response([
+                'success' => true,
+                'data' => $categories
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->response([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     public function currencies_get()
     {
         try {
@@ -1921,6 +1942,32 @@ class Expenses extends REST_Controller
         return $this->response([
             'status' => true,
             'data' => $client
+        ], REST_Controller::HTTP_OK);
+    }
+
+    public function categorytwo_get($id = '')
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        if (empty($id)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $data = $this->Expenses_model->get_expense_category($id);
+
+        if (!$data) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Categoria não encontrada para esta despesa/receita.'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+
+        return $this->response([
+            'status' => true,
+            'data' => $data,
         ], REST_Controller::HTTP_OK);
     }
 }

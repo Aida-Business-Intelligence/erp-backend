@@ -32,12 +32,12 @@ class Files extends REST_Controller
             log_activity('File Create Input (json): ' . json_encode($input));
         }
 
-        $name = $is_multipart ? $this->post('name') : ($input['name'] ?? null);
-        $type = $is_multipart ? $this->post('type') : ($input['type'] ?? null);
-        $size = $is_multipart ? ($this->post('size') ? (int) $this->post('size') : 0) : ($input['size'] ?? 0);
+        $name_base = $is_multipart ? $this->post('name') : ($input['name'] ?? null);
+        $type_base = $is_multipart ? $this->post('type') : ($input['type'] ?? null);
+        $size_base = $is_multipart ? ($this->post('size') ? (int) $this->post('size') : 0) : ($input['size'] ?? 0);
         $folder_id = $is_multipart ? ($this->post('folder_id') ? (int) $this->post('folder_id') : null) : ($input['folder_id'] ?? null);
 
-        if (!$name || !$type || !$folder_id) {
+        if (!$name_base || !$type_base || !$folder_id) {
             $this->response([
                 'status' => false,
                 'message' => 'Name, type, and folder_id are required'
@@ -53,65 +53,178 @@ class Files extends REST_Controller
             return;
         }
 
-        $file_path = null;
-        if ($is_multipart && isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['file'];
+        $uploaded_files_info = [];
+        $errors = [];
 
-            $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-            if (!in_array($file['type'], $allowed_types)) {
-                $this->response([
-                    'status' => false,
-                    'message' => 'Invalid file type. Allowed types: JPG, PNG, PDF, DOC, DOCX'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-                return;
-            }
+        if ($is_multipart && isset($_FILES['file'])) {
+            $files_data = $_FILES['file'];
 
-            $max_size = 5 * 1024 * 1024;
-            if ($file['size'] > $max_size) {
-                $this->response([
-                    'status' => false,
-                    'message' => 'File is too large. Maximum size: 5MB'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-                return;
-            }
+            if (is_array($files_data['name'])) {
+                $file_count = count($files_data['name']);
+                for ($i = 0; $i < $file_count; $i++) {
+                    $file = [
+                        'name' => $files_data['name'][$i],
+                        'type' => $files_data['type'][$i],
+                        'tmp_name' => $files_data['tmp_name'][$i],
+                        'error' => $files_data['error'][$i],
+                        'size' => $files_data['size'][$i],
+                    ];
 
-            $upload_dir = './uploads/files_manager/' . $folder_id . '/';
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
-            }
+                    if ($file['error'] === UPLOAD_ERR_OK) {
+                        $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                        if (!in_array($file['type'], $allowed_types)) {
+                            $errors[] = ['file' => $file['name'], 'message' => 'Invalid file type. Allowed types: JPG, PNG, PDF, DOC, DOCX'];
+                            continue;
+                        }
 
-            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = uniqid() . '.' . $extension;
-            $upload_path = $upload_dir . $filename;
+                        $max_size = 5 * 1024 * 1024;
+                        if ($file['size'] > $max_size) {
+                            $errors[] = ['file' => $file['name'], 'message' => 'File is too large. Maximum size: 5MB'];
+                            continue;
+                        }
 
-            if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                $server_url = base_url();
-                $relative_path = str_replace('./', '', $upload_path);
-                $file_path = rtrim($server_url, '/') . '/' . $relative_path;
+                        $upload_dir = './uploads/files_manager/' . $folder_id . '/';
+                        if (!file_exists($upload_dir)) {
+                            mkdir($upload_dir, 0777, true);
+                        }
+
+                        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                        $filename = uniqid() . '.' . $extension;
+                        $upload_path = $upload_dir . $filename;
+
+                        if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                            $server_url = base_url();
+                            $relative_path = str_replace('./', '', $upload_path);
+                            $file_path = rtrim($server_url, '/') . '/' . $relative_path;
+
+                            $result_id = $this->Files_model->create(
+                                $file['name'],
+                                $file['type'],
+                                $file['size'],
+                                $folder_id,
+                                $file_path
+                            );
+
+                            if ($result_id) {
+                                $uploaded_files_info[] = [
+                                    'id' => $result_id,
+                                    'name' => $file['name'],
+                                    'file_path' => $file_path,
+                                    'status' => 'success'
+                                ];
+                            } else {
+                                $errors[] = ['file' => $file['name'], 'message' => 'Failed to save file info to database'];
+                            }
+                        } else {
+                            log_activity('Failed to move uploaded file ' . $file['name'] . ' for folder ' . $folder_id);
+                            $errors[] = ['file' => $file['name'], 'message' => 'Failed to move uploaded file'];
+                        }
+                    } else {
+                        $errors[] = ['file' => $file['name'], 'message' => 'Upload error: ' . $file['error']];
+                    }
+                }
             } else {
-                log_activity('Failed to move uploaded file for folder ' . $folder_id);
+                $file = $_FILES['file'];
+                if ($file['error'] === UPLOAD_ERR_OK) {
+                    $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                    if (!in_array($file['type'], $allowed_types)) {
+                        $errors[] = ['file' => $file['name'], 'message' => 'Invalid file type. Allowed types: JPG, PNG, PDF, DOC, DOCX'];
+                    } else {
+                        $max_size = 5 * 1024 * 1024;
+                        if ($file['size'] > $max_size) {
+                            $errors[] = ['file' => $file['name'], 'message' => 'File is too large. Maximum size: 5MB'];
+                        } else {
+                            $upload_dir = './uploads/files_manager/' . $folder_id . '/';
+                            if (!file_exists($upload_dir)) {
+                                mkdir($upload_dir, 0777, true);
+                            }
+
+                            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+                            $filename = uniqid() . '.' . $extension;
+                            $upload_path = $upload_dir . $filename;
+
+                            if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                                $server_url = base_url();
+                                $relative_path = str_replace('./', '', $upload_path);
+                                $file_path = rtrim($server_url, '/') . '/' . $relative_path;
+
+                                $result_id = $this->Files_model->create(
+                                    $file['name'],
+                                    $file['type'],
+                                    $file['size'],
+                                    $folder_id,
+                                    $file_path
+                                );
+
+                                if ($result_id) {
+                                    $uploaded_files_info[] = [
+                                        'id' => $result_id,
+                                        'name' => $file['name'],
+                                        'file_path' => $file_path,
+                                        'status' => 'success'
+                                    ];
+                                } else {
+                                    $errors[] = ['file' => $file['name'], 'message' => 'Failed to save file info to database'];
+                                }
+                            } else {
+                                log_activity('Failed to move uploaded file for folder ' . $folder_id);
+                                $errors[] = ['file' => $file['name'], 'message' => 'Failed to move uploaded file'];
+                            }
+                        }
+                    }
+                } else {
+                    $errors[] = ['file' => $file['name'], 'message' => 'Upload error: ' . $file['error']];
+                }
+            }
+        } else if ($is_multipart && !isset($_FILES['file'])) {
+            $this->response([
+                'status' => false,
+                'message' => 'No files uploaded in multipart request'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        } else {
+
+            $file_path = null;
+            $result_id = $this->Files_model->create($name_base, $type_base, $size_base, $folder_id, $file_path);
+
+            if ($result_id) {
+                $this->response([
+                    'status' => true,
+                    'message' => 'File created successfully (JSON payload)',
+                    'id' => $result_id,
+                    'file_path' => $file_path
+                ], REST_Controller::HTTP_CREATED);
+            } else {
                 $this->response([
                     'status' => false,
-                    'message' => 'Failed to upload file'
+                    'message' => 'Failed to create file (JSON payload)'
                 ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-                return;
             }
+            return;
         }
 
-        $result = $this->Files_model->create($name, $type, $size, $folder_id, $file_path);
-
-        if ($result) {
+        if (empty($uploaded_files_info) && !empty($errors)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Some files failed to upload.',
+                'errors' => $errors
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        } elseif (!empty($uploaded_files_info)) {
+            $message = count($uploaded_files_info) . ' file(s) uploaded successfully.';
+            if (!empty($errors)) {
+                $message .= ' Some files had errors.';
+            }
             $this->response([
                 'status' => true,
-                'message' => 'File created successfully',
-                'id' => $result,
-                'file_path' => $file_path
+                'message' => $message,
+                'uploaded_files' => $uploaded_files_info,
+                'errors' => $errors
             ], REST_Controller::HTTP_CREATED);
         } else {
             $this->response([
                 'status' => false,
-                'message' => 'Failed to create file'
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                'message' => 'No files were provided for upload, or an unexpected error occurred.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
 

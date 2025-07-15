@@ -1198,6 +1198,10 @@ class Expenses_model extends App_Model
         e.end_date,
         e.due_day_2,
         e.bank_account_id,
+        e.order_number,
+        e.installment_number,
+        e.nfe_key,
+        e.barcode,
 
         c.userid as userid,
         c.company as company,

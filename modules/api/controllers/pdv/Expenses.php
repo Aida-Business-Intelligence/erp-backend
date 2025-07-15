@@ -1756,32 +1756,49 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
+        // Atualizado: incluir todos os campos da tabela tblexpenses
         $fields = [
             'expense_name',
             'type',
             'category',
+            'currency',
             'amount',
-            'date',
-            'due_date', // ADICIONADO
-            'reference_date', // ADICIONADO
-            'paymentmode',
-            'clientid',
-            'note',
-            'billable',
-            'send_invoice_to_customer',
-            'status',
-            'recurring',
-            'warehouse_id',
+            'tax',
+            'tax2',
             'reference_no',
+            'note',
+            'expense_identifier',
+            'clientid',
+            'project_id',
+            'billable',
+            'invoiceid',
+            'paymentmode',
+            'date',
+            'due_date',
+            'reference_date',
             'recurring_type',
             'repeat_every',
+            'recurring',
             'cycles',
             'total_cycles',
             'custom_recurring',
             'last_recurring_date',
             'create_invoice_billable',
+            'send_invoice_to_customer',
             'recurring_from',
-            'expense_identifier', // novo campo
+            'warehouse_id',
+            'due_day',
+            'installments',
+            'consider_business_days',
+            'week_day',
+            'end_date',
+            'due_day_2',
+            'bank_account_id',
+            'expenses_document',
+            'order_number',
+            'installment_number',
+            'nfe_key',
+            'barcode'
         ];
 
         $updateData = [];
@@ -1891,13 +1908,13 @@ class Expenses extends REST_Controller
         if (!$success) {
             return $this->response([
                 'status' => false,
-                'message' => 'Failed to update expense/receita or no changes made'
+                'message' => 'Falha ao atualizar despesa ou nenhum dado alterado'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
         return $this->response([
             'status' => true,
-            'message' => 'Despesa/Receita atualizada com sucesso',
+            'message' => 'Despesa atualizada com sucesso',
             'data' => $this->Expenses_model->gettwo($id)
         ], REST_Controller::HTTP_OK);
     }

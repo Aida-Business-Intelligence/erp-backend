@@ -37,10 +37,7 @@ class Receivables extends REST_Controller
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        log_message('error', 'RECEIVABLES_GET_GET_CALLED with ID: ' . $id);
-
         if (empty($id)) {
-            log_message('error', 'RECEIVABLES_GET_GET_ID_EMPTY');
             return $this->response([
                 'status' => false,
                 'message' => 'ID é obrigatório'
@@ -48,10 +45,7 @@ class Receivables extends REST_Controller
         }
 
         try {
-            log_message('error', 'RECEIVABLES_GET_GET_CALLING_MODEL with ID: ' . $id);
             $receivable = $this->Receivables_model->get_receivable_by_id($id);
-            
-            log_message('error', 'RECEIVABLES_GET_GET_MODEL_RESULT: ' . print_r($receivable, true));
             
             if ($receivable) {
                 return $this->response([
@@ -59,14 +53,12 @@ class Receivables extends REST_Controller
                     'data' => $receivable
                 ], REST_Controller::HTTP_OK);
             } else {
-                log_message('error', 'RECEIVABLES_GET_GET_NOT_FOUND');
                 return $this->response([
                     'status' => false,
                     'message' => 'Receita não encontrada'
                 ], REST_Controller::HTTP_NOT_FOUND);
             }
         } catch (Exception $e) {
-            log_message('error', 'RECEIVABLES_GET_GET_EXCEPTION: ' . $e->getMessage());
             return $this->response([
                 'status' => false,
                 'message' => $e->getMessage()
@@ -279,11 +271,7 @@ class Receivables extends REST_Controller
             : (isset($this->input->request_headers()['content-type'])
                 ? $this->input->request_headers()['content-type']
                 : null);
-        log_message('error', 'RECEIVABLES_CREATE_POST_CONTENT_TYPE: ' . $log_content_type);
-        log_message('error', 'RECEIVABLES_CREATE_POST__POST: ' . print_r($_POST, true));
-        log_message('error', 'RECEIVABLES_CREATE_POST__FILES: ' . print_r($_FILES, true));
         $raw_input = file_get_contents('php://input');
-        log_message('error', 'RECEIVABLES_CREATE_POST_RAW_INPUT: ' . $raw_input);
 
         // Detectar tipo de conteúdo
         $content_type = $log_content_type;
@@ -294,10 +282,6 @@ class Receivables extends REST_Controller
         } else {
             $input = json_decode($raw_input, true);
         }
-
-        // Log para depuração
-        log_message('error', 'RECEIVABLES_CREATE_POST_INPUT: ' . print_r($input, true));
-        log_message('error', 'RECEIVABLES_CREATE_POST_FILES: ' . print_r($_FILES, true));
 
         // Validação robusta dos campos obrigatórios
         $required = [];

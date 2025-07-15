@@ -729,6 +729,11 @@ class Receivables extends REST_Controller
         try {
             $id = $this->input->post('id');
             if (empty($id)) {
+                // Tenta pegar do JSON puro
+                $input = json_decode(file_get_contents('php://input'), true);
+                $id = $input['id'] ?? null;
+            }
+            if (empty($id)) {
                 return $this->response([
                     'success' => false,
                     'message' => 'ID é obrigatório'

@@ -15,18 +15,14 @@ class Receivables_model extends App_Model
 
     public function get_receivable_by_id($id)
     {
-        log_message('error', 'RECEIVABLES_MODEL_GET_BY_ID called with ID: ' . $id);
-        
         // Primeiro, vamos buscar apenas os dados básicos da receita
         $this->db->select('r.*');
         $this->db->from($this->table() . ' as r');
         $this->db->where('r.id', $id);
         
         $query = $this->db->get();
-        log_message('error', 'RECEIVABLES_MODEL_GET_BY_ID_BASIC_QUERY: ' . $this->db->last_query());
         
         $result = $query->row();
-        log_message('error', 'RECEIVABLES_MODEL_GET_BY_ID_BASIC_RESULT: ' . print_r($result, true));
         
         if (!$result) {
             return null;
@@ -107,7 +103,6 @@ class Receivables_model extends App_Model
             }
             
         } catch (Exception $e) {
-            log_message('error', 'RECEIVABLES_MODEL_GET_BY_ID_RELATED_DATA_ERROR: ' . $e->getMessage());
         }
         
         // Converter valores booleanos

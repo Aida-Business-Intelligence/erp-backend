@@ -2393,4 +2393,34 @@ class Produto extends REST_Controller
             'summary' => $summary
         ], REST_Controller::HTTP_OK);
     }
+
+    public function tags_post()
+    {
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 30;
+        $search = $this->post('search') ?: '';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+
+        $this->db->select('t.*');
+        $this->db->from(db_prefix() . 'items_tags t');
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('t.name', $search);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results('', false);
+
+        $this->db->order_by('t.name', $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $tags = $this->db->get()->result_array();
+
+        $this->response([
+            'status' => TRUE,
+            'total' => $total,
+            'data' => $tags
+        ], REST_Controller::HTTP_OK);
+    }
 }

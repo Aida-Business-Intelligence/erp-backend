@@ -803,6 +803,16 @@ class Produto extends REST_Controller
                 $product->subcategory_name = null;
             }
 
+            // Adicionar tag_id como array
+            if (isset($product->tag_id)) {
+                $product->tag_id = is_string($product->tag_id) && $product->tag_id !== '' ? json_decode($product->tag_id, true) : [];
+                if (!is_array($product->tag_id)) {
+                    $product->tag_id = [];
+                }
+            } else {
+                $product->tag_id = [];
+            }
+
             $this->response([
                 'status' => TRUE,
                 'data' => $product
@@ -947,6 +957,10 @@ class Produto extends REST_Controller
 
                         if ($warehouse['type'] != 'distribuidor') {
                             unset($update_data['sku_code']);
+                        }
+
+                        if (isset($update_data['tag_id']) && is_array($update_data['tag_id'])) {
+                            $update_data['tag_id'] = json_encode($update_data['tag_id']);
                         }
 
                         $output = $this->Invoice_items_model->edit_by_sku($update_data, $sku, $warehouse['warehouse_id']);

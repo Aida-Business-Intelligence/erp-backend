@@ -648,6 +648,11 @@ class Invoice_items_model extends App_Model
             $data['group_id'] = 0;
         }
 
+        // Converter tag_id para JSON se for array
+        if (isset($data['tag_id']) && is_array($data['tag_id'])) {
+            $data['tag_id'] = json_encode($data['tag_id']);
+        }
+
         $columns = $this->db->list_fields(db_prefix() . 'items');
 
         $this->load->dbforge();
@@ -745,6 +750,11 @@ class Invoice_items_model extends App_Model
 
         if (isset($data['tax2']) && $data['tax2'] == '') {
             $data['tax2'] = null;
+        }
+
+        // Converter tag_id para JSON se for array
+        if (isset($data['tag_id']) && is_array($data['tag_id'])) {
+            $data['tag_id'] = json_encode($data['tag_id']);
         }
 
         $columns = $this->db->list_fields(db_prefix() . 'items');

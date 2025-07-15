@@ -1,15 +1,35 @@
 Doca 1 - Script SQL para criar a tabela tblfolders:
 
-CREATE TABLE tblfolders (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  size BIGINT DEFAULT 0, -- tamanho total dos arquivos da pasta
-  files_count INT DEFAULT 0, -- quantidade de arquivos
-  is_favorite TINYINT(1) DEFAULT FALSE, -- 0 para FALSE, 1 para TRUE
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
----
+-- SCRIPT ABAIXO PARA A TABELA TBL_FOLDERS =========================
+
+-- CREATE TABLE tblfolders (
+--   id INT AUTO_INCREMENT PRIMARY KEY,
+--   name VARCHAR(255) NOT NULL,
+--   size BIGINT DEFAULT 0, -- tamanho total dos arquivos da pasta
+--   files_count INT DEFAULT 0, -- quantidade de arquivos
+--   is_favorite TINYINT(1) DEFAULT FALSE, -- 0 para FALSE, 1 para TRUE
+--   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+-- );
+
+-- DROP TABLE tblfolders
+
+-- SELECT * FROM tblfolders;
+
+-- SELECT * FROM tblfolders WHERE id = 1;
+
+-- INSERT INTO tblfolders (name, size, files_count, is_favorite, created_at, updated_at)
+-- VALUES ('Nova Pasta', 0, 0, FALSE, NOW(), NOW());
+
+
+-- INSERT INTO tblfolders (name, is_favorite) VALUES ('Docs', TRUE);
+
+-- UPDATE tblfolders
+-- SET name = 'Documentos Importantes', is_favorite = FALSE
+-- WHERE id = 1;
+
+-- DELETE FROM tblfolders WHERE id = 1;
+
 
 
 ---
@@ -18,5 +38,9 @@ Dica 2 - Necessaria permissao para criar os diretorios no metodo CREATE de folde
 mkdir -p /opt/lampp/htdocs/aida/erp-backend/uploads/folders
 chmod 775 /opt/lampp/htdocs/aida/erp-backend/uploads/folders
 chown daemon:daemon /opt/lampp/htdocs/aida/erp-backend/uploads/folders
+
+chmod 775 /opt/lampp/htdocs/aida/erp-backend/uploads
+
+chown daemon:daemon /opt/lampp/htdocs/aida/erp-backend/uploads
 
 ---

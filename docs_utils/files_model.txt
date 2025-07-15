@@ -1,0 +1,52 @@
+
+-- SCRIPT ABAIXO PARA A TABELA TBL_FILE_MANAGER =========================
+
+
+-- Criação da tabela tblfiles_manager
+CREATE TABLE tblfiles_manager (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL, -- Nome do arquivo
+    type VARCHAR(50) NOT NULL, -- Tipo do arquivo (ex.: pdf, jpg, txt)
+    size BIGINT DEFAULT 0, -- Tamanho do arquivo em bytes
+    folder_id INT NOT NULL, -- Chave estrangeira para vincular à tblfolders
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Data de criação
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Data de atualização
+    FOREIGN KEY (folder_id) REFERENCES tblfolders(id) ON DELETE CASCADE -- Relacionamento com tblfolders
+);
+
+
+-- CRUD para a tabela tblfiles_manager
+
+-- CREATE: Inserir um novo arquivo
+INSERT INTO tblfiles_manager (name, type, size, folder_id)
+VALUES ('relatorio.pdf', 'pdf', 1048576, 3); -- Insere um arquivo de 1MB na pasta com id=1
+
+
+
+-- READ: Consultar todos os arquivos
+SELECT * FROM tblfiles_manager;
+
+-- READ: Consultar um arquivo específico por ID
+SELECT * FROM tblfiles_manager WHERE id = 1;
+
+-- READ: Consultar arquivos por pasta (folder_id)
+SELECT * FROM tblfiles_manager WHERE folder_id = 3;
+
+-- READ: Consultar arquivos com informações da pasta (JOIN com tblfolders)
+SELECT f.id, f.name, f.type, f.size, f.created_at, f.updated_at, t.name AS folder_name
+FROM tblfiles_manager f
+JOIN tblfolders t ON f.folder_id = t.id;
+
+-- UPDATE: Atualizar informações de um arquivo
+UPDATE tblfiles_manager
+SET name = 'relatorio_final22.pdf', type = 'pdf', size = 2097152, folder_id = 3
+WHERE id = 1;
+
+-- DELETE: Excluir um arquivo específico
+DELETE FROM tblfiles_manager WHERE id = 1;
+
+-- DELETE: Excluir todos os arquivos de uma pasta específica
+DELETE FROM tblfiles_manager WHERE folder_id = 3;
+
+
+

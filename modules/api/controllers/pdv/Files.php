@@ -75,7 +75,7 @@ class Files extends REST_Controller
                 return;
             }
 
-            $upload_dir = './uploads/file_manager/' . $folder_id . '/';
+            $upload_dir = './uploads/files_manager/' . $folder_id . '/';
             if (!file_exists($upload_dir)) {
                 mkdir($upload_dir, 0777, true);
             }
@@ -115,4 +115,136 @@ class Files extends REST_Controller
         }
     }
 
+    public function index_get()
+    {
+        $files = $this->Files_model->get_all();
+
+        if ($files) {
+            $this->response([
+                'status' => true,
+                'message' => 'Files retrieved successfully',
+                'data' => $files
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => false,
+                'message' => 'No files found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function id_get($id)
+    {
+        if (!is_numeric($id)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid file ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $file = $this->Files_model->get_file_by_id($id);
+
+        if ($file) {
+            $this->response([
+                'status' => true,
+                'message' => 'File retrieved successfully',
+                'data' => $file
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => false,
+                'message' => 'File not found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function folder_get($folder_id)
+    {
+        if (!is_numeric($folder_id)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid folder ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!$this->Files_model->folder_exists($folder_id)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Folder with provided ID does not exist'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $files = $this->Files_model->get_files_by_folder($folder_id);
+
+        if ($files) {
+            $this->response([
+                'status' => true,
+                'message' => 'Files retrieved successfully for folder ' . $folder_id,
+                'data' => $files
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => false,
+                'message' => 'No files found for folder ' . $folder_id
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function rename_put($id)
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        if (!is_numeric($id)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid file ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $file = $this->Files_model->get_file_by_id($id);
+        if (!$file) {
+            $this->response([
+                'status' => false,
+                'message' => 'File not found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        $new_name = $input['name'] ?? null;
+
+        if (!$new_name) {
+            $this->response([
+                'status' => false,
+                'message' => 'New name is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!$this->Files_model->folder_exists($file['folder_id'])) {
+            $this->response([
+                'status' => false,
+                'message' => 'Associated folder for this file does not exist'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $result = $this->Files_model->update_file_name($id, $new_name);
+
+        if ($result) {
+            $this->response([
+                'status' => true,
+                'message' => 'File name updated successfully'
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => false,
+                'message' => 'Failed to update file name or file not found'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

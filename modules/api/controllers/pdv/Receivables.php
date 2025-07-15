@@ -414,6 +414,7 @@ class Receivables extends REST_Controller
             'status' => $input['status'] ?? 'pending',
             'warehouse_id' => $input['warehouse_id'],
             'receivables_document' => $receivables_document,
+            'registration_date' => $input['registration_date'] ?? null,
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
         $this->db->insert(db_prefix() . 'receivables', $data);
@@ -594,6 +595,7 @@ class Receivables extends REST_Controller
             'boleto_number' => $input['boleto_number'] ?? null,
             'nfe_number' => $input['nfe_number'] ?? null,
             'bank_account_id' => $input['bank_account_id'] ?? null,
+            'registration_date' => $input['registration_date'] ?? null,
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
         $this->db->where('id', $id);

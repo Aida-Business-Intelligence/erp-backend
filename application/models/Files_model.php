@@ -54,4 +54,12 @@ class Files_model extends App_Model
         $query = $this->db->get(db_prefix() . 'folders');
         return $query->num_rows() > 0;
     }
+
+    public function delete_file($id)
+    {
+        $this->db->where('id', $id);
+        $this->db->delete(db_prefix() . 'files_manager');
+
+        return $this->db->affected_rows() > 0;
+    }
 }

@@ -247,4 +247,57 @@ class Files extends REST_Controller
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    public function delete_delete($id)
+    {
+
+        if (!is_numeric($id)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid file ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $file = $this->Files_model->get_file_by_id($id);
+
+        if (!$file) {
+            $this->response([
+                'status' => false,
+                'message' => 'File not found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        $upload_base_path = './uploads/files_manager/';
+        $relative_path_from_base_url = str_replace(base_url(), '', $file['file_path']);
+        $physical_file_path = FCPATH . $relative_path_from_base_url;
+
+        if (file_exists($physical_file_path)) {
+            if (!unlink($physical_file_path)) {
+                log_activity('Failed to delete physical file: ' . $physical_file_path);
+                $this->response([
+                    'status' => false,
+                    'message' => 'Failed to delete physical file'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
+        } else {
+            log_activity('Physical file not found, but proceeding to delete DB record: ' . $physical_file_path);
+        }
+
+        $result = $this->Files_model->delete_file($id);
+
+        if ($result) {
+            $this->response([
+                'status' => true,
+                'message' => 'File deleted successfully'
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => false,
+                'message' => 'Failed to delete file from database'
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

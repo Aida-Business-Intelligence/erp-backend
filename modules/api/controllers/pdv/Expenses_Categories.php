@@ -194,8 +194,11 @@ class Expenses_Categories extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
+        $warehouse_id = $this->input->get('warehouse_id');
+        $type = $this->input->get('type');
+
         $this->load->model('Expenses_Categories_model');
-        $category = $this->Expenses_Categories_model->get_category($id);
+        $category = $this->Expenses_Categories_model->get($id, $warehouse_id, $type);
 
         if (!$category) {
             return $this->response([

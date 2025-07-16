@@ -1944,30 +1944,4 @@ class Expenses extends REST_Controller
             'data' => $client
         ], REST_Controller::HTTP_OK);
     }
-
-    public function categorytwo_get($id = '')
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        if (empty($id)) {
-            return $this->response([
-                'status' => false,
-                'message' => 'ID is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-        }
-
-        $data = $this->Expenses_model->get_expense_category($id);
-
-        if (!$data) {
-            return $this->response([
-                'status' => false,
-                'message' => 'Categoria não encontrada para esta despesa.'
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-
-        return $this->response([
-            'status' => true,
-            'data' => $data,
-        ], REST_Controller::HTTP_OK);
-    }
 }

@@ -228,20 +228,105 @@ class Files extends REST_Controller
         }
     }
 
+
     public function index_get()
     {
-        $files = $this->Files_model->get_all();
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        $order_by = $this->get('order_by') ?? 'created_at';
+        $order_direction = $this->get('order_direction') ?? 'desc';
+        $folder_id = $this->get('folder_id') ?? null;
+
+        $limit = $this->get('limit') ? (int)$this->get('limit') : null;
+        $page = $this->get('page') ? (int)$this->get('page') : 1;
+
+        $offset = null;
+        if ($limit !== null && $page > 0) {
+            $offset = ($page - 1) * $limit;
+        }
+
+        $allowed_order_by = ['created_at', 'updated_at', 'name', 'size'];
+        $allowed_order_direction = ['asc', 'desc'];
+
+        if (!in_array($order_by, $allowed_order_by)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid order_by parameter. Allowed values: ' . implode(', ', $allowed_order_by)
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!in_array(strtolower($order_direction), $allowed_order_direction)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid order_direction parameter. Allowed values: asc, desc'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if ($folder_id !== null) {
+            if (!is_numeric($folder_id)) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Invalid folder_id parameter. Must be a numeric ID.'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+                return;
+            }
+            if (!$this->Files_model->folder_exists($folder_id)) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Folder with provided ID does not exist'
+                ], REST_Controller::HTTP_NOT_FOUND);
+                return;
+            }
+        }
+
+        if ($limit !== null && (!is_numeric($limit) || $limit <= 0)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid limit parameter. Must be a positive integer.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!is_numeric($page) || $page <= 0) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid page parameter. Must be a positive integer.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $total_files = $this->Files_model->count_files($folder_id);
+
+        $files = $this->Files_model->get_files($order_by, $order_direction, $folder_id, $limit, $offset);
+
+        $response_data = [
+            'status' => true,
+            'message' => 'Files retrieved successfully',
+            'total_files' => $total_files,
+            'files' => $files
+        ];
+
+        if ($limit !== null) {
+            $total_pages = ceil($total_files / $limit);
+            $response_data['pagination'] = [
+                'current_page' => $page,
+                'items_per_page' => $limit,
+                'total_pages' => (int)$total_pages,
+                'has_next_page' => ($page < $total_pages),
+                'has_previous_page' => ($page > 1)
+            ];
+        }
 
         if ($files) {
-            $this->response([
-                'status' => true,
-                'message' => 'Files retrieved successfully',
-                'data' => $files
-            ], REST_Controller::HTTP_OK);
+            $this->response($response_data, REST_Controller::HTTP_OK);
         } else {
             $this->response([
                 'status' => false,
-                'message' => 'No files found'
+                'message' => 'No files found matching the criteria.',
+                'total_files' => $total_files,
+                'files' => []
             ], REST_Controller::HTTP_NOT_FOUND);
         }
     }

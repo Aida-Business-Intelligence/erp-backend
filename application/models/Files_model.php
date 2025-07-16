@@ -41,6 +41,37 @@ class Files_model extends App_Model
         return $this->db->get_where(db_prefix() . 'files_manager', ['folder_id' => $folder_id])->result_array();
     }
 
+    public function get_files($order_by = 'created_at', $order_direction = 'desc', $folder_id = null, $limit = null, $offset = null)
+    {
+        $allowed_orders = ['created_at', 'updated_at', 'name', 'size'];
+        if (!in_array($order_by, $allowed_orders)) {
+            $order_by = 'created_at';
+        }
+
+        $order_direction = (strtolower($order_direction) === 'asc') ? 'asc' : 'desc';
+
+        if ($folder_id !== null) {
+            $this->db->where('folder_id', $folder_id);
+        }
+
+        $this->db->order_by($order_by, $order_direction);
+
+        if ($limit !== null && is_numeric($limit) && $limit > 0) {
+            $this->db->limit($limit, $offset);
+        }
+
+        $query = $this->db->get(db_prefix() . 'files_manager');
+        return $query->result_array();
+    }
+
+    public function count_files($folder_id = null)
+    {
+        if ($folder_id !== null) {
+            $this->db->where('folder_id', $folder_id);
+        }
+        return $this->db->count_all_results(db_prefix() . 'files_manager');
+    }
+
     public function update_file_name($id, $new_name)
     {
         $this->db->where('id', $id);

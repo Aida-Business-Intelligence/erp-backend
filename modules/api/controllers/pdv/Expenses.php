@@ -1073,4 +1073,25 @@ class Expenses extends REST_Controller
             'data' => $client
         ], REST_Controller::HTTP_OK);
     }
+
+    public function get_get($id = null)
+    {
+        if (empty($id)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'ID é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+        $expense = $this->Expenses_model->gettwo($id);
+        if (!$expense) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Despesa não encontrada'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+        return $this->response([
+            'status' => true,
+            'data' => $expense
+        ], REST_Controller::HTTP_OK);
+    }
 }

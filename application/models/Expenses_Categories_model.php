@@ -62,4 +62,24 @@ class Expenses_Categories_model extends App_Model
         $this->db->delete(db_prefix() . 'expenses_categories');
         return $this->db->affected_rows() > 0;
     }
+
+    public function get_categories($warehouse_id, $search = '', $limit = 20, $type = null)
+    {
+        $this->db->where('warehouse_id', $warehouse_id);
+        if ($type !== null) {
+            $this->db->where('type', $type);
+        }
+        if (!empty($search)) {
+            $this->db->like('name', $search);
+        }
+        $this->db->order_by('name', 'asc');
+        $this->db->limit($limit);
+        return $this->db->get(db_prefix() . 'expenses_categories')->result_array();
+    }
+
+    public function get_category($id)
+    {
+        $this->db->where('id', $id);
+        return $this->db->get(db_prefix() . 'expenses_categories')->row_array();
+    }
 } 

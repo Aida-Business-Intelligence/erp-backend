@@ -22,7 +22,7 @@ class Expenses_Categories extends REST_Controller
         $warehouse_id = $this->input->get('warehouse_id');
         $type = $this->input->get('type');
         $search = $this->input->get('search') ?: '';
-        $limit = $this->input->get('limit') ?: 10;
+        $limit = $this->input->get('pageSize') ?: 10;
         if (empty($warehouse_id) || empty($type)) {
             return $this->response([
                 'status' => false,
@@ -39,13 +39,15 @@ class Expenses_Categories extends REST_Controller
     // Obter categoria por ID
     public function show_get($id = null)
     {
+        $warehouse_id = $this->input->get('warehouse_id');
+        $type = $this->input->get('type');
         if (empty($id)) {
             return $this->response([
                 'status' => false,
                 'message' => 'ID é obrigatório'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        $category = $this->Expenses_Categories_model->get($id);
+        $category = $this->Expenses_Categories_model->get($id, $warehouse_id, $type);
         if (!$category) {
             return $this->response([
                 'status' => false,
@@ -156,5 +158,55 @@ class Expenses_Categories extends REST_Controller
                 'message' => 'Falha ao excluir categoria'
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    // Listar categorias (GET /api/expenses_categories/list)
+    public function list_get()
+    {
+        $warehouse_id = $this->input->get('warehouse_id');
+        $type = $this->input->get('type');
+        $search = $this->input->get('search') ?: '';
+        $limit = $this->input->get('pageSize') ?: 20;
+
+        if (empty($warehouse_id) || empty($type)) {
+            return $this->response([
+                'success' => false,
+                'message' => 'warehouse_id e type são obrigatórios'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $this->load->model('Expenses_Categories_model');
+        $categories = $this->Expenses_Categories_model->get_categories($warehouse_id, $search, $limit, $type);
+
+        return $this->response([
+            'success' => true,
+            'data' => $categories
+        ], REST_Controller::HTTP_OK);
+    }
+
+    // Buscar categoria por ID (GET /api/expenses_categories/item/{id})
+    public function item_get($id = null)
+    {
+        if (empty($id)) {
+            return $this->response([
+                'success' => false,
+                'message' => 'ID é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $this->load->model('Expenses_Categories_model');
+        $category = $this->Expenses_Categories_model->get_category($id);
+
+        if (!$category) {
+            return $this->response([
+                'success' => false,
+                'message' => 'Categoria não encontrada'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+
+        return $this->response([
+            'success' => true,
+            'data' => $category
+        ], REST_Controller::HTTP_OK);
     }
 } 

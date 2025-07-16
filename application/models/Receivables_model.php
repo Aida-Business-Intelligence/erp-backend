@@ -81,10 +81,10 @@ class Receivables_model extends App_Model
             }
             
             // Buscar nome da origem
-            if ($result->origin) {
+            if ($result->origin_id) {
                 $this->db->select('name');
                 $this->db->from(db_prefix() . 'origins');
-                $this->db->where('id', $result->origin);
+                $this->db->where('id', $result->origin_id);
                 $origin = $this->db->get()->row();
                 if ($origin) {
                     $result->origin_name = $origin->name;

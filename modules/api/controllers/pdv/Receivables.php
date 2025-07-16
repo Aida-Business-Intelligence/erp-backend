@@ -289,7 +289,7 @@ class Receivables extends REST_Controller
         if (!isset($input['amount']) || $input['amount'] === '' || $input['amount'] === null) $required[] = 'amount';
         if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null) $required[] = 'date';
         if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null) $required[] = 'warehouse_id';
-        if (!isset($input['origin']) || $input['origin'] === '' || $input['origin'] === null) $required[] = 'origin';
+        if (!isset($input['origin_id']) || $input['origin_id'] === '' || $input['origin_id'] === null) $required[] = 'origin_id';
         if (!isset($input['receivable_identifier']) || $input['receivable_identifier'] === '' || $input['receivable_identifier'] === null) $required[] = 'receivable_identifier';
         if (!empty($required)) {
             return $this->response([
@@ -381,7 +381,7 @@ class Receivables extends REST_Controller
             'installment_number' => $input['installment_number'] ?? null,
             'nfe_key' => $input['nfe_key'] ?? null,
             'barcode' => $input['barcode'] ?? null,
-            'origin' => $input['origin'],
+            'origin_id' => $input['origin_id'],
             'recurring_type' => $input['recurring_type'] ?? null,
             'repeat_every' => $input['repeat_every'] ?? null,
             'recurring' => isset($input['recurring']) ? ($input['recurring'] ? 1 : 0) : 0,
@@ -440,7 +440,7 @@ class Receivables extends REST_Controller
         if (!isset($input['amount']) || $input['amount'] === '' || $input['amount'] === null) $required[] = 'amount';
         if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null) $required[] = 'date';
         if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null) $required[] = 'warehouse_id';
-        if (!isset($input['origin']) || $input['origin'] === '' || $input['origin'] === null) $required[] = 'origin';
+        if (!isset($input['origin_id']) || $input['origin_id'] === '' || $input['origin_id'] === null) $required[] = 'origin_id';
         if (!isset($input['receivable_identifier']) || $input['receivable_identifier'] === '' || $input['receivable_identifier'] === null) $required[] = 'receivable_identifier';
         if (!empty($required)) {
             return $this->response([
@@ -557,7 +557,7 @@ class Receivables extends REST_Controller
             'installment_number' => $input['installment_number'] ?? null,
             'nfe_key' => $input['nfe_key'] ?? null,
             'barcode' => $input['barcode'] ?? null,
-            'origin' => $input['origin'],
+            'origin_id' => $input['origin_id'],
             'recurring_type' => $input['recurring_type'] ?? null,
             'repeat_every' => $input['repeat_every'] ?? null,
             'recurring' => isset($input['recurring']) ? ($input['recurring'] ? 1 : 0) : 0,
@@ -726,16 +726,30 @@ class Receivables extends REST_Controller
                 ], REST_Controller::HTTP_BAD_REQUEST);
             }
             $this->db->where('id', $id);
-            $this->db->delete(db_prefix() . 'origins');
-            if ($this->db->affected_rows() > 0) {
-                return $this->response([
-                    'success' => true,
-                    'message' => 'Origem excluída com sucesso'
-                ], REST_Controller::HTTP_OK);
-            } else {
+            try {
+                $this->db->delete(db_prefix() . 'origins');
+                if ($this->db->affected_rows() > 0) {
+                    return $this->response([
+                        'success' => true,
+                        'message' => 'Origem excluída com sucesso'
+                    ], REST_Controller::HTTP_OK);
+                } else {
+                    return $this->response([
+                        'success' => false,
+                        'message' => 'Falha ao excluir origem'
+                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                }
+            } catch (Exception $e) {
+                // Verifica se é erro de restrição de chave estrangeira
+                if (strpos($e->getMessage(), 'a foreign key constraint fails') !== false) {
+                    return $this->response([
+                        'success' => false,
+                        'message' => 'Não é possível excluir esta origem pois ela está associada a uma ou mais receitas.'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
                 return $this->response([
                     'success' => false,
-                    'message' => 'Falha ao excluir origem'
+                    'message' => $e->getMessage()
                 ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             }
         } catch (Exception $e) {

@@ -216,28 +216,6 @@ class Receivables extends REST_Controller
         }
     }
 
-    public function categoriestwo_get()
-    {
-        try {
-            $warehouse_id = $this->input->get('warehouse_id') ?: 0;
-            $search = $this->input->get('search') ?: '';
-            $pageSize = $this->input->get('pageSize') ?: 5;
-            $type = $this->input->get('type') ?: 'receita';
-
-            $categories = $this->Receivables_model->get_categories($warehouse_id, $search, $pageSize, $type);
-
-            $this->response([
-                'success' => true,
-                'data' => $categories
-            ], REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
     public function clients_get()
     {
         try {

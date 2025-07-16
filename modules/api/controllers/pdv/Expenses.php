@@ -1389,7 +1389,7 @@ class Expenses extends REST_Controller
         }
     }
 
-    public function update_post($id = '')
+    public function update_put($id = '')
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 

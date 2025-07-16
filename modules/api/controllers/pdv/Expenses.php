@@ -1961,7 +1961,7 @@ class Expenses extends REST_Controller
         if (!$data) {
             return $this->response([
                 'status' => false,
-                'message' => 'Categoria não encontrada para esta despesa/receita.'
+                'message' => 'Categoria não encontrada para esta despesa.'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
 

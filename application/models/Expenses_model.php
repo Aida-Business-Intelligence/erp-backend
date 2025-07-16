@@ -1187,7 +1187,6 @@ class Expenses_model extends App_Model
         e.warehouse_id,
         e.file,
         e.comprovante,
-        e.expenses_document,
         e.expense_document,
         e.due_date,
         e.reference_date,

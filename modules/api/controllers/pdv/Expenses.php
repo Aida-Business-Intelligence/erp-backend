@@ -158,8 +158,8 @@ class Expenses extends REST_Controller
 
             $this->db->trans_start();
 
-            $expenses_document = null;
-            $document_field = !empty($data['expenses_document']) ? 'expenses_document' : (!empty($data['expense_document']) ? 'expense_document' : null);
+            $expense_document = null;
+            $document_field = !empty($data['expense_document']) ? 'expense_document' : (!empty($data['expense_document']) ? 'expense_document' : null);
 
             if ($document_field && !empty($data[$document_field])) {
                 $document_data = $data[$document_field];
@@ -213,7 +213,7 @@ class Expenses extends REST_Controller
                     $file_path = $upload_path . $filename;
 
                     if (file_put_contents($file_path, $document_data)) {
-                        $expenses_document = 'uploads/expenses/documents/' . $filename;
+                        $expense_document = 'uploads/expenses/documents/' . $filename;
                     } else {
                         throw new Exception('Falha ao salvar o documento no servidor');
                     }
@@ -252,7 +252,7 @@ class Expenses extends REST_Controller
                 'perfex_saas_tenant_id' => 'master',
                 'status' => $data['status'] ?? 'pending',
                 'warehouse_id' => $data['warehouse_id'] ?? 0,
-                'expenses_document' => $expenses_document,
+                'expense_document' => $expense_document,
                 'order_number' => $data['order_number'] ?? null,
                 'installment_number' => $data['installment_number'] ?? null,
                 'nfe_key' => $data['nfe_key'] ?? null,
@@ -281,7 +281,7 @@ class Expenses extends REST_Controller
                 'message' => 'Despesa criada com sucesso',
                 'data' => [
                     'id' => $expense_id,
-                    'document_url' => $expenses_document ? base_url($expenses_document) : null
+                    'document_url' => $expense_document ? base_url($expense_document) : null
                 ]
             ], REST_Controller::HTTP_OK);
         } catch (Exception $e) {
@@ -860,12 +860,12 @@ class Expenses extends REST_Controller
         }
 
         // Processar o documento se existir
-        if (!empty($update_data['expenses_document'])) {
+        if (!empty($update_data['expense_document'])) {
             // Buscar o registro atual para pegar o caminho do arquivo antigo
             $current = $this->Expenses_model->gettwo($expense_id);
-            $old_document = $current && isset($current->expenses_document) ? $current->expenses_document : null;
+            $old_document = $current && isset($current->expense_document) ? $current->expense_document : null;
 
-            $document_data = $update_data['expenses_document'];
+            $document_data = $update_data['expense_document'];
             if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
                 $mime_type = $matches[1];
                 $document_data = substr($document_data, strpos($document_data, ',') + 1);
@@ -932,7 +932,7 @@ class Expenses extends REST_Controller
                 $file_path = $upload_path . $filename;
 
                 if (file_put_contents($file_path, $document_data)) {
-                    $update_data['expenses_document'] = 'uploads/expenses/documents/' . $filename;
+                    $update_data['expense_document'] = 'uploads/expenses/documents/' . $filename;
                 } else {
                     return $this->response([
                         'status' => false,
@@ -941,8 +941,8 @@ class Expenses extends REST_Controller
                 }
             }
             // Se não for base64, mas vier um caminho relativo, atualize também
-            else if (!empty($update_data['expenses_document']) && !preg_match('/^data:(.+);base64,/', $update_data['expenses_document'])) {
-                $update_data['expenses_document'] = $update_data['expenses_document'];
+            else if (!empty($update_data['expense_document']) && !preg_match('/^data:(.+);base64,/', $update_data['expense_document'])) {
+                $update_data['expense_document'] = $update_data['expense_document'];
             }
         }
 
@@ -1670,8 +1670,8 @@ class Expenses extends REST_Controller
             foreach ($rows as $rowId) {
                 // Buscar documento antes de deletar
                 $expense = $this->Expenses_model->gettwo($rowId);
-                if ($expense && !empty($expense->expenses_document)) {
-                    $this->delete_expense_document_file($expense->expenses_document);
+                if ($expense && !empty($expense->expense_document)) {
+                    $this->delete_expense_document_file($expense->expense_document);
                 }
                 $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id);
                 if ($deleted) {
@@ -1698,8 +1698,8 @@ class Expenses extends REST_Controller
 
         // Buscar documento antes de deletar
         $expense = $this->Expenses_model->gettwo($id);
-        if ($expense && !empty($expense->expenses_document)) {
-            $this->delete_expense_document_file($expense->expenses_document);
+        if ($expense && !empty($expense->expense_document)) {
+            $this->delete_expense_document_file($expense->expense_document);
         }
 
         $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id);
@@ -1794,7 +1794,7 @@ class Expenses extends REST_Controller
             'end_date',
             'due_day_2',
             'bank_account_id',
-            'expenses_document',
+            'expense_document',
             'order_number',
             'installment_number',
             'nfe_key',
@@ -1818,12 +1818,12 @@ class Expenses extends REST_Controller
         }
 
         // Processar o documento se existir
-        if (!empty($input['expenses_document'])) {
+        if (!empty($input['expense_document'])) {
             // Buscar o registro atual para pegar o caminho do arquivo antigo
             $current = $this->Expenses_model->gettwo($id);
-            $old_document = $current && isset($current->expenses_document) ? $current->expenses_document : null;
+            $old_document = $current && isset($current->expense_document) ? $current->expense_document : null;
 
-            $document_data = $input['expenses_document'];
+            $document_data = $input['expense_document'];
             if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
                 $mime_type = $matches[1];
                 $document_data = substr($document_data, strpos($document_data, ',') + 1);
@@ -1890,7 +1890,7 @@ class Expenses extends REST_Controller
                 $file_path = $upload_path . $filename;
 
                 if (file_put_contents($file_path, $document_data)) {
-                    $updateData['expenses_document'] = 'uploads/expenses/documents/' . $filename;
+                    $updateData['expense_document'] = 'uploads/expenses/documents/' . $filename;
                 } else {
                     return $this->response([
                         'status' => false,
@@ -1898,8 +1898,8 @@ class Expenses extends REST_Controller
                     ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
                 }
             }
-            else if (!empty($input['expenses_document']) && !preg_match('/^data:(.+);base64,/', $input['expenses_document'])) {
-                $updateData['expenses_document'] = $input['expenses_document'];
+            else if (!empty($input['expense_document']) && !preg_match('/^data:(.+);base64,/', $input['expense_document'])) {
+                $updateData['expense_document'] = $input['expense_document'];
             }
         }
 

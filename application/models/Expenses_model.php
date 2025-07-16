@@ -14,7 +14,7 @@ class Expenses_model extends App_Model
 
 
     //26/05
-    public function addtwo($data)
+    public function add($data)
     {
         $this->db->insert(db_prefix() . 'expenses', $data);
         return $this->db->insert_id();
@@ -206,86 +206,6 @@ class Expenses_model extends App_Model
         $this->db->order_by('date', 'desc');
 
         return $this->db->get()->result_array();
-    }
-
-    /**
-     * Add new expense
-     * @param mixed $data All $_POST data
-     * @return  mixed
-     */
-    public function add($data)
-    {
-        $data['date'] = to_sql_date($data['date']);
-        $data['note'] = nl2br($data['note']);
-
-        $data['clientid'] = isset($data['clientid']) ? $data['clientid'] : 0;
-        $data['billable'] = isset($data['billable']) ? 1 : 0;
-        $data['create_invoice_billable'] = isset($data['create_invoice_billable']) ? 1 : 0;
-        $data['send_invoice_to_customer'] = isset($data['send_invoice_to_customer']) ? 1 : 0;
-
-        if (isset($data['custom_fields'])) {
-            $custom_fields = $data['custom_fields'];
-            unset($data['custom_fields']);
-        }
-
-        if (isset($data['repeat_every']) && $data['repeat_every'] != '') {
-            $data['recurring'] = 1;
-            if ($data['repeat_every'] == 'custom') {
-                $data['repeat_every']     = $data['repeat_every_custom'];
-                $data['recurring_type']   = $data['repeat_type_custom'];
-                $data['custom_recurring'] = 1;
-            } else {
-                $_temp                    = explode('-', $data['repeat_every']);
-                $data['recurring_type']   = $_temp[1];
-                $data['repeat_every']     = $_temp[0];
-                $data['custom_recurring'] = 0;
-            }
-        } else {
-            $data['recurring'] = 0;
-        }
-        unset($data['repeat_type_custom']);
-        unset($data['repeat_every_custom']);
-
-        if ((isset($data['project_id']) && $data['project_id'] == '') || !isset($data['project_id'])) {
-            $data['project_id'] = 0;
-        }
-        $data['addedfrom'] = get_staff_user_id();
-        $data['dateadded'] = date('Y-m-d H:i:s');
-
-        $data = hooks()->apply_filters('before_expense_added', $data);
-
-        $this->db->insert(db_prefix() . 'expenses', $data);
-        $insert_id = $this->db->insert_id();
-        if ($insert_id) {
-            if (isset($custom_fields)) {
-                handle_custom_fields_post($insert_id, $custom_fields);
-            }
-            if (isset($data['project_id']) && !empty($data['project_id'])) {
-                $this->load->model('projects_model');
-                $project_settings = $this->projects_model->get_project_settings($data['project_id']);
-                $visible_activity = 0;
-                foreach ($project_settings as $s) {
-                    if ($s['name'] == 'view_finance_overview') {
-                        if ($s['value'] == 1) {
-                            $visible_activity = 1;
-
-                            break;
-                        }
-                    }
-                }
-                $expense                  = $this->get($insert_id);
-                $activity_additional_data = $expense->name;
-                $this->projects_model->log_activity($data['project_id'], 'project_activity_recorded_expense', $activity_additional_data, $visible_activity);
-            }
-
-            hooks()->do_action('after_expense_added', $insert_id);
-
-            log_activity('New Expense Added [' . $insert_id . ']');
-
-            return $insert_id;
-        }
-
-        return false;
     }
 
     public function get_child_expenses($id)

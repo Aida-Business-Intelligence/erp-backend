@@ -72,6 +72,13 @@ class Files_model extends App_Model
         return $this->db->count_all_results(db_prefix() . 'files_manager');
     }
 
+    public function update_file_favorite($id, $is_favorite)
+    {
+        $this->db->where('id', $id);
+        $this->db->update(db_prefix() . 'files_manager', ['is_favorite' => (bool) $is_favorite]);
+        return $this->db->affected_rows() > 0;
+    }
+
     public function update_file_name($id, $new_name)
     {
         $this->db->where('id', $id);

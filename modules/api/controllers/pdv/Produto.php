@@ -2437,4 +2437,126 @@ class Produto extends REST_Controller
             'data' => $tags
         ], REST_Controller::HTTP_OK);
     }
+
+    public function update_ecommerce_status_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['product_ids']) || !is_array($_POST['product_ids']) || empty($_POST['product_ids'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Product IDs array is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['show_ecommerce']) || !in_array($_POST['show_ecommerce'], [0, 1, '0', '1'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'show_ecommerce must be 0 or 1'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $warehouse_id = $_POST['warehouse_id'];
+        $product_ids = $_POST['product_ids'];
+        $show_ecommerce = (string) $_POST['show_ecommerce']; // Convert to string for ENUM field
+
+        $this->db->trans_begin();
+
+        try {
+            $this->db->where_in('id', $product_ids);
+            $this->db->where('warehouse_id', $warehouse_id);
+            $this->db->update(db_prefix() . 'items', ['show_ecommerce' => $show_ecommerce]);
+
+            $affected_rows = $this->db->affected_rows();
+
+            if ($this->db->trans_status() === FALSE) {
+                $this->db->trans_rollback();
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Failed to update products'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
+
+            $this->db->trans_commit();
+
+            $status_text = $show_ecommerce ? 'mostrar no ecommerce' : 'ocultar do ecommerce';
+
+            $this->response([
+                'status' => TRUE,
+                'message' => "{$affected_rows} produto(s) atualizado(s) para {$status_text}",
+                'updated_count' => $affected_rows,
+                'show_ecommerce' => $show_ecommerce
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error updating products: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function check_ecommerce_status_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['product_ids']) || !is_array($_POST['product_ids']) || empty($_POST['product_ids'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Product IDs array is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $warehouse_id = $_POST['warehouse_id'];
+        $product_ids = $_POST['product_ids'];
+
+        $this->db->select('id, description, show_ecommerce');
+        $this->db->where_in('id', $product_ids);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $products = $this->db->get(db_prefix() . 'items')->result_array();
+
+        $ecommerce_products = [];
+        $non_ecommerce_products = [];
+
+        foreach ($products as $product) {
+            if ($product['show_ecommerce'] == '1') {
+                $ecommerce_products[] = $product;
+            } else {
+                $non_ecommerce_products[] = $product;
+            }
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'data' => [
+                'ecommerce_products' => $ecommerce_products,
+                'non_ecommerce_products' => $non_ecommerce_products,
+                'total_ecommerce' => count($ecommerce_products),
+                'total_non_ecommerce' => count($non_ecommerce_products),
+                'can_show_ecommerce' => count($ecommerce_products) === 0,
+                'can_hide_ecommerce' => count($non_ecommerce_products) === 0
+            ]
+        ], REST_Controller::HTTP_OK);
+    }
 }

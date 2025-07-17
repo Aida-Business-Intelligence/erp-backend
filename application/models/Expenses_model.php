@@ -1361,13 +1361,21 @@ class Expenses_model extends App_Model
         $offset = ($page - 1) * $limit;
 
         $this->db->select('
-            e.*, 
+            e.*,
             c.company as client,
-            pm.name as paymentmode
+            pm.name as payment_mode_name,
+            cat.name as category_name,
+            t1.name as tax_name,
+            t1.taxrate as taxrate,
+            t2.name as tax_name2,
+            t2.taxrate as taxrate2
         ');
         $this->db->from(db_prefix() . 'expenses e');
         $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
+        $this->db->join(db_prefix() . 'taxes t1', 't1.id = e.tax', 'left');
+        $this->db->join(db_prefix() . 'taxes t2', 't2.id = e.tax2', 'left');
         $this->db->where('e.warehouse_id', $warehouse_id);
         $this->db->where('DATE(e.due_date)', $date);
 

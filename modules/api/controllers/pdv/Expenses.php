@@ -1093,6 +1093,7 @@ class Expenses extends REST_Controller
                 'bank_account_id' => $data['bank_account_id'] ?? null,
                 'category' => $data['category_id'] ?? null,
                 'note' => $data['note'] ?? null,
+                'descricao_pagamento' => $data['descricao_pagamento'] ?? null, // novo campo
                 'juros' => $data['juros'] ?? null,
                 'desconto' => $data['desconto'] ?? null,
                 'multa' => $data['multa'] ?? null,

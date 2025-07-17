@@ -1073,4 +1073,94 @@ class Expenses extends REST_Controller
             'data' => $expense
         ], REST_Controller::HTTP_OK);
     }
+
+    public function pay_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        try {
+            $raw_input = file_get_contents("php://input");
+            $data = json_decode($raw_input, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new Exception('JSON inválido: ' . json_last_error_msg());
+            }
+            if (empty($data['id'])) {
+                throw new Exception('ID da despesa é obrigatório');
+            }
+            $expense_id = $data['id'];
+            $updateData = [
+                'status' => 'paid',
+                'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
+                'bank_account_id' => $data['bank_account_id'] ?? null,
+                'category' => $data['category_id'] ?? null,
+                'note' => $data['note'] ?? null,
+                'juros' => $data['juros'] ?? null,
+                'desconto' => $data['desconto'] ?? null,
+                'multa' => $data['multa'] ?? null,
+                'valor_pago' => $data['valorPago'] ?? null,
+            ];
+            // Upload do comprovante (voucher)
+            $voucher_path = null;
+            if (!empty($data['comprovante'])) {
+                $document_data = $data['comprovante'];
+                if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
+                    $mime_type = $matches[1];
+                    $document_data = substr($document_data, strpos($document_data, ',') + 1);
+                    $allowed_types = [
+                        'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'image/jpeg',
+                        'image/jpg',
+                        'image/png'
+                    ];
+                    if (!in_array($mime_type, $allowed_types)) {
+                        throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG');
+                    }
+                    $document_data = base64_decode($document_data);
+                    if ($document_data === false) {
+                        throw new Exception('Falha ao decodificar o comprovante');
+                    }
+                    if (strlen($document_data) > 5 * 1024 * 1024) {
+                        throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+                    }
+                    $upload_path = FCPATH . 'uploads/expenses/voucher/';
+                    if (!is_dir($upload_path)) {
+                        mkdir($upload_path, 0755, true);
+                    }
+                    $extension_map = [
+                        'application/pdf' => 'pdf',
+                        'application/msword' => 'doc',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                        'image/jpeg' => 'jpg',
+                        'image/jpg' => 'jpg',
+                        'image/png' => 'png'
+                    ];
+                    $extension = $extension_map[$mime_type] ?? 'bin';
+                    $filename = 'voucher_' . $expense_id . '_' . time() . '_' . uniqid() . '.' . $extension;
+                    $file_path = $upload_path . $filename;
+                    if (file_put_contents($file_path, $document_data)) {
+                        $voucher_path = 'uploads/expenses/voucher/' . $filename;
+                        $updateData['voucher'] = $voucher_path;
+                    } else {
+                        throw new Exception('Falha ao salvar o comprovante no servidor');
+                    }
+                }
+            }
+            $this->load->model('Expenses_model');
+            $success = $this->Expenses_model->updatetwo($updateData, $expense_id);
+            if (!$success) {
+                throw new Exception('Falha ao baixar o lançamento');
+            }
+            return $this->response([
+                'status' => true,
+                'message' => 'Pagamento baixado com sucesso',
+                'voucher_url' => $voucher_path ? base_url($voucher_path) : null
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

@@ -59,7 +59,7 @@ class Expenses_model extends App_Model
 
     public function get_clients($warehouse_id = 0, $search = '', $limit = 5, $page = 0)
     {
-        $this->db->select('userid as id, company as name, vat');
+        $this->db->select('userid as id, company as name, vat, is_supplier');
         $this->db->where('active', 1);
         $this->db->where('warehouse_id', $warehouse_id);
 

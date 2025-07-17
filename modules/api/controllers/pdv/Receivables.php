@@ -183,19 +183,72 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
+        // Novos campos do payload
+        $fields = [
+            'juros', 'desconto', 'multa', 'valorPago', 'comprovante', 'descricao_recebimento', 'bank_account_id', 'category_id', 'payment_date'
+        ];
+        $data = [
+            'status' => $status,
+        ];
+        foreach ($fields as $field) {
+            $value = $this->post($field);
+            if ($value !== null) {
+                // Mapear nomes do frontend para nomes da tabela
+                if ($field === 'valorPago') $data['valor_recebido'] = $value;
+                elseif ($field === 'payment_date') $data['data_pagamento'] = $value;
+                elseif ($field === 'category_id') $data['category'] = $value;
+                else $data[$field] = $value;
+            }
+        }
         $this->db->where('id', $id);
-        $success = $this->db->update(db_prefix() . 'receivables', ['status' => $status]);
+        $success = $this->db->update(db_prefix() . 'receivables', $data);
 
         if ($success) {
             return $this->response([
                 'status' => true,
-                'message' => 'Status atualizado com sucesso'
+                'message' => 'Status e dados atualizados com sucesso'
             ], REST_Controller::HTTP_OK);
         }
 
         return $this->response([
             'status' => false,
-            'message' => 'Falha ao atualizar status'
+            'message' => 'Falha ao atualizar status/dados'
+        ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+
+    public function pay_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        $id = $this->post('id');
+        if (empty($id)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'ID é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+        $fields = [
+            'juros', 'desconto', 'multa', 'valor_recebido', 'comprovante', 'data_pagamento', 'descricao_recebimento', 'bank_account_id', 'category_id'
+        ];
+        $data = [];
+        foreach ($fields as $field) {
+            $value = $this->post($field);
+            if ($value !== null) {
+                $data[$field] = $value;
+            }
+        }
+        $data['status'] = 'received';
+        $data['updated_at'] = date('Y-m-d H:i:s');
+        $this->db->where('id', $id);
+        $success = $this->db->update(db_prefix() . 'receivables', $data);
+        if ($success) {
+            return $this->response([
+                'status' => true,
+                'message' => 'Recebimento baixado com sucesso'
+            ], REST_Controller::HTTP_OK);
+        }
+        return $this->response([
+            'status' => false,
+            'message' => 'Falha ao baixar recebimento'
         ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
     }
 

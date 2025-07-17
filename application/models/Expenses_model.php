@@ -959,6 +959,7 @@ class Expenses_model extends App_Model
 
         $this->db->select('
             e.id,
+            e.status,
             e.category,
             e.currency,
             e.amount,
@@ -1143,6 +1144,7 @@ class Expenses_model extends App_Model
 
     $this->db->select('
         e.*, 
+        e.status,
         e.id as id, 
         e.id as expenseid, 
         e.addedfrom as addedfrom,
@@ -1207,6 +1209,7 @@ class Expenses_model extends App_Model
 
         $this->db->select('
             e.id,
+            e.status,
             e.category,
             e.currency,
             e.amount,
@@ -1301,6 +1304,7 @@ class Expenses_model extends App_Model
 
         $this->db->select('
             e.*, 
+            e.status,
             e.id as id, 
             e.id as expenseid, 
             e.addedfrom as addedfrom,

@@ -1152,8 +1152,17 @@ class Staff_model extends App_Model
                 $this->db->where('type', $type); // Filtra por type = "pdv"
             }
 
-            // Filtro para pegar apenas os registros com active = 1
-            $this->db->where('active', 1);
+            $this->db->select('
+            ' . db_prefix() . 'staff.*,
+            ' . db_prefix() . 'roles.name as role_name,
+            (
+                SELECT GROUP_CONCAT(w.warehouse_name)
+                FROM ' . db_prefix() . 'warehouse w
+                WHERE JSON_CONTAINS(' . db_prefix() . 'staff.warehouse, JSON_QUOTE(w.warehouse_id))
+            ) as names_warehouse
+        ');
+        $this->db->where('active', 1);
+        
 
             // Adicionar condições de busca
             if (!empty($search)) {
@@ -1173,7 +1182,16 @@ class Staff_model extends App_Model
 
             // Obter os dados com paginação e ordenação
             $this->db->reset_query();
-            $this->db->where('active', 1);
+                $this->db->select('
+        ' . db_prefix() . 'staff.*,
+        ' . db_prefix() . 'roles.name as role_name,
+        (
+            SELECT GROUP_CONCAT(w.warehouse_name)
+            FROM ' . db_prefix() . 'warehouse w
+                WHERE JSON_CONTAINS(' . db_prefix() . 'staff.warehouse, JSON_QUOTE(w.warehouse_id))
+        ) as names_warehouse
+    ');
+                $this->db->where('active', 1);
             if (!empty($type)) {
                 $this->db->where('type', $type); // Filtra por type = "pdv"
             }
@@ -1206,12 +1224,14 @@ class Staff_model extends App_Model
             $data = $this->db->get(db_prefix() . 'staff')->result_array();
 
             // Adicionar o nome do cargo (role) de cada staff
+            /*
             foreach ($data as $key => $staff) {
                 if ($staff['role'] > 0) {
                     $role = $this->roles_model->get($staff['role']);
                     $data[$key]['role_name'] = $role->name;
                 }
             }
+                */
 
             return ['data' => $data, 'total' => $total];
         } else {

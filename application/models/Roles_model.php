@@ -8,26 +8,35 @@ class Roles_model extends App_Model
      * Add new employee role
      * @param mixed $data
      */
-    // public function add($data)
-    // {
-    //     $permissions = [];
-    //     if (isset($data['permissions'])) {
-    //         $permissions = $data['permissions'];
-    //     }
+   
+     public function add_permission($data)
+     {
+ 
+ 
+         // Insere os dados na tabela de roles
+         $this->db->insert(db_prefix() . 'staff_permissions', $data);
+         $insert_id = $this->db->insert_id();
+ 
+         if ($insert_id) {
+            // log_activity('New Role Added [ID: ' . $insert_id . ', Name: ' . $data['name'] . ']');
+             return $insert_id;
+         }
+ 
+         return false;
+     }
 
-    //     $data['permissions'] = serialize($permissions);
+     public function delete_permissions($id)
+     {
+        
+         $this->db->where('staff_id', $id);
+         if($this->db->delete(db_prefix() . 'staff_permissions')){
+            return true;
+         }
+ 
+         return false;
 
-    //     $this->db->insert(db_prefix() . 'roles', $data);
-    //     $insert_id = $this->db->insert_id();
+     }
 
-    //     if ($insert_id) {
-    //         log_activity('New Role Added [ID: ' . $insert_id . '.' . $data['name'] . ']');
-
-    //         return $insert_id;
-    //     }
-
-    //     return false;
-    // }
 
     public function add($data)
     {
@@ -103,6 +112,21 @@ class Roles_model extends App_Model
         return false;
     }
 
+    public function get_permissions($id = '')
+    {
+        if (is_numeric($id)) {
+
+            return null;
+        }else{
+
+           
+
+            return $this->db->get(db_prefix() . '_permissions')->result_array();
+
+        }
+
+    }
+
     /**
      * Get employee role by id
      * @param  mixed $id Optional role id
@@ -174,6 +198,11 @@ class Roles_model extends App_Model
      */
     public function delete($id)
     {
+        // Se $id for um array, processar exclusão em massa
+        if (is_array($id)) {
+            return $this->delete_multiple($id);
+        }
+
         $current = $this->get($id);
 
         // Check first if role is used in table
@@ -192,12 +221,57 @@ class Roles_model extends App_Model
         }
 
         if ($affectedRows > 0) {
-            log_activity('Role Deleted [ID: ' . $id);
-
+           // log_activity('Role Deleted [ID: ' . $id);
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * Delete multiple roles
+     * @param  array $ids array of role ids
+     * @return array
+     */
+    public function delete_multiple($ids)
+    {
+        $success_count = 0;
+        $failed_ids = [];
+        $referenced_ids = [];
+
+        foreach ($ids as $id) {
+            $id = (int) $id;
+            
+            if (empty($id) || !is_numeric($id)) {
+                $failed_ids[] = $id;
+                continue;
+            }
+
+            // Check first if role is used in table
+            
+            if (is_reference_in_table('role', db_prefix() . 'staff', $id)) {
+                $referenced_ids[] = $id;
+                continue;
+            }
+            
+
+            $this->db->where('roleid', $id);
+            $this->db->delete(db_prefix() . 'roles');
+
+            if ($this->db->affected_rows() > 0) {
+                $success_count++;
+                // log_activity('Role Deleted [ID: ' . $id);
+            } else {
+                $failed_ids[] = $id;
+            }
+        }
+
+        return [
+            'success_count' => $success_count,
+            'failed_ids' => $failed_ids,
+            'referenced_ids' => $referenced_ids,
+            'total_requested' => count($ids)
+        ];
     }
 
     public function get_contact_permissions($id)
@@ -214,18 +288,11 @@ class Roles_model extends App_Model
         return $this->db->get(db_prefix() . 'staff')->result_array();
     }
 
-    public function update_role($data, $id)
+    public function update_role($update_data, $id)
     {
-        // Definir os campos permitidos para atualização
-        $allowed_fields = ['name', 'permissions'];
+        
 
-        // Filtrar os dados permitidos
-        $update_data = array_intersect_key($data, array_flip($allowed_fields));
-
-        // Verificar se há algo para atualizar
-        if (empty($update_data)) {
-            return false;
-        }
+     
 
         // Se permissions for um array, converter para o formato correto e serializar
         if (isset($update_data['permissions']) && is_array($update_data['permissions'])) {
@@ -233,12 +300,11 @@ class Roles_model extends App_Model
             $update_data['permissions'] = serialize($update_data['permissions']);
         }
 
+
         // Atualizar os dados na tabela
         $this->db->where('roleid', $id);
-        $this->db->update(db_prefix() . 'roles', $update_data);
+        return $this->db->update(db_prefix() . 'roles', $update_data);
 
-        // Retornar true se a atualização foi bem-sucedida
-        return ($this->db->affected_rows() > 0);
     }
 
 

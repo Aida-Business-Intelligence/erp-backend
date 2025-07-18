@@ -27,6 +27,27 @@ class Roles extends REST_Controller
         parent::__construct();
         $this->load->model('Roles_model');
 
+        $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+        if (!$decodedToken['status']) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Usuario nao autenticado'
+            ], REST_Controller::HTTP_UNAUTHORIZED);
+        }
+        $this->user =  $decodedToken['data']->user;
+    }
+
+    public function permissions_get($id = '')
+    {
+             // Chamada ao modelo
+        $data = $this->Roles_model->get_permissions($id);
+
+        // Verifica se encontrou dados
+        if (empty($data)) {
+            $this->response(['status' => FALSE, 'message' => 'No data found'], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $this->response($data, REST_Controller::HTTP_OK);
+        }
     }
 
 
@@ -67,7 +88,6 @@ class Roles extends REST_Controller
 
     public function data_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         // Recebendo e decodificando os dados do body da requisição
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -136,7 +156,6 @@ class Roles extends REST_Controller
 
     public function create_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         // Recebendo e decodificando os dados do body da requisição
         $raw_input = file_get_contents("php://input");
@@ -149,8 +168,6 @@ class Roles extends REST_Controller
             return;
         }
 
-        // Debug: Verifique os dados recebidos
-        error_log("Received data: " . print_r($_POST, true));
 
         // Verifica se o campo 'name' está presente
         if (!isset($_POST['name'])) {
@@ -166,20 +183,33 @@ class Roles extends REST_Controller
             return;
         }
 
-        // Debug: Verifique as permissões
-        error_log("Permissions: " . print_r($_POST['permissions'], true));
-
+        
         // Prepara os dados para inserção
-// Prepara os dados para inserção
         $data = [
             'name' => $_POST['name'],
             'permissions' => isset($_POST['permissions']['permissions']) ? $_POST['permissions']['permissions'] : $_POST['permissions'],
         ];
 
-
-        // Chama o método add do model para inserir os dados
-        $this->load->model('Roles_model');
         $insert_id = $this->Roles_model->add($data);
+
+        foreach ($data['permissions'] as $capability => $permissions) {
+
+
+            foreach ($permissions as $permission) {
+
+             
+            $permission_data = [
+                'staff_id' => $this->user->staffid,
+                'feature' => $permission['feature'],
+                'capability' => $capability,
+                'menu_id' => $permission['menu_id'],
+                'role_id' => $insert_id,
+            ];
+
+            $this->Roles_model->add_permission($permission_data);
+        }
+        }
+
 
         // Verifica se a inserção foi bem-sucedida
         if ($insert_id) {
@@ -192,10 +222,6 @@ class Roles extends REST_Controller
     }
 
 
-
-    /**
-     * Função auxiliar para processar a inserção com base no type
-     */
     private function processData($type, $data)
     {
         switch ($type) {
@@ -362,16 +388,10 @@ class Roles extends REST_Controller
     }
 
 
-    public function update_post()
+    public function update_post($id)
     {
         // Receber dados da requisição (sem o ID)
         $input = json_decode(file_get_contents("php://input"), true);
-
-        // Extrair o ID da URL (no 5º segmento)
-        $id = $this->uri->segment(5);  // Pegando o 5º segmento corretamente
-
-        // Debug: Verificar o ID extraído
-        var_dump($id);  // Exibindo o ID extraído da URL
 
         // Verificar se o ID é válido
         if (!isset($id) || !is_numeric($id) || intval($id) <= 0) {
@@ -379,15 +399,36 @@ class Roles extends REST_Controller
             return;
         }
 
-        // Agora o ID está corretamente extraído da URL, podemos remover o campo 'id' do array de dados
-        unset($input['id']); // Caso o 'id' ainda esteja no corpo da requisição, removemos
-
-        // Chamar o modelo para atualizar
-        $this->load->model('Roles_model');
         $result = $this->Roles_model->update_role($input, $id);
 
         // Retornar resposta JSON
         if ($result) {
+
+            $this->Roles_model->delete_permissions($this->user->staffid);
+
+
+            foreach ($input['permissions'] as $capability => $permissions) {
+
+
+                foreach ($permissions as $permission) {
+    
+                 
+                $permission_data = [
+                    'staff_id' => $this->user->staffid,
+                    'feature' => $permission['feature'],
+                    'capability' => $capability,
+                    'menu_id' => $permission['menu_id'],
+                    'role_id' => $id,
+                ];
+    
+                $this->Roles_model->add_permission($permission_data);
+            }
+            }
+    
+
+
+
+
             echo json_encode(['status' => true, 'message' => 'Atualização realizada com sucesso.']);
         } else {
             echo json_encode(['status' => false, 'message' => 'Falha ao atualizar. Nenhuma alteração detectada ou erro na atualização.']);
@@ -399,32 +440,37 @@ class Roles extends REST_Controller
         // Receber dados da requisição
         $input = json_decode(file_get_contents("php://input"), true);
 
-        // Verificar se o campo 'rows' (ou um campo com o ID da role) foi enviado corretamente
+        // Verificar se o campo 'rows' foi enviado corretamente
         if (!isset($input['rows']) || empty($input['rows'])) {
-            echo json_encode(['status' => false, 'message' => 'Nenhum ID foi enviado.']);
+            $message = array('status' => FALSE, 'message' => 'Nenhum ID foi enviado.');
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
 
-        // Aqui consideramos que o ID da role é um valor dentro do array 'rows'
-        $roles = $input['rows'];
+        // Sanitizar os IDs
+        $roles = array_map(function($id) {
+            return $this->security->xss_clean($id);
+        }, $input['rows']);
 
-        $this->load->model('Roles_model');
-        $result = [];
-        foreach ($roles as $role) {
-            // Chama o método delete do model para cada role
-            $deleteResult = $this->Roles_model->delete($role);
+        // Usar o novo método de exclusão em massa
+        $result = $this->Roles_model->delete($roles);
 
-            if ($deleteResult === true) {
-                $result[] = ['roleid' => $role, 'status' => 'deleted'];
-            } elseif (isset($deleteResult['referenced']) && $deleteResult['referenced'] === true) {
-                $result[] = ['roleid' => $role, 'status' => 'referenced'];
-            } else {
-                $result[] = ['roleid' => $role, 'status' => 'error'];
-            }
+        // Preparar resposta baseada no resultado
+        if ($result['success_count'] > 0) {
+            $message = array(
+                'status' => TRUE,
+                'message' => $result['success_count'] . ' role(s) deleted successfully',
+                'data' => $result
+            );
+            $this->response($message, REST_Controller::HTTP_OK);
+        } else {
+            $message = array(
+                'status' => FALSE,
+                'message' => 'Failed to delete roles',
+                'data' => $result
+            );
+            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
-
-        // Responder com o resultado das deleções
-        echo json_encode(['status' => true, 'result' => $result]);
     }
 
 

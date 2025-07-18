@@ -119,7 +119,10 @@ class Users extends REST_Controller
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
         $search = $this->post('search') ?: '';
         $sortField = $this->post('sortField') ?: 'staffid';
+        
         $sortOrder = strtoupper($this->post('sortOrder')) === 'DESC' ? 'DESC' : 'ASC';
+
+        
 
         // Debug: Verifique os valores recebidos
         // var_dump($sortField, $sortOrder, $search, $page, $limit);
@@ -151,11 +154,11 @@ class Users extends REST_Controller
 
     public function create_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         // Mapeando os dados de entrada diretamente para o array $input
+      // Ao mapear os dados de entrada
         $input = [
             'role' => $_POST['role'] ?? null,
             'password' => $_POST['password'] ?? null,
@@ -165,17 +168,28 @@ class Users extends REST_Controller
             'firstname' => $_POST['firstname'] ?? null,
             'lastname' => $_POST['lastname'] ?? null,
             'facebook' => $_POST['facebook'] ?? null,
-            'type' => $_POST['type'] ?? null,
-            'linkedin' => $_POST['linkedin'] ?? null
+            'type' => $_POST['type'] ?? 'pdv',
+            'linkedin' => $_POST['linkedin'] ?? null,
+            'warehouse' => json_encode($_POST['warehouse']) ?? null
         ];
 
-        // Validação do email, para garantir que o email seja único
-        $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
+
+        $this->form_validation->set_data($input);
+        $this->form_validation->set_rules('firstname', 'First Name', 'trim|required|max_length[600]');
+        $this->form_validation->set_rules('warehouse', 'Warehouse', 'required');
+        $this->form_validation->set_rules('email', 'Email', 'trim|required|max_length[100]|is_unique[' . db_prefix() . 'staff.email]', array('is_unique' => 'This %s already exists please enter another email'));
+        $this->form_validation->set_rules('password', 'Password', 'trim|required|min_length[6]');
+
 
         if ($this->form_validation->run() == FALSE) {
+            
             // Se a validação falhar
-            $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+            $message = array(
+                'status' => FALSE, 
+                'error' => $this->form_validation->error_array(), 
+                'message' => 'Validation failed: ' . validation_errors()
+            );
+            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
         } else {
             // Chama o método do modelo para adicionar o novo usuário
             $output = $this->Staff_model->add($input);
@@ -185,9 +199,11 @@ class Users extends REST_Controller
                 $message = array('status' => 'success', 'message' => 'success', 'data' => $this->Staff_model->get($output));
                 $this->response($message, REST_Controller::HTTP_OK);
             } else {
+
+             
                 // Erro: falha ao adicionar o usuário
                 $message = array('status' => FALSE, 'message' => 'Fail.');
-                $this->response($message, REST_Controller::HTTP_NOT_FOUND);
+                $this->response($message, REST_Controller::HTTP_OK);
             }
         }
     }
@@ -281,6 +297,8 @@ class Users extends REST_Controller
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
             $update_data = $this->input->post();
+
+            $update_data['warehouse'] = json_encode($_POST['warehouse']);
             // update data
             $this->load->model('Staff_model');
             $output = $this->Staff_model->update($update_data, $update_data['staffid']);

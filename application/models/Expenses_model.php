@@ -825,11 +825,11 @@ class Expenses_model extends App_Model
         $this->db->where('status', $status);
 
         if ($date_operator && !$specific_date) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
+            $this->db->where('due_date ' . $date_operator, date('Y-m-d'));
         }
 
         if ($specific_date) {
-            $this->db->where('date', $specific_date);
+            $this->db->where('due_date', $specific_date);
         }
 
         return (float) $this->db->get()->row()->amount;
@@ -842,11 +842,11 @@ class Expenses_model extends App_Model
         $this->db->where('status', $status);
 
         if ($date_operator && !$specific_date) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
+            $this->db->where('due_date ' . $date_operator, date('Y-m-d'));
         }
 
         if ($specific_date) {
-            $this->db->where('date', $specific_date);
+            $this->db->where('due_date', $specific_date);
         }
 
         return (int) $this->db->count_all_results();
@@ -858,8 +858,8 @@ class Expenses_model extends App_Model
         $this->db->from(db_prefix() . 'expenses');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
-        $this->db->where('MONTH(date)', $month);
-        $this->db->where('YEAR(date)', $year);
+        $this->db->where('MONTH(due_date)', $month);
+        $this->db->where('YEAR(due_date)', $year);
 
         return (float) $this->db->get()->row()->amount;
     }
@@ -869,8 +869,8 @@ class Expenses_model extends App_Model
         $this->db->from(db_prefix() . 'expenses');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
-        $this->db->where('MONTH(date)', $month);
-        $this->db->where('YEAR(date)', $year);
+        $this->db->where('MONTH(due_date)', $month);
+        $this->db->where('YEAR(due_date)', $year);
 
         return (int) $this->db->count_all_results();
     }

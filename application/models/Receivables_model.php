@@ -400,6 +400,19 @@ class Receivables_model extends App_Model
         $this->db->limit($limit, $offset);
         $data = $this->db->get()->result_array();
 
+        // Garantir que o campo 'client' sempre traga o nome do cliente, mesmo se vier null
+        foreach ($data as &$row) {
+            if (empty($row['client']) && !empty($row['clientid'])) {
+                // Buscar nome do cliente manualmente
+                $this->db->select('company');
+                $this->db->from(db_prefix() . 'clients');
+                $this->db->where('userid', $row['clientid']);
+                $client = $this->db->get()->row();
+                $row['client'] = $client ? $client->company : null;
+            }
+        }
+        unset($row);
+
         return [
             'data' => $data,
             'total' => $total

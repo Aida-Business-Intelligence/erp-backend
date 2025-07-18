@@ -9,13 +9,14 @@ class Files_model extends App_Model
         parent::__construct();
     }
 
-    public function create($name, $type, $size, $folder_id, $file_path = null)
+    public function create($name, $type, $size, $folder_id = null, $file_path = null, $is_favorite = false)
     {
         $data = [
             'name' => $name,
             'type' => $type,
             'size' => $size,
-            'folder_id' => $folder_id
+            'folder_id' => $folder_id,
+            'is_favorite' => $is_favorite
         ];
 
         if ($file_path) {
@@ -26,10 +27,6 @@ class Files_model extends App_Model
         return $this->db->insert_id();
     }
 
-    public function get_all()
-    {
-        return $this->db->get(db_prefix() . 'files_manager')->result_array();
-    }
 
     public function get_file_by_id($id)
     {
@@ -41,7 +38,7 @@ class Files_model extends App_Model
         return $this->db->get_where(db_prefix() . 'files_manager', ['folder_id' => $folder_id])->result_array();
     }
 
-    public function get_files($order_by = 'created_at', $order_direction = 'desc', $folder_id = null, $limit = null, $offset = null)
+        public function get_files($order_by = 'created_at', $order_direction = 'desc', $folder_id = null, $search = null, $limit = null, $offset = null)
     {
         $allowed_orders = ['created_at', 'updated_at', 'name', 'size'];
         if (!in_array($order_by, $allowed_orders)) {
@@ -54,6 +51,10 @@ class Files_model extends App_Model
             $this->db->where('folder_id', $folder_id);
         }
 
+        if ($search !== null) {
+            $this->db->like('name', $search);
+        }
+
         $this->db->order_by($order_by, $order_direction);
 
         if ($limit !== null && is_numeric($limit) && $limit > 0) {
@@ -64,12 +65,24 @@ class Files_model extends App_Model
         return $query->result_array();
     }
 
-    public function count_files($folder_id = null)
+    public function count_files($folder_id = null, $search = null)
     {
         if ($folder_id !== null) {
             $this->db->where('folder_id', $folder_id);
         }
+
+        if ($search !== null) {
+            $this->db->like('name', $search);
+        }
+
         return $this->db->count_all_results(db_prefix() . 'files_manager');
+    }
+
+    public function folder_exists($folder_id)
+    {
+        $this->db->where('id', $folder_id);
+        $query = $this->db->get(db_prefix() . 'folders');
+        return $query->num_rows() > 0;
     }
 
     public function update_file_favorite($id, $is_favorite)
@@ -79,19 +92,6 @@ class Files_model extends App_Model
         return $this->db->affected_rows() > 0;
     }
 
-    public function update_file_name($id, $new_name)
-    {
-        $this->db->where('id', $id);
-        $this->db->update(db_prefix() . 'files_manager', ['name' => $new_name]);
-        return $this->db->affected_rows() > 0;
-    }
-
-    public function folder_exists($folder_id)
-    {
-        $this->db->where('id', $folder_id);
-        $query = $this->db->get(db_prefix() . 'folders');
-        return $query->num_rows() > 0;
-    }
 
     public function delete_file($id)
     {

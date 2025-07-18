@@ -114,6 +114,53 @@ class Folders_model extends App_Model
         ];
     }
 
+    public function get_folders($order_by = 'created_at', $order_direction = 'desc', $id = null, $search = null, $limit = null, $offset = null)
+    {
+        $allowed_orders = ['created_at', 'updated_at', 'name', 'size', 'files_count'];
+        if (!in_array($order_by, $allowed_orders)) {
+            $order_by = 'created_at';
+        }
+
+        $order_direction = (strtolower($order_direction) === 'asc') ? 'asc' : 'desc';
+
+        if ($id !== null) {
+            $this->db->where('id', $id);
+        }
+
+        if ($search !== null) {
+            $this->db->like('name', $search);
+        }
+
+        $this->db->order_by($order_by, $order_direction);
+
+        if ($limit !== null && is_numeric($limit) && $limit > 0) {
+            $this->db->limit($limit, $offset);
+        }
+
+        $query = $this->db->get(db_prefix() . 'folders');
+        return $query->result_array();
+    }
+
+    public function count_folders($id = null, $search = null)
+    {
+        if ($id !== null) {
+            $this->db->where('id', $id);
+        }
+
+        if ($search !== null) {
+            $this->db->like('name', $search);
+        }
+
+        return $this->db->count_all_results(db_prefix() . 'folders');
+    }
+
+    public function folder_exists($folder_id)
+    {
+        $this->db->where('id', $folder_id);
+        $query = $this->db->get(db_prefix() . 'folders');
+        return $query->num_rows() > 0;
+    }
+
     public function get_api($page = 1, $limit = 10, $search = '', $sort_field = 'id', $sort_order = 'ASC', $id = null)
     {
         $allowedSortFields = [
@@ -293,99 +340,96 @@ class Folders_model extends App_Model
         ];
     }
 
-    public function update_name_api($id, $name)
-    {
-        if (!is_numeric($id) || $id <= 0) {
-            return [
-                'status' => false,
-                'message' => 'ID da pasta inválido'
-            ];
-        }
 
-        if (empty($name)) {
-            return [
-                'status' => false,
-                'message' => 'Nome da pasta é obrigatório'
-            ];
-        }
-
-        $this->db->where('id', $id);
-        $folder = $this->db->get(db_prefix() . 'folders')->row();
-        if (!$folder) {
-            return [
-                'status' => false,
-                'message' => 'Pasta não encontrada'
-            ];
-        }
-
-        $update_data = [
-            'name' => $name,
-            'updated_at' => date('Y-m-d H:i:s')
-        ];
-
-        $this->db->where('id', $id);
-        $this->db->update(db_prefix() . 'folders', $update_data);
-
-        if ($this->db->affected_rows() >= 0) {
-            return [
-                'status' => true,
-                'id' => $id,
-                'message' => 'Nome da pasta atualizado com sucesso'
-            ];
-        }
-
+public function update_folderUpdate_api($id, $size = null, $files_count = null, $name = null, $is_favorite = null)
+{
+    if (!is_numeric($id) || $id <= 0) {
         return [
             'status' => false,
-            'message' => 'Falha ao atualizar nome da pasta'
+            'message' => 'ID da pasta inválido'
         ];
     }
 
-    public function update_favorite_api($id, $is_favorite)
-    {
-        if (!is_numeric($id) || $id <= 0) {
-            return [
-                'status' => false,
-                'message' => 'ID da pasta inválido'
-            ];
-        }
-
-        if (!isset($is_favorite) || !is_bool((bool)$is_favorite)) {
-            return [
-                'status' => false,
-                'message' => 'O campo is_favorite deve ser um valor booleano'
-            ];
-        }
-
-        $this->db->where('id', $id);
-        $folder = $this->db->get(db_prefix() . 'folders')->row();
-        if (!$folder) {
-            return [
-                'status' => false,
-                'message' => 'Pasta não encontrada'
-            ];
-        }
-
-        $update_data = [
-            'is_favorite' => (bool)$is_favorite,
-            'updated_at' => date('Y-m-d H:i:s')
-        ];
-
-        $this->db->where('id', $id);
-        $this->db->update(db_prefix() . 'folders', $update_data);
-
-        if ($this->db->affected_rows() >= 0) {
-            return [
-                'status' => true,
-                'id' => $id,
-                'message' => 'Status de favorito atualizado com sucesso'
-            ];
-        }
-
+    if ($size === null && $files_count === null && $name === null && $is_favorite === null) {
         return [
             'status' => false,
-            'message' => 'Falha ao atualizar status de favorito'
+            'message' => 'Pelo menos um campo (size, files_count, name ou is_favorite) é obrigatório'
         ];
     }
 
+    if ($size !== null && (!is_numeric($size) || $size < 0)) {
+        return [
+            'status' => false,
+            'message' => 'Tamanho da pasta é inválido'
+        ];
+    }
+
+    if ($files_count !== null && (!is_numeric($files_count) || $files_count < 0)) {
+        return [
+            'status' => false,
+            'message' => 'Contagem de arquivos é inválida'
+        ];
+    }
+
+    if ($name !== null && empty(trim($name))) {
+        return [
+            'status' => false,
+            'message' => 'Nome da pasta é inválido'
+        ];
+    }
+
+    if ($is_favorite !== null && !is_bool($is_favorite)) {
+        return [
+            'status' => false,
+            'message' => 'O campo is_favorite deve ser true ou false'
+        ];
+    }
+
+    $this->db->where('id', $id);
+    $folder = $this->db->get(db_prefix() . 'folders')->row();
+    if (!$folder) {
+        return [
+            'status' => false,
+            'message' => 'Pasta não encontrada'
+        ];
+    }
+
+    $update_data = [
+        'updated_at' => date('Y-m-d H:i:s')
+    ];
+
+    if ($size !== null) {
+        $update_data['size'] = $size;
+    }
+    if ($files_count !== null) {
+        $update_data['files_count'] = $files_count;
+    }
+    if ($name !== null) {
+        $update_data['name'] = trim($name);
+    }
+    if ($is_favorite !== null) {
+        $update_data['is_favorite'] = $is_favorite ? 1 : 0;
+    }
+
+    $this->db->where('id', $id);
+    $this->db->update(db_prefix() . 'folders', $update_data);
+
+    if ($this->db->affected_rows() >= 0) {
+        return [
+            'status' => true,
+            'id' => $id,
+            'size' => $size !== null ? $size : $folder->size,
+            'files_count' => $files_count !== null ? $files_count : $folder->files_count,
+            'name' => $name !== null ? trim($name) : $folder->name,
+            'is_favorite' => $is_favorite !== null ? $is_favorite : (bool)$folder->is_favorite,
+            'message' => 'Pasta atualizada com sucesso'
+        ];
+    }
+
+    return [
+        'status' => false,
+        'message' => 'Falha ao atualizar a pasta'
+    ];
+}
 
 }

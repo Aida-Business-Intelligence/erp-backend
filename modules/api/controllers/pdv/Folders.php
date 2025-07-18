@@ -43,35 +43,115 @@ class Folders extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
     }
-    public function list_post()
+
+    public function list_get()
     {
-        $page = $this->post('page') ? (int) $this->post('page') : 1;
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $search = $this->post('search') ? trim($this->post('search')) : '';
-        $sort_field = $this->post('sortField') ? trim($this->post('sortField')) : 'id';
-        $sort_order = $this->post('sortOrder') ? trim($this->post('sortOrder')) : 'ASC';
-        $id = $this->post('id') ? (int) $this->post('id') : null;
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        if ($page < 1) {
-            $page = 1;
+        $order_by = $this->get('order_by') ?? 'created_at';
+        $order_direction = $this->get('order_direction') ?? 'desc';
+        $id = $this->get('id') ?? null;
+        $search = $this->get('search') ? trim($this->get('search')) : null;
+
+        $limit = $this->get('limit') ? (int)$this->get('limit') : null;
+        $page = $this->get('page') ? (int)$this->get('page') : 1;
+
+        $offset = null;
+        if ($limit !== null && $page > 0) {
+            $offset = ($page - 1) * $limit;
         }
-        if ($limit < 1 || $limit > 100) {
-            $limit = 10;
-        }
 
-        $data = $this->Folders_model->get_api($page, $limit, $search, $sort_field, $sort_order, $id);
+        $allowed_order_by = ['created_at', 'updated_at', 'name', 'size', 'files_count'];
+        $allowed_order_direction = ['asc', 'desc'];
 
-        if (empty($data['data'])) {
+        if (!in_array($order_by, $allowed_order_by)) {
             $this->response([
                 'status' => false,
-                'message' => 'No folders found'
-            ], REST_Controller::HTTP_NOT_FOUND);
+                'message' => 'Invalid order_by parameter. Allowed values: ' . implode(', ', $allowed_order_by)
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!in_array(strtolower($order_direction), $allowed_order_direction)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid order_direction parameter. Allowed values: asc, desc'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if ($id !== null) {
+            if (!is_numeric($id) || !ctype_digit(strval($id)) || $id <= 0) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Invalid id parameter. Must be a positive integer.'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+                return;
+            }
+            if (!$this->Folders_model->folder_exists($id)) {
+                $this->response([
+                    'status' => false,
+                    'message' => 'Folder with provided ID does not exist'
+                ], REST_Controller::HTTP_NOT_FOUND);
+                return;
+            }
+        }
+
+        if ($limit !== null && (!is_numeric($limit) || $limit <= 0)) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid limit parameter. Must be a positive integer.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!is_numeric($page) || $page <= 0) {
+            $this->response([
+                'status' => false,
+                'message' => 'Invalid page parameter. Must be a positive integer.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $total_folders = $this->Folders_model->count_folders($id, $search);
+
+        $folders = $this->Folders_model->get_folders($order_by, $order_direction, $id, $search, $limit, $offset);
+
+        $response_data = [
+            'status' => true,
+            'message' => 'Folders retrieved successfully',
+            'total_folders' => $total_folders,
+            'data' => []
+        ];
+
+        if ($limit !== null) {
+            $total_pages = ceil($total_folders / $limit);
+            $response_data['pagination'] = [
+                'current_page' => $page,
+                'items_per_page' => $limit,
+                'total_pages' => (int)$total_pages,
+                'has_next_page' => ($page < $total_pages),
+                'has_previous_page' => ($page > 1)
+            ];
+        }
+
+        if ($folders) {
+            $formatted_folders = array_map(function ($folder) {
+                $folder['is_favorite'] = (bool)$folder['is_favorite'];
+                $folder['files_count'] = (int)$folder['files_count'];
+                return $folder;
+            }, $folders);
+
+            $response_data['data'] = $formatted_folders;
+
+            $this->response($response_data, REST_Controller::HTTP_OK);
         } else {
             $this->response([
-                'status' => true,
-                'total' => $data['total'],
-                'data' => $data['data']
-            ], REST_Controller::HTTP_OK);
+                'status' => false,
+                'message' => 'No folders found matching the criteria.',
+                'total_folders' => $total_folders,
+                'data' => []
+            ], REST_Controller::HTTP_NOT_FOUND);
         }
     }
 
@@ -118,63 +198,44 @@ class Folders extends REST_Controller
         }
     }
 
-    public function update_name_put($id)
-    {
-        $data = json_decode(file_get_contents('php://input'), true);
+public function folderUpdate_put($id)
+{
+    $data = json_decode(file_get_contents('php://input'), true);
 
-        log_message('debug', 'Received PUT data for update_name: ' . print_r($data, true));
-
-        if (!$data || empty($id) || !is_numeric($id) || !isset($data['name'])) {
-            $this->response([
-                'status' => false,
-                'message' => 'ID da pasta ou nome inválido'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $result = $this->Folders_model->update_name_api($id, $data['name']);
-
-        if ($result['status']) {
-            $this->response([
-                'status' => true,
-                'id' => $result['id'],
-                'message' => $result['message']
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => false,
-                'message' => $result['message']
-            ], REST_Controller::HTTP_BAD_REQUEST);
-        }
+    if (empty($id) || !is_numeric($id)) {
+        $this->response([
+            'status' => false,
+            'message' => 'ID da pasta inválido'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
     }
 
-    public function favorite_put($id)
-    {
-        $data = json_decode(file_get_contents('php://input'), true);
-
-        log_message('debug', 'Received PUT data for favorite: ' . print_r($data, true));
-
-        if (!$data || !isset($data['is_favorite']) || empty($id) || !is_numeric($id)) {
-            $this->response([
-                'status' => false,
-                'message' => 'ID da pasta ou campo is_favorite inválido'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $result = $this->Folders_model->update_favorite_api($id, $data['is_favorite']);
-
-        if ($result['status']) {
-            $this->response([
-                'status' => true,
-                'id' => $result['id'],
-                'message' => $result['message']
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => false,
-                'message' => $result['message']
-            ], REST_Controller::HTTP_BAD_REQUEST);
-        }
+    if (!$data || (!isset($data['size']) && !isset($data['files_count']) && !isset($data['name']) && !isset($data['is_favorite']))) {
+        $this->response([
+            'status' => false,
+            'message' => 'Pelo menos um campo (size, files_count, name ou is_favorite) é obrigatório'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
     }
+
+    $result = $this->Folders_model->update_folderUpdate_api($id, $data['size'] ?? null, $data['files_count'] ?? null, $data['name'] ?? null, $data['is_favorite'] ?? null);
+
+    if ($result['status']) {
+        $this->response([
+            'status' => true,
+            'id' => (int)$result['id'],
+            'size' => $result['size'],
+            'files_count' => (int)$result['files_count'],
+            'name' => $result['name'],
+            'is_favorite' => $result['is_favorite'],
+            'message' => $result['message'],
+        ], REST_Controller::HTTP_OK);
+    } else {
+        $this->response([
+            'status' => false,
+            'message' => $result['message']
+        ], REST_Controller::HTTP_BAD_REQUEST);
+    }
+}
+
 }

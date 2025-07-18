@@ -121,6 +121,7 @@ class Receivables_model extends App_Model
     {
         $this->db->select('
             r.*,
+            r.receivable_identifier,
             c.company as company,
             cat.name as category_name,
             pm.name as payment_mode_name,

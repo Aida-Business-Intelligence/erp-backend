@@ -1218,6 +1218,7 @@ class Expenses_model extends App_Model
             e.reference_no,
             e.note,
             e.expense_name,
+            e.expense_identifier,
             e.clientid,
             e.project_id,
             e.billable,

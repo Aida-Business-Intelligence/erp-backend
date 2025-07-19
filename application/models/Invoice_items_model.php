@@ -430,7 +430,8 @@ class Invoice_items_model extends App_Model
         $send = null,
         $minPrice = null,
         $maxPrice = null,
-        $company = null
+        $company = null,
+        $client_id = null
     ) {
         $items_table = db_prefix() . 'items';
         $groups_table = db_prefix() . 'items_groups';
@@ -537,6 +538,11 @@ class Invoice_items_model extends App_Model
 
         // Filtro para mostrar apenas itens com show_ecommerce = 1
         $this->db->where("$items_table.show_ecommerce", '1');
+
+        // Filtro de estoque para client_id = 10
+        if ($client_id == 10) {
+            $this->db->where("$items_table.stock >", 0);
+        }
 
         // Aplicando filtros
         if ($warehouse_id) {

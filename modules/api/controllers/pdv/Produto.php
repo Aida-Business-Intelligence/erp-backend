@@ -187,6 +187,8 @@ class Produto extends REST_Controller
     {
         $warehouse_id = $this->post('warehouse_id');
 
+
+
         if (empty($warehouse_id)) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -210,6 +212,7 @@ class Produto extends REST_Controller
         $minPrice = $this->post('minPrice');
         $maxPrice = $this->post('maxPrice');
         $company = $this->post('company');
+        $client_id = $this->post('client_id');
 
         $data = $this->Invoice_items_model->get_api2(
             $id,
@@ -227,7 +230,8 @@ class Produto extends REST_Controller
             $send,
             $minPrice,
             $maxPrice,
-            $company
+            $company,
+            $client_id
         );
 
         if ($data['total'] > 0) {

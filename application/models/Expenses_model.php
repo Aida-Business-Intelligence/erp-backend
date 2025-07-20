@@ -141,13 +141,14 @@ class Expenses_model extends App_Model
      */
     public function get($id = '', $where = [])
     {
-        $this->db->select('*,' . db_prefix() . 'expenses.id as id,' . db_prefix() . 'expenses_categories.name as category_name,' . db_prefix() . 'payment_modes.name as payment_mode_name,' . db_prefix() . 'taxes.name as tax_name, ' . db_prefix() . 'taxes.taxrate as taxrate,' . db_prefix() . 'taxes_2.name as tax_name2, ' . db_prefix() . 'taxes_2.taxrate as taxrate2, ' . db_prefix() . 'expenses.id as expenseid,' . db_prefix() . 'expenses.addedfrom as addedfrom, recurring_from');
+        $this->db->select('*,' . db_prefix() . 'expenses.id as id,' . db_prefix() . 'expenses_categories.name as category_name,' . db_prefix() . 'payment_modes.name as payment_mode_name,' . db_prefix() . 'taxes.name as tax_name, ' . db_prefix() . 'taxes.taxrate as taxrate,' . db_prefix() . 'taxes_2.name as tax_name2, ' . db_prefix() . 'taxes_2.taxrate as taxrate2, ' . db_prefix() . 'expenses.id as expenseid,' . db_prefix() . 'expenses.addedfrom as addedfrom, recurring_from, ' . db_prefix() . 'warehouse.warehouse_name as warehouse_name');
         $this->db->from(db_prefix() . 'expenses');
         $this->db->join(db_prefix() . 'clients', '' . db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses.clientid', 'left');
         $this->db->join(db_prefix() . 'payment_modes', '' . db_prefix() . 'payment_modes.id = ' . db_prefix() . 'expenses.paymentmode', 'left');
         $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
         $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category');
+        $this->db->join(db_prefix() . 'warehouse', db_prefix() . 'warehouse.warehouse_id = ' . db_prefix() . 'expenses.warehouse_id', 'left');
 
         $this->db->where($where);
 
@@ -914,8 +915,16 @@ class Expenses_model extends App_Model
 
     public function gettwo($id)
     {
-        $this->db->where('id', $id);
-        return $this->db->get(db_prefix() . 'expenses')->row();
+        $this->db->select(
+            'e.*, '
+            . 'c.company as company, '
+            . 'w.warehouse_name as warehouse_name'
+        );
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'warehouse w', 'w.warehouse_id = e.warehouse_id', 'left');
+        $this->db->where('e.id', $id);
+        return $this->db->get()->row();
     }
 
     public function get_client_by_expense_id($expenseId)

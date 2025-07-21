@@ -16,23 +16,6 @@ class Receivables extends REST_Controller
         $this->load->model('Receivables_model');
     }
 
-    public function warehouselist_get()
-    {
-        try {
-            $warehouses = $this->Receivables_model->get_warehouses();
-
-            $this->response([
-                'success' => true,
-                'data' => $warehouses
-            ], REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
     public function get_get($id = null)
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');

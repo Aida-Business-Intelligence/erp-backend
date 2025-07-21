@@ -307,18 +307,6 @@ class Receivables_model extends App_Model
         return (int) $this->db->count_all_results();
     }
 
-    // Métodos auxiliares para warehouse, duplicatas, etc. podem ser adaptados conforme necessário
-    public function get_warehouses()
-    {
-        return $this->db
-            ->select('warehouse_id as id, warehouse_name as name')
-            ->from(db_prefix() . 'warehouse')
-            ->where('display', 1)
-            ->order_by('warehouse_name', 'ASC')
-            ->get()
-            ->result_array();
-    }
-
     public function get_categories($warehouse_id, $search = '', $limit = 5, $type = 'receivable')
     {
         $this->db->select('id, name');

@@ -155,11 +155,25 @@ class Payment extends REST_Controller
              
          );
          
-      
-         
+         $nfce = false;
+
+           
+
+                 foreach (json_decode($data['form_payments']) as $payment) {
+                    if (!$nfce && strtolower($payment->type) != 'dinheiro') {
+                        $nfce = true; // garante que não será chamado novamente
+
+                        $result_nfce = gerarNFC($data);
+                        var_dump($result_nfce);
+
+
+                    }
+                 
+                }
+
          if($this->Cashs_model->add($data)){
 
-         $this->response(['status' => true, 'status_payment'=>'paid', 'payment_id'=>1, 'message' => 'Pagamento realizado'], REST_Controller::HTTP_OK);
+         $this->response(['status' => true, 'nfce'=>$nfce, 'status_payment'=>'paid', 'payment_id'=>1, 'message' => 'Pagamento realizado'], REST_Controller::HTTP_OK);
          
          }else{
              

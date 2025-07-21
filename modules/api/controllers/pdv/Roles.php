@@ -401,11 +401,15 @@ class Roles extends REST_Controller
 
         $result = $this->Roles_model->update_role($input, $id);
 
-        // Retornar resposta JSON
+        
         if ($result) {
 
-            $this->Roles_model->delete_permissions($this->user->staffid);
+            $users_permissions = $this->Roles_model->get_user_permissions($this->user->staffid);
 
+           
+            foreach ($users_permissions as $user_permission) {
+                $this->Roles_model->delete_permissions($user_permission['staff_id']);
+         
 
             foreach ($input['permissions'] as $capability => $permissions) {
 
@@ -414,7 +418,7 @@ class Roles extends REST_Controller
     
                  
                 $permission_data = [
-                    'staff_id' => $this->user->staffid,
+                    'staff_id' => $user_permission['staff_id'],
                     'feature' => $permission['feature'],
                     'capability' => $capability,
                     'menu_id' => $permission['menu_id'],
@@ -423,10 +427,9 @@ class Roles extends REST_Controller
     
                 $this->Roles_model->add_permission($permission_data);
             }
-            }
+        }
+    }
     
-
-
 
 
             echo json_encode(['status' => true, 'message' => 'Atualização realizada com sucesso.']);

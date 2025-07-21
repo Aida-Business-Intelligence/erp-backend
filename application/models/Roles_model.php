@@ -127,6 +127,13 @@ class Roles_model extends App_Model
 
     }
 
+    public function get_user_permissions($id)
+    {
+        $this->db->select('staff_id');
+        $this->db->where('role_id', $id);
+        return $this->db->get(db_prefix() . 'staff_permissions')->result_array();
+    }
+
     /**
      * Get employee role by id
      * @param  mixed $id Optional role id

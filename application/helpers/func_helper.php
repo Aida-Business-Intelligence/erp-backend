@@ -664,46 +664,41 @@ if (!function_exists('gerarNFC')) {
 
     function gerarNFC($data)
     {
-        /*
+        
         $CI = &get_instance();
         $CI->load->model('Warehouse_model');
 
 $loja = $CI->Warehouse_model->get($data['warehouse_id']);
-   echo '<pre>';
-        var_dump($loja); exit;
-exit;
 
-        echo '<pre>';
-        var_dump($data); exit;
 
         // Sua string JSON
         $postData = '{
     "emitente": {
         "atualizacao": "'.date("Y-m-d H:i:s").'", 
-        "tpAmb": 2,
+        "tpAmb": "'.$loja->tpAmb.'",,
         "razaosocial": "'.$loja->razao_social.'",
-        "cnpj": "'.$loja->.'",
+        "cnpj": "'.$loja->cnpj.'",
         "fantasia": "'.$loja->warehouse_name.'",
-        "ie": "'.$loja->.'",
-        "im": "'.$loja->.'",
-        "cnae": "'.$loja->.'",
-        "crt": "1",
-        "rua": "'.$loja->.'",
-        "numero":"'.$loja->.'",
-        "bairro":"'.$loja->.'",
-        "cidade": "'.$loja->.'",
-        "ccidade": "'.$loja->.'",
-        "cep": "'.$loja->.'",
-        "siglaUF": "'.$loja->.'",
-        "codigoUF": "'.$loja->.'",
-        "fone": "'.$loja->.'",
+        "ie": "'.$loja->ie.'",
+        "im": "'.$loja->im.'",
+        "cnae": "'.$loja->cnae.'",
+        "crt": "'.$loja->crt.'",
+        "rua": "'.$loja->endereco.'",
+        "numero":"'.$loja->numero.'",
+        "bairro":"'.$loja->bairro.'",
+        "cidade": "'.$loja->cidade.'",
+        "ccidade": "'.$loja->ccidade.'",
+        "cep": "'.$loja->cep.'",
+        "siglaUF": "'.$loja->estado.'",
+        "codigoUF": "'.$loja->codigoUF.'",
+        "fone": "'.$loja->telefone.'",
         "schemes": "PL_009_V4",
         "versao": "4.00",
         "tokenIBPT": "1",
-        "password_nfe": "341369",
-        "arquivo_nfe": "http://localhost/aida/erp-backend/uploads/warehouse/7/6840e378dc5a2.pfx",
-        "CSC": "",
-        "CSCid": "",
+        "password_nfe": "'.$loja->password_nfe.'",
+        "arquivo_nfe": "'.$loja->arquivo_nfe.'",
+        "CSC": "'.$loja->csc.'",
+        "CSCid":  "'.$loja->cscid.'",
         "proxyConf": {
             "proxyIp": "",
             "proxyPort": "",
@@ -712,10 +707,8 @@ exit;
         },
         "situacao_tributaria": "102"
     },
-    "warehouse_id": 7,
+    "warehouse_id": "'.$data['warehouse_id'].'",
     "parceiro_id": 1,
-    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoidGVzdGUiLCJuYW1lIjoidGVzdGUiLCJBUElfVElNRSI6MTczMTUyNDgyN30.ipVImJHh-03tViB6AvNyyVyBNUAv2fV3j-kYfwfJsu4",
-    "url_cliente": "http://localhost/aida/erp-backend/api/pdv",
     "modelo": "65",
     "impressao": "4",
     "finalidade": "1",
@@ -755,11 +748,12 @@ exit;
 
 
 
+
         // Sua requisição cURL
         $curl = curl_init();
 
         curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://nfe.arvis.com.br/gerador/Emissor.php',
+            CURLOPT_URL => env('NFE_URL').'/gerador/Emissor.php',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -775,10 +769,13 @@ exit;
 
         $response = curl_exec($curl);
 
+        echo '<pre>';
+var_dump($response); exit;  
+
+
         curl_close($curl);
-        echo $response;
+        return json_decode($response);
     
-        */
     }
 
 }

@@ -4,7 +4,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Staff_model extends App_Model
 {
-    public function delete($id, $transfer_data_to)
+    public function delete($id, $transfer_data_to=1)
     {
         if (!is_numeric($transfer_data_to)) {
             return false;
@@ -234,6 +234,7 @@ class Staff_model extends App_Model
         }
 
 
+        /*
         $this->db->where('id', 1);
         $leads_email_integration = $this->db->get(db_prefix() . 'leads_email_integration')->row();
 
@@ -250,6 +251,7 @@ class Staff_model extends App_Model
                 }
             }
         }
+        */
 
         $this->db->where('assigned', $id);
         $this->db->update(db_prefix() . 'tickets', [
@@ -313,6 +315,9 @@ class Staff_model extends App_Model
 
         $this->db->where('staff_id', $id);
         $this->db->delete(db_prefix() . 'pinned_projects');
+
+        $this->db->where('staff_id', $id);
+        $this->db->delete(db_prefix() . 'staff_permissions');
 
         $this->db->where('staffid', $id);
         $this->db->delete(db_prefix() . 'staff');
@@ -440,6 +445,8 @@ class Staff_model extends App_Model
         $this->db->insert(db_prefix() . 'staff', $data);
         $staffid = $this->db->insert_id();
 
+       
+
         if (!$staffid) {
             return false;
         }
@@ -450,10 +457,12 @@ class Staff_model extends App_Model
             $slug = 'franqueado-' . $staffid;
         }
 
+        /*
         $this->db->where('staffid', $staffid);
         $this->db->update(db_prefix() . 'staff', [
             'media_path_slug' => slug_it($slug)
         ]);
+        */
 
         // Processar departamentos
         if ($departments && is_array($departments)) {
@@ -466,7 +475,7 @@ class Staff_model extends App_Model
         }
 
         // Processar permissões
-        $this->update_permissions($permissions ?? [], $staffid);
+        $this->update_permissions($permissions ?? [], $staffid, $data['role']);
 
         // Processar campos customizados
         if ($custom_fields) {
@@ -628,7 +637,7 @@ class Staff_model extends App_Model
             $affectedRows++;
         }
 
-        if ($this->update_permissions((isset($data['admin']) && $data['admin'] == 1 ? [] : $permissions), $id)) {
+        if ($this->update_permissions((isset($data['admin']) && $data['admin'] == 1 ? [] : $permissions), $id, $data['role'])) {
             $affectedRows++;
         }
 
@@ -642,7 +651,40 @@ class Staff_model extends App_Model
         return false;
     }
 
-    public function update_permissions($permissions, $id)
+
+    public function update_permissions($permissions, $id, $role_id=0)
+    {
+
+    $this->load->model('Roles_model');
+
+    $this->Roles_model->delete_permissions($id);
+
+    $permissions_array = $this->Roles_model->get($role_id);
+
+ 
+    foreach ($permissions_array->permissions as $capability => $permissionss) {
+
+
+        foreach ($permissionss as $permission) {
+
+        $permission_data = [
+            'staff_id' => $id,
+            'feature' => $permission['feature'],
+            'capability' => $capability,
+            'menu_id' => $permission['menu_id'],
+            'role_id' => $role_id,
+        ];
+
+
+     }
+      
+        $this->Roles_model->add_permission($permission_data);
+    
+    }
+        return true;
+    }
+
+    public function update_permissions1($permissions, $id)
     {
         $this->db->where('staff_id', $id);
         $this->db->delete('staff_permissions');
@@ -1258,6 +1300,13 @@ class Staff_model extends App_Model
         ');
         $this->db->where('staffid', $id);
         return $this->db->get(db_prefix() . 'staff')->row();
+    }
+
+    public function get_user_permissions($id)
+    {
+        $this->db->select('staff_id');
+        $this->db->where('staffid', $id);
+        return $this->db->get(db_prefix() . '_permissions')->result_array();
     }
 
 }

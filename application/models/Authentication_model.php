@@ -131,13 +131,26 @@ class Authentication_model extends App_Model
         header('Content-Type: application/json');
         $table = db_prefix() . 'staff';
         $this->db->where('email', $email);
-        $user = $this->db->get($table)->row();
+        $user = $this->db->get($table)->row();       
 
 
         if ($user) {
 
+            $warehouses = json_decode($user->warehouse, true);
+          
+
+            if($user->admin != 1){
+                    if (!is_array($warehouses) || !in_array($warehouse->warehouse_id, $warehouses)) {
+                    return [
+                        'success' => false,
+                        'message' => 'Acesso negado a loja selecionada.'
+                    ];
+                }
+            }
+
 
             $user->warehouse = $warehouse;
+            $user->warehouses = $warehouses;
 
             // Email está correto, agora vamos checar a senha
             if (app_hasher()->CheckPassword($password, $user->password)) {

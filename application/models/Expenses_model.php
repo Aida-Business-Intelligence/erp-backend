@@ -115,25 +115,6 @@ class Expenses_model extends App_Model
         return ['success' => false];
     }
 
-
-
-
-    //
-
-
-
-    //
-    public function get_warehouses()
-    {
-        return $this->db
-            ->select('warehouse_id as id, warehouse_name as name')
-            ->from(db_prefix() . 'warehouse')
-            ->where('display', 1)
-            ->order_by('warehouse_name', 'ASC')
-            ->get()
-            ->result_array();
-    }
-
     /**
      * Get expense(s)
      * @param  mixed $id Optional expense id

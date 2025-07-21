@@ -306,22 +306,7 @@ class Receivables_model extends App_Model
         $this->db->where('YEAR(due_date)', $year);
         return (int) $this->db->count_all_results();
     }
-
-    public function get_categories($warehouse_id, $search = '', $limit = 5, $type = 'receivable')
-    {
-        $this->db->select('id, name');
-        $this->db->from(db_prefix() . 'expenses_categories');
-        $this->db->where('type', $type);
-        if ($warehouse_id) {
-            $this->db->where('warehouse_id', $warehouse_id);
-        }
-        if ($search) {
-            $this->db->like('name', $search);
-        }
-        $this->db->limit($limit);
-        return $this->db->get()->result_array();
-    }
-
+    
     public function get_payment_modes()
     {
         return $this->db->get(db_prefix() . 'payment_modes')->result_array();

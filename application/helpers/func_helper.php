@@ -769,10 +769,7 @@ $loja = $CI->Warehouse_model->get($data['warehouse_id']);
 
         $response = curl_exec($curl);
 
-        echo '<pre>';
-var_dump($response); exit;  
-
-
+     
         curl_close($curl);
         return json_decode($response);
     

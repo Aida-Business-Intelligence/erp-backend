@@ -311,23 +311,6 @@ class Expenses extends REST_Controller
     }
 
 
-    public function warehouselist_get()
-    {
-        try {
-            $warehouses = $this->Expenses_model->get_warehouses();
-
-            $this->response([
-                'success' => true,
-                'data' => $warehouses
-            ], REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
     public function validateduplicates_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');

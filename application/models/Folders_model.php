@@ -249,24 +249,68 @@ class Folders_model extends App_Model
         return null;
     }
 
-    public function delete_api($id)
-    {
-        if (!is_numeric($id) || $id <= 0) {
-            return [
-                'status' => false,
-                'message' => 'ID da pasta inválido'
-            ];
+public function delete_api($id)
+{
+    if (!is_numeric($id) || $id <= 0) {
+        return [
+            'status' => false,
+            'message' => 'ID da pasta inválido'
+        ];
+    }
+
+    $this->db->where('id', $id);
+    $folder = $this->db->get(db_prefix() . 'folders')->row();
+    if (!$folder) {
+        return [
+            'status' => false,
+            'message' => 'Pasta não encontrada'
+        ];
+    }
+
+    $upload_dir = FCPATH . 'uploads/folders/' . $id . '/';
+    try {
+        if (file_exists($upload_dir)) {
+            $delete_dir = function ($dir) use (&$delete_dir) {
+                $files = array_diff(scandir($dir), ['.', '..']);
+                foreach ($files as $file) {
+                    $path = $dir . '/' . $file;
+                    is_dir($path) ? $delete_dir($path) : unlink($path);
+                }
+                return rmdir($dir);
+            };
+
+            if (!is_writable($upload_dir)) {
+                return [
+                    'status' => false,
+                    'message' => 'Diretório não é gravável',
+                    'debug' => [
+                        'upload_dir' => $upload_dir,
+                        'dir_exists' => file_exists($upload_dir),
+                        'dir_writable' => is_writable($upload_dir),
+                        'parent_writable' => is_writable(dirname($upload_dir)),
+                        'permissions' => substr(sprintf('%o', fileperms($upload_dir)), -4),
+                        'owner' => function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($upload_dir))['name'] : fileowner($upload_dir)
+                    ]
+                ];
+            }
+
+            if (!$delete_dir($upload_dir)) {
+                return [
+                    'status' => false,
+                    'message' => 'Falha ao deletar diretório físico',
+                    'debug' => [
+                        'upload_dir' => $upload_dir,
+                        'dir_exists' => file_exists($upload_dir),
+                        'dir_writable' => is_writable($upload_dir),
+                        'parent_writable' => is_writable(dirname($upload_dir)),
+                        'permissions' => substr(sprintf('%o', fileperms($upload_dir)), -4),
+                        'owner' => function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($upload_dir))['name'] : fileowner($upload_dir)
+                    ]
+                ];
+            }
         }
 
-        $this->db->where('id', $id);
-        $folder = $this->db->get(db_prefix() . 'folders')->row();
-        if (!$folder) {
-            return [
-                'status' => false,
-                'message' => 'Pasta não encontrada'
-            ];
-        }
-
+        // Exclui do banco de dados apenas após a exclusão bem-sucedida da pasta física
         $this->db->where('id', $id);
         $this->db->delete(db_prefix() . 'folders');
         if ($this->db->affected_rows() === 0) {
@@ -275,70 +319,27 @@ class Folders_model extends App_Model
                 'message' => 'Falha ao deletar pasta do banco de dados'
             ];
         }
-
-        $upload_dir = FCPATH . 'uploads/folders/' . $id . '/';
-        try {
-            if (file_exists($upload_dir)) {
-                $delete_dir = function ($dir) use (&$delete_dir) {
-                    $files = array_diff(scandir($dir), ['.', '..']);
-                    foreach ($files as $file) {
-                        $path = $dir . '/' . $file;
-                        is_dir($path) ? $delete_dir($path) : unlink($path);
-                    }
-                    return rmdir($dir);
-                };
-
-                if (!is_writable($upload_dir)) {
-                    return [
-                        'status' => false,
-                        'message' => 'Diretório não é gravável',
-                        'debug' => [
-                            'upload_dir' => $upload_dir,
-                            'dir_exists' => file_exists($upload_dir),
-                            'dir_writable' => is_writable($upload_dir),
-                            'parent_writable' => is_writable(dirname($upload_dir)),
-                            'permissions' => substr(sprintf('%o', fileperms($upload_dir)), -4),
-                            'owner' => function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($upload_dir))['name'] : fileowner($upload_dir)
-                        ]
-                    ];
-                }
-
-                if (!$delete_dir($upload_dir)) {
-                    return [
-                        'status' => false,
-                        'message' => 'Falha ao deletar diretório físico',
-                        'debug' => [
-                            'upload_dir' => $upload_dir,
-                            'dir_exists' => file_exists($upload_dir),
-                            'dir_writable' => is_writable($upload_dir),
-                            'parent_writable' => is_writable(dirname($upload_dir)),
-                            'permissions' => substr(sprintf('%o', fileperms($upload_dir)), -4),
-                            'owner' => function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($upload_dir))['name'] : fileowner($upload_dir)
-                        ]
-                    ];
-                }
-            }
-        } catch (Exception $e) {
-            return [
-                'status' => false,
-                'message' => 'Erro ao deletar diretório: ' . $e->getMessage(),
-                'debug' => [
-                    'upload_dir' => $upload_dir,
-                    'dir_exists' => file_exists($upload_dir),
-                    'dir_writable' => is_writable($upload_dir),
-                    'parent_writable' => is_writable(dirname($upload_dir)),
-                    'permissions' => file_exists($upload_dir) ? substr(sprintf('%o', fileperms($upload_dir)), -4) : null,
-                    'owner' => file_exists($upload_dir) && function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($upload_dir))['name'] : null,
-                    'error_code' => $e->getCode()
-                ]
-            ];
-        }
-
+    } catch (Exception $e) {
         return [
-            'status' => true,
-            'message' => 'Pasta deletada com sucesso'
+            'status' => false,
+            'message' => 'Erro ao deletar diretório: ' . $e->getMessage(),
+            'debug' => [
+                'upload_dir' => $upload_dir,
+                'dir_exists' => file_exists($upload_dir),
+                'dir_writable' => is_writable($upload_dir),
+                'parent_writable' => is_writable(dirname($upload_dir)),
+                'permissions' => file_exists($upload_dir) ? substr(sprintf('%o', fileperms($upload_dir)), -4) : null,
+                'owner' => file_exists($upload_dir) && function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($upload_dir))['name'] : null,
+                'error_code' => $e->getCode()
+            ]
         ];
     }
+
+    return [
+        'status' => true,
+        'message' => 'Pasta deletada com sucesso'
+    ];
+}
 
 
 public function update_folderUpdate_api($id, $size = null, $files_count = null, $name = null, $is_favorite = null)

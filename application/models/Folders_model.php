@@ -310,7 +310,6 @@ public function delete_api($id)
             }
         }
 
-        // Exclui do banco de dados apenas após a exclusão bem-sucedida da pasta física
         $this->db->where('id', $id);
         $this->db->delete(db_prefix() . 'folders');
         if ($this->db->affected_rows() === 0) {

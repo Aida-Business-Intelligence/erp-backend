@@ -518,6 +518,12 @@ class Cashs_model extends App_Model
         return $this->db->update('itemstocksmov', $data);
     }
 
+    public function insert_nfce($data)
+    {
+        $this->db->insert(db_prefix() .'nfce', $data);
+        return $this->db->insert_id();
+    }
+
 
     public function add1($data)
     {
@@ -675,21 +681,7 @@ class Cashs_model extends App_Model
 
             // Verifica se a transação foi bem-sucedida
             if ($this->db->trans_status() === TRUE) {
-
-               
-                $nfce = false;
-
-           
-
-                 foreach (json_decode($data['form_payments']) as $payment) {
-                    if (!$nfce && strtolower($payment->type) != 'dinheiro') {
-                       // gerarNFC($data);
-                        $nfce = true; // garante que não será chamado novamente
-                    }
-                 
-                }
-
-                return $insert_id;
+                  return $insert_id;
             } else {
                 // Transação falhou, rollback é automático
                 return false;

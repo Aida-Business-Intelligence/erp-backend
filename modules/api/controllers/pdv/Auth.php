@@ -39,15 +39,31 @@ class Auth extends REST_Controller {
         $password = $_POST['password'];
         $warehouse = $this->Warehouse_model->get($_POST['warehouse_id']);
         $data = $this->Authentication_model->login_api($email, $password, $warehouse);
-        if (is_array($data) && isset($data['token'])) {
+
+    
+
+        if ($data['success'] == false) {
+            $this->response([
+                'status' => FALSE,
+                'error' => _l('admin_auth_invalid_email_or_password'),
+                'message' => $data['message']
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+        
+        elseif (!is_array($data) && !isset($data['token'])) {
+
+            $this->response([
+                'status' => FALSE,
+                'error' => _l('admin_auth_invalid_email_or_password'),
+                'message' => _l('admin_auth_invalid_email_or_password')
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+
+        }else{
 
             $this->response($data, REST_Controller::HTTP_OK);
+
         }
-        $this->response([
-            'status' => FALSE,
-            'error' => _l('admin_auth_invalid_email_or_password'),
-            'message' => _l('admin_auth_invalid_email_or_password')
-                ], REST_Controller::HTTP_NOT_FOUND); // NOT_FOUND (404) being the HTTP response code
+      // NOT_FOUND (404) being the HTTP response code
     }
     
     

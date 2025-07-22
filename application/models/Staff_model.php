@@ -1226,12 +1226,7 @@ class Staff_model extends App_Model
             $this->db->reset_query();
                 $this->db->select('
         ' . db_prefix() . 'staff.*,
-        ' . db_prefix() . 'roles.name as role_name,
-        (
-            SELECT GROUP_CONCAT(w.warehouse_name)
-            FROM ' . db_prefix() . 'warehouse w
-                WHERE JSON_CONTAINS(' . db_prefix() . 'staff.warehouse, JSON_QUOTE(w.warehouse_id))
-        ) as names_warehouse
+        ' . db_prefix() . 'roles.name as role_name
     ');
                 $this->db->where('active', 1);
             if (!empty($type)) {

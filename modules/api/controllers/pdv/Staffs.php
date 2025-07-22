@@ -451,7 +451,7 @@ class Staffs extends REST_Controller
             // Se a validação falhar
 
 
-            echo 2; exit;
+      
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {

@@ -25,6 +25,9 @@ class Users extends REST_Controller
         // Construct the parent class
         parent::__construct();
         $this->load->model('Staff_model');
+        $this->load->model('Authentication_model');
+        $decodedToken = $this->authservice->decodeToken($this->token_jwt);
+        $this->user =  $decodedToken['data']->user;
     }
 
     /**
@@ -75,42 +78,32 @@ class Users extends REST_Controller
      *     }
      */
 
-    //    public function list_post($id = '')
-//    {
-//
-//
-//        /*
-//          $this->load->model('clients_model');
-//
-//          $this->clients_model->add_import_items();
-//          exit;
-//         * 
-//         */
-//
-//        $page = $this->post('page') ? (int) $this->post('page') : 1; // Página atual, padrão 1
-//
-//        $page = $page + 1;
-//
-//        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10; // Itens por página, padrão 10
-//        $search = $this->post('search') ?: ''; // Parâmetro de busca, se fornecido
-//        $sortField = $this->post('sortField') ?: 'staffid'; // Campo para ordenação, padrão 'id'
-//        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC'; // Ordem, padrão crescente
-//        $type = $this->post('type') ?: 'pdv';
-//        $data = $this->Staff_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $type);
-//        
-////       var_dump($data);
-//
-//        if ($data['total'] == 0) {
-//            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-//        } else {
-//
-//            if ($data) {
-//                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
-//            } else {
-//                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-//            }
-//        }
-//    }
+   
+     public function update_session_post()
+     {
+       
+       
+       
+        $data = $this->Authentication_model->update_session($this->post(), $this->user);
+
+
+         if (empty($data)) {
+             $this->response(
+                 [
+                     'status' => FALSE,
+                     'message' => 'No data were found'
+                 ],
+                 REST_Controller::HTTP_NOT_FOUND
+             );
+         } else {
+             $this->response(
+                 $data,
+                 REST_Controller::HTTP_OK
+             );
+         }
+     }
+
+
     public function list_post($id = '')
     {
         $page = $this->post('page') ? (int) $this->post('page') : 0;

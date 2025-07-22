@@ -222,6 +222,13 @@ class Clients_model extends App_Model
         return $this->db->affected_rows() > 0;
     }
 
+    public function get_by_vat($id)
+{
+    $id_clean = preg_replace('/\D/', '', $id);
+    $sql = "REPLACE(REPLACE(REPLACE(vat, '.', ''), '-', ''), ' ', '') = ?";
+    $query = $this->db->query("SELECT * FROM " . db_prefix() . "clients WHERE $sql", array($id_clean));
+    return $query->row_array();
+}
     public function get($id)
     {
         $this->db->where('userid', $id);

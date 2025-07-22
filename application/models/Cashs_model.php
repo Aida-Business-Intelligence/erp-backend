@@ -518,6 +518,12 @@ class Cashs_model extends App_Model
         return $this->db->update('itemstocksmov', $data);
     }
 
+    public function insert_nfce($data)
+    {
+        $this->db->insert(db_prefix() .'nfce', $data);
+        return $this->db->insert_id();
+    }
+
 
     public function add1($data)
     {

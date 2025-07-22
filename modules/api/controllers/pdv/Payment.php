@@ -107,82 +107,135 @@ class Payment extends REST_Controller
            
         
     }
-     public function finish_post()
-    {
-         
-         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-         $client_id = isset($_POST['client_id'])?$_POST['client_id']:0;
-         $payments = $_POST['payments'];
-         $doc =  $_POST['cpf'];
-         $discount =  $_POST['discount'];
-         $itens=  $_POST['cart'];
-         $cash_id=  $_POST['cashId'];
-         $warehouse_id = $_POST['warehouseId'];
-         $user_id = $this->authservice->user->staffid;
-         $total =0;
-         $item_order = 1;
-         
-         foreach($itens as $item){
-             $total += $item['subtotal'];
-             $newitems[] = array(
-                 'id'=>$item['codigo'],
-                 'description'=>$item['descricao'],
-                 'qty'=>$item['quantidade'],
-                 'rate'=>$item['precoUnitario'],
-                 'subtotal'=>$item['subtotal'],
-                 'discount'=>isset($item['desconto'])?$item['desconto']:0,
-                 'barcode'=>$item['commodity_barcode'],
-                 'unit'=>'UN',
-                 'item_order'=>$item_order,
-                 );
-             $item_order++;
-         }
-         
-         $data= array(
-             'client_id'=>$client_id,
-             'cash_id'=>$cash_id,
-             'user_id'=>$user_id,
-             'type'=>'credit',
-             'subtotal'=>$total-$discount,
-             'discount'=>$discount,
-             'total'=>$total,
-             'nota'=>'',
-             'doc'=>$doc,
-             'warehouse_id'=>$warehouse_id,
-             'newitems'=>$newitems,
-             'form_payments'=>json_encode($payments),
-             'operacao'=>'paid'
-             
-         );
-         
-         $nfce = false;
 
-           
+    public function finish_post()
+{
 
-                 foreach (json_decode($data['form_payments']) as $payment) {
-                    if (!$nfce && strtolower($payment->type) != 'dinheiro') {
-                        $nfce = true; // garante que não será chamado novamente
+	ini_set('display_errors', 1);
+		ini_set('display_startup_erros', 1);
+		error_reporting(E_ALL);
 
-                        $result_nfce = gerarNFC($data);
-                        var_dump($result_nfce);
+            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+            
+            // Validação básica
+            $client_id = isset($_POST['client_id']) ? $_POST['client_id'] : 0;
+            $payments = isset($_POST['payments']) ? $_POST['payments'] : [];
+            $doc = isset($_POST['cpf']) ? $_POST['cpf'] : '';
+            $discount = isset($_POST['discount']) ? floatval($_POST['discount']) : 0;
+            $itens = isset($_POST['cart']) ? $_POST['cart'] : [];
+            $cash_id = isset($_POST['cashId']) ? $_POST['cashId'] : null;
+            $warehouse_id = isset($_POST['warehouseId']) ? $_POST['warehouseId'] : null;
+            $user_id = $this->authservice->user->staffid;
 
+            $total = 0;
+            $newitems = [];
+            $item_order = 1;
 
-                    }
+            // Processa itens do carrinho
+            foreach ($itens as $item) {
+                $subtotal = isset($item['subtotal']) ? floatval($item['subtotal']) : 0;
+                $quantidade = isset($item['quantidade']) ? floatval($item['quantidade']) : 0;
+                $precoUnitario = isset($item['precoUnitario']) ? floatval($item['precoUnitario']) : 0;
+
+                $total += $subtotal;
+
+                $newitems[] = [
+                    'id' => $item['codigo'] ?? '',
+                    'description' => $item['descricao'] ?? '',
+                    'qty' => $quantidade,
+                    'rate' => $precoUnitario,
+                    'subtotal' => $subtotal,
+                    'discount' => isset($item['desconto']) ? floatval($item['desconto']) : 0,
+                    'barcode' => $item['commodity_barcode'] ?? '',
+                    'unit' => 'UN',
+                    'item_order' => $item_order,
+                ];
+                $item_order++;
+            }
+
+            // Calcula subtotal líquido (com desconto)
+            $subtotal_liquido = $total - $discount;
+
+            $data = [
+                'client_id' => $client_id,
+                'cash_id' => $cash_id,
+                'user_id' => $user_id,
+                'type' => 'credit',
+                'subtotal' => $subtotal_liquido,
+                'discount' => $discount,
+                'total' => $total,
+                'nota' => '', // preenchido depois se necessário
+                'doc' => $doc,
+                'warehouse_id' => $warehouse_id,
+                'newitems' => $newitems,
+                'form_payments' => json_encode($payments),
+                'operacao' => 'paid',
+            ];
+
+            // Persiste a venda
+            $venda_id = $this->Cashs_model->add($data);
+
+            if ($venda_id) {
+                // Geração da NFC-e se necessário
+                $nfce = false;
+                foreach ($payments as $payment) {
+
+               
+
+                    if (!$nfce && (strtolower($payment['type'])  != 'dinheiro') || $doc != '') {
+
+                        $result_nfce = gerarNFC($data, $venda_id);
+
                  
+                        if ($result_nfce && $result_nfce->status == 'aprovado' ) {
+                            $nfce = $result_nfce;
+
+                            // Insere dados NFC-e
+                            $this->Cashs_model->insert_nfce([
+                                'status' => $nfce->status,
+                                'documento' => $nfce->status,
+                                'data_autorizacao' => $nfce->data_autorizacao,
+                                'tributo_incidente' => $nfce->tributo_incidente,
+                                'url_sefaz' => $nfce->url_sefaz,
+                                'nfe' => $nfce->nfe,
+                                'serie' => $nfce->serie,
+                                'qrcode' => $nfce->qrcode,
+                                'protocolo' => $nfce->protocolo,
+                                'recibo' => $nfce->recibo,
+                                'chave' => $nfce->chave,
+                            ]);
+
+                            // Atualiza a venda com os dados da NFC-e
+                            $this->Cashs_model->update([
+                                'id_nfce' => $id_nfce ?? null,
+                                'nfe' => $nfce->nfe,
+                                'serie' => $nfce->serie,
+                                'qrcode' => $nfce->qrcode,
+                                'protocolo' => $nfce->protocolo,
+                                'chave' => $nfce->chave,
+                            ], $venda_id);
+                        }
+                    }
                 }
 
-         if($this->Cashs_model->add($data)){
+                // Responde com sucesso
+                $this->response([
+                    'status' => true,
+                    'nfce' => $nfce,
+                    'status_payment' => 'paid',
+                    'payment_id' => 1, // Pode adaptar para o ID do pagamento real
+                    'message' => 'Pagamento realizado com sucesso'
+                ], REST_Controller::HTTP_OK);
+            } else {
+                // Caso haja erro ao inserir a venda
+                $this->response([
+                    'status' => false,
+                    'message' => 'Erro ao efetuar a compra'
+                ], REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
 
-         $this->response(['status' => true, 'nfce'=>$nfce, 'status_payment'=>'paid', 'payment_id'=>1, 'message' => 'Pagamento realizado'], REST_Controller::HTTP_OK);
-         
-         }else{
-             
-               $this->response(['status' => FALSE, 'message' => 'Erro ao efetuar compra'], REST_Controller::HTTP_NOT_FOUND);
-         }
-           
-        
-    }
-    
-    
-    
+
+
 }
+     

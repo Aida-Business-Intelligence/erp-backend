@@ -206,22 +206,22 @@ class Suppliers extends REST_Controller
         'segment' => $_POST['segment'],
         'company_size' => $_POST['company_size'],
         'observations' => $_POST['observations'] ?? null,
-        'commission' => isset($_POST['commission']) ? (float)$_POST['commission'] : 0,
+        'commission' => isset($_POST['commission']) ? (float) $_POST['commission'] : 0,
         'commercial_conditions' => $_POST['commercial_conditions'] ?? null,
         'commission_type' => $_POST['commission_type'] ?? null,
-        'commission_base_percentage' => isset($_POST['commission_base_percentage']) ? (float)$_POST['commission_base_percentage'] : 0,
+        'commission_base_percentage' => isset($_POST['commission_base_percentage']) ? (float) $_POST['commission_base_percentage'] : 0,
         'commission_payment_type' => $_POST['commission_payment_type'] ?? null,
-        'commission_due_day' => isset($_POST['commission_due_day']) ? (int)$_POST['commission_due_day'] : null,
+        'commission_due_day' => isset($_POST['commission_due_day']) ? (int) $_POST['commission_due_day'] : null,
         'agent_commission_type' => $_POST['agent_commission_type'] ?? null,
-        'agent_commission_base_percentage' => isset($_POST['agent_commission_base_percentage']) ? (float)$_POST['agent_commission_base_percentage'] : 0,
+        'agent_commission_base_percentage' => isset($_POST['agent_commission_base_percentage']) ? (float) $_POST['agent_commission_base_percentage'] : 0,
         'agent_commission_payment_type' => $_POST['agent_commission_payment_type'] ?? null,
-        'agent_commission_due_day' => isset($_POST['agent_commission_due_day']) ? (int)$_POST['agent_commission_due_day'] : null,
+        'agent_commission_due_day' => isset($_POST['agent_commission_due_day']) ? (int) $_POST['agent_commission_due_day'] : null,
         'tipo_frete' => $_POST['tipo_frete'] ?? null,
-        'freight_value' => isset($_POST['freight_value']) ? (float)$_POST['freight_value'] : 0,
-        'min_payment_term' => isset($_POST['min_payment_term']) ? (int)$_POST['min_payment_term'] : null,
-        'max_payment_term' => isset($_POST['max_payment_term']) ? (int)$_POST['max_payment_term'] : null,
-        'min_order_value' => isset($_POST['min_order_value']) ? (float)$_POST['min_order_value'] : null,
-        'max_order_value' => isset($_POST['max_order_value']) ? (float)$_POST['max_order_value'] : null,
+        'freight_value' => isset($_POST['freight_value']) ? (float) $_POST['freight_value'] : 0,
+        'min_payment_term' => isset($_POST['min_payment_term']) ? (int) $_POST['min_payment_term'] : null,
+        'max_payment_term' => isset($_POST['max_payment_term']) ? (int) $_POST['max_payment_term'] : null,
+        'min_order_value' => isset($_POST['min_order_value']) ? (float) $_POST['min_order_value'] : null,
+        'max_order_value' => isset($_POST['max_order_value']) ? (float) $_POST['max_order_value'] : null,
         'profile_image' => $profile_image // Armazena o caminho relativo da imagem
       ];
 
@@ -429,8 +429,8 @@ class Suppliers extends REST_Controller
       'data' => $supplier
     ], REST_Controller::HTTP_OK);
   }
-  
-public function list_get()
+
+  public function list_get()
   {
     $page = $this->get('page') ? (int) $this->get('page') : 1;
     $limit = $this->get('limit') ? (int) $this->get('limit') : 10;
@@ -772,7 +772,7 @@ public function list_get()
       $this->db->trans_start();
 
       // Validar campos obrigatórios
-      $required_fields = ['name', 'documents', 'contacts', 'emails'];
+      $required_fields = ['name', 'documents', 'contacts'];
       foreach ($required_fields as $field) {
         if (empty($_POST[$field])) {
           throw new Exception("Campo {$field} é obrigatório");
@@ -795,16 +795,32 @@ public function list_get()
       $primary_contact = $_POST['contacts'][0] ?? null;
       $primary_document = $_POST['documents'][0] ?? null;
 
+      // Pegar o primeiro email não vazio do array de emails
+      $primary_email = null;
+      if (!empty($_POST['emails']) && is_array($_POST['emails'])) {
+        foreach ($_POST['emails'] as $email) {
+          if (!empty(trim($email))) {
+            $primary_email = trim($email);
+            break;
+          }
+        }
+      }
+
       $supplier_data = [
         'company' => $_POST['name'],
         'vat' => $primary_document['number'],
         'documentType' => strtoupper($primary_document['type']),
         'phonenumber' => $primary_contact['phone'],
-        'email_default' => $_POST['emails'][0] ?? null,
+        'email_default' => $primary_email,
         'active' => 1,
         'is_supplier' => 1,
         'datecreated' => date('Y-m-d H:i:s'),
         'warehouse_id' => $_POST['warehouse_id'] ?? 0,
+        'address' => $_POST['address'] ?? null,
+        'city' => $_POST['city'] ?? null,
+        'state' => $_POST['state'] ?? null,
+        'zip' => $_POST['zip_code'] ?? null,
+        'inscricao_estadual' => $_POST['ie'] ?? null,
       ];
 
       $supplier_id = $this->Clients_model->add($supplier_data);
@@ -813,16 +829,19 @@ public function list_get()
         throw new Exception('Falha ao criar fornecedor');
       }
 
-      // Adicionar contato
-      $contact_data = [
-        'userid' => $supplier_id,
-        'firstname' => $_POST['name'],
-        'phonenumber' => $primary_contact['phone'],
-        'active' => 1,
-        'datecreated' => date('Y-m-d H:i:s')
-      ];
+      // Adicionar contato apenas se houver email válido
+      if ($primary_email) {
+        $contact_data = [
+          'userid' => $supplier_id,
+          'firstname' => $_POST['name'],
+          'phonenumber' => $primary_contact['phone'],
+          'email' => $primary_email,
+          'active' => 1,
+          'datecreated' => date('Y-m-d H:i:s')
+        ];
 
-      $this->Clients_model->add_contact($contact_data, $supplier_id);
+        $this->Clients_model->add_contact($contact_data, $supplier_id);
+      }
 
       $this->db->trans_complete();
 

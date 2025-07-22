@@ -659,125 +659,7 @@ function determine_color_type($hexColor)
     ];
 }
 
-if (!function_exists('gerarNFE')) {
 
-    function gerarNFE($data_extract)
-    {
-
-
-    }
-}
-
-if (!function_exists('gerarNFC')) {
-
-    function gerarNFC($data_extract)
-    {
-        $CI = &get_instance();
-
-        // Sua string JSON
-        $postData = '{
-    "emitente": {
-        "atualizacao": "2025-06-06 14:30:00", 
-        "tpAmb": 2,
-        "razaosocial": "LONGO - COMERCIO DE CONFECCOES E ACESSORIOS LTDA",
-        "cnpj": "16963143000139",
-        "fantasia": "Nome LONGO - COMERCIO DE CONFECCOES E ACESSORIOS",
-        "ie": "262920751",
-        "im": "",
-        "cnae": "4781400",
-        "crt": "1",
-        "rua": "AV ADOLFO SCHNEIDER",
-        "numero": "147",
-        "bairro": "Centro",
-        "cidade": "Nova Prata",
-        "ccidade": "4313300",
-        "cep": "88331438",
-        "siglaUF": "RS",
-        "codigoUF": "43",
-        "fone": "11999999999",
-        "schemes": "PL_009_V4",
-        "versao": "4.00",
-        "tokenIBPT": "1",
-        "password_nfe": "341369",
-        "arquivo_nfe": "http://localhost/aida/erp-backend/uploads/warehouse/7/6840e378dc5a2.pfx",
-        "CSC": "",
-        "CSCid": "",
-        "proxyConf": {
-            "proxyIp": "",
-            "proxyPort": "",
-            "proxyUser": "",
-            "proxyPass": ""
-        },
-        "situacao_tributaria": "102"
-    },
-    "warehouse_id": 7,
-    "parceiro_id": 1,
-    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoidGVzdGUiLCJuYW1lIjoidGVzdGUiLCJBUElfVElNRSI6MTczMTUyNDgyN30.ipVImJHh-03tViB6AvNyyVyBNUAv2fV3j-kYfwfJsu4",
-    "url_cliente": "http://localhost/aida/erp-backend/api/pdv",
-    "modelo": "65",
-    "impressao": "4",
-    "finalidade": "1",
-    "debug": false,
-    "cliente": {
-        "email": "jeronimo.alvescardoso@gmail.com",
-        "tipoPessoa": "F",
-        "cpf": "30503942855",
-        "contato": "Jeronimo Alves Cardoso"
-    },
-    "pedido": {
-        "forma_pagamento": "01",
-        "valor_pagamento": "1.10"
-    },
-    "produtos": [
-        {
-            "item": 1,
-            "nome": "LIP TINT LN02222",
-            "ncm": "33041000",
-            "total": "1.10",
-            "subtotal": "1.10",
-            "quantidade": 1,
-            "unidade": "UN",
-            "impostos": {
-                "icms": {
-                    "codigo_cfop": "5102",
-                    "situacao_tributaria": "00",
-                    "modBC": "3",
-                    "pICMS": "18",
-                    "NpICMS": "18",
-                    "origem": "0"
-                }
-            }
-        }
-    ]
-}';
-
-
-
-        // Sua requisição cURL
-        $curl = curl_init();
-
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => 'https://nfe.arvis.com.br/gerador/Emissor.php',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $postData,
-            CURLOPT_HTTPHEADER => array(
-                'Content-Type: application/json'
-            ),
-        ));
-
-        $response = curl_exec($curl);
-
-        curl_close($curl);
-        echo $response;
-    }
-
-}
 
 if (!function_exists('updateStock')) {
 
@@ -880,3 +762,170 @@ function updateStocks2($data, $item, $transaction)
 
     return true;
 }
+
+if (!function_exists('gerarNFC')) {
+
+    function gerarNFC($data, $pedido)
+    {
+        $CI = &get_instance();
+        $CI->load->model('Warehouse_model');
+        $CI->load->model('Clients_model');
+
+        $items = [];
+        $cont = 1;
+
+        foreach ($data['newitems'] as $item) {
+
+            $tributo = $CI->db->select('id, ncm, cfop as codigo_cfop, tax_percent as pICMS')->get(db_prefix() . 'items', ['id' => $item['id']])->row();
+
+
+            $items[] = [
+                'item' => $cont,
+                'nome' => $item['description'],
+                'ncm' => $tributo->ncm, // Adicione se necessário
+'total' => ($item['qty'] * $item['rate']) * (1 - ($item['discount'] / 100)),
+                'subtotal' => $item['subtotal'],
+                'quantidade' => $item['qty'],
+                'unidade' => $item['unit'],
+                'impostos' => [
+                    'icms' => [
+                        'codigo_cfop' => $tributo->codigo_cfop,
+                        'situacao_tributaria' => '102',
+                        'modBC' => '3',
+                        'pICMS' => $tributo->pICMS,
+                        'origem' => '0'
+                    ],
+                    'ipi' => [
+                        'situacao_tributaria' => '-1'
+                    ]
+                ]
+            ];
+            $cont++;
+        }
+
+        // Buscar detalhes do loja (warehouse)
+        $loja = $CI->Warehouse_model->get($data['warehouse_id']);
+
+        // Buscar cliente se o documento estiver definido
+        if ($data['doc']) {
+            $cliente = $CI->Clients_model->get_by_vat($data['doc']);
+
+            $documento = $data['doc'];
+            $nome = "";
+            $email = "";
+
+            if ($cliente) {
+                $nome = $cliente['company'] ?? '';
+                $email = $cliente['email_default'] ?? '';
+            }
+        } else {
+            $documento = '';
+            $nome = '';
+            $email = '';
+        }
+
+        // Monta o JSON de envio
+        $postData = [
+            "emitente" => [
+                "atualizacao" => date("Y-m-d H:i:s"),
+                "tpAmb" => (int)$loja->tpAmb,
+                "razaosocial" => $loja->razao_social,
+                "cnpj" => preg_replace('/\D/', '', $loja->cnpj),
+                "fantasia" => $loja->warehouse_name,
+                "ie" => $loja->ie,
+                "im" => $loja->im,
+                "cnae" => preg_replace('/\D/', '', $loja->cnae),
+                "crt" => $loja->crt,
+                "rua" => $loja->endereco,
+                "numero" => $loja->numero,
+                "bairro" => $loja->bairro,
+                "cidade" => $loja->cidade,
+                "ccidade" => $loja->ccidade,
+                "cep" => preg_replace('/\D/', '', $loja->cep),
+                "siglaUF" => $loja->estado,
+                "codigoUF" => $loja->codigoUF,
+                "fone" => preg_replace('/\D/', '', $loja->telefone),
+                "schemes" => "PL_009_V4",
+                "versao" => "4.00",
+                "tokenIBPT" => "01",
+                "password_nfe" => $loja->password_nfe,
+                "arquivo_nfe" => $loja->arquivo_nfe,
+                "CSC" => $loja->csc,
+                "CSCid" => $loja->cscid,
+                "proxyConf" => [
+                    "proxyIp" => "",
+                    "proxyPort" => "",
+                    "proxyUser" => "",
+                    "proxyPass" => ""
+                ],
+                "situacao_tributaria" => "102"
+            ],
+            "warehouse_id" => $data['warehouse_id'],
+            "parceiro_id" => getenv('NEXT_PUBLIC_CLIENT_MASTER_ID'),
+            "consumidorfinal" => 1,
+            "modelo" => "65",
+            "impressao" => "4",
+            "finalidade" => "1",
+            "debug" => false,
+            "cliente" => [
+                "email" => $email,
+                "tipoPessoa" => "F",
+                "cpf" => $documento,
+                "contato" => $nome
+            ],
+            "pedido" => [
+                "id" => $pedido,
+                "presenca" => "1",
+                "forma_pagamento" => "01",
+                "valor_pagamento" => number_format($data['total'], 2, '.', '') // Garante formato decimal
+            ],
+            "produtos" => $items // já é um array, será convertido para JSON na requisição
+        ];
+
+     
+
+        // Converter o array para JSON
+        $jsonData = json_encode($postData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        // Debug opcional
+        // echo '<pre>'; var_dump($jsonData); exit;
+
+        // Requisição cURL
+        $curl = curl_init();
+
+        curl_setopt_array($curl, [
+            CURLOPT_URL => getenv('NFE_BASE_URL') . '/gerador/Emissor.php',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => $jsonData,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json'
+            ],
+        ]);
+
+        $response = curl_exec($curl);
+
+  
+
+        if(curl_errno($curl)){
+            // Aqui é importante tratar erro de conexão
+            $error_msg = curl_error($curl);
+            curl_close($curl);
+            return (object) [
+                'error' => true,
+                'message' => $error_msg
+            ];
+        }
+
+        curl_close($curl);
+
+        return json_decode($response);
+    }
+}
+
+

@@ -28,9 +28,11 @@ function get_staff_user()
     $decodedToken = $CI->authservice->decodeToken($token_jwt);
 
     if (!$decodedToken || !isset($decodedToken['data']) || !isset($decodedToken['data']->user)) {
+
+        header('HTTP/1.1 401 Unauthorized');
         echo json_encode([
             'success' => false,
-            'message' => 'Invalid token or user data not found in token',
+            'message' => $decodedToken['message'],
         ]);
         exit;
     }

@@ -418,9 +418,13 @@ class Staffs extends REST_Controller
 
     public function create_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+
+
 
         // Mapeando os dados de entrada diretamente para o array $input
         $input = [
@@ -445,6 +449,9 @@ class Staffs extends REST_Controller
 
         if ($this->form_validation->run() == FALSE) {
             // Se a validação falhar
+
+
+      
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {

@@ -33,7 +33,7 @@ class Produto extends REST_Controller
     public function get_by_sku_or_commodity_post()
     {
 
-                $id = $this->post('sku_code');
+        $id = $this->post('sku_code');
         $warehouse_id = $this->post('warehouse_id');
 
 
@@ -252,10 +252,157 @@ class Produto extends REST_Controller
         }
     }
 
+
+
     public function create_post()
 {
-    $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+    if (isset($_POST['data'])) {
+        $_POST = json_decode($_POST['data'], true);
+    }
 
+    if (empty($_POST['warehouse_id'])) {
+        $this->response(
+            ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+            REST_Controller::HTTP_BAD_REQUEST
+        );
+        return;
+    }
+
+    $warehouses = $this->getWarehouses($_POST['warehouse_id']);
+
+    if (!$warehouses) {
+        $this->response(
+            ['status' => FALSE, 'message' => 'No warehouses found'],
+            REST_Controller::HTTP_BAD_REQUEST
+        );
+        return;
+    }
+
+   
+
+    $createdCount = 0;
+    $failedCount = 0;
+    $errors = [];
+
+    $products = isset($_POST['products']) ? $_POST['products'] : [$_POST];
+
+  
+
+   
+
+    foreach ($warehouses as $warehouse) {
+        foreach ($products as $index => $productData) {
+            unset($productData['images_base64'], $productData['packagings'], $productData['reservedStock'], $productData['primary_image_index'], $productData['itemType']);
+
+            if (isset($productData['price_franquia'])) {
+                 $productData['cost'] = $productData['price_franquia'];
+            }
+
+            $productData['warehouse_id'] = $warehouse['warehouse_id'];
+            $product_id = $this->Invoice_items_model->add($productData);
+
+            if ($product_id) {
+                $createdCount++;
+                
+                $upload_dir = './uploads/items/' . $product_id . '/';
+                $max_size = 4 * 1024 * 1024; // 4 MB
+
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+
+             if (isset($_FILES['images']['tmp_name'][$index])) {
+    // Verificação para garantir que os valores existence
+    $upload_dir = './uploads/items/' . $product_id . '/';
+    if (!file_exists($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
+
+    $file_paths = []; // Um array para armazenar caminhos de arquivos únicos
+
+    foreach ($_FILES['images']['tmp_name'] as $key => $file_temp) {
+        $file_name = $_FILES['images']['name'][$key];
+        $file_size = $_FILES['images']['size'][$key];
+        $file_error = $_FILES['images']['error'][$key];
+
+        if ($file_error === UPLOAD_ERR_OK) {
+            $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
+            $unique_filename = uniqid() . '.' . $file_extension;
+            $upload_path = $upload_dir . $unique_filename;
+
+            if (move_uploaded_file($file_temp, $upload_path)) {
+                $server_url = base_url();
+                $relative_path = str_replace('./', '', $upload_path);
+                $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+
+                // Adicionar o caminho ao array de caminhos de arquivo
+                array_push($file_paths, $full_url);
+
+                // Insere este caminho no banco de dados para o histórico de imagens
+                $this->db->insert(db_prefix() . 'item_images', [
+                    'item_id' => $product_id,
+                    'url' => $full_url,
+                    'name' => $relative_path
+                ]);
+            }
+        }
+    }
+
+    // Atualizando as colunas específicas com o número de imagens disponíveis
+    $update_data = [];
+
+    if (!empty($file_paths[0])) $update_data['image'] = $file_paths[0];
+    if (!empty($file_paths[1])) $update_data['image2'] = $file_paths[1];
+    if (!empty($file_paths[2])) $update_data['image3'] = $file_paths[2];
+    if (!empty($file_paths[3])) $update_data['image4'] = $file_paths[3];
+    if (!empty($file_paths[4])) $update_data['image5'] = $file_paths[4];
+
+    if (!empty($update_data)) {
+        $this->db->where('id', $product_id);
+        $this->db->update(db_prefix() . 'items', $update_data);
+    }
+}
+
+            } else {
+                $failedCount++;
+                $errors[] = [
+                    'warehouse_id' => $warehouse['warehouse_id'],
+                    'message' => 'Failed to create product for warehouse ID: ' . $warehouse['warehouse_id']
+                ];
+            }
+        }
+    }
+
+    $message = [
+        'status' => TRUE,
+        'message' => 'Products creation summary',
+        'created_count' => $createdCount,
+        'failed_count' => $failedCount,
+        'errors' => $errors
+    ];
+
+    $this->response($message, REST_Controller::HTTP_OK);
+}
+
+
+    public function create1_post()
+{
+
+
+   // $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+
+  
+
+   
+
+   if(isset($_POST['data'])){
+
+    $_POST = (array)json_decode($_POST['data'], true);
+
+   }
+
+ 
 
 
     if (empty($_POST['warehouse_id'])) {
@@ -297,11 +444,17 @@ class Produto extends REST_Controller
                         unset($productData['itemType']);
                         
 
-                      $productData['cost'] = $productData['price_franquia'];
+                      if(isset($productData['price_franquia'])){
+                         $productData['cost'] = $productData['price_franquia'];
+
+                      }
+                     
 
 
 
             $dataToValidate = array_merge($productData, $warehouse);
+
+            /*
 
             $this->form_validation->set_data($dataToValidate);
             $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');
@@ -319,12 +472,67 @@ class Produto extends REST_Controller
                 $failedCount++;
                 continue;
             }
+                */
 
             $productData['warehouse_id'] = $warehouse['warehouse_id'];
             $product_id = $this->Invoice_items_model->add($productData);
 
             if ($product_id) {
                 $createdCount++;
+
+
+                     // Configure o diretório de upload e outros parâmetros
+        $upload_dir = './uploads/items/' . $product_id . '/';
+$max_size = 4 * 1024 * 1024; // 4 MB em bytes
+
+
+if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
+
+
+$file_temp = $_FILES['image']['tmp_name'];
+$file_name = $_FILES['image']['name'];
+$file_size = $_FILES['image']['size'];
+$file_error = $_FILES['image']['error'];
+
+// Verifique se houve um erro no upload
+if ($file_error === UPLOAD_ERR_OK) {
+    // Verifica se o tamanho do arquivo é maior que 4 MB
+    /*
+    if ($file_size > $max_size) {
+        echo json_encode(['status' => FALSE, 'error' => 'File exceeds the maximum allowed size of 4 MB.']);
+        return;
+    }
+        */
+
+    $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
+    $unique_filename = uniqid() . '.' . $file_extension;
+    $upload_path = $upload_dir . $unique_filename;
+
+    // Mover o arquivo carregado para o diretório final
+    if (move_uploaded_file($file_temp, $upload_path)) {
+        $server_url = base_url();
+        $relative_path = str_replace('./', '', $upload_path);
+        $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+
+        // Atualiza o banco de dados com o novo caminho da imagem
+        $this->db->where('id', $product_id);
+        $this->db->update(db_prefix() . 'items', ['image' => $full_url]);
+
+    }
+} 
+/*
+else {
+    echo json_encode(['status' => FALSE, 'error' => 'Upload error. Code: ' . $file_error]);
+    return;
+}
+    */
+
+              
+                
+
+
             } else {
                 $errors[] = [
                     'warehouse_id' => $warehouse['warehouse_id'],
@@ -684,11 +892,14 @@ class Produto extends REST_Controller
         }
     }
 
-    public function data_put($id = '')
+     public function data_put($id = '')
     {
 
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        
+      
         if (empty($_POST) || !isset($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
@@ -761,6 +972,107 @@ class Produto extends REST_Controller
             }
         }
     }
+
+   public function data_post($id)
+{
+    if (isset($_POST['data'])) {
+        $_POST = json_decode($_POST['data'], true);
+    }
+
+    if (empty($_POST) || !isset($id) || !is_numeric($id)) {
+        $this->response(['status' => FALSE, 'message' => 'Data Not Acceptable or Invalid Product ID'], REST_Controller::HTTP_BAD_REQUEST);
+        return;
+    }
+
+    // Verifica se o produto existe
+    $product = $this->Invoice_items_model->get($id);
+    if (!$product) {
+        $this->response(['status' => FALSE, 'message' => 'Product not found'], REST_Controller::HTTP_NOT_FOUND);
+        return;
+    }
+
+    // Prepare os dados para atualização
+    $update_data = $_POST;
+
+    unset($update_data['image'], $update_data['image1'], $update_data['image2'], $update_data['image3'], $update_data['image4'], $update_data['images_base64'], $update_data['packaging'], $update_data['packagings'], $update_data['reservedStock'], $update_data['primary_image_index'], $update_data['itemType'], $update_data['total_images']);
+
+    if (isset($update_data['price_franquia'])) {
+        $update_data['cost'] = $update_data['price_franquia'];
+    }
+
+    // Atualiza os dados do produto
+    $update_result = $this->Invoice_items_model->edit($update_data, $id);
+
+    // Processa as imagens
+    $upload_dir = './uploads/items/' . $id . '/';
+    if (!file_exists($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
+
+    // Remove todas as imagens antigas do banco
+    $this->db->where('item_id', $id);
+    $this->db->delete(db_prefix() . 'item_images');
+
+    // Inicializa todos os campos de imagem como null
+    $file_paths = ['image' => null, 'image2' => null, 'image3' => null, 'image4' => null, 'image5' => null];
+
+    if (isset($_FILES['images'])) {
+        // Se existem imagens carregadas, processa cada uma
+        $files = $_FILES['images']['tmp_name'];
+        $names = $_FILES['images']['name'];
+        $errors = $_FILES['images']['error'];
+
+        $image_count = 0;
+        
+        foreach ($files as $key => $file_temp) {
+            if ($errors[$key] === UPLOAD_ERR_OK && $image_count < 5) {
+                $file_name = $names[$key];
+                $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
+                $unique_filename = uniqid() . '.' . $file_extension;
+                $upload_path = $upload_dir . $unique_filename;
+
+                if (move_uploaded_file($file_temp, $upload_path)) {
+                    $server_url = base_url();
+                    $relative_path = str_replace('./', '', $upload_path);
+                    $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+                    
+                    // Atualiza o campo correspondente baseado na posição
+                    $field_name = array_keys($file_paths)[$key];
+                    $file_paths[$field_name] = $full_url;
+
+                    // Inserir a imagem no banco de dados
+                    $this->db->insert(db_prefix() . 'item_images', [
+                        'item_id' => $id,
+                        'url' => $full_url,
+                        'name' => $relative_path
+                    ]);
+                    
+                    $image_count++;
+                    log_message('debug', 'Processed image ' . $image_count . ' - Field: ' . $field_name);
+                }
+            }
+        }
+    }
+
+    // Atualiza as colunas específicas de imagens
+    $update_cols = [
+        'image'  => $file_paths['image'],
+        'image2' => $file_paths['image2'],
+        'image3' => $file_paths['image3'],
+        'image4' => $file_paths['image4'],
+        'image5' => $file_paths['image5']
+    ];
+
+    log_message('debug', 'Updating image fields: ' . json_encode($update_cols));
+
+    // Atualiza cada campo
+    $this->db->where('id', $id);
+    $this->db->update(db_prefix() . 'items', $update_cols);
+
+    // Após atualizar as imagens, podemos retornar uma mensagem de sucesso
+    $this->response(['status' => TRUE, 'message' => 'Produto atualizado com sucesso.', 'data' => $this->Invoice_items_model->get($id)], REST_Controller::HTTP_OK);
+}
+
 
     public function groups_post()
     {
@@ -979,7 +1291,6 @@ class Produto extends REST_Controller
 
     public function groupcreate_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -1753,6 +2064,52 @@ class Produto extends REST_Controller
         }
     }
 
+    public function default_image_post($product_id = '')
+    {
+                $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+                $item = $this->Invoice_items_model->get($product_id);
+                $image = $item->image;
+                $image2 = $item->image2;
+                $image3 = $item->image3;
+                $image4 = $item->image4;
+                 $image5 = $item->image5;
+
+if($_POST['image_index'] == 0){
+
+$update_data = array('image'=>$image);
+    
+}elseif($_POST['image_index'] == 1){
+    $update_data = array('image'=>$image2, 'image2'=>$image);
+
+
+}elseif($_POST['image_index'] == 2){
+    $update_data = array('image'=>$image3,'image3'=>$image);
+    
+}
+elseif($_POST['image_index'] == 3){
+    $update_data = array('image'=>$image4, 'image4'=>$image);
+
+    
+}
+
+elseif($_POST['image_index'] == 4){
+    $update_data = array('image'=>$image5, 'image5'=>$image);
+
+    
+}
+
+
+
+
+    
+        
+        $this->db->where('id', $product_id);
+       $result =  $this->db->update(db_prefix() . 'items', $update_data);
+        
+        $this->response(array('status'=>true, 'message'=>'Atualizado com sucesso'), REST_Controller::HTTP_OK);
+    }
+
+    
     public function edit_product_erp_put($product_id = '')
     {
         $raw_data = file_get_contents("php://input");

@@ -481,6 +481,8 @@ class Receivables extends REST_Controller
             'order_number' => $input['order_number'] ?? null,
             'installment_number' => $input['installment_number'] ?? null,
             'nfe_key' => $input['nfe_key'] ?? null,
+            'nfe_number' => $input['nfe_number'] ?? null,
+            'boleto_number' => $input['boleto_number'] ?? null,
             'barcode' => $input['barcode'] ?? null,
             'origin_id' => $input['origin_id'],
             'recurring_type' => $input['recurring_type'] ?? null,

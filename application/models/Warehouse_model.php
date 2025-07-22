@@ -229,6 +229,9 @@ class Warehouse_model extends App_Model
         if (empty($update_data)) {
             return false;
         }
+        if(!isset($update_data['password_nfe']) || empty($update_data['password_nfe'])){
+            unset($update_data['password_nfe']);
+        }
 
 
 

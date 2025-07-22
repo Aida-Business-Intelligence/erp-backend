@@ -17,6 +17,8 @@ class Authentication_model extends App_Model
         $this->load->model('user_autologin');
         $this->load->model('Roles_model');
         $this->autologin();
+
+       
     }
 
     /**
@@ -125,38 +127,38 @@ class Authentication_model extends App_Model
         return false;
     }
 
-    public function login_api($email, $password, $warehouse = null)
+
+    public function update_session($data, $user)
     {
 
-        header('Content-Type: application/json');
         $table = db_prefix() . 'staff';
-        $this->db->where('email', $email);
-        $user = $this->db->get($table)->row();
-
+        $this->db->where('staffid', $user->staffid);
+        $user = $this->db->get($table)->row();     
+        
 
         if ($user) {
+            $this->load->model('Warehouse_model');
+
+            $warehouses = json_decode($user->warehouse, true);
+            $warehouse = $this->Warehouse_model->get($data['warehouse_id']);
+          
+
+            if($user->admin != 1){
+                    if (!is_array($warehouses) || !in_array($warehouse->warehouse_id, $warehouses)) {
+                    return [
+                        'success' => false,
+                        'message' => 'Acesso negado a loja selecionada.'
+                    ];
+                }
+            }
 
 
             $user->warehouse = $warehouse;
-
-            // Email está correto, agora vamos checar a senha
-            if (app_hasher()->CheckPassword($password, $user->password)) {
-
-
-
-                if ($user->active == 0) {
-                    return ['success' => false, 'message' => 'Usuário inativo, contate o administrador'];
-                }
-
-                //$contacts = $this->staff_model->get_staff_permissions($user->staffid);
-
-                $role = $this->Roles_model->get($user->role);
+            $user->warehouses = $warehouses;
+  $role = $this->Roles_model->get($user->role);
                 if ($role) {
                     $user->roles = $role;
                 }
-
-
-
                 $data_user = [
                     'user_id' => $user->staffid,
                     'admin' => $user->admin,
@@ -166,10 +168,7 @@ class Authentication_model extends App_Model
                     'phonenumber' => $user->phonenumber
                 ];
 
-
-
-
-                unset($user->password);
+              
                 // Gerar o JWT
                 $payload = [
                     'iat' => time(), // Data de emissão
@@ -189,8 +188,101 @@ class Authentication_model extends App_Model
                 unset($user->hourly_rate);
                 unset($user->email_signature);
                 unset($user->perfex_saas_tenant_id);
-                unset($user->role);
-                // unset($user->staffid);
+       
+
+
+                return [
+                    'success' => true,
+                    'message' => 'Logado com sucesso',
+                    'user' => $user,
+                    'token' => $token
+                ];
+           
+        } else {
+            log_activity('Non Existing User Tried to Login [Email: ' . $email . ', Is Staff Member: ' . (@$staff == true ? 'Yes' : 'No') . ', IP: ' . $this->input->ip_address() . ']');
+            return ['success' => false, 'message' => 'Usuário inexistente'];
+        }
+
+
+    }
+
+    public function login_api($email, $password, $warehouse = null)
+    {
+
+        header('Content-Type: application/json');
+        $table = db_prefix() . 'staff';
+        $this->db->where('email', $email);
+        $user = $this->db->get($table)->row();       
+
+
+        if ($user) {
+
+            $warehouses = json_decode($user->warehouse, true);
+          
+
+            if($user->admin != 1){
+                    if (!is_array($warehouses) || !in_array($warehouse->warehouse_id, $warehouses)) {
+                    return [
+                        'success' => false,
+                        'message' => 'Acesso negado a loja selecionada.'
+                    ];
+                }
+            }
+
+
+            $user->warehouse = $warehouse;
+            $user->warehouses = $warehouses;
+
+            // Email está correto, agora vamos checar a senha
+            if (app_hasher()->CheckPassword($password, $user->password)) {
+
+
+
+                if ($user->active == 0) {
+                    return ['success' => false, 'message' => 'Usuário inativo, contate o administrador'];
+                }
+
+                //$contacts = $this->staff_model->get_staff_permissions($user->staffid);
+
+                $role = $this->Roles_model->get($user->role);
+                if ($role) {
+                    $user->roles = $role;
+                }
+                   
+
+                
+
+
+
+                $data_user = [
+                    'user_id' => $user->staffid,
+                    'admin' => $user->admin,
+                    'staffid' => $user->staffid,
+                    'firstname' => $user->firstname,
+                    'lastname' => $user->lastname,
+                    'phonenumber' => $user->phonenumber
+                ];
+
+                // Gerar o JWT
+                $payload = [
+                    'iat' => time(), // Data de emissão
+                    'exp' => time() + (24 * 60 * 60), // Expira em 1 dia
+                    'user' => $data_user
+                ];
+
+                $token = JWT::encode($payload, $this->config->item('jwt_key'), $this->config->item('jwt_algorithm'));
+
+                unset($user->password);
+                unset($user->facebook);
+                unset($user->skype);
+                unset($user->last_activity);
+                unset($user->new_pass_key);
+                unset($user->new_pass_key_requested);
+                unset($user->direction);
+                unset($user->hourly_rate);
+                unset($user->email_signature);
+                unset($user->perfex_saas_tenant_id);
+    
 
 
                 return [

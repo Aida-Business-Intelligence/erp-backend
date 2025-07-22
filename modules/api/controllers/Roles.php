@@ -28,6 +28,8 @@ class Roles extends REST_Controller
 
     }
 
+   
+
 
     public function data_get($id = '')
     {
@@ -48,7 +50,6 @@ class Roles extends REST_Controller
 
     public function data_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         // Recebendo e decodificando os dados do body da requisição
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);

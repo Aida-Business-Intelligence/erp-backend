@@ -775,59 +775,80 @@ class Produto extends REST_Controller
     }
 
     public function get_get($id = '')
-    {
-        if (empty($id) || !is_numeric($id)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Invalid Product ID'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
+{
+    if (empty($id) || !is_numeric($id)) {
+        $this->response([
+            'status' => FALSE,
+            'message' => 'Invalid Product ID'
+        ], REST_Controller::HTTP_BAD_REQUEST);
+        return;
+    }
+
+    // Buscar o produto na tabela 'items'
+    $this->db->where('id', $id);
+    $product = $this->db->get(db_prefix() . 'items')->row();
+
+    if ($product) {
+        // Obter o nome do grupo
+        if (!empty($product->group_id)) {
+            $this->db->select('name as category_name');
+            $this->db->where('id', $product->group_id);
+            $category = $this->db->get(db_prefix() . 'items_groups')->row();
+            $product->category_name = $category ? $category->category_name : null;
+        } else {
+            $product->category_name = null;
         }
 
-        $product = $this->Invoice_items_model->get_item($id);
+        // Obter o nome do subgrupo
+        if (!empty($product->sub_group)) {
+            $this->db->select('sub_group_name');
+            $this->db->where('id', $product->sub_group);
+            $subcategory = $this->db->get(db_prefix() . 'wh_sub_group')->row();
+            $product->subcategory_name = $subcategory ? $subcategory->sub_group_name : null;
+        } else {
+            $product->subcategory_name = null;
+        }
 
-        if ($product) {
-
-            if (!empty($product->group_id)) {
-                $this->db->select('name as category_name');
-                $this->db->where('id', $product->group_id);
-                $category = $this->db->get(db_prefix() . 'items_groups')->row();
-                $product->category_name = $category ? $category->category_name : null;
-            } else {
-                $product->category_name = null;
-            }
-
-            // Get subcategory name
-            if (!empty($product->sub_group)) {
-                $this->db->select('sub_group_name');
-                $this->db->where('id', $product->sub_group);
-                $subcategory = $this->db->get(db_prefix() . 'wh_sub_group')->row();
-                $product->subcategory_name = $subcategory ? $subcategory->sub_group_name : null;
-            } else {
-                $product->subcategory_name = null;
-            }
-
-            // Adicionar tag_id como array
-            if (isset($product->tag_id)) {
-                $product->tag_id = is_string($product->tag_id) && $product->tag_id !== '' ? json_decode($product->tag_id, true) : [];
-                if (!is_array($product->tag_id)) {
-                    $product->tag_id = [];
-                }
-            } else {
+        // Processo para tag_id
+        if (isset($product->tag_id)) {
+            $product->tag_id = is_string($product->tag_id) && $product->tag_id !== '' ? json_decode($product->tag_id, true) : [];
+            if (!is_array($product->tag_id)) {
                 $product->tag_id = [];
             }
-
-            $this->response([
-                'status' => TRUE,
-                'data' => $product
-            ], REST_Controller::HTTP_OK);
         } else {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No data were found'
-            ], REST_Controller::HTTP_NOT_FOUND);
+            $product->tag_id = [];
         }
+
+        // Obter todas as imagens relacionadas ao item na tabela 'item_images'
+        $this->db->select('id as id_image, url, name as name_image');
+        $this->db->where('item_id', $id);
+        $images_result = $this->db->get(db_prefix() . 'item_images')->result();
+
+        // Converter resultados de imagens em array
+        $images = [];
+        if (!empty($images_result)) {
+            foreach ($images_result as $img) {
+                $images[] = [
+                    'id' => $img->id_image,
+                    'url' => $img->url,
+                    'name' => $img->name_image
+                ];
+            }
+        }
+        $product->images = $images;
+
+        $this->response([
+            'status' => TRUE,
+            'data' => $product
+        ], REST_Controller::HTTP_OK);
+    } else {
+        $this->response([
+            'status' => FALSE,
+            'message' => 'No data were found'
+        ], REST_Controller::HTTP_NOT_FOUND);
     }
+}
+
 
     public function remove_post()
     {
@@ -1032,15 +1053,33 @@ class Produto extends REST_Controller
             mkdir($upload_dir, 0777, true);
         }
 
-        // Remove todas as imagens antigas do banco
-        $this->db->where('item_id', $id);
-        $this->db->delete(db_prefix() . 'item_images');
+
+
+        // Coletar os IDs das imagens que devem ser mantidas
+        $ids_para_manter = [];
+        if (isset($update_data['images']) && is_array($update_data['images'])) {
+            foreach ($update_data['images'] as $img) {
+                if (isset($img['id'])) {
+                    $ids_para_manter[] = $img['id'];
+                }
+            }
+        }
+
+        // Se houver imagens para manter, apaga só as que NÃO estão nesses IDs
+        if (!empty($ids_para_manter)) {
+            $this->db->where('item_id', $id);
+            $this->db->where_not_in('id', $ids_para_manter);
+            $this->db->delete(db_prefix() . 'item_images');
+        } else {
+            // Se não veio nenhuma imagem para manter, apaga todas
+            $this->db->where('item_id', $id);
+            $this->db->delete(db_prefix() . 'item_images');
+        }
 
         // Inicializa todos os campos de imagem como null
         $file_paths = ['image' => null, 'image2' => null, 'image3' => null, 'image4' => null, 'image5' => null];
 
         if (isset($_FILES['images'])) {
-            // Se existem imagens carregadas, processa cada uma
             $files = $_FILES['images']['tmp_name'];
             $names = $_FILES['images']['name'];
             $errors = $_FILES['images']['error'];
@@ -1048,7 +1087,7 @@ class Produto extends REST_Controller
             $image_count = 0;
 
             foreach ($files as $key => $file_temp) {
-                if ($errors[$key] === UPLOAD_ERR_OK && $image_count < 5) {
+                if ($errors[$key] === UPLOAD_ERR_OK && $image_count < 10) {
                     $file_name = $names[$key];
                     $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
                     $unique_filename = uniqid() . '.' . $file_extension;
@@ -1059,11 +1098,13 @@ class Produto extends REST_Controller
                         $relative_path = str_replace('./', '', $upload_path);
                         $full_url = rtrim($server_url, '/') . '/' . $relative_path;
 
-                        // Atualiza o campo correspondente baseado na posição
-                        $field_name = array_keys($file_paths)[$key];
-                        $file_paths[$field_name] = $full_url;
+                        // Atualiza o campo correspondente baseado na posição (apenas para os 5 primeiros)
+                        if ($image_count < 5) {
+                            $field_name = array_keys($file_paths)[$image_count];
+                            $file_paths[$field_name] = $full_url;
+                        }
 
-                        // Inserir a imagem no banco de dados
+                        // Inserir a imagem no banco de dados (todas até 10)
                         $this->db->insert(db_prefix() . 'item_images', [
                             'item_id' => $id,
                             'url' => $full_url,
@@ -1071,7 +1112,6 @@ class Produto extends REST_Controller
                         ]);
 
                         $image_count++;
-                        log_message('debug', 'Processed image ' . $image_count . ' - Field: ' . $field_name);
                     }
                 }
             }
@@ -1086,7 +1126,6 @@ class Produto extends REST_Controller
             'image5' => $file_paths['image5']
         ];
 
-        log_message('debug', 'Updating image fields: ' . json_encode($update_cols));
 
         // Atualiza cada campo
         $this->db->where('id', $id);
@@ -1094,6 +1133,37 @@ class Produto extends REST_Controller
 
         // Após atualizar as imagens, podemos retornar uma mensagem de sucesso
         $this->response(['status' => TRUE, 'message' => 'Produto atualizado com sucesso.', 'data' => $this->Invoice_items_model->get($id)], REST_Controller::HTTP_OK);
+    }
+
+    public function remove_image_post()
+    {
+        $data = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($data['id']) || empty($data['name'])) {
+            $this->response(['status' => FALSE, 'message' => 'ID e nome do arquivo são obrigatórios.'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        // Verifica se a imagem existe no banco
+        $this->db->where('id', $data['id']);
+        $imagem = $this->db->get(db_prefix() . 'item_images')->row();
+
+        if (!$imagem) {
+            $this->response(['status' => FALSE, 'message' => 'Imagem não encontrada no banco de dados.'], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
+
+        // Apaga do banco
+        $this->db->where('id', $data['id']);
+        $this->db->delete(db_prefix() . 'item_images');
+
+        // Remove o arquivo físico
+        $file_path = FCPATH . $data['name'];
+        if (file_exists($file_path)) {
+            @unlink($file_path);
+        }
+
+        $this->response(['status' => TRUE, 'message' => 'Imagem removida com sucesso.'], REST_Controller::HTTP_OK);
     }
 
 
@@ -2089,29 +2159,11 @@ class Produto extends REST_Controller
 
     public function default_image_post($product_id = '')
     {
+        
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        $item = $this->Invoice_items_model->get($product_id);
-        $image = $item->image;
-        $image2 = $item->image2;
-        $image3 = $item->image3;
-        $image4 = $item->image4;
-        $image5 = $item->image5;
-
-        if ($_POST['image_index'] == 0) {
-            $update_data = array('image' => $image);
-        } elseif ($_POST['image_index'] == 1) {
-            $update_data = array('image' => $image2, 'image2' => $image);
-        } elseif ($_POST['image_index'] == 2) {
-            $update_data = array('image' => $image3, 'image3' => $image);
-        } elseif ($_POST['image_index'] == 3) {
-            $update_data = array('image' => $image4, 'image4' => $image);
-        } elseif ($_POST['image_index'] == 4) {
-            $update_data = array('image' => $image5, 'image5' => $image);
-        }
-
+        $update_data = array('image' => $_POST['url']);
         $this->db->where('id', $product_id);
         $result = $this->db->update(db_prefix() . 'items', $update_data);
-
         $this->response(array('status' => true, 'message' => 'Atualizado com sucesso'), REST_Controller::HTTP_OK);
     }
 

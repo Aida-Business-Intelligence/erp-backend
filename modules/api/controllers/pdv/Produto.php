@@ -47,13 +47,13 @@ class Produto extends REST_Controller
         $data = $this->Invoice_items_model->get_by_sku_or_commodity(
             $id,
             $warehouse_id
-           
+
         );
 
-    
+
 
         if ($data) {
-          
+
             $this->response(
                 [
                     'status' => true,
@@ -187,6 +187,8 @@ class Produto extends REST_Controller
     {
         $warehouse_id = $this->post('warehouse_id');
 
+
+
         if (empty($warehouse_id)) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -210,6 +212,7 @@ class Produto extends REST_Controller
         $minPrice = $this->post('minPrice');
         $maxPrice = $this->post('maxPrice');
         $company = $this->post('company');
+        $client_id = $this->post('client_id');
 
         $data = $this->Invoice_items_model->get_api2(
             $id,
@@ -227,7 +230,8 @@ class Produto extends REST_Controller
             $send,
             $minPrice,
             $maxPrice,
-            $company
+            $company,
+            $client_id
         );
 
         if ($data['total'] > 0) {
@@ -255,304 +259,309 @@ class Produto extends REST_Controller
 
 
     public function create_post()
-{
-    if (isset($_POST['data'])) {
-        $_POST = json_decode($_POST['data'], true);
-    }
+    {
+        if (isset($_POST['data'])) {
+            $_POST = json_decode($_POST['data'], true);
+        }
 
-    if (empty($_POST['warehouse_id'])) {
-        $this->response(
-            ['status' => FALSE, 'message' => 'Warehouse ID is required'],
-            REST_Controller::HTTP_BAD_REQUEST
-        );
-        return;
-    }
+        if (empty($_POST['warehouse_id'])) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
 
-    $warehouses = $this->getWarehouses($_POST['warehouse_id']);
+        $warehouses = $this->getWarehouses($_POST['warehouse_id']);
 
-    if (!$warehouses) {
-        $this->response(
-            ['status' => FALSE, 'message' => 'No warehouses found'],
-            REST_Controller::HTTP_BAD_REQUEST
-        );
-        return;
-    }
+        if (!$warehouses) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'No warehouses found'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
 
-   
 
-    $createdCount = 0;
-    $failedCount = 0;
-    $errors = [];
 
-    $products = isset($_POST['products']) ? $_POST['products'] : [$_POST];
+        $createdCount = 0;
+        $failedCount = 0;
+        $errors = [];
 
-  
+        $products = isset($_POST['products']) ? $_POST['products'] : [$_POST];
 
-   
 
-    foreach ($warehouses as $warehouse) {
-        foreach ($products as $index => $productData) {
-            unset($productData['images_base64'], $productData['packagings'], $productData['reservedStock'], $productData['primary_image_index'], $productData['itemType']);
 
-            if (isset($productData['price_franquia'])) {
-                 $productData['cost'] = $productData['price_franquia'];
-            }
 
-            $productData['warehouse_id'] = $warehouse['warehouse_id'];
-            $product_id = $this->Invoice_items_model->add($productData);
 
-            if ($product_id) {
-                $createdCount++;
-                
-                $upload_dir = './uploads/items/' . $product_id . '/';
-                $max_size = 4 * 1024 * 1024; // 4 MB
+        foreach ($warehouses as $warehouse) {
+            foreach ($products as $index => $productData) {
+                unset($productData['images_base64'], $productData['packagings'], $productData['reservedStock'], $productData['primary_image_index'], $productData['itemType']);
 
-                if (!file_exists($upload_dir)) {
-                    mkdir($upload_dir, 0777, true);
+                if (isset($productData['price_franquia'])) {
+                    $productData['cost'] = $productData['price_franquia'];
                 }
 
-             if (isset($_FILES['images']['tmp_name'][$index])) {
-    // Verificação para garantir que os valores existence
-    $upload_dir = './uploads/items/' . $product_id . '/';
-    if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
-    }
+                $productData['warehouse_id'] = $warehouse['warehouse_id'];
+                $product_id = $this->Invoice_items_model->add($productData);
 
-    $file_paths = []; // Um array para armazenar caminhos de arquivos únicos
+                if ($product_id) {
+                    $createdCount++;
 
-    foreach ($_FILES['images']['tmp_name'] as $key => $file_temp) {
-        $file_name = $_FILES['images']['name'][$key];
-        $file_size = $_FILES['images']['size'][$key];
-        $file_error = $_FILES['images']['error'][$key];
+                    $upload_dir = './uploads/items/' . $product_id . '/';
+                    $max_size = 10 * 1024 * 1024; // 10 MB
 
-        if ($file_error === UPLOAD_ERR_OK) {
-            $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-            $unique_filename = uniqid() . '.' . $file_extension;
-            $upload_path = $upload_dir . $unique_filename;
+                    if (!file_exists($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
 
-            if (move_uploaded_file($file_temp, $upload_path)) {
-                $server_url = base_url();
-                $relative_path = str_replace('./', '', $upload_path);
-                $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+                    if (isset($_FILES['images']['tmp_name'][$index])) {
+                        // Verificação para garantir que os valores existence
+                        $upload_dir = './uploads/items/' . $product_id . '/';
+                        if (!file_exists($upload_dir)) {
+                            mkdir($upload_dir, 0777, true);
+                        }
 
-                // Adicionar o caminho ao array de caminhos de arquivo
-                array_push($file_paths, $full_url);
+                        $file_paths = []; // Um array para armazenar caminhos de arquivos únicos
 
-                // Insere este caminho no banco de dados para o histórico de imagens
-                $this->db->insert(db_prefix() . 'item_images', [
-                    'item_id' => $product_id,
-                    'url' => $full_url,
-                    'name' => $relative_path
-                ]);
+                        foreach ($_FILES['images']['tmp_name'] as $key => $file_temp) {
+                            $file_name = $_FILES['images']['name'][$key];
+                            $file_size = $_FILES['images']['size'][$key];
+                            $file_error = $_FILES['images']['error'][$key];
+
+                            if ($file_error === UPLOAD_ERR_OK) {
+                                $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
+                                $unique_filename = uniqid() . '.' . $file_extension;
+                                $upload_path = $upload_dir . $unique_filename;
+
+                                if (move_uploaded_file($file_temp, $upload_path)) {
+                                    $server_url = base_url();
+                                    $relative_path = str_replace('./', '', $upload_path);
+                                    $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+
+                                    // Adicionar o caminho ao array de caminhos de arquivo
+                                    array_push($file_paths, $full_url);
+
+                                    // Insere este caminho no banco de dados para o histórico de imagens
+                                    $this->db->insert(db_prefix() . 'item_images', [
+                                        'item_id' => $product_id,
+                                        'url' => $full_url,
+                                        'name' => $relative_path
+                                    ]);
+                                }
+                            }
+                        }
+
+                        // Atualizando as colunas específicas com o número de imagens disponíveis
+                        $update_data = [];
+
+                        if (!empty($file_paths[0]))
+                            $update_data['image'] = $file_paths[0];
+                        if (!empty($file_paths[1]))
+                            $update_data['image2'] = $file_paths[1];
+                        if (!empty($file_paths[2]))
+                            $update_data['image3'] = $file_paths[2];
+                        if (!empty($file_paths[3]))
+                            $update_data['image4'] = $file_paths[3];
+                        if (!empty($file_paths[4]))
+                            $update_data['image5'] = $file_paths[4];
+
+                        if (!empty($update_data)) {
+                            $this->db->where('id', $product_id);
+                            $this->db->update(db_prefix() . 'items', $update_data);
+                        }
+                    }
+
+                } else {
+                    $failedCount++;
+                    $errors[] = [
+                        'warehouse_id' => $warehouse['warehouse_id'],
+                        'message' => 'Failed to create product for warehouse ID: ' . $warehouse['warehouse_id']
+                    ];
+                }
             }
         }
+
+        $message = [
+            'status' => TRUE,
+            'message' => 'Products creation summary',
+            'created_count' => $createdCount,
+            'failed_count' => $failedCount,
+            'errors' => $errors
+        ];
+
+        $this->response($message, REST_Controller::HTTP_OK);
     }
-
-    // Atualizando as colunas específicas com o número de imagens disponíveis
-    $update_data = [];
-
-    if (!empty($file_paths[0])) $update_data['image'] = $file_paths[0];
-    if (!empty($file_paths[1])) $update_data['image2'] = $file_paths[1];
-    if (!empty($file_paths[2])) $update_data['image3'] = $file_paths[2];
-    if (!empty($file_paths[3])) $update_data['image4'] = $file_paths[3];
-    if (!empty($file_paths[4])) $update_data['image5'] = $file_paths[4];
-
-    if (!empty($update_data)) {
-        $this->db->where('id', $product_id);
-        $this->db->update(db_prefix() . 'items', $update_data);
-    }
-}
-
-            } else {
-                $failedCount++;
-                $errors[] = [
-                    'warehouse_id' => $warehouse['warehouse_id'],
-                    'message' => 'Failed to create product for warehouse ID: ' . $warehouse['warehouse_id']
-                ];
-            }
-        }
-    }
-
-    $message = [
-        'status' => TRUE,
-        'message' => 'Products creation summary',
-        'created_count' => $createdCount,
-        'failed_count' => $failedCount,
-        'errors' => $errors
-    ];
-
-    $this->response($message, REST_Controller::HTTP_OK);
-}
 
 
     public function create1_post()
-{
+    {
 
 
-   // $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-
-  
-
-   
-
-   if(isset($_POST['data'])){
-
-    $_POST = (array)json_decode($_POST['data'], true);
-
-   }
-
- 
-
-
-    if (empty($_POST['warehouse_id'])) {
-        $this->response(
-            ['status' => FALSE, 'message' => 'Warehouse ID is required'],
-            REST_Controller::HTTP_BAD_REQUEST
-        );
-        return;
-    }
-
-    $warehouses = $this->getWarehouses($_POST['warehouse_id']);
-
-    if (!$warehouses) {
-        $this->response(
-            ['status' => FALSE, 'message' => 'No warehouses found'],
-            REST_Controller::HTTP_BAD_REQUEST
-        );
-        return;
-    }
-
-    $createdCount = 0;
-    $failedCount = 0;
-    $errors = [];
-
-    // Verificando se $_POST['products'] é um array. Se não for, converta para array.
-    $products = isset($_POST['products']) ? $_POST['products'] : [$_POST];
-
-
-   
-
-    foreach ($warehouses as $warehouse) {
-        foreach ($products as $productData) {
-
-
-                        unset($productData['images_base64']);
-                        unset($productData['packagings']);
-                        unset($productData['reservedStock']);
-                        unset($productData['primary_image_index']);
-                        unset($productData['itemType']);
-                        
-
-                      if(isset($productData['price_franquia'])){
-                         $productData['cost'] = $productData['price_franquia'];
-
-                      }
-                     
+        // $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
 
 
-            $dataToValidate = array_merge($productData, $warehouse);
-
-            /*
-
-            $this->form_validation->set_data($dataToValidate);
-            $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');
-            $this->form_validation->set_rules('rate', 'Rate', 'numeric');
-            $this->form_validation->set_rules('stock', 'Stock', 'numeric');
-            $this->form_validation->set_rules('minStock', 'Minimum Stock', 'numeric');
-            $this->form_validation->set_rules('warehouse_id', 'Warehouse', 'required|numeric');
-
-            if ($this->form_validation->run() == FALSE) {
-                $errors[] = [
-                    'warehouse_id' => $warehouse['warehouse_id'],
-                    'error' => $this->form_validation->error_array(),
-                    'message' => validation_errors()
-                ];
-                $failedCount++;
-                continue;
-            }
-                */
-
-            $productData['warehouse_id'] = $warehouse['warehouse_id'];
-            $product_id = $this->Invoice_items_model->add($productData);
-
-            if ($product_id) {
-                $createdCount++;
 
 
-                     // Configure o diretório de upload e outros parâmetros
-        $upload_dir = './uploads/items/' . $product_id . '/';
-$max_size = 4 * 1024 * 1024; // 4 MB em bytes
 
+        if (isset($_POST['data'])) {
 
-if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
+            $_POST = (array) json_decode($_POST['data'], true);
+
         }
 
 
-$file_temp = $_FILES['image']['tmp_name'];
-$file_name = $_FILES['image']['name'];
-$file_size = $_FILES['image']['size'];
-$file_error = $_FILES['image']['error'];
-
-// Verifique se houve um erro no upload
-if ($file_error === UPLOAD_ERR_OK) {
-    // Verifica se o tamanho do arquivo é maior que 4 MB
-    /*
-    if ($file_size > $max_size) {
-        echo json_encode(['status' => FALSE, 'error' => 'File exceeds the maximum allowed size of 4 MB.']);
-        return;
-    }
-        */
-
-    $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-    $unique_filename = uniqid() . '.' . $file_extension;
-    $upload_path = $upload_dir . $unique_filename;
-
-    // Mover o arquivo carregado para o diretório final
-    if (move_uploaded_file($file_temp, $upload_path)) {
-        $server_url = base_url();
-        $relative_path = str_replace('./', '', $upload_path);
-        $full_url = rtrim($server_url, '/') . '/' . $relative_path;
-
-        // Atualiza o banco de dados com o novo caminho da imagem
-        $this->db->where('id', $product_id);
-        $this->db->update(db_prefix() . 'items', ['image' => $full_url]);
-
-    }
-} 
-/*
-else {
-    echo json_encode(['status' => FALSE, 'error' => 'Upload error. Code: ' . $file_error]);
-    return;
-}
-    */
-
-              
-                
 
 
-            } else {
-                $errors[] = [
-                    'warehouse_id' => $warehouse['warehouse_id'],
-                    'message' => 'Failed to create product for warehouse ID: ' . $warehouse['warehouse_id']
-                ];
-                $failedCount++;
+        if (empty($_POST['warehouse_id'])) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
+        $warehouses = $this->getWarehouses($_POST['warehouse_id']);
+
+        if (!$warehouses) {
+            $this->response(
+                ['status' => FALSE, 'message' => 'No warehouses found'],
+                REST_Controller::HTTP_BAD_REQUEST
+            );
+            return;
+        }
+
+        $createdCount = 0;
+        $failedCount = 0;
+        $errors = [];
+
+        // Verificando se $_POST['products'] é um array. Se não for, converta para array.
+        $products = isset($_POST['products']) ? $_POST['products'] : [$_POST];
+
+
+
+
+        foreach ($warehouses as $warehouse) {
+            foreach ($products as $productData) {
+
+
+                unset($productData['images_base64']);
+                unset($productData['packagings']);
+                unset($productData['reservedStock']);
+                unset($productData['primary_image_index']);
+                unset($productData['itemType']);
+
+
+                if (isset($productData['price_franquia'])) {
+                    $productData['cost'] = $productData['price_franquia'];
+
+                }
+
+
+
+
+                $dataToValidate = array_merge($productData, $warehouse);
+
+                /*
+
+                $this->form_validation->set_data($dataToValidate);
+                $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');
+                $this->form_validation->set_rules('rate', 'Rate', 'numeric');
+                $this->form_validation->set_rules('stock', 'Stock', 'numeric');
+                $this->form_validation->set_rules('minStock', 'Minimum Stock', 'numeric');
+                $this->form_validation->set_rules('warehouse_id', 'Warehouse', 'required|numeric');
+
+                if ($this->form_validation->run() == FALSE) {
+                    $errors[] = [
+                        'warehouse_id' => $warehouse['warehouse_id'],
+                        'error' => $this->form_validation->error_array(),
+                        'message' => validation_errors()
+                    ];
+                    $failedCount++;
+                    continue;
+                }
+                    */
+
+                $productData['warehouse_id'] = $warehouse['warehouse_id'];
+                $product_id = $this->Invoice_items_model->add($productData);
+
+                if ($product_id) {
+                    $createdCount++;
+
+
+                    // Configure o diretório de upload e outros parâmetros
+                    $upload_dir = './uploads/items/' . $product_id . '/';
+                    $max_size = 10 * 1024 * 1024; // 10 MB em bytes
+
+
+                    if (!file_exists($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
+
+
+                    $file_temp = $_FILES['image']['tmp_name'];
+                    $file_name = $_FILES['image']['name'];
+                    $file_size = $_FILES['image']['size'];
+                    $file_error = $_FILES['image']['error'];
+
+                    // Verifique se houve um erro no upload
+                    if ($file_error === UPLOAD_ERR_OK) {
+                        // Verifica se o tamanho do arquivo é maior que 4 MB
+                        /*
+                        if ($file_size > $max_size) {
+                            echo json_encode(['status' => FALSE, 'error' => 'File exceeds the maximum allowed size of 4 MB.']);
+                            return;
+                        }
+                            */
+
+                        $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
+                        $unique_filename = uniqid() . '.' . $file_extension;
+                        $upload_path = $upload_dir . $unique_filename;
+
+                        // Mover o arquivo carregado para o diretório final
+                        if (move_uploaded_file($file_temp, $upload_path)) {
+                            $server_url = base_url();
+                            $relative_path = str_replace('./', '', $upload_path);
+                            $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+
+                            // Atualiza o banco de dados com o novo caminho da imagem
+                            $this->db->where('id', $product_id);
+                            $this->db->update(db_prefix() . 'items', ['image' => $full_url]);
+
+                        }
+                    }
+                    /*
+                    else {
+                        echo json_encode(['status' => FALSE, 'error' => 'Upload error. Code: ' . $file_error]);
+                        return;
+                    }
+                        */
+
+
+
+
+
+                } else {
+                    $errors[] = [
+                        'warehouse_id' => $warehouse['warehouse_id'],
+                        'message' => 'Failed to create product for warehouse ID: ' . $warehouse['warehouse_id']
+                    ];
+                    $failedCount++;
+                }
             }
         }
+
+        $message = [
+            'status' => TRUE,
+            'message' => 'Products creation summary',
+            'created_count' => $createdCount,
+            'failed_count' => $failedCount,
+            'errors' => $errors
+        ];
+
+        $this->response($message, REST_Controller::HTTP_OK);
     }
-
-    $message = [
-        'status' => TRUE,
-        'message' => 'Products creation summary',
-        'created_count' => $createdCount,
-        'failed_count' => $failedCount,
-        'errors' => $errors
-    ];
-
-    $this->response($message, REST_Controller::HTTP_OK);
-}
     public function include_products_nf_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -798,6 +807,16 @@ else {
                 $product->subcategory_name = null;
             }
 
+            // Adicionar tag_id como array
+            if (isset($product->tag_id)) {
+                $product->tag_id = is_string($product->tag_id) && $product->tag_id !== '' ? json_decode($product->tag_id, true) : [];
+                if (!is_array($product->tag_id)) {
+                    $product->tag_id = [];
+                }
+            } else {
+                $product->tag_id = [];
+            }
+
             $this->response([
                 'status' => TRUE,
                 'data' => $product
@@ -892,14 +911,14 @@ else {
         }
     }
 
-     public function data_put($id = '')
+    public function data_put($id = '')
     {
 
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        
-      
+
+
         if (empty($_POST) || !isset($_POST)) {
             $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
@@ -923,10 +942,10 @@ else {
 
             $update_data = $this->input->post();
             $this->load->model('Invoice_items_model');
-               unset($update_data['warehouse_id']);
-                        unset($update_data['images_base64']);
-                        unset($update_data['packaging']);
-                          $update_data['cost'] = $update_data['price_franquia'];
+            unset($update_data['warehouse_id']);
+            unset($update_data['images_base64']);
+            unset($update_data['packaging']);
+            $update_data['cost'] = $update_data['price_franquia'];
 
             if (count($warehouses) > 1) {
 
@@ -938,10 +957,14 @@ else {
                     foreach ($warehouses as $warehouse) {
 
 
-                     
+
 
                         if ($warehouse['type'] != 'distribuidor') {
                             unset($update_data['sku_code']);
+                        }
+
+                        if (isset($update_data['tag_id']) && is_array($update_data['tag_id'])) {
+                            $update_data['tag_id'] = json_encode($update_data['tag_id']);
                         }
 
                         $output = $this->Invoice_items_model->edit_by_sku($update_data, $sku, $warehouse['warehouse_id']);
@@ -973,105 +996,105 @@ else {
         }
     }
 
-   public function data_post($id)
-{
-    if (isset($_POST['data'])) {
-        $_POST = json_decode($_POST['data'], true);
-    }
+    public function data_post($id)
+    {
+        if (isset($_POST['data'])) {
+            $_POST = json_decode($_POST['data'], true);
+        }
 
-    if (empty($_POST) || !isset($id) || !is_numeric($id)) {
-        $this->response(['status' => FALSE, 'message' => 'Data Not Acceptable or Invalid Product ID'], REST_Controller::HTTP_BAD_REQUEST);
-        return;
-    }
+        if (empty($_POST) || !isset($id) || !is_numeric($id)) {
+            $this->response(['status' => FALSE, 'message' => 'Data Not Acceptable or Invalid Product ID'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
 
-    // Verifica se o produto existe
-    $product = $this->Invoice_items_model->get($id);
-    if (!$product) {
-        $this->response(['status' => FALSE, 'message' => 'Product not found'], REST_Controller::HTTP_NOT_FOUND);
-        return;
-    }
+        // Verifica se o produto existe
+        $product = $this->Invoice_items_model->get($id);
+        if (!$product) {
+            $this->response(['status' => FALSE, 'message' => 'Product not found'], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
 
-    // Prepare os dados para atualização
-    $update_data = $_POST;
+        // Prepare os dados para atualização
+        $update_data = $_POST;
 
-    unset($update_data['image'], $update_data['image1'], $update_data['image2'], $update_data['image3'], $update_data['image4'], $update_data['images_base64'], $update_data['packaging'], $update_data['packagings'], $update_data['reservedStock'], $update_data['primary_image_index'], $update_data['itemType'], $update_data['total_images']);
+        unset($update_data['image'], $update_data['image1'], $update_data['image2'], $update_data['image3'], $update_data['image4'], $update_data['images_base64'], $update_data['packaging'], $update_data['packagings'], $update_data['reservedStock'], $update_data['primary_image_index'], $update_data['itemType'], $update_data['total_images']);
 
-    if (isset($update_data['price_franquia'])) {
-        $update_data['cost'] = $update_data['price_franquia'];
-    }
+        if (isset($update_data['price_franquia'])) {
+            $update_data['cost'] = $update_data['price_franquia'];
+        }
 
-    // Atualiza os dados do produto
-    $update_result = $this->Invoice_items_model->edit($update_data, $id);
+        // Atualiza os dados do produto
+        $update_result = $this->Invoice_items_model->edit($update_data, $id);
 
-    // Processa as imagens
-    $upload_dir = './uploads/items/' . $id . '/';
-    if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
-    }
+        // Processa as imagens
+        $upload_dir = './uploads/items/' . $id . '/';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
 
-    // Remove todas as imagens antigas do banco
-    $this->db->where('item_id', $id);
-    $this->db->delete(db_prefix() . 'item_images');
+        // Remove todas as imagens antigas do banco
+        $this->db->where('item_id', $id);
+        $this->db->delete(db_prefix() . 'item_images');
 
-    // Inicializa todos os campos de imagem como null
-    $file_paths = ['image' => null, 'image2' => null, 'image3' => null, 'image4' => null, 'image5' => null];
+        // Inicializa todos os campos de imagem como null
+        $file_paths = ['image' => null, 'image2' => null, 'image3' => null, 'image4' => null, 'image5' => null];
 
-    if (isset($_FILES['images'])) {
-        // Se existem imagens carregadas, processa cada uma
-        $files = $_FILES['images']['tmp_name'];
-        $names = $_FILES['images']['name'];
-        $errors = $_FILES['images']['error'];
+        if (isset($_FILES['images'])) {
+            // Se existem imagens carregadas, processa cada uma
+            $files = $_FILES['images']['tmp_name'];
+            $names = $_FILES['images']['name'];
+            $errors = $_FILES['images']['error'];
 
-        $image_count = 0;
-        
-        foreach ($files as $key => $file_temp) {
-            if ($errors[$key] === UPLOAD_ERR_OK && $image_count < 5) {
-                $file_name = $names[$key];
-                $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-                $unique_filename = uniqid() . '.' . $file_extension;
-                $upload_path = $upload_dir . $unique_filename;
+            $image_count = 0;
 
-                if (move_uploaded_file($file_temp, $upload_path)) {
-                    $server_url = base_url();
-                    $relative_path = str_replace('./', '', $upload_path);
-                    $full_url = rtrim($server_url, '/') . '/' . $relative_path;
-                    
-                    // Atualiza o campo correspondente baseado na posição
-                    $field_name = array_keys($file_paths)[$key];
-                    $file_paths[$field_name] = $full_url;
+            foreach ($files as $key => $file_temp) {
+                if ($errors[$key] === UPLOAD_ERR_OK && $image_count < 5) {
+                    $file_name = $names[$key];
+                    $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
+                    $unique_filename = uniqid() . '.' . $file_extension;
+                    $upload_path = $upload_dir . $unique_filename;
 
-                    // Inserir a imagem no banco de dados
-                    $this->db->insert(db_prefix() . 'item_images', [
-                        'item_id' => $id,
-                        'url' => $full_url,
-                        'name' => $relative_path
-                    ]);
-                    
-                    $image_count++;
-                    log_message('debug', 'Processed image ' . $image_count . ' - Field: ' . $field_name);
+                    if (move_uploaded_file($file_temp, $upload_path)) {
+                        $server_url = base_url();
+                        $relative_path = str_replace('./', '', $upload_path);
+                        $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+
+                        // Atualiza o campo correspondente baseado na posição
+                        $field_name = array_keys($file_paths)[$key];
+                        $file_paths[$field_name] = $full_url;
+
+                        // Inserir a imagem no banco de dados
+                        $this->db->insert(db_prefix() . 'item_images', [
+                            'item_id' => $id,
+                            'url' => $full_url,
+                            'name' => $relative_path
+                        ]);
+
+                        $image_count++;
+                        log_message('debug', 'Processed image ' . $image_count . ' - Field: ' . $field_name);
+                    }
                 }
             }
         }
+
+        // Atualiza as colunas específicas de imagens
+        $update_cols = [
+            'image' => $file_paths['image'],
+            'image2' => $file_paths['image2'],
+            'image3' => $file_paths['image3'],
+            'image4' => $file_paths['image4'],
+            'image5' => $file_paths['image5']
+        ];
+
+        log_message('debug', 'Updating image fields: ' . json_encode($update_cols));
+
+        // Atualiza cada campo
+        $this->db->where('id', $id);
+        $this->db->update(db_prefix() . 'items', $update_cols);
+
+        // Após atualizar as imagens, podemos retornar uma mensagem de sucesso
+        $this->response(['status' => TRUE, 'message' => 'Produto atualizado com sucesso.', 'data' => $this->Invoice_items_model->get($id)], REST_Controller::HTTP_OK);
     }
-
-    // Atualiza as colunas específicas de imagens
-    $update_cols = [
-        'image'  => $file_paths['image'],
-        'image2' => $file_paths['image2'],
-        'image3' => $file_paths['image3'],
-        'image4' => $file_paths['image4'],
-        'image5' => $file_paths['image5']
-    ];
-
-    log_message('debug', 'Updating image fields: ' . json_encode($update_cols));
-
-    // Atualiza cada campo
-    $this->db->where('id', $id);
-    $this->db->update(db_prefix() . 'items', $update_cols);
-
-    // Após atualizar as imagens, podemos retornar uma mensagem de sucesso
-    $this->response(['status' => TRUE, 'message' => 'Produto atualizado com sucesso.', 'data' => $this->Invoice_items_model->get($id)], REST_Controller::HTTP_OK);
-}
 
 
     public function groups_post()
@@ -2013,9 +2036,9 @@ else {
         $category = $this->get('category') ?: '';
         $sortField = $this->get('sortField') ?: 'code';
         $sortOrder = $this->get('sortOrder') === 'desc' ? 'DESC' : 'ASC';
-        
+
         $result = $this->Invoice_items_model->get_ncm($search, $page, $limit, $category, $sortField, $sortOrder);
-        
+
         $this->response(
             array_merge(['status' => TRUE], $result),
             REST_Controller::HTTP_OK
@@ -2029,9 +2052,9 @@ else {
         error_reporting(E_ALL);
 
         $raw_data = file_get_contents("php://input");
-        
+
         $input = json_decode($raw_data, true);
-        
+
         if (empty($input) || !isset($input['products']) || !is_array($input['products'])) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Invalid request format. Expected products array.'],
@@ -2056,7 +2079,7 @@ else {
         }
 
         $result = $this->Invoice_items_model->bulk_create_products($products, $warehouse_id);
-        
+
         if ($result['status']) {
             $this->response($result, REST_Controller::HTTP_OK);
         } else {
@@ -2066,57 +2089,40 @@ else {
 
     public function default_image_post($product_id = '')
     {
-                $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-                $item = $this->Invoice_items_model->get($product_id);
-                $image = $item->image;
-                $image2 = $item->image2;
-                $image3 = $item->image3;
-                $image4 = $item->image4;
-                 $image5 = $item->image5;
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        $item = $this->Invoice_items_model->get($product_id);
+        $image = $item->image;
+        $image2 = $item->image2;
+        $image3 = $item->image3;
+        $image4 = $item->image4;
+        $image5 = $item->image5;
 
-if($_POST['image_index'] == 0){
+        if ($_POST['image_index'] == 0) {
+            $update_data = array('image' => $image);
+        } elseif ($_POST['image_index'] == 1) {
+            $update_data = array('image' => $image2, 'image2' => $image);
+        } elseif ($_POST['image_index'] == 2) {
+            $update_data = array('image' => $image3, 'image3' => $image);
+        } elseif ($_POST['image_index'] == 3) {
+            $update_data = array('image' => $image4, 'image4' => $image);
+        } elseif ($_POST['image_index'] == 4) {
+            $update_data = array('image' => $image5, 'image5' => $image);
+        }
 
-$update_data = array('image'=>$image);
-    
-}elseif($_POST['image_index'] == 1){
-    $update_data = array('image'=>$image2, 'image2'=>$image);
-
-
-}elseif($_POST['image_index'] == 2){
-    $update_data = array('image'=>$image3,'image3'=>$image);
-    
-}
-elseif($_POST['image_index'] == 3){
-    $update_data = array('image'=>$image4, 'image4'=>$image);
-
-    
-}
-
-elseif($_POST['image_index'] == 4){
-    $update_data = array('image'=>$image5, 'image5'=>$image);
-
-    
-}
-
-
-
-
-    
-        
         $this->db->where('id', $product_id);
-       $result =  $this->db->update(db_prefix() . 'items', $update_data);
-        
-        $this->response(array('status'=>true, 'message'=>'Atualizado com sucesso'), REST_Controller::HTTP_OK);
+        $result = $this->db->update(db_prefix() . 'items', $update_data);
+
+        $this->response(array('status' => true, 'message' => 'Atualizado com sucesso'), REST_Controller::HTTP_OK);
     }
 
-    
+
     public function edit_product_erp_put($product_id = '')
     {
         $raw_data = file_get_contents("php://input");
         $input = json_decode($raw_data, true);
-        
+
         $result = $this->Invoice_items_model->bulk_create_products([$input], null, $product_id);
-        
+
         $this->response($result, $result['status'] ? REST_Controller::HTTP_OK : REST_Controller::HTTP_BAD_REQUEST);
     }
 
@@ -2142,7 +2148,7 @@ elseif($_POST['image_index'] == 4){
 
         $warehouse_id = $_POST['warehouse_id'];
         $input_names = $_POST['names'];
-        $similarity_threshold = isset($_POST['similarity_threshold']) ? (float)$_POST['similarity_threshold'] : 80.0;
+        $similarity_threshold = isset($_POST['similarity_threshold']) ? (float) $_POST['similarity_threshold'] : 80.0;
 
         $this->db->select('id, name');
         $this->db->from(db_prefix() . 'items_groups');
@@ -2163,7 +2169,7 @@ elseif($_POST['image_index'] == 4){
 
             foreach ($existing_categories as $existing) {
                 $existing_name = $existing['name'];
-                
+
                 if (strcasecmp($input_name, $existing_name) === 0) {
                     $exact_match = [
                         'id' => $existing['id'],
@@ -2176,7 +2182,7 @@ elseif($_POST['image_index'] == 4){
 
                 $similarity_percent = 0;
                 similar_text(strtolower($input_name), strtolower($existing_name), $similarity_percent);
-                
+
                 $levenshtein_distance = levenshtein(strtolower($input_name), strtolower($existing_name));
                 $max_length = max(strlen($input_name), strlen($existing_name));
                 $levenshtein_similarity = $max_length > 0 ? (($max_length - $levenshtein_distance) / $max_length) * 100 : 0;
@@ -2210,7 +2216,7 @@ elseif($_POST['image_index'] == 4){
                 }
             }
 
-            usort($best_matches, function($a, $b) {
+            usort($best_matches, function ($a, $b) {
                 return $b['similarity_score'] <=> $a['similarity_score'];
             });
 
@@ -2232,9 +2238,15 @@ elseif($_POST['image_index'] == 4){
             'data' => $results,
             'summary' => [
                 'total_checked' => count($input_names),
-                'exact_matches' => count(array_filter($results, function($r) { return $r['exact_match'] !== null; })),
-                'similar_matches' => count(array_filter($results, function($r) { return !empty($r['similar_matches']); })),
-                'no_matches' => count(array_filter($results, function($r) { return !$r['has_matches']; }))
+                'exact_matches' => count(array_filter($results, function ($r) {
+                    return $r['exact_match'] !== null;
+                })),
+                'similar_matches' => count(array_filter($results, function ($r) {
+                    return !empty($r['similar_matches']);
+                })),
+                'no_matches' => count(array_filter($results, function ($r) {
+                    return !$r['has_matches'];
+                }))
             ]
         ], REST_Controller::HTTP_OK);
     }
@@ -2276,7 +2288,7 @@ elseif($_POST['image_index'] == 4){
         ];
     }
 
-    public function product_check_post()
+    public function check_fields_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -2329,7 +2341,7 @@ elseif($_POST['image_index'] == 4){
 
             if (!$product) {
                 $results[] = [
-                    'product_id' => (int)$product_id,
+                    'product_id' => (int) $product_id,
                     'status' => 'not_found',
                     'message' => 'Product not found in warehouse',
                     'checks' => null
@@ -2361,17 +2373,17 @@ elseif($_POST['image_index'] == 4){
                 ]
             ];
 
-            $all_checks_passed = $checks['image']['status'] && 
-                                $checks['stock']['status'] && 
-                                $checks['rate']['status'] && 
-                                $checks['cfop']['status'];
+            $all_checks_passed = $checks['image']['status'] &&
+                $checks['stock']['status'] &&
+                $checks['rate']['status'] &&
+                $checks['cfop']['status'];
 
-            $missing_fields = array_keys(array_filter($checks, function($check) {
+            $missing_fields = array_keys(array_filter($checks, function ($check) {
                 return !$check['status'];
             }));
 
             $product_result = [
-                'product_id' => (int)$product_id,
+                'product_id' => (int) $product_id,
                 'product_name' => $product->description,
                 'status' => $all_checks_passed ? 'complete' : 'incomplete',
                 'message' => $all_checks_passed ? 'All required fields present' : 'Missing required fields: ' . implode(', ', $missing_fields),
@@ -2389,7 +2401,7 @@ elseif($_POST['image_index'] == 4){
             }
         }
 
-        $summary['completion_rate'] = $summary['total_checked'] > 0 ? 
+        $summary['completion_rate'] = $summary['total_checked'] > 0 ?
             round(($summary['complete_products'] / $summary['total_checked']) * 100, 2) : 0;
 
         $this->response([
@@ -2397,6 +2409,158 @@ elseif($_POST['image_index'] == 4){
             'message' => 'Product check completed',
             'data' => $results,
             'summary' => $summary
+        ], REST_Controller::HTTP_OK);
+    }
+
+    public function tags_post()
+    {
+        $page = $this->post('page') ? (int) $this->post('page') : 1;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 30;
+        $search = $this->post('search') ?: '';
+        $sortOrder = $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC';
+
+        $this->db->select('t.*');
+        $this->db->from(db_prefix() . 'items_tags t');
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('t.name', $search);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results('', false);
+
+        $this->db->order_by('t.name', $sortOrder);
+        $this->db->limit($limit, ($page - 1) * $limit);
+
+        $tags = $this->db->get()->result_array();
+
+        $this->response([
+            'status' => TRUE,
+            'total' => $total,
+            'data' => $tags
+        ], REST_Controller::HTTP_OK);
+    }
+
+    public function update_ecommerce_status_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['product_ids']) || !is_array($_POST['product_ids']) || empty($_POST['product_ids'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Product IDs array is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['show_ecommerce']) || !in_array($_POST['show_ecommerce'], [0, 1, '0', '1'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'show_ecommerce must be 0 or 1'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $warehouse_id = $_POST['warehouse_id'];
+        $product_ids = $_POST['product_ids'];
+        $show_ecommerce = (string) $_POST['show_ecommerce']; // Convert to string for ENUM field
+
+        $this->db->trans_begin();
+
+        try {
+            $this->db->where_in('id', $product_ids);
+            $this->db->where('warehouse_id', $warehouse_id);
+            $this->db->update(db_prefix() . 'items', ['show_ecommerce' => $show_ecommerce]);
+
+            $affected_rows = $this->db->affected_rows();
+
+            if ($this->db->trans_status() === FALSE) {
+                $this->db->trans_rollback();
+                $this->response([
+                    'status' => FALSE,
+                    'message' => 'Failed to update products'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                return;
+            }
+
+            $this->db->trans_commit();
+
+            $status_text = $show_ecommerce ? 'mostrar no ecommerce' : 'ocultar do ecommerce';
+
+            $this->response([
+                'status' => TRUE,
+                'message' => "{$affected_rows} produto(s) atualizado(s) para {$status_text}",
+                'updated_count' => $affected_rows,
+                'show_ecommerce' => $show_ecommerce
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Error updating products: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function check_ecommerce_status_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        if (empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (!isset($_POST['product_ids']) || !is_array($_POST['product_ids']) || empty($_POST['product_ids'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Product IDs array is required'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $warehouse_id = $_POST['warehouse_id'];
+        $product_ids = $_POST['product_ids'];
+
+        $this->db->select('id, description, show_ecommerce');
+        $this->db->where_in('id', $product_ids);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $products = $this->db->get(db_prefix() . 'items')->result_array();
+
+        $ecommerce_products = [];
+        $non_ecommerce_products = [];
+
+        foreach ($products as $product) {
+            if ($product['show_ecommerce'] == '1') {
+                $ecommerce_products[] = $product;
+            } else {
+                $non_ecommerce_products[] = $product;
+            }
+        }
+
+        $this->response([
+            'status' => TRUE,
+            'data' => [
+                'ecommerce_products' => $ecommerce_products,
+                'non_ecommerce_products' => $non_ecommerce_products,
+                'total_ecommerce' => count($ecommerce_products),
+                'total_non_ecommerce' => count($non_ecommerce_products),
+                'can_show_ecommerce' => count($ecommerce_products) === 0,
+                'can_hide_ecommerce' => count($non_ecommerce_products) === 0
+            ]
         ], REST_Controller::HTTP_OK);
     }
 }

@@ -501,7 +501,6 @@ class Expenses extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
-
     private function calculate_recurring_dates($start_date, $recurring_type, $repeat_every, $range_start, $range_end, $total_cycles, $cycles_completed)
     {
         $dates = [];

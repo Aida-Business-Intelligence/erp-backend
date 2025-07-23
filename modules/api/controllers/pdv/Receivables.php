@@ -346,8 +346,13 @@ class Receivables extends REST_Controller
             $search = $this->input->get('search') ?: '';
             $page = $this->input->get('page') ?: 0;
             $limit = $this->input->get('pageSize') ?: 5;
+            $type = $this->input->get('type') ?: 'clients'; // 'clients' ou 'franchisees'
 
-            $clients = $this->Receivables_model->get_clients($warehouse_id, $search, $limit, $page);
+            if ($type === 'franchisees') {
+                $clients = $this->Receivables_model->get_franchisees($warehouse_id, $search, $limit, $page);
+            } else {
+                $clients = $this->Receivables_model->get_clients($warehouse_id, $search, $limit, $page);
+            }
 
             $this->response([
                 'success' => true,
@@ -502,6 +507,7 @@ class Receivables extends REST_Controller
             'warehouse_id' => $input['warehouse_id'],
             'receivables_document' => $receivables_document,
             'registration_date' => $input['registration_date'] ?? null,
+            'is_staff' => isset($input['is_staff']) ? ($input['is_staff'] ? 1 : 0) : 0,
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
         $this->db->insert(db_prefix() . 'receivables', $data);
@@ -683,6 +689,7 @@ class Receivables extends REST_Controller
             'nfe_number' => $input['nfe_number'] ?? null,
             'bank_account_id' => $input['bank_account_id'] ?? null,
             'registration_date' => $input['registration_date'] ?? null,
+            'is_staff' => isset($input['is_staff']) ? ($input['is_staff'] ? 1 : 0) : 0,
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
         $this->db->where('id', $id);

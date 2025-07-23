@@ -112,6 +112,7 @@ class Receivables_model extends App_Model
             $result->custom_recurring = (bool) $result->custom_recurring;
             $result->create_invoice_billable = (bool) $result->create_invoice_billable;
             $result->send_invoice_to_customer = (bool) $result->send_invoice_to_customer;
+            $result->is_staff = (bool) $result->is_staff;
         }
         
         return $result;
@@ -329,6 +330,27 @@ class Receivables_model extends App_Model
         $this->db->limit($limit, $offset);
 
         return $this->db->get(db_prefix() . 'clients')->result_array();
+    }
+
+    public function get_franchisees($warehouse_id = 0, $search = '', $limit = 5, $page = 0)
+    {
+        $this->db->select('staffid as id, CONCAT(firstname, " ", lastname) as name, vat');
+        $this->db->where('active', 1);
+        $this->db->where('type', 'franchisees');
+        $this->db->where('warehouse_id', $warehouse_id);
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('firstname', $search);
+            $this->db->or_like('lastname', $search);
+            $this->db->or_like('vat', $search);
+            $this->db->group_end();
+        }
+
+        $offset = 0; // sempre retorna os primeiros 5
+        $this->db->limit($limit, $offset);
+
+        return $this->db->get(db_prefix() . 'staff')->result_array();
     }
 
     // Exemplo de método para validação de duplicatas (ajuste conforme sua lógica)

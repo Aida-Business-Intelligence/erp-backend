@@ -75,8 +75,9 @@ class Expenses extends REST_Controller
             $search = $this->input->get('search') ?: '';
             $page = $this->input->get('page') ?: 0;
             $limit = $this->input->get('pageSize') ?: 5;
+            $type = $this->input->get('type') ?: 'suppliers'; // 'suppliers', 'clients'
 
-            $clients = $this->Expenses_model->get_clients($warehouse_id, $search, $limit, $page);
+            $clients = $this->Expenses_model->get_clients($warehouse_id, $search, $limit, $page, $type);
 
             $this->response([
                 'success' => true,

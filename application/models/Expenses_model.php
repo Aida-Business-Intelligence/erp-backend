@@ -57,11 +57,18 @@ class Expenses_model extends App_Model
         return $this->db->get(db_prefix() . 'payment_modes')->result_array();
     }
 
-    public function get_clients($warehouse_id = 0, $search = '', $limit = 5, $page = 0)
+    public function get_clients($warehouse_id = 0, $search = '', $limit = 5, $page = 0, $type = 'suppliers')
     {
         $this->db->select('userid as id, company as name, vat, is_supplier');
         $this->db->where('active', 1);
         $this->db->where('warehouse_id', $warehouse_id);
+
+        // Filtrar por tipo (fornecedores ou clientes)
+        if ($type === 'suppliers') {
+            $this->db->where('is_supplier', 1);
+        } elseif ($type === 'clients') {
+            $this->db->where('is_supplier', 0);
+        }
 
         if (!empty($search)) {
             $this->db->group_start();

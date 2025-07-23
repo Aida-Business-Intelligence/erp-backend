@@ -8,7 +8,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 require __DIR__ . '/../REST_Controller.php';
 
-class Expenses_Categories extends REST_Controller
+class Expenses_categories extends REST_Controller
 {
     public function __construct()
     {

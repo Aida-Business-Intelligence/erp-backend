@@ -508,6 +508,11 @@ class Receivables extends REST_Controller
             'receivables_document' => $receivables_document,
             'registration_date' => $input['registration_date'] ?? null,
             'is_staff' => isset($input['is_staff']) ? ($input['is_staff'] ? 1 : 0) : 0,
+            // Campos de parcelamento de cartão de crédito, cheque e boleto
+            'num_parcelas' => $input['num_parcelas'] ?? 1,
+            'juros' => $input['juros'] ?? 0,
+            'juros_apartir' => $input['juros_apartir'] ?? 1,
+            'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
         $this->db->insert(db_prefix() . 'receivables', $data);
@@ -690,6 +695,11 @@ class Receivables extends REST_Controller
             'bank_account_id' => $input['bank_account_id'] ?? null,
             'registration_date' => $input['registration_date'] ?? null,
             'is_staff' => isset($input['is_staff']) ? ($input['is_staff'] ? 1 : 0) : 0,
+            // Campos de parcelamento de cartão de crédito, cheque e boleto
+            'num_parcelas' => $input['num_parcelas'] ?? 1,
+            'juros' => $input['juros'] ?? 0,
+            'juros_apartir' => $input['juros_apartir'] ?? 1,
+            'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
         $this->db->where('id', $id);

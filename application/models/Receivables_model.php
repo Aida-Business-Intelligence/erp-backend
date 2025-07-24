@@ -310,6 +310,7 @@ class Receivables_model extends App_Model
     
     public function get_payment_modes()
     {
+        $this->db->select('id, name, is_credit_card, is_check, is_boleto');
         return $this->db->get(db_prefix() . 'payment_modes')->result_array();
     }
 

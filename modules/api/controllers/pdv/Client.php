@@ -86,8 +86,9 @@ class Client extends REST_Controller
     $sortField = $this->post('sortField') ?: 'userid'; // Alterado para this->post
     $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC'; // Alterado para this->post
     $warehouse_id = $this->post('warehouse_id') ?: 0;
-
-    $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
+    $type= $this->post('type') ?: null;
+   
+    $data = $this->Clients_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, array(), '', '', $warehouse_id, 0, $type);
 
     if ($data['total'] == 0) {
 
@@ -195,38 +196,42 @@ class Client extends REST_Controller
     $_input['warehouse_id'] = $_POST['warehouse_id'] ?? null;
 
     // Outros campos do cliente
-    $_input['vat'] = $_POST['vat'] ?? null;
+    $_input['vat'] = $_POST['vat'] ?? $_POST['documentNumber'];
     $_input['is_supplier'] = 0;
-    $_input['email_default'] = $_POST['email_default'] ?? null;
-    $_input['phonenumber'] = $_POST['phonenumber'] ?? null;
+    $_input['phonenumber'] = $_POST['phonenumber'] ?? $_POST['primaryPhone'];
+    $_input['secondaryPhone'] = $_POST['secondaryPhone'] ?? null;
     $_input['documentType'] = $_POST['documentType'] ?? null;
-    $_input['zip'] = $_POST['zip'] ?? null;
-        $_input['billing_zip'] = $_POST['zip'] ?? null;
-
-      $_input['cep'] = $_POST['zip'] ?? null;
-    $_input['birthDate'] = $_POST['birthDate'] ?? null;
-    $_input['billing_street'] = $_POST['billing_street'] ?? null;
-    $_input['address'] = $_POST['billing_street'] ?? null;
+    $_input['person_type'] = $_POST['documentType'] == "CPF" ? "F" :"J";
+    $_input['email_default'] = $_POST['email_default'] ?? $_POST['email'];
     $_input['gender'] = $_POST['gender'] ?? null;
-    $_input['billing_city'] = $_POST['billing_city'] ?? null;
-     $_input['city'] = $_POST['billing_city'] ?? null;
-    $_input['billing_state'] = $_POST['billing_state'] ?? null;
-        $_input['state'] = $_POST['billing_state'] ?? null;
-
-    $_input['billing_number'] = $_POST['billing_number'] ?? null;
-    $_input['billing_complement'] = $_POST['billing_complement'] ?? null;
-    $_input['billing_neighborhood'] = $_POST['billing_neighborhood'] ?? null;
-    $_input['warehouse_id'] = $_POST['company'];
-    $_input['company'] = $_POST['company'] ?? null;
-    $_POST['company'] = $_POST['company'] ?? null;
-    $_POST['email_default'] = $_POST['email_default'] ?? null;
-
+    $_input['birthDate'] = $_POST['birthDate'] ?? null;
+    $_input['zip'] = $_POST['zip'] ?? $_POST['cep'];
+    $_input['billing_zip'] = $_POST['zip'] ?? $_POST['cep'];
+    $_input['shipping_zip'] = $_POST['zip'] ?? $_POST['cep'];
+    $_input['cep'] = $_POST['zip'] ?? $_POST['cep'];
+    $_input['address'] = $_POST['billing_street'] ??  $_POST['street'] ;
+    $_input['billing_street'] = $_POST['billing_street'] ?? $_POST['street'];
+    $_input['shipping_street'] = $_POST['billing_street'] ?? $_POST['street'];
+    $_input['billing_number'] = $_POST['billing_number'] ??  $_POST['number'] ;
+    $_input['billing_complement'] = $_POST['billing_complement'] ?? $_POST['complement'];
+    $_input['billing_neighborhood'] = $_POST['billing_neighborhood'] ?? $_POST['neighborhood'];
+    $_input['billing_city'] = $_POST['billing_city'] ?? $_POST['city'];
+    $_input['shipping_city'] = $_POST['billing_city'] ?? $_POST['city'];
+    $_input['city'] = $_POST['billing_city'] ?? $_POST['city'];
+    $_input['billing_state'] = $_POST['billing_state'] ?? $_POST['state'];
+    $_input['shipping_state'] = $_POST['billing_state'] ?? $_POST['state'];
+    $_input['state'] = $_POST['billing_state'] ?? $_POST['state'];
+    $_input['warehouse_id'] = $_POST['warehouse_id'];
+    $_input['company'] = $_POST['company'] ?? $_POST['fullName'] ;
     $_input['marketingConsent'] = $_POST['marketingConsent'] ?? false;
+    $_input['type'] = $_POST['type'] ?? 'pdv';
     $_input['communicationPreference'] = $_POST['communicationPreference'] ?? null;
 
     // Validação de campos
+
+    $this->form_validation->set_data($_input);
     $this->form_validation->set_rules('company', 'Company', 'trim|required|max_length[600]');
-    $this->form_validation->set_rules('email_default', 'Email', 'trim|required|max_length[100]', array('is_unique' => 'This %s already exists please enter another email'));
+    $this->form_validation->set_rules('email_default', 'Email', 'trim|required|max_length[100]');
 
     if ($this->form_validation->run() == FALSE) {
       // Validação falha

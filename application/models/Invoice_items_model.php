@@ -788,6 +788,9 @@ class Invoice_items_model extends App_Model
 
 
         $this->db->where('id', $itemid);
+
+        unset($data['images']);
+
         $this->db->update('items', $data);
 
 

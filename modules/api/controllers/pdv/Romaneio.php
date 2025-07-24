@@ -884,7 +884,7 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
         if (empty($search)) {
             $this->response(
                     ['status' => FALSE, 'message' => 'Search parameter is required'],
-                    REST_Controller::HTTP_BAD_REQUEST
+                    REST_Controller::HTTP_OK
             );
             return;
         }

@@ -217,15 +217,15 @@ class Payment extends REST_Controller
                         }
                     }
                 }
-                $print_recibo = false;
-                /*
+                $print_recibo = true;
+              
                 $this->load->model('Settings_model');
-                $settings = $this->Settings_model->get();
+                $settings = $this->Settings_model->get_options($warehouse_id, 'pdv_nfe_cartao');
 
-                if($settings->pdv_nfe_cartao == 1){
-                    $print_recibo = true;
+                if($settings->value == 1){
+                    $print_recibo = false;
                 }
-                */
+              
 
                 // Responde com sucesso
                 $this->response([

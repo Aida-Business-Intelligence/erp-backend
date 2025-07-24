@@ -1077,7 +1077,6 @@ class Produto extends REST_Controller
         }
 
         // Inicializa todos os campos de imagem como null
-        $file_paths = ['image' => null, 'image2' => null, 'image3' => null, 'image4' => null, 'image5' => null];
 
         if (isset($_FILES['images'])) {
             $files = $_FILES['images']['tmp_name'];
@@ -1098,11 +1097,7 @@ class Produto extends REST_Controller
                         $relative_path = str_replace('./', '', $upload_path);
                         $full_url = rtrim($server_url, '/') . '/' . $relative_path;
 
-                        // Atualiza o campo correspondente baseado na posição (apenas para os 5 primeiros)
-                        if ($image_count < 5) {
-                            $field_name = array_keys($file_paths)[$image_count];
-                            $file_paths[$field_name] = $full_url;
-                        }
+                      
 
                         // Inserir a imagem no banco de dados (todas até 10)
                         $this->db->insert(db_prefix() . 'item_images', [
@@ -1117,19 +1112,7 @@ class Produto extends REST_Controller
             }
         }
 
-        // Atualiza as colunas específicas de imagens
-        $update_cols = [
-            'image' => $file_paths['image'],
-            'image2' => $file_paths['image2'],
-            'image3' => $file_paths['image3'],
-            'image4' => $file_paths['image4'],
-            'image5' => $file_paths['image5']
-        ];
-
-
-        // Atualiza cada campo
-        $this->db->where('id', $id);
-        $this->db->update(db_prefix() . 'items', $update_cols);
+       
 
         // Após atualizar as imagens, podemos retornar uma mensagem de sucesso
         $this->response(['status' => TRUE, 'message' => 'Produto atualizado com sucesso.', 'data' => $this->Invoice_items_model->get($id)], REST_Controller::HTTP_OK);

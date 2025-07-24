@@ -54,7 +54,7 @@ class Expenses_model extends App_Model
 
     public function get_payment_modes()
     {
-        $this->db->select('id, name, description, is_credit_card, is_check, active');
+        $this->db->select('id, name, description, is_credit_card, is_check, is_boleto, active');
         $this->db->where('active', 1);
         return $this->db->get(db_prefix() . 'payment_modes')->result_array();
     }

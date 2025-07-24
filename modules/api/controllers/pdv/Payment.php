@@ -217,11 +217,21 @@ class Payment extends REST_Controller
                         }
                     }
                 }
+                $print_recibo = true;
+              
+                $this->load->model('Settings_model');
+                $settings = $this->Settings_model->get_options($warehouse_id, 'pdv_nfe_cartao');
+
+                if($settings->value == 1){
+                    $print_recibo = false;
+                }
+              
 
                 // Responde com sucesso
                 $this->response([
                     'status' => true,
                     'nfce' => $nfce,
+                    'print_recibo' => $print_recibo,
                     'status_payment' => 'paid',
                     'payment_id' => 1, // Pode adaptar para o ID do pagamento real
                     'message' => 'Pagamento realizado com sucesso'

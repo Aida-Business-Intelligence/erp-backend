@@ -315,6 +315,7 @@ class Invoice_items_model extends App_Model
             "$items_table.description",
             "$items_table.long_description",
             "$items_table.group_id",
+            "$items_table.tag_id",
             "$groups_table.name as group_name",
             "$items_table.unit",
             "$items_table.sku_code",
@@ -331,6 +332,7 @@ class Invoice_items_model extends App_Model
             "$items_table.product_unit",
             "$items_table.createdAt",
             "$items_table.updatedAt",
+            "$items_table.show_ecommerce",
             "$subgroups_table.sub_group_name",
             "$subgroups_table.id as sub_group_id",
             "$items_table.warehouse_id as warehouse_id"
@@ -429,7 +431,8 @@ class Invoice_items_model extends App_Model
         $send = null,
         $minPrice = null,
         $maxPrice = null,
-        $company = null
+        $company = null,
+        $client_id = null
     ) {
         $items_table = db_prefix() . 'items';
         $groups_table = db_prefix() . 'items_groups';
@@ -454,6 +457,9 @@ class Invoice_items_model extends App_Model
             if ($warehouse_id) {
                 $this->db->where("$items_table.warehouse_id", $warehouse_id);
             }
+
+            // Filtro para mostrar apenas itens com show_ecommerce = 1
+            $this->db->where("$items_table.show_ecommerce", '1');
 
             if ($send == 'pdv') {
                 $this->db->where("$items_table.id", $id);
@@ -486,6 +492,7 @@ class Invoice_items_model extends App_Model
             "$items_table.description",
             "$items_table.long_description",
             "$items_table.group_id",
+            "$items_table.tag_id",
             "$groups_table.name as group_name",
             "$items_table.unit",
             "$items_table.ncm",
@@ -502,6 +509,9 @@ class Invoice_items_model extends App_Model
             "$items_table.sku_code",
             "$items_table.image",
             "$items_table.image2",
+            "$items_table.image3",
+            "$items_table.image4",
+            "$items_table.image5",
             "$items_table.commodity_barcode",
             "$items_table.status",
             "$items_table.cost",
@@ -528,17 +538,34 @@ class Invoice_items_model extends App_Model
             ->join($subgroups_table, "$subgroups_table.id = $items_table.sub_group", 'left')
             ->join($suppliers_table, "$suppliers_table.userid = $items_table.userid", 'left');
 
+        // Filtro para mostrar apenas itens com show_ecommerce = 1
+        $this->db->where("$items_table.show_ecommerce", '1');
+
+        // Filtro de estoque para client_id = 10
+        if ($client_id == 10) {
+            $this->db->where("$items_table.stock >", 0);
+        }
+
         // Aplicando filtros
         if ($warehouse_id) {
             $this->db->where("$items_table.warehouse_id", $warehouse_id);
         }
 
-        // Filtro por categoria (group_id)
+        if (!empty($statusFilter) && is_array($statusFilter)) {
+            $this->db->where_in("$items_table.status", $statusFilter);
+        }
+
+        if (!empty($startDate)) {
+            $this->db->where("DATE($items_table.createdAt) >=", (new DateTime($startDate))->format('Y-m-d'));
+        }
+        if (!empty($endDate)) {
+            $this->db->where("DATE($items_table.createdAt) <=", (new DateTime($endDate))->format('Y-m-d'));
+        }
+
         if (!empty($category)) {
             $this->db->where("$items_table.group_id", $category);
         }
 
-        // Filtro por subcategoria
         if (!empty($subcategory)) {
             $this->db->where("$items_table.sub_group", $subcategory);
         }
@@ -627,6 +654,11 @@ class Invoice_items_model extends App_Model
 
         if (isset($data['group_id']) && $data['group_id'] == '') {
             $data['group_id'] = 0;
+        }
+
+        // Converter tag_id para JSON se for array
+        if (isset($data['tag_id']) && is_array($data['tag_id'])) {
+            $data['tag_id'] = json_encode($data['tag_id']);
         }
 
         $columns = $this->db->list_fields(db_prefix() . 'items');
@@ -728,6 +760,11 @@ class Invoice_items_model extends App_Model
             $data['tax2'] = null;
         }
 
+        // Converter tag_id para JSON se for array
+        if (isset($data['tag_id']) && is_array($data['tag_id'])) {
+            $data['tag_id'] = json_encode($data['tag_id']);
+        }
+
         $columns = $this->db->list_fields(db_prefix() . 'items');
         $this->load->dbforge();
 
@@ -751,6 +788,9 @@ class Invoice_items_model extends App_Model
 
 
         $this->db->where('id', $itemid);
+
+        unset($data['images']);
+
         $this->db->update('items', $data);
 
 

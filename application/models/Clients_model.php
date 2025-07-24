@@ -439,7 +439,7 @@ class Clients_model extends App_Model
     //
 
 
-    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $status = [], $startDate = '', $endDate = '', $warehouse_id = 0, $is_supplier=0)
+    public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'userid', $sortOrder = 'ASC', $status = [], $startDate = '', $endDate = '', $warehouse_id = 0, $is_supplier=0, $type=null)
     {
         $allowedSortFields = [
             'userid',
@@ -462,6 +462,12 @@ class Clients_model extends App_Model
 
         if ($warehouse_id > 0) {
             $this->db->where('warehouse_id', $warehouse_id);
+        }
+
+        if($type === 'erp'){
+            $this->db->where('type', 'erp');
+        }else{  
+            $this->db->where('type !=', 'erp');
         }
 
         /*
@@ -528,6 +534,7 @@ $date = new DateTime($supplier['datecreated']);
                 'contacts_count' => 0
             ];
         }
+        //echo $this->db->last_query(); exit;
 
         return ['data' => $formattedData, 'total' => $total];
     }

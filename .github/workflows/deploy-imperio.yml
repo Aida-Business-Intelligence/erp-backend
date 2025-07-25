@@ -31,7 +31,7 @@ jobs:
           script: |
             set -e
 
-            APP_DIR="/srv/erp/imperio"
+            APP_DIR="/srv/erp/mk9"
 
             echo "⏩  Entrando na pasta ${APP_DIR}..."
             cd "${APP_DIR}"
@@ -41,6 +41,16 @@ jobs:
 
             echo "⏩  Pull da imagem mais recente..."
             docker compose pull
+
+            docker rm -f aida-app-imperio || true
+
+            echo "⏩  Subindo/recriando container..."
+            docker compose up -d
+
+            echo "✅  Deploy concluído!"
+
+            echo "🧹 Limpando imagens antigas não utilizadas..."
+            docker image prune -af --filter "until=24h"
 
             echo "⏩  Subindo/recriando container..."
             docker compose up -d

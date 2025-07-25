@@ -7,32 +7,9 @@ env:                       # opcional (torna IMAGE_NAME visível em todos os job
   IMAGE_NAME: aidabusiness/aida-repo
 
 jobs:
-  # ---------- JOB 1: build & push ----------
-  build:
-    name: Build e Push Imagem Docker
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout código
-        uses: actions/checkout@v4
-
-      - name: Login no Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build & Push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: aidabusiness/aida-repo:latest
-
    # ---------- JOB 2: deploy ----------
   deploy:
     name: Deploy na VPS
-    needs: build
     runs-on: ubuntu-latest
 
     steps:

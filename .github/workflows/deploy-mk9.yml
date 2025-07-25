@@ -42,7 +42,7 @@ jobs:
             echo "⏩  Pull da imagem mais recente..."
             docker compose pull
 
-            docker rm -f aida-app-hml || true
+            docker rm -f aida-app-mk9 || true
 
             echo "⏩  Subindo/recriando container..."
             docker compose up -d

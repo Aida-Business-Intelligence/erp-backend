@@ -909,13 +909,16 @@ class Expenses_model extends App_Model
             'e.*, '
             . 'c.company as company, '
             . 'w.warehouse_name as warehouse_name, '
-            . 'cat.name as category_name'
+            . 'cat.name as category_name, '
+            . 'pm.name as payment_mode_name'
         );
         $this->db->from(db_prefix() . 'expenses e');
         $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'warehouse w', 'w.warehouse_id = e.warehouse_id', 'left');
         $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
+        $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
         $this->db->where('e.id', $id);
+        
         return $this->db->get()->row();
     }
 

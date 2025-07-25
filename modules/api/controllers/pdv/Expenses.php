@@ -1052,6 +1052,9 @@ class Expenses extends REST_Controller
                 'message' => 'Despesa não encontrada'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
+        
+
+        
         return $this->response([
             'status' => true,
             'data' => $expense

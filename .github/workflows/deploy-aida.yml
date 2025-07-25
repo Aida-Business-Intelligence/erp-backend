@@ -40,11 +40,14 @@ jobs:
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
             echo "⏩  Pull da imagem mais recente..."
-            docker-compose pull
+            docker compose pull
 
             echo "⏩  Subindo/recriando container..."
-            docker-compose up -d
+            docker compose up -d
+            
+            docker rm -f aida-app-aida || true
 
+          
             echo "✅  Deploy concluído!"
 
             echo "🧹 Limpando imagens antigas não utilizadas..."

@@ -656,8 +656,8 @@ class Staff_model extends App_Model
     {
 
     $this->load->model('Roles_model');
-
     $this->Roles_model->delete_permissions($id);
+
 
     $permissions_array = $this->Roles_model->get($role_id);
 
@@ -675,10 +675,10 @@ class Staff_model extends App_Model
             'role_id' => $role_id,
         ];
 
-
+        $this->Roles_model->add_permission($permission_data);
      }
       
-        $this->Roles_model->add_permission($permission_data);
+       
     
     }
         return true;

@@ -405,15 +405,14 @@ class Roles extends REST_Controller
         
         if ($result) {
 
-            $users_permissions = $this->Roles_model->get_user_permissions($this->user->staffid);
-
-           $users = array();
-            foreach ($users_permissions as $user_permission) {
-                $this->Roles_model->delete_permissions($user_permission['staff_id']);
-               // $users[] = $user_permission['staff_id'];
+           $users_roles= $this->Roles_model->get_user_roles($id);
+            foreach ($users_roles as $users_role) {
+                $this->Roles_model->delete_permissions($users_role['staffid']);
+              
+            }
+            
           
-         
-
+foreach($users_roles as $user_role){
             foreach ($input['permissions'] as $capability => $permissions) {
 
 
@@ -422,7 +421,7 @@ class Roles extends REST_Controller
     
                  
                 $permission_data = [
-                    'staff_id' => $user_permission['staff_id'],
+                    'staff_id' => $user_role['staffid'],
                     'feature' => $permission['feature'],
                     'capability' => $capability,
                     'menu_id' => $permission['menu_id'],
@@ -432,6 +431,7 @@ class Roles extends REST_Controller
                 $this->Roles_model->add_permission($permission_data);
             }
         }
+        
         
     }
 

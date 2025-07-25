@@ -324,6 +324,7 @@ class Produto extends REST_Controller
 
                         $file_paths = []; // Um array para armazenar caminhos de arquivos únicos
 
+                        $count = 0;
                         foreach ($_FILES['images']['tmp_name'] as $key => $file_temp) {
                             $file_name = $_FILES['images']['name'][$key];
                             $file_size = $_FILES['images']['size'][$key];
@@ -342,34 +343,30 @@ class Produto extends REST_Controller
                                     // Adicionar o caminho ao array de caminhos de arquivo
                                     array_push($file_paths, $full_url);
 
+                                  
+
                                     // Insere este caminho no banco de dados para o histórico de imagens
                                     $this->db->insert(db_prefix() . 'item_images', [
                                         'item_id' => $product_id,
                                         'url' => $full_url,
                                         'name' => $relative_path
                                     ]);
+
+                                    if($count == 0){
+
+                                        $this->db->where('id', $product_id);
+                                        $result = $this->db->update(db_prefix() . 'items',  array('image' => $full_url));
+
+                                    }
+
+                                   
+
                                 }
                             }
+                            $count++;
                         }
 
-                        // Atualizando as colunas específicas com o número de imagens disponíveis
-                        $update_data = [];
-
-                        if (!empty($file_paths[0]))
-                            $update_data['image'] = $file_paths[0];
-                        if (!empty($file_paths[1]))
-                            $update_data['image2'] = $file_paths[1];
-                        if (!empty($file_paths[2]))
-                            $update_data['image3'] = $file_paths[2];
-                        if (!empty($file_paths[3]))
-                            $update_data['image4'] = $file_paths[3];
-                        if (!empty($file_paths[4]))
-                            $update_data['image5'] = $file_paths[4];
-
-                        if (!empty($update_data)) {
-                            $this->db->where('id', $product_id);
-                            $this->db->update(db_prefix() . 'items', $update_data);
-                        }
+                       
                     }
 
                 } else {
@@ -1106,6 +1103,17 @@ class Produto extends REST_Controller
                             'name' => $relative_path
                         ]);
 
+                        
+                        if($image_count == 0){
+
+                            if($product->image=="" || !$product->image){
+                        
+                                $this->db->where('id', $product->id);
+                                $result = $this->db->update(db_prefix() . 'items',  array('image' => $full_url));
+
+                        }
+                    }
+
                         $image_count++;
                     }
                 }
@@ -1120,7 +1128,17 @@ class Produto extends REST_Controller
 
     public function remove_image_post()
     {
+
         $data = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+        $product = $this->Invoice_items_model->get($data['productId']);
+
+        if($product->image == $data['url']){
+
+            $this->db->where('id', $product->id);
+            $result = $this->db->update(db_prefix() . 'items',  array('image' => ""));
+        }
+
+        exit;
 
         if (empty($data['id']) || empty($data['name'])) {
             $this->response(['status' => FALSE, 'message' => 'ID e nome do arquivo são obrigatórios.'], REST_Controller::HTTP_BAD_REQUEST);
@@ -1141,10 +1159,13 @@ class Produto extends REST_Controller
         $this->db->delete(db_prefix() . 'item_images');
 
         // Remove o arquivo físico
-        $file_path = FCPATH . $data['name'];
+        $file_path = FCPATH . $data['url'];
         if (file_exists($file_path)) {
             @unlink($file_path);
         }
+
+       
+
 
         $this->response(['status' => TRUE, 'message' => 'Imagem removida com sucesso.'], REST_Controller::HTTP_OK);
     }
@@ -2140,15 +2161,23 @@ class Produto extends REST_Controller
         }
     }
 
-    public function default_image_post($product_id = '')
+  
+    public function default_image_post($product_id = '', $url = null)
     {
         
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        $update_data = array('image' => $_POST['url']);
+
+        if (!$url) {
+          $url = $_POST['url'];
+        }
+
         $this->db->where('id', $product_id);
-        $result = $this->db->update(db_prefix() . 'items', $update_data);
+        $result = $this->db->update(db_prefix() . 'items',  array('image' => $url));
+
+        
         $this->response(array('status' => true, 'message' => 'Atualizado com sucesso'), REST_Controller::HTTP_OK);
     }
+
 
 
     public function edit_product_erp_put($product_id = '')

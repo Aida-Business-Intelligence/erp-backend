@@ -129,9 +129,21 @@ class Roles_model extends App_Model
 
     public function get_user_permissions($id)
     {
-        $this->db->select('staff_id');
-        $this->db->where('role_id', $id);
-        return $this->db->get(db_prefix() . 'staff_permissions')->result_array();
+        $this->db->distinct();
+$this->db->select('staff_id');
+$this->db->where('role_id', $id);
+return $this->db->get(db_prefix() . 'staff_permissions')->result_array();
+
+    }
+
+
+    public function get_user_roles($id)
+    {
+        $this->db->distinct();
+$this->db->select('staffid');
+$this->db->where('role', $id);
+return $this->db->get(db_prefix() . 'staff')->result_array();
+
     }
 
     /**

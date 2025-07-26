@@ -52,9 +52,38 @@ class Expenses_installments_model extends App_Model
      */
     public function get_installments_by_expense($expense_id)
     {
+        // Verificar se a tabela existe
+        if (!$this->db->table_exists(db_prefix() . 'account_installments')) {
+            log_message('error', 'Tabela ' . db_prefix() . 'account_installments não existe');
+            return [];
+        }
+
+        $this->db->select('
+            id,
+            expenses_id,
+            numero_parcela,
+            data_vencimento,
+            valor_parcela,
+            valor_com_juros,
+            juros,
+            percentual_juros,
+            status,
+            paymentmode_id,
+            documento_parcela,
+            observacoes,
+            data_pagamento,
+            valor_pago,
+            banco_id
+        ');
         $this->db->where('expenses_id', $expense_id);
         $this->db->order_by('numero_parcela', 'ASC');
-        return $this->db->get(db_prefix() . 'account_installments')->result_array();
+        
+        $result = $this->db->get(db_prefix() . 'account_installments')->result_array();
+        
+        // Log para debug
+        log_message('debug', 'Parcelas encontradas para expense_id ' . $expense_id . ': ' . count($result));
+        
+        return $result;
     }
 
     /**

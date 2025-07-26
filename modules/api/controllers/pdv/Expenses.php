@@ -253,6 +253,15 @@ class Expenses extends REST_Controller
 
             $expense_id = $this->Expenses_model->add($input);
 
+            // Salvar parcelas na tabela se existirem
+            if ($expense_id && $installments) {
+                $this->load->model('Expenses_installments_model');
+                $success = $this->Expenses_installments_model->add_installments($expense_id, $installments);
+                if (!$success) {
+                    throw new Exception('Falha ao criar parcelas');
+                }
+            }
+
             if (!$expense_id) {
                 throw new Exception('Falha ao criar a despesa/receita');
             }
@@ -1060,7 +1069,14 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
         
-
+        // Carregar parcelas se existirem
+        $this->load->model('Expenses_installments_model');
+        $installments = $this->Expenses_installments_model->get_installments_by_expense($id);
+        
+        // Adicionar parcelas aos dados da despesa
+        if (!empty($installments)) {
+            $expense->installments = $installments;
+        }
         
         return $this->response([
             'status' => true,

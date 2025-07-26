@@ -7,107 +7,47 @@ env:                       # opcional (torna IMAGE_NAME visível em todos os job
   IMAGE_NAME: aidabusiness/aida-repo
 
 jobs:
-  # ---------- JOB 1: build & push ----------
-  build:
-    name: Build e Push Imagem Docker
+   # ---------- JOB 2: deploy ----------
+  deploy:
+    name: Deploy na VPS
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Ler ambiente e versão
-        id: read_version
-        run: |
-          ENV=$(sed -n '1p' VERSION)
-          VER=$(sed -n '2p' VERSION)
-          IMAGE_TAG="aidabusiness/aida-repo:$ENV-$VER"
-          echo "ENV=$ENV" >> $GITHUB_ENV
-          echo "VER=$VER" >> $GITHUB_ENV
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-
-
-      - name: Login no Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build & Push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ env.ENV }}-${{ env.VER }}
-
-      - name: Definir tag completa para o próximo job
-        id: tag
-        run: |
-          echo "full_tag=${{ env.IMAGE_NAME }}:${{ steps.read_version.outputs.env }}-${{ steps.read_version.outputs.version }}" >> $GITHUB_OUTPUT
-
-  # ---------- JOB 2: deploy ----------
-  deploy:
-    name: Deploy na VPS
-    needs: build
-    runs-on: ubuntu-latest     # só para executar o passo SSH
-    
-    steps:
-      - name: Checkout código
-        uses: actions/checkout@v4
-
-      - name: Ler ambiente e versão
-        run: |
-          ENV=$(sed -n '1p' VERSION)
-          VER=$(sed -n '2p' VERSION)
-          echo "ENV=$ENV" >> $GITHUB_ENV
-          echo "VER=$VER" >> $GITHUB_ENV
-
-      - name: Pull + restart via SSH
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
-        env:                              # ← 1) valores ficam disponíveis no runner
+        env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
 
         with:
-          host:      ${{ secrets.SSH_HOST }}
-          username:  ${{ secrets.SSH_USER }}
-          key:       ${{ secrets.SSH_KEY }}
-
-          envs: ENV,VER,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          host:     ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key:      ${{ secrets.SSH_KEY }}
+          envs:     DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
 
           script: |
             set -e
 
             APP_DIR="/srv/erp/lojas7"
-            CONTAINER_NAME="aida-app-lojas7"
-            IMAGE_NAME="aidabusiness/aida-repo"
-            IMAGE_TAG="$IMAGE_NAME:$ENV-$VER"
 
-
-            echo "⏩  Criando pasta ${APP_DIR} (se não existir)..."
-            mkdir -p "${APP_DIR}"
+            echo "⏩  Entrando na pasta ${APP_DIR}..."
             cd "${APP_DIR}"
 
             echo "⏩  Autenticando no Docker Hub..."
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
+            echo "⏩  Pull da imagem mais recente..."
+            docker compose pull
 
-            echo "⏩  Pull da imagem ${IMAGE_TAG}..."
-            docker pull "${IMAGE_TAG}"
+            docker rm -f aida-app-lojas7 || true
 
-            echo "⏩  Parando container antigo (se existir)..."
-            docker stop "${CONTAINER_NAME}" 2>/dev/null || true
-            docker rm   "${CONTAINER_NAME}" 2>/dev/null || true
-
-            echo "⏩  Subindo novo container..."
-            docker run -d \
-              --name "${CONTAINER_NAME}" \
-              --restart unless-stopped \
-              --env-file ./.env \
-              -p 8083:80 \
-              "${IMAGE_TAG}"
+            echo "⏩  Subindo/recriando container..."
+            docker compose up -d
 
             echo "✅  Deploy concluído!"
 
-            echo "🧹 Limpando imagens Docker antigas não utilizadas..."
+            echo "🧹 Limpando imagens antigas não utilizadas..."
             docker image prune -af --filter "until=24h"

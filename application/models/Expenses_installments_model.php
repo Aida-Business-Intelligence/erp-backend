@@ -47,6 +47,17 @@ class Expenses_installments_model extends App_Model
             $this->db->insert(db_prefix() . 'account_installments', $data);
         }
 
+        // Atualizar o due_date da despesa com a data da primeira parcela
+        if (!empty($installments)) {
+            $first_installment = $installments[0];
+            $this->db->where('id', $expense_id);
+            $this->db->update(db_prefix() . 'expenses', [
+                'due_date' => $first_installment['data_vencimento']
+            ]);
+            
+            log_message('debug', 'Due date inicializado para expense_id ' . $expense_id . ': ' . $first_installment['data_vencimento']);
+        }
+
         $this->db->trans_complete();
         return $this->db->trans_status();
     }
@@ -138,7 +149,54 @@ class Expenses_installments_model extends App_Model
             'multa' => $payment_data['multa'] ?? 0,
         ];
 
-        return $this->update_installment($installment_id, $data);
+        $result = $this->update_installment($installment_id, $data);
+        
+        // Se o pagamento foi bem-sucedido, atualizar o due_date da despesa
+        if ($result) {
+            $installment = $this->get_installment($installment_id);
+            if ($installment) {
+                $this->update_expense_due_date($installment->expenses_id);
+            }
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Atualizar o due_date da despesa com a data da próxima parcela não paga
+     * @param int $expense_id ID da despesa
+     * @return bool
+     */
+    public function update_expense_due_date($expense_id)
+    {
+        // Buscar a próxima parcela não paga
+        $this->db->select('data_vencimento');
+        $this->db->where('expenses_id', $expense_id);
+        $this->db->where('status !=', 'Pago');
+        $this->db->order_by('data_vencimento', 'ASC');
+        $this->db->limit(1);
+        
+        $next_installment = $this->db->get(db_prefix() . 'account_installments')->row();
+        
+        if ($next_installment) {
+            // Atualizar o due_date da despesa com a data da próxima parcela
+            $this->db->where('id', $expense_id);
+            $this->db->update(db_prefix() . 'expenses', [
+                'due_date' => $next_installment->data_vencimento
+            ]);
+            
+            log_message('debug', 'Due date atualizado para expense_id ' . $expense_id . ': ' . $next_installment->data_vencimento);
+            return true;
+        } else {
+            // Se não há mais parcelas pendentes, limpar o due_date ou definir como null
+            $this->db->where('id', $expense_id);
+            $this->db->update(db_prefix() . 'expenses', [
+                'due_date' => null
+            ]);
+            
+            log_message('debug', 'Due date limpo para expense_id ' . $expense_id . ' (todas as parcelas pagas)');
+            return true;
+        }
     }
 
     /**
@@ -180,7 +238,14 @@ class Expenses_installments_model extends App_Model
             $data['status'] = 'Parcial';
         }
 
-        return $this->update_installment($installment_id, $data);
+        $result = $this->update_installment($installment_id, $data);
+        
+        // Se a atualização foi bem-sucedida, atualizar o due_date da despesa
+        if ($result) {
+            $this->update_expense_due_date($installment->expenses_id);
+        }
+        
+        return $result;
     }
 
     /**
@@ -351,5 +416,46 @@ class Expenses_installments_model extends App_Model
         $this->db->order_by('ai.data_vencimento', 'ASC');
 
         return $this->db->get()->result_array();
+    }
+
+    /**
+     * Atualizar due_date de todas as despesas que têm parcelas
+     * Método utilitário para corrigir despesas existentes
+     * @return array Array com estatísticas da atualização
+     */
+    public function update_all_expenses_due_dates()
+    {
+        $stats = [
+            'total_expenses' => 0,
+            'updated' => 0,
+            'errors' => 0,
+            'errors_list' => []
+        ];
+
+        // Buscar todas as despesas que têm parcelas
+        $this->db->select('DISTINCT(expenses_id) as expense_id');
+        $this->db->from(db_prefix() . 'account_installments');
+        $expenses_with_installments = $this->db->get()->result_array();
+
+        $stats['total_expenses'] = count($expenses_with_installments);
+
+        foreach ($expenses_with_installments as $expense) {
+            try {
+                $success = $this->update_expense_due_date($expense['expense_id']);
+                if ($success) {
+                    $stats['updated']++;
+                } else {
+                    $stats['errors']++;
+                    $stats['errors_list'][] = 'Falha ao atualizar expense_id: ' . $expense['expense_id'];
+                }
+            } catch (Exception $e) {
+                $stats['errors']++;
+                $stats['errors_list'][] = 'Erro ao atualizar expense_id ' . $expense['expense_id'] . ': ' . $e->getMessage();
+            }
+        }
+
+        log_message('info', 'Atualização em massa de due_dates concluída. Total: ' . $stats['total_expenses'] . ', Atualizadas: ' . $stats['updated'] . ', Erros: ' . $stats['errors']);
+
+        return $stats;
     }
 } 

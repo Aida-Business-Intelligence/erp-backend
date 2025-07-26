@@ -1209,6 +1209,84 @@ class Expenses extends REST_Controller
     }
 
     /**
+     * Atualizar due_date de todas as despesas que têm parcelas
+     * Endpoint para correção em massa
+     */
+    public function update_due_dates_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        
+        try {
+            $this->load->model('Expenses_installments_model');
+            
+            $stats = $this->Expenses_installments_model->update_all_expenses_due_dates();
+            
+            return $this->response([
+                'status' => true,
+                'message' => 'Atualização de due_dates concluída com sucesso',
+                'data' => $stats
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Teste da funcionalidade de atualização de due_date
+     * Endpoint para testar a funcionalidade
+     */
+    public function test_due_date_update_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        
+        try {
+            $raw_input = file_get_contents("php://input");
+            $data = json_decode($raw_input, true);
+            
+            if (empty($data['expense_id'])) {
+                throw new Exception('ID da despesa é obrigatório');
+            }
+            
+            $expense_id = $data['expense_id'];
+            $this->load->model('Expenses_installments_model');
+            
+            // Buscar dados da despesa antes da atualização
+            $expense_before = $this->db->get_where(db_prefix() . 'expenses', ['id' => $expense_id])->row();
+            
+            // Atualizar o due_date
+            $success = $this->Expenses_installments_model->update_expense_due_date($expense_id);
+            
+            // Buscar dados da despesa após a atualização
+            $expense_after = $this->db->get_where(db_prefix() . 'expenses', ['id' => $expense_id])->row();
+            
+            // Buscar parcelas da despesa
+            $installments = $this->Expenses_installments_model->get_installments_by_expense($expense_id);
+            
+            return $this->response([
+                'status' => true,
+                'message' => 'Teste concluído com sucesso',
+                'data' => [
+                    'success' => $success,
+                    'expense_before' => $expense_before,
+                    'expense_after' => $expense_after,
+                    'installments' => $installments,
+                    'due_date_changed' => $expense_before->due_date !== $expense_after->due_date
+                ]
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * Processar dados de parcelas
      * @param array $data Dados da requisição
      * @return array Array com as parcelas processadas

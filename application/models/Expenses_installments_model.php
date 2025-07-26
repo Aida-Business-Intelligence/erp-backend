@@ -32,8 +32,8 @@ class Expenses_installments_model extends App_Model
                 'valor_com_juros' => $installment['valor_com_juros'],
                 'juros' => $installment['juros'] ?? 0,
                 'percentual_juros' => $installment['percentual_juros'] ?? 0,
-                'status' => 'Pendente',
-                'paymentmode_id' => $installment['paymentmode_id'] ?? 0,
+                'status' => $installment['status'] ?? 'Pendente',
+                'paymentmode_id' => $installment['paymentmode_id'] ?? null,
                 'documento_parcela' => $installment['documento_parcela'] ?? null,
                 'observacoes' => $installment['observacoes'] ?? null,
             ];
@@ -156,6 +156,30 @@ class Expenses_installments_model extends App_Model
         $this->db->limit(1);
         $result = $this->db->get(db_prefix() . 'account_installments');
         return $result->num_rows() > 0;
+    }
+
+    /**
+     * Verificar se uma despesa é parcelada (mais de uma parcela)
+     * @param int $expense_id ID da despesa
+     * @return bool
+     */
+    public function is_installment_expense($expense_id)
+    {
+        $this->db->where('expenses_id', $expense_id);
+        $count = $this->db->count_all_results(db_prefix() . 'account_installments');
+        return $count > 1;
+    }
+
+    /**
+     * Verificar se uma despesa é única (apenas uma parcela)
+     * @param int $expense_id ID da despesa
+     * @return bool
+     */
+    public function is_single_expense($expense_id)
+    {
+        $this->db->where('expenses_id', $expense_id);
+        $count = $this->db->count_all_results(db_prefix() . 'account_installments');
+        return $count == 1;
     }
 
     /**

@@ -28,10 +28,30 @@ class Expenses_model extends App_Model
         $this->db->insert(db_prefix() . 'expenses', $data);
         $expense_id = $this->db->insert_id();
 
-        // Se há parcelas, criar na tabela de parcelas
-        if ($expense_id && $installments) {
+        // SEMPRE criar pelo menos uma parcela na tabela de parcelas (padronização)
+        if ($expense_id) {
             $this->load->model('Expenses_installments_model');
-            $this->Expenses_installments_model->add_installments($expense_id, $installments);
+            
+            if ($installments) {
+                // Se há parcelas definidas, usar elas
+                $this->Expenses_installments_model->add_installments($expense_id, $installments);
+            } else {
+                // Se não há parcelas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Expenses_installments_model->add_installments($expense_id, [$single_installment]);
+            }
         }
 
         $this->db->trans_complete();
@@ -200,12 +220,10 @@ class Expenses_model extends App_Model
                     }
                 }
 
-                // Carregar parcelas se existirem
+                // SEMPRE carregar parcelas (padronização)
                 $this->load->model('Expenses_installments_model');
-                if ($this->Expenses_installments_model->has_installments($id)) {
-                    $expense->installments = $this->Expenses_installments_model->get_installments_by_expense($id);
-                    $expense->installments_summary = $this->Expenses_installments_model->get_installments_summary($id);
-                }
+                $expense->installments = $this->Expenses_installments_model->get_installments_by_expense($id);
+                $expense->installments_summary = $this->Expenses_installments_model->get_installments_summary($id);
             }
 
             return $expense;
@@ -423,16 +441,54 @@ class Expenses_model extends App_Model
             $updated = true;
         }
 
-        // Atualizar parcelas se fornecidas
+        // SEMPRE atualizar parcelas (padronização)
+        $this->load->model('Expenses_installments_model');
+        
         if ($installments !== null) {
-            $this->load->model('Expenses_installments_model');
             // Deletar parcelas existentes
             $this->Expenses_installments_model->delete_installments_by_expense($id);
-            // Adicionar novas parcelas
+            
             if (!empty($installments)) {
+                // Adicionar novas parcelas definidas
                 $this->Expenses_installments_model->add_installments($id, $installments);
+            } else {
+                // Se não há parcelas definidas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Expenses_installments_model->add_installments($id, [$single_installment]);
             }
             $updated = true;
+        } else {
+            // Se não foram fornecidas parcelas, verificar se já existem
+            if (!$this->Expenses_installments_model->has_installments($id)) {
+                // Se não existem parcelas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Expenses_installments_model->add_installments($id, [$single_installment]);
+                $updated = true;
+            }
         }
 
         do_action_deprecated('after_expense_updated', [$id], '2.9.4', 'expense_updated');
@@ -476,6 +532,10 @@ class Expenses_model extends App_Model
         $this->db->delete(db_prefix() . 'expenses');
 
         if ($this->db->affected_rows() > 0) {
+            // Deletar parcelas relacionadas (padronização)
+            $this->load->model('Expenses_installments_model');
+            $this->Expenses_installments_model->delete_installments_by_expense($id);
+            
             // Delete the custom field values
             $this->db->where('relid', $id);
             $this->db->where('fieldto', 'expenses');

@@ -636,7 +636,6 @@ class Reports_model extends App_Model
         $this->db->select('DATE(date) as expense_date, COALESCE(SUM(amount), 0) as total_sum');
         $this->db->from('tblexpenses');
         $this->db->where('date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)', null, false);
-        $this->db->where('type', 'despesa');
         $this->db->group_by('expense_date');
         $this->db->order_by('expense_date', 'ASC');
 

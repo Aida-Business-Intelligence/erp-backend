@@ -16,8 +16,31 @@ class Expenses_model extends App_Model
     //26/05
     public function add($data)
     {
+        $this->db->trans_start();
+
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
+
         $this->db->insert(db_prefix() . 'expenses', $data);
-        return $this->db->insert_id();
+        $expense_id = $this->db->insert_id();
+
+        // Se há parcelas, criar na tabela de parcelas
+        if ($expense_id && $installments) {
+            $this->load->model('Expenses_installments_model');
+            $this->Expenses_installments_model->add_installments($expense_id, $installments);
+        }
+
+        $this->db->trans_complete();
+        
+        if ($this->db->trans_status() === FALSE) {
+            return false;
+        }
+
+        return $expense_id;
     }
     public function handle_file_uploads($expense_id, $files)
     {
@@ -176,6 +199,13 @@ class Expenses_model extends App_Model
                         }
                     }
                 }
+
+                // Carregar parcelas se existirem
+                $this->load->model('Expenses_installments_model');
+                if ($this->Expenses_installments_model->has_installments($id)) {
+                    $expense->installments = $this->Expenses_installments_model->get_installments_by_expense($id);
+                    $expense->installments_summary = $this->Expenses_installments_model->get_installments_summary($id);
+                }
             }
 
             return $expense;
@@ -328,10 +358,19 @@ class Expenses_model extends App_Model
      */
     public function update($data, $id)
     {
+        $this->db->trans_start();
+
         $original_expense = $this->get($id);
 
         $data['date'] = to_sql_date($data['date']);
         $data['note'] = nl2br($data['note']);
+
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
 
         // Recurring expense set to NO, Cancelled
         if ($original_expense->repeat_every != '' && ($data['repeat_every'] ?? '') == '') {
@@ -384,6 +423,18 @@ class Expenses_model extends App_Model
             $updated = true;
         }
 
+        // Atualizar parcelas se fornecidas
+        if ($installments !== null) {
+            $this->load->model('Expenses_installments_model');
+            // Deletar parcelas existentes
+            $this->Expenses_installments_model->delete_installments_by_expense($id);
+            // Adicionar novas parcelas
+            if (!empty($installments)) {
+                $this->Expenses_installments_model->add_installments($id, $installments);
+            }
+            $updated = true;
+        }
+
         do_action_deprecated('after_expense_updated', [$id], '2.9.4', 'expense_updated');
 
         hooks()->do_action('expense_updated', [
@@ -392,6 +443,12 @@ class Expenses_model extends App_Model
             'custom_fields' => $custom_fields,
             'updated'       => &$updated,
         ]);
+
+        $this->db->trans_complete();
+
+        if ($this->db->trans_status() === FALSE) {
+            return false;
+        }
 
         if ($updated) {
             log_activity('Expense Updated [' . $id . ']');

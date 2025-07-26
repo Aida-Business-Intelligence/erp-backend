@@ -661,6 +661,8 @@ class Suppliers extends REST_Controller
     $this->db->limit($limit, ($page - 1) * $limit);
     $data = $this->db->get()->result_array();
 
+   
+
     foreach ($data as &$supplier) {
       $this->db->select('firstname as name, phonenumber as phone');
       $this->db->where('userid', $supplier['userid']);

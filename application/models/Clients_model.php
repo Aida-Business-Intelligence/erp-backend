@@ -931,6 +931,23 @@ $date = new DateTime($supplier['datecreated']);
         }
     }
 
+
+
+    public function update_client($data, $id)
+    {
+        $updated = false;
+       
+        $this->db->where('userid', $id);
+        if($this->db->update(db_prefix() . 'clients', $data)){
+            $updated = true;
+                        // log_activity('Customer Info Updated [ID: ' . $id . ']');
+
+        }
+
+
+        return $updated;
+    }
+
     /**
      * @param  array $_POST data
      * @param  integer ID
@@ -939,6 +956,7 @@ $date = new DateTime($supplier['datecreated']);
      */
     public function update($data, $id, $client_request = false)
     {
+
         $updated = false;
         $data = $this->check_zero_columns($data);
 

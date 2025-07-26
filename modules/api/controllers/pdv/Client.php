@@ -516,20 +516,61 @@ class Client extends REST_Controller
 
     $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-    if (empty($_POST) || !isset($_POST)) {
+
+      // Adiciona o warehouse_id ao array de entrada, se presente
+      $_input['warehouse_id'] = $_POST['warehouse_id'] ?? null;
+  
+      // Outros campos do cliente
+      $_input['vat'] = $_POST['vat'] ?? $_POST['documentNumber'];
+      $_input['is_supplier'] = 0;
+      $_input['phonenumber'] = $_POST['phonenumber'] ?? $_POST['primaryPhone'];
+      $_input['secondaryPhone'] = $_POST['secondaryPhone'] ?? null;
+      $_input['documentType'] = $_POST['documentType'] ?? null;
+      $_input['person_type'] = $_POST['documentType'] == "CPF" ? "F" :"J";
+      $_input['email_default'] = $_POST['email_default'] ?? $_POST['email'];
+      $_input['gender'] = $_POST['gender'] ?? null;
+      $_input['birthDate'] = $_POST['birthDate'] ?? null;
+      $_input['zip'] = $_POST['zip'] ?? $_POST['cep'];
+      $_input['billing_zip'] = $_POST['zip'] ?? $_POST['cep'];
+      $_input['shipping_zip'] = $_POST['zip'] ?? $_POST['cep'];
+      $_input['cep'] = $_POST['zip'] ?? $_POST['cep'];
+      $_input['address'] = $_POST['billing_street'] ??  $_POST['street'] ;
+      $_input['billing_street'] = $_POST['billing_street'] ?? $_POST['street'];
+      $_input['shipping_street'] = $_POST['billing_street'] ?? $_POST['street'];
+      $_input['billing_number'] = $_POST['billing_number'] ??  $_POST['number'] ;
+      $_input['billing_complement'] = $_POST['billing_complement'] ?? $_POST['complement'];
+      $_input['billing_neighborhood'] = $_POST['billing_neighborhood'] ?? $_POST['neighborhood'];
+      $_input['billing_city'] = $_POST['billing_city'] ?? $_POST['city'];
+      $_input['shipping_city'] = $_POST['billing_city'] ?? $_POST['city'];
+      $_input['city'] = $_POST['billing_city'] ?? $_POST['city'];
+      $_input['billing_state'] = $_POST['billing_state'] ?? $_POST['state'];
+      $_input['shipping_state'] = $_POST['billing_state'] ?? $_POST['state'];
+      $_input['state'] = $_POST['billing_state'] ?? $_POST['state'];
+      $_input['warehouse_id'] = $_POST['warehouse_id'];
+      $_input['company'] = $_POST['company'] ?? $_POST['fullName'] ;
+      $_input['marketingConsent'] = $_POST['marketingConsent'] ?? false;
+      $_input['type'] = $_POST['type'] ?? 'pdv';
+      $_input['communicationPreference'] = $_POST['communicationPreference'] ?? null;
+
+
+    if (empty($_input) || !isset($_input)) {
       $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
       $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
     }
-    $this->form_validation->set_data($_POST);
+    $this->form_validation->set_data($_input);
     if (empty($id) && !is_numeric($id)) {
       $message = array('status' => FALSE, 'message' => 'Invalid Customers ID');
       $this->response($message, REST_Controller::HTTP_NOT_FOUND);
     } else {
-      $update_data = $this->input->post();
+      $update_data = $_input;
+
+ 
       // update data
       $this->load->model('clients_model');
-      $output = $this->clients_model->update($update_data, $id);
-      if ($output > 0 && !empty($output)) {
+      $output = $this->clients_model->update_client($update_data, $id);
+      var_dump($output);
+      exit;
+      if ($output) {
         // success
         $message = array('status' => TRUE, 'message' => 'Customers Update Successful.', 'data' => $this->clients_model->get($id));
         $this->response($message, REST_Controller::HTTP_OK);

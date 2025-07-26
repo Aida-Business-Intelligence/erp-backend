@@ -253,15 +253,6 @@ class Expenses extends REST_Controller
 
             $expense_id = $this->Expenses_model->add($input);
 
-            // Salvar parcelas na tabela se existirem
-            if ($expense_id && $installments) {
-                $this->load->model('Expenses_installments_model');
-                $success = $this->Expenses_installments_model->add_installments($expense_id, $installments);
-                if (!$success) {
-                    throw new Exception('Falha ao criar parcelas');
-                }
-            }
-
             if (!$expense_id) {
                 throw new Exception('Falha ao criar a despesa/receita');
             }
@@ -1248,6 +1239,9 @@ class Expenses extends REST_Controller
                 'valor_parcela' => $valor_parcela,
                 'valor_com_juros' => $valor_com_juros,
                 'juros' => $juros_parcela,
+                'juros_adicional' => 0, // Será preenchido no momento do pagamento
+                'desconto' => 0, // Será preenchido no momento do pagamento
+                'multa' => 0, // Será preenchido no momento do pagamento
                 'percentual_juros' => $tem_juros ? $juros : 0,
                 'paymentmode_id' => $paymentmode_id,
                 'documento_parcela' => $data['expense_identifier'] ?? null,
@@ -1287,6 +1281,9 @@ class Expenses extends REST_Controller
                 'valor_pago' => $data['valorPago'] ?? $installment->valor_com_juros,
                 'banco_id' => $data['bank_account_id'] ?? null,
                 'observacoes' => $data['note'] ?? null,
+                'juros_adicional' => $data['juros'] ?? 0,
+                'desconto' => $data['desconto'] ?? 0,
+                'multa' => $data['multa'] ?? 0,
             ];
             
             // Upload do comprovante (voucher)

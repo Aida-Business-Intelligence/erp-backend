@@ -23,6 +23,9 @@ class Expenses_installments_model extends App_Model
 
         $this->db->trans_start();
 
+        // Primeiro, remover parcelas existentes para evitar duplicação
+        $this->delete_installments_by_expense($expense_id);
+
         foreach ($installments as $installment) {
             $data = [
                 'expenses_id' => $expense_id,
@@ -31,6 +34,9 @@ class Expenses_installments_model extends App_Model
                 'valor_parcela' => $installment['valor_parcela'],
                 'valor_com_juros' => $installment['valor_com_juros'],
                 'juros' => $installment['juros'] ?? 0,
+                'juros_adicional' => $installment['juros_adicional'] ?? 0,
+                'desconto' => $installment['desconto'] ?? 0,
+                'multa' => $installment['multa'] ?? 0,
                 'percentual_juros' => $installment['percentual_juros'] ?? 0,
                 'status' => $installment['status'] ?? 'Pendente',
                 'paymentmode_id' => $installment['paymentmode_id'] ?? null,
@@ -66,6 +72,9 @@ class Expenses_installments_model extends App_Model
             valor_parcela,
             valor_com_juros,
             juros,
+            juros_adicional,
+            desconto,
+            multa,
             percentual_juros,
             status,
             paymentmode_id,
@@ -124,6 +133,9 @@ class Expenses_installments_model extends App_Model
             'status' => 'Pago',
             'banco_id' => $payment_data['banco_id'] ?? null,
             'observacoes' => $payment_data['observacoes'] ?? null,
+            'juros_adicional' => $payment_data['juros_adicional'] ?? 0,
+            'desconto' => $payment_data['desconto'] ?? 0,
+            'multa' => $payment_data['multa'] ?? 0,
         ];
 
         return $this->update_installment($installment_id, $data);
@@ -145,15 +157,24 @@ class Expenses_installments_model extends App_Model
         $valor_pago_atual = $installment->valor_pago ?? 0;
         $novo_valor_pago = $valor_pago_atual + $payment_data['valor_pago'];
 
+        // Calcular valor total da parcela incluindo juros adicional, multa e desconto
+        $valor_total_parcela = $installment->valor_com_juros + 
+                              ($installment->juros_adicional ?? 0) + 
+                              ($installment->multa ?? 0) - 
+                              ($installment->desconto ?? 0);
+
         $data = [
             'data_pagamento' => $payment_data['data_pagamento'] ?? date('Y-m-d'),
             'valor_pago' => $novo_valor_pago,
             'banco_id' => $payment_data['banco_id'] ?? null,
             'observacoes' => $payment_data['observacoes'] ?? null,
+            'juros_adicional' => $payment_data['juros_adicional'] ?? 0,
+            'desconto' => $payment_data['desconto'] ?? 0,
+            'multa' => $payment_data['multa'] ?? 0,
         ];
 
         // Se pagou o valor total, marca como pago
-        if ($novo_valor_pago >= $installment->valor_com_juros) {
+        if ($novo_valor_pago >= $valor_total_parcela) {
             $data['status'] = 'Pago';
         } else {
             $data['status'] = 'Parcial';
@@ -223,8 +244,11 @@ class Expenses_installments_model extends App_Model
             SUM(valor_parcela) as valor_total_original,
             SUM(valor_com_juros) as valor_total_com_juros,
             SUM(juros) as total_juros,
+            SUM(juros_adicional) as total_juros_adicional,
+            SUM(desconto) as total_desconto,
+            SUM(multa) as total_multa,
             SUM(CASE WHEN status = "Pago" THEN valor_pago ELSE 0 END) as valor_total_pago,
-            SUM(CASE WHEN status = "Pendente" THEN valor_com_juros ELSE 0 END) as valor_pendente,
+            SUM(CASE WHEN status = "Pendente" THEN (valor_com_juros + juros_adicional + multa - desconto) ELSE 0 END) as valor_pendente,
             COUNT(CASE WHEN status = "Pago" THEN 1 END) as parcelas_pagas,
             COUNT(CASE WHEN status = "Pendente" THEN 1 END) as parcelas_pendentes,
             COUNT(CASE WHEN status = "Parcial" THEN 1 END) as parcelas_parciais
@@ -245,7 +269,24 @@ class Expenses_installments_model extends App_Model
         }
 
         $this->db->select('
-            ai.*,
+            ai.id,
+            ai.expenses_id,
+            ai.numero_parcela,
+            ai.data_vencimento,
+            ai.valor_parcela,
+            ai.valor_com_juros,
+            ai.juros,
+            ai.juros_adicional,
+            ai.desconto,
+            ai.multa,
+            ai.percentual_juros,
+            ai.status,
+            ai.paymentmode_id,
+            ai.documento_parcela,
+            ai.observacoes,
+            ai.data_pagamento,
+            ai.valor_pago,
+            ai.banco_id,
             e.expense_identifier,
             e.note,
             c.company as client_name,
@@ -272,7 +313,24 @@ class Expenses_installments_model extends App_Model
     public function get_installments_by_period($start_date, $end_date, $warehouse_id = null)
     {
         $this->db->select('
-            ai.*,
+            ai.id,
+            ai.expenses_id,
+            ai.numero_parcela,
+            ai.data_vencimento,
+            ai.valor_parcela,
+            ai.valor_com_juros,
+            ai.juros,
+            ai.juros_adicional,
+            ai.desconto,
+            ai.multa,
+            ai.percentual_juros,
+            ai.status,
+            ai.paymentmode_id,
+            ai.documento_parcela,
+            ai.observacoes,
+            ai.data_pagamento,
+            ai.valor_pago,
+            ai.banco_id,
             e.expense_identifier,
             e.note,
             e.warehouse_id,

@@ -102,6 +102,15 @@ class Receivables_model extends App_Model
                 }
             }
             
+            // Carregar parcelas se existirem
+            $this->load->model('Receivables_installments_model');
+            $installments = $this->Receivables_installments_model->get_installments_by_receivable($id);
+            
+            // Adicionar parcelas aos dados da receita
+            if (!empty($installments)) {
+                $result->installments = $installments;
+            }
+            
         } catch (Exception $e) {
         }
         

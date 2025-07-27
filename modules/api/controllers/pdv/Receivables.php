@@ -49,6 +49,39 @@ class Receivables extends REST_Controller
         }
     }
 
+    /**
+     * Obter parcelas de uma receita
+     * @param int $id ID da receita
+     */
+    public function installments_get($id = null)
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        try {
+            if (!$id) {
+                throw new Exception('ID da receita é obrigatório');
+            }
+
+            $this->load->model('Receivables_installments_model');
+            
+            $installments = $this->Receivables_installments_model->get_installments_by_receivable($id);
+            $summary = $this->Receivables_installments_model->get_installments_summary($id);
+
+            return $this->response([
+                'status' => true,
+                'data' => [
+                    'installments' => $installments,
+                    'summary' => $summary
+                ]
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
     public function validateduplicates_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -161,6 +194,7 @@ class Receivables extends REST_Controller
 
         $id = $input['id'] ?? null;
         $status = $input['status'] ?? null;
+        $installment_id = $input['installment_id'] ?? null;
 
         if (empty($id) || !in_array($status, ['pending', 'received'])) {
             return $this->response([
@@ -169,7 +203,12 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        // Novos campos do payload
+        // Se há installment_id, é recebimento de parcela
+        if ($installment_id) {
+            return $this->receive_installment($id, $installment_id, $input);
+        }
+
+        // Recebimento da receita completa
         $fields = [
             'juros', 'desconto', 'multa', 'valorPago', 'comprovante', 'descricao_recebimento', 'bank_account_id', 'category_id', 'payment_date'
         ];
@@ -284,6 +323,78 @@ class Receivables extends REST_Controller
             'status' => false,
             'message' => 'Falha ao atualizar status/dados'
         ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
+
+    /**
+     * Receber uma parcela específica
+     * @param int $receivable_id ID da receita
+     * @param int $installment_id ID da parcela
+     * @param array $data Dados do recebimento
+     * @return mixed
+     */
+    private function receive_installment($receivable_id, $installment_id, $data)
+    {
+        try {
+            $this->load->model('Receivables_installments_model');
+            
+            // Verificar se a parcela existe
+            $installment = $this->Receivables_installments_model->get_installment($installment_id);
+            if (!$installment) {
+                throw new Exception('Parcela não encontrada');
+            }
+            
+            // Verificar se a parcela pertence à receita
+            if ($installment->receivables_id != $receivable_id) {
+                throw new Exception('Parcela não pertence à receita informada');
+            }
+            
+            // Preparar dados do recebimento
+            $payment_data = [
+                'data_pagamento' => $data['payment_date'] ?? date('Y-m-d'),
+                'valor_pago' => $data['valorPago'] ?? $installment->valor_com_juros,
+                'banco_id' => $data['bank_account_id'] ?? null,
+                'observacoes' => $data['descricao_recebimento'] ?? null,
+                'juros_adicional' => $data['juros'] ?? 0,
+                'desconto' => $data['desconto'] ?? 0,
+                'multa' => $data['multa'] ?? 0,
+            ];
+            
+            // Upload do comprovante (voucher)
+            $voucher_path = null;
+            if (!empty($data['comprovante'])) {
+                $voucher_path = $this->upload_voucher($receivable_id, $data['comprovante']);
+            }
+            
+            // Realizar o recebimento
+            $success = $this->Receivables_installments_model->receive_installment($installment_id, $payment_data);
+            if (!$success) {
+                throw new Exception('Falha ao processar recebimento da parcela');
+            }
+            
+            // Verificar se todas as parcelas foram recebidas
+            $summary = $this->Receivables_installments_model->get_installments_summary($receivable_id);
+            if ($summary['parcelas_pendentes'] == 0) {
+                // Marcar receita como recebida
+                $this->db->where('id', $receivable_id);
+                $this->db->update(db_prefix() . 'receivables', [
+                    'status' => 'received',
+                    'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
+                ]);
+            }
+            
+            return $this->response([
+                'status' => true,
+                'message' => 'Parcela recebida com sucesso',
+                'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
+                'installment_summary' => $summary
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function pay_post()
@@ -786,5 +897,56 @@ class Receivables extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
-
+    /**
+     * Upload de voucher
+     * @param int $receivable_id ID da receita
+     * @param string $document_data Dados do documento em base64
+     * @return string|null Caminho do arquivo ou null
+     */
+    private function upload_voucher($receivable_id, $document_data)
+    {
+        if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
+            $mime_type = $matches[1];
+            $document_data = substr($document_data, strpos($document_data, ',') + 1);
+            $allowed_types = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'image/jpeg',
+                'image/jpg',
+                'image/png'
+            ];
+            if (!in_array($mime_type, $allowed_types)) {
+                throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG');
+            }
+            $document_data = base64_decode($document_data);
+            if ($document_data === false) {
+                throw new Exception('Falha ao decodificar o comprovante');
+            }
+            if (strlen($document_data) > 5 * 1024 * 1024) {
+                throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+            }
+            $upload_path = FCPATH . 'uploads/receivables/voucher/';
+            if (!is_dir($upload_path)) {
+                mkdir($upload_path, 0755, true);
+            }
+            $extension_map = [
+                'application/pdf' => 'pdf',
+                'application/msword' => 'doc',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                'image/jpeg' => 'jpg',
+                'image/jpg' => 'jpg',
+                'image/png' => 'png'
+            ];
+            $extension = $extension_map[$mime_type] ?? 'bin';
+            $filename = 'voucher_' . $receivable_id . '_' . time() . '_' . uniqid() . '.' . $extension;
+            $file_path = $upload_path . $filename;
+            if (file_put_contents($file_path, $document_data)) {
+                return 'uploads/receivables/voucher/' . $filename;
+            } else {
+                throw new Exception('Falha ao salvar o comprovante no servidor');
+            }
+        }
+        return null;
+    }
 }

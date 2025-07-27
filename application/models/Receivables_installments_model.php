@@ -144,9 +144,16 @@ class Receivables_installments_model extends App_Model
      */
     public function update_installment($installment_id, $data)
     {
+        // Log para debug
+        log_message('debug', 'Atualizando parcela ID: ' . $installment_id . ' - Dados: ' . json_encode($data));
+        
         $this->db->where('id', $installment_id);
         $this->db->update(db_prefix() . 'account_installments', $data);
-        return $this->db->affected_rows() > 0;
+        $affected_rows = $this->db->affected_rows();
+        
+        log_message('debug', 'Parcela ID: ' . $installment_id . ' - Linhas afetadas: ' . $affected_rows);
+        
+        return $affected_rows > 0;
     }
 
     /**
@@ -157,6 +164,9 @@ class Receivables_installments_model extends App_Model
      */
     public function receive_installment($installment_id, $payment_data)
     {
+        // Log para debug
+        log_message('debug', 'Recebendo parcela ID: ' . $installment_id . ' - Valor: ' . $payment_data['valor_pago']);
+        
         $data = [
             'data_pagamento' => $payment_data['data_pagamento'] ?? date('Y-m-d'),
             'valor_pago' => $payment_data['valor_pago'],
@@ -174,6 +184,7 @@ class Receivables_installments_model extends App_Model
         if ($result) {
             $installment = $this->get_installment($installment_id);
             if ($installment) {
+                log_message('debug', 'Parcela recebida com sucesso. Atualizando due_date para receivable_id: ' . $installment->receivables_id);
                 $this->update_receivable_due_date($installment->receivables_id);
             }
         }
@@ -188,7 +199,7 @@ class Receivables_installments_model extends App_Model
      */
     public function update_receivable_due_date($receivable_id)
     {
-        // Buscar a próxima parcela não recebida
+        // Buscar a próxima parcela não recebida (incluindo parciais)
         $this->db->select('data_vencimento');
         $this->db->where('receivables_id', $receivable_id);
         $this->db->where('status !=', 'Pago');
@@ -332,13 +343,18 @@ class Receivables_installments_model extends App_Model
             SUM(desconto) as total_desconto,
             SUM(multa) as total_multa,
             SUM(CASE WHEN status = "Pago" THEN valor_pago ELSE 0 END) as valor_total_pago,
-            SUM(CASE WHEN status = "Pendente" THEN (valor_com_juros + juros_adicional + multa - desconto) ELSE 0 END) as valor_pendente,
+            SUM(CASE WHEN status IN ("Pendente", "Parcial") THEN (valor_com_juros + juros_adicional + multa - desconto) ELSE 0 END) as valor_pendente,
             COUNT(CASE WHEN status = "Pago" THEN 1 END) as parcelas_pagas,
-            COUNT(CASE WHEN status = "Pendente" THEN 1 END) as parcelas_pendentes,
+            COUNT(CASE WHEN status IN ("Pendente", "Parcial") THEN 1 END) as parcelas_pendentes,
             COUNT(CASE WHEN status = "Parcial" THEN 1 END) as parcelas_parciais
         ');
         $this->db->where('receivables_id', $receivable_id);
-        return $this->db->get(db_prefix() . 'account_installments')->row_array();
+        $result = $this->db->get(db_prefix() . 'account_installments')->row_array();
+        
+        // Log para debug
+        log_message('debug', 'Summary para receivable_id ' . $receivable_id . ': ' . json_encode($result));
+        
+        return $result;
     }
 
     /**

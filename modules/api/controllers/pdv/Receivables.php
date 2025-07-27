@@ -373,13 +373,23 @@ class Receivables extends REST_Controller
             
             // Verificar se todas as parcelas foram recebidas
             $summary = $this->Receivables_installments_model->get_installments_summary($receivable_id);
+            
+            // Log para debug
+            log_message('debug', 'Receivable ID: ' . $receivable_id . ' - Parcelas pendentes: ' . $summary['parcelas_pendentes'] . ' - Total parcelas: ' . $summary['total_parcelas']);
+            
             if ($summary['parcelas_pendentes'] == 0) {
-                // Marcar receita como recebida
+                // Marcar receita como recebida apenas quando todas as parcelas forem pagas
+                log_message('debug', 'Todas as parcelas foram recebidas. Marcando receita como received.');
                 $this->db->where('id', $receivable_id);
                 $this->db->update(db_prefix() . 'receivables', [
                     'status' => 'received',
                     'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
                 ]);
+            } else {
+                // Se ainda há parcelas pendentes, manter como pending e atualizar apenas o due_date
+                log_message('debug', 'Ainda há ' . $summary['parcelas_pendentes'] . ' parcelas pendentes. Mantendo receita como pending.');
+                // O due_date será atualizado automaticamente pelo método update_receivable_due_date
+                // que é chamado dentro do receive_installment do Receivables_installments_model
             }
             
             return $this->response([
@@ -626,8 +636,17 @@ class Receivables extends REST_Controller
             'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
-        $this->db->insert(db_prefix() . 'receivables', $data);
-        $id = $this->db->insert_id();
+        
+        // Processar parcelas se fornecidas
+        $installments = null;
+        if (isset($data['num_parcelas']) && $data['num_parcelas'] > 1) {
+            $installments = $this->process_installments($data);
+            $data['installments'] = $installments;
+        }
+
+        $this->load->model('Receivables_model');
+        $id = $this->Receivables_model->add($data);
+        
         if ($id) {
             return $this->response([
                 'status' => true,
@@ -813,9 +832,18 @@ class Receivables extends REST_Controller
             'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
-        $this->db->where('id', $id);
-        $this->db->update(db_prefix() . 'receivables', $data);
-        if ($this->db->affected_rows() > 0 || $document_was_updated) {
+        
+        // Processar parcelas se fornecidas
+        $installments = null;
+        if (isset($data['num_parcelas']) && $data['num_parcelas'] > 1) {
+            $installments = $this->process_installments($data);
+            $data['installments'] = $installments;
+        }
+
+        $this->load->model('Receivables_model');
+        $success = $this->Receivables_model->update($data, $id);
+        
+        if ($success || $document_was_updated) {
             return $this->response([
                 'status' => true,
                 'message' => 'Receita atualizada com sucesso'
@@ -847,9 +875,10 @@ class Receivables extends REST_Controller
                 @unlink($file_path);
             }
         }
-        $this->db->where('id', $id);
-        $this->db->delete(db_prefix() . 'receivables');
-        if ($this->db->affected_rows() > 0) {
+        
+        $success = $this->Receivables_model->delete($id);
+        
+        if ($success) {
             return $this->response([
                 'status' => true,
                 'message' => 'Receita deletada com sucesso'
@@ -895,6 +924,50 @@ class Receivables extends REST_Controller
             'total_pages' => ceil($result['total'] / $pageSize),
             'data' => $result['data']
         ], REST_Controller::HTTP_OK);
+    }
+
+    /**
+     * Processar parcelas para uma receita
+     * @param array $data Dados da receita
+     * @return array Array de parcelas
+     */
+    private function process_installments($data)
+    {
+        $num_parcelas = $data['num_parcelas'] ?? 1;
+        $valor_original = $data['amount'] ?? 0;
+        $juros = $data['juros'] ?? 0;
+        $juros_apartir = $data['juros_apartir'] ?? 1;
+        $data_vencimento = $data['due_date'] ?? date('Y-m-d');
+        $paymentmode_id = $data['paymentmode'] ?? 0;
+
+        $installments = [];
+        $valor_parcela = $valor_original / $num_parcelas;
+
+        for ($i = 1; $i <= $num_parcelas; $i++) {
+            $tem_juros = $i >= $juros_apartir;
+            $juros_parcela = $tem_juros ? $valor_parcela * ($juros / 100) : 0;
+            $valor_com_juros = $valor_parcela + $juros_parcela;
+
+            // Calcular data de vencimento da parcela
+            $data_vencimento_parcela = date('Y-m-d', strtotime($data_vencimento . ' + ' . ($i - 1) . ' months'));
+
+            $installments[] = [
+                'numero_parcela' => $i,
+                'data_vencimento' => $data_vencimento_parcela,
+                'valor_parcela' => $valor_parcela,
+                'valor_com_juros' => $valor_com_juros,
+                'juros' => $juros_parcela,
+                'juros_adicional' => 0, // Será preenchido no momento do recebimento
+                'desconto' => 0, // Será preenchido no momento do recebimento
+                'multa' => 0, // Será preenchido no momento do recebimento
+                'percentual_juros' => $tem_juros ? $juros : 0,
+                'paymentmode_id' => $paymentmode_id,
+                'documento_parcela' => $data['receivable_identifier'] ?? null,
+                'observacoes' => $data['note'] ?? null,
+            ];
+        }
+
+        return $installments;
     }
 
     /**

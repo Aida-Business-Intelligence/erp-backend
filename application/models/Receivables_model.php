@@ -370,7 +370,112 @@ class Receivables_model extends App_Model
         return [];
     }
 
-    // Métodos de add, update, delete podem ser implementados conforme necessidade
+    /**
+     * Add new receivable
+     * @param array $data All $_POST data
+     * @return mixed
+     */
+    public function add($data)
+    {
+        $this->db->trans_start();
+
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
+
+        $this->db->insert(db_prefix() . 'receivables', $data);
+        $receivable_id = $this->db->insert_id();
+
+        // SEMPRE criar pelo menos uma parcela na tabela de parcelas (padronização)
+        if ($receivable_id) {
+            $this->load->model('Receivables_installments_model');
+            
+            if ($installments) {
+                // Se há parcelas definidas, usar elas
+                $this->Receivables_installments_model->add_installments($receivable_id, $installments);
+            } else {
+                // Se não há parcelas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['receivable_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Receivables_installments_model->add_installments($receivable_id, [$single_installment]);
+            }
+        }
+
+        $this->db->trans_complete();
+        
+        if ($this->db->trans_status() === FALSE) {
+            return false;
+        }
+
+        return $receivable_id;
+    }
+
+    /**
+     * Update receivable
+     * @param array $data All $_POST data
+     * @param int $id receivable id to update
+     * @return boolean
+     */
+    public function update($data, $id)
+    {
+        $this->db->trans_start();
+
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
+
+        $this->db->where('id', $id);
+        $this->db->update(db_prefix() . 'receivables', $data);
+
+        // Atualizar parcelas se fornecidas
+        if ($installments !== null) {
+            $this->load->model('Receivables_installments_model');
+            $this->Receivables_installments_model->add_installments($id, $installments);
+        }
+
+        $this->db->trans_complete();
+        
+        return $this->db->trans_status();
+    }
+
+    /**
+     * Delete receivable
+     * @param int $id receivable id to delete
+     * @return boolean
+     */
+    public function delete($id)
+    {
+        $this->db->trans_start();
+
+        // Deletar parcelas primeiro
+        $this->load->model('Receivables_installments_model');
+        $this->Receivables_installments_model->delete_installments_by_receivable($id);
+
+        // Deletar receita
+        $this->db->where('id', $id);
+        $this->db->delete(db_prefix() . 'receivables');
+
+        $this->db->trans_complete();
+        
+        return $this->db->trans_status();
+    }
 
     public function get_receivables_by_day($params)
     {

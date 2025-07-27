@@ -1117,6 +1117,8 @@ class Expenses_model extends App_Model
             ' . db_prefix() . 'taxes_2.name as tax_name2,
             ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
             ' . db_prefix() . 'payment_modes.name as payment_mode_name,
+            ' . db_prefix() . 'payment_modes.is_check,
+            ' . db_prefix() . 'payment_modes.is_boleto,
         ');
 
         $this->db->from(db_prefix() . 'expenses e');
@@ -1243,7 +1245,9 @@ class Expenses_model extends App_Model
         t1.taxrate as taxrate,
         t2.name as tax_name2,
         t2.taxrate as taxrate2,
-        pm.name as payment_mode_name'
+        pm.name as payment_mode_name,
+        pm.is_check,
+        pm.is_boleto'
         );
 
         $this->db->from(db_prefix() . 'expenses e');
@@ -1271,6 +1275,8 @@ class Expenses_model extends App_Model
         e.addedfrom as addedfrom,
         cat.name as category_name,
         pm.name as payment_mode_name,
+        pm.is_check,
+        pm.is_boleto,
         t1.name as tax_name, 
         t1.taxrate as taxrate,
         t2.name as tax_name2, 
@@ -1368,6 +1374,8 @@ class Expenses_model extends App_Model
             ' . db_prefix() . 'taxes_2.name as tax_name2,
             ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
             ' . db_prefix() . 'payment_modes.name as payment_mode_name,
+            ' . db_prefix() . 'payment_modes.is_check,
+            ' . db_prefix() . 'payment_modes.is_boleto,
         ');
 
         $this->db->from(db_prefix() . 'expenses e');
@@ -1432,6 +1440,8 @@ class Expenses_model extends App_Model
             e.addedfrom as addedfrom,
             cat.name as category_name,
             pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
             t1.name as tax_name, 
             t1.taxrate as taxrate,
             t2.name as tax_name2, 
@@ -1486,6 +1496,8 @@ class Expenses_model extends App_Model
             e.*,
             c.company as client,
             pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
             cat.name as category_name,
             t1.name as tax_name,
             t1.taxrate as taxrate,

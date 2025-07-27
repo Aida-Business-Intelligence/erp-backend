@@ -93,7 +93,9 @@ class Receivables_installments_model extends App_Model
             observacoes,
             data_pagamento,
             valor_pago,
-            banco_id
+            banco_id,
+            id_cheque,
+            id_boleto
         ');
         $this->db->where('receivables_id', $receivable_id);
         $this->db->order_by('numero_parcela', 'ASC');
@@ -176,6 +178,8 @@ class Receivables_installments_model extends App_Model
             'juros_adicional' => $payment_data['juros_adicional'] ?? 0,
             'desconto' => $payment_data['desconto'] ?? 0,
             'multa' => $payment_data['multa'] ?? 0,
+            'id_cheque' => $payment_data['id_cheque'] ?? null,
+            'id_boleto' => $payment_data['id_boleto'] ?? null,
         ];
 
         $result = $this->update_installment($installment_id, $data);
@@ -259,6 +263,8 @@ class Receivables_installments_model extends App_Model
             'juros_adicional' => $payment_data['juros_adicional'] ?? 0,
             'desconto' => $payment_data['desconto'] ?? 0,
             'multa' => $payment_data['multa'] ?? 0,
+            'id_cheque' => $payment_data['id_cheque'] ?? null,
+            'id_boleto' => $payment_data['id_boleto'] ?? null,
         ];
 
         // Se recebeu o valor total, marca como pago

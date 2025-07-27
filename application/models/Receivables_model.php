@@ -60,12 +60,13 @@ class Receivables_model extends App_Model
             
             // Buscar nome do modo de pagamento
             if ($result->paymentmode) {
-                $this->db->select('name');
+                $this->db->select('name, is_check, is_boleto');
                 $this->db->from(db_prefix() . 'payment_modes');
                 $this->db->where('id', $result->paymentmode);
                 $paymentMode = $this->db->get()->row();
                 if ($paymentMode) {
                     $result->payment_mode_name = $paymentMode->name;
+                    $result->payment_mode = $paymentMode;
                 }
             }
             
@@ -135,6 +136,8 @@ class Receivables_model extends App_Model
             c.company as company,
             cat.name as category_name,
             pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
             w.warehouse_name
         ');
         $this->db->from($this->table() . ' as r');
@@ -492,6 +495,8 @@ class Receivables_model extends App_Model
             cat.name as category_name,
             pm.name as paymentmode,
             pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
             w.warehouse_name
         ');
         $this->db->from($this->table() . ' as r');

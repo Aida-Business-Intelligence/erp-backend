@@ -1260,7 +1260,9 @@ class Expenses_ao_model extends App_Model
         t1.taxrate as taxrate,
         t2.name as tax_name2,
         t2.taxrate as taxrate2,
-        pm.name as payment_mode_name'
+        pm.name as payment_mode_name,
+        pm.is_check,
+        pm.is_boleto'
         );
 
         $this->db->from(db_prefix() . 'expenses_ao e');

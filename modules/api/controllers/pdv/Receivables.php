@@ -357,6 +357,8 @@ class Receivables extends REST_Controller
                 'juros_adicional' => $data['juros'] ?? 0,
                 'desconto' => $data['desconto'] ?? 0,
                 'multa' => $data['multa'] ?? 0,
+                'id_cheque' => $data['check_identifier'] ?? null,
+                'id_boleto' => $data['boleto_identifier'] ?? null,
             ];
             
             // Upload do comprovante (voucher)

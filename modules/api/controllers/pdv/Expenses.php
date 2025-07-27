@@ -1141,6 +1141,8 @@ class Expenses extends REST_Controller
                 'desconto' => $data['desconto'] ?? null,
                 'multa' => $data['multa'] ?? null,
                 'valor_pago' => $data['valorPago'] ?? null,
+                'check_identifier' => $data['check_identifier'] ?? null,
+                'boleto_identifier' => $data['boleto_identifier'] ?? null,
             ];
             // Upload do comprovante (voucher)
             $voucher_path = null;
@@ -1362,6 +1364,8 @@ class Expenses extends REST_Controller
                 'juros_adicional' => $data['juros'] ?? 0,
                 'desconto' => $data['desconto'] ?? 0,
                 'multa' => $data['multa'] ?? 0,
+                'id_cheque' => $data['check_identifier'] ?? null,
+                'id_boleto' => $data['boleto_identifier'] ?? null,
             ];
             
             // Upload do comprovante (voucher)

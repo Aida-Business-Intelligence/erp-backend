@@ -875,4 +875,3 @@ class Settings extends REST_Controller
         $this->response($message, REST_Controller::HTTP_OK);
     }
 }
-

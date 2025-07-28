@@ -303,60 +303,6 @@ class Settings_model extends App_Model
         return $menus;
     }
 
-    public function get_api_menu($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'ordem', $sortOrder = 'ASC')
-    {
-
-        if (!is_numeric($id)) { 
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('label', $label);
-                $this->db->or_like('value', $value);
-                $this->db->group_end();
-            }
-
-            // Contagem total de registros sem paginação
-            $total = $this->db->count_all_results(db_prefix() . 'menu');
-
-            // Obter os dados com paginação e ordenação
-
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('search', $search);
-                $this->db->or_like('value', $value);
-                $this->db->group_end();
-            }
-
-            // Aplica a ordenação
-            if ($sortField === 'value') {
-                // Ordenação por firstname, tratando valores nulos ou vazios
-                $this->db->order_by("value", $sortOrder);
-            } elseif ($sortField === 'label') {
-                // Ordenação pelo nome do cargo (tblroles.name)
-                $this->db->order_by(db_prefix() . 'label', $sortOrder);
-            } else {
-                $this->db->order_by($sortField, $sortOrder);
-            }
-
-            $offset = ($page - 1) * $limit;
-            $this->db->limit($limit, $offset);
-            $data = $this->db->get(db_prefix() . 'menu')->result_array();
-
-
-            return ['data' => $data, 'total' => $total];
-        } else {
-            return ['data' => (array) $this->get($id), 'total' => 1];
-        }
-    }
-
-    public function get($id)
-    {
-        return $this->db
-            ->where('id', $id)
-            ->get(db_prefix() . 'menu')
-            ->row();
-    }
-
-
     public function update_menu($id, $data)
     {
         $this->db->where('id', $id);

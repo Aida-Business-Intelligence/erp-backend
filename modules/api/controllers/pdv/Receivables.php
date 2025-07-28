@@ -851,6 +851,7 @@ class Receivables extends REST_Controller
         $valor_original = $data['amount'] ?? 0;
         $juros = $data['juros'] ?? 0;
         $juros_apartir = $data['juros_apartir'] ?? 1;
+        $tipo_juros = $data['tipo_juros'] ?? 'simples';
         $data_vencimento = $data['due_date'] ?? date('Y-m-d');
         $paymentmode_id = $data['paymentmode'] ?? 0;
 
@@ -875,6 +876,7 @@ class Receivables extends REST_Controller
                 'desconto' => 0, // Será preenchido no momento do recebimento
                 'multa' => 0, // Será preenchido no momento do recebimento
                 'percentual_juros' => $tem_juros ? $juros : 0,
+                'tipo_juros' => $tipo_juros,
                 'paymentmode_id' => $paymentmode_id,
                 'documento_parcela' => $data['receivable_identifier'] ?? null,
                 'observacoes' => $data['note'] ?? null,

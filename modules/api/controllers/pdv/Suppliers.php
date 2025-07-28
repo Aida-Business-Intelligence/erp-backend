@@ -190,6 +190,7 @@ class Suppliers extends REST_Controller
         'state' => $_POST['state'],
         'country' => $_POST['country'],
         'cep' => $_POST['cep'] ?? null,
+        'zip' => $_POST['cep'] ?? null,
         'payment_terms' => $_POST['paymentTerm'] ?? null,
         'active' => ($_POST['status'] === 'active') ? 1 : 0,
         'is_supplier' => 1,
@@ -222,6 +223,9 @@ class Suppliers extends REST_Controller
         'max_payment_term' => isset($_POST['max_payment_term']) ? (int) $_POST['max_payment_term'] : null,
         'min_order_value' => isset($_POST['min_order_value']) ? (float) $_POST['min_order_value'] : null,
         'max_order_value' => isset($_POST['max_order_value']) ? (float) $_POST['max_order_value'] : null,
+        'billing_number' => isset($_POST['billing_number']) ?  $_POST['billing_number'] : null,
+        'billing_neighborhood' => isset($_POST['billing_neighborhood']) ? $_POST['billing_neighborhood'] : null,
+        'billing_complement' =>  isset($_POST['billing_complement']) ? $_POST['billing_complement'] : null,
         'profile_image' => $profile_image // Armazena o caminho relativo da imagem
       ];
 
@@ -660,6 +664,8 @@ class Suppliers extends REST_Controller
 
     $this->db->limit($limit, ($page - 1) * $limit);
     $data = $this->db->get()->result_array();
+
+   
 
     foreach ($data as &$supplier) {
       $this->db->select('firstname as name, phonenumber as phone');

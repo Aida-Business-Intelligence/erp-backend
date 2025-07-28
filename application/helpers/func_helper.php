@@ -910,12 +910,29 @@ if (!function_exists('gerarNFC')) {
 
         $response = curl_exec($curl);
 
-  
-
+        // Log da resposta da API
+        $response_decoded = json_decode($response);
+        
         if(curl_errno($curl)){
             // Aqui é importante tratar erro de conexão
             $error_msg = curl_error($curl);
             curl_close($curl);
+            
+            // Log do erro
+            /*
+            log_api_response(
+                'NFC-e API', 
+                getenv('NFE_BASE_URL') . '/gerador/Emissor.php',
+                $postData,
+                null,
+                'error',
+                $error_msg
+            );
+            */
+
+            log_activity("NFC-e API Request: " . json_encode($postData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 1);
+            log_activity("NFC-e API Response: " . $response, 1);
+            
             return (object) [
                 'error' => true,
                 'message' => $error_msg
@@ -924,8 +941,110 @@ if (!function_exists('gerarNFC')) {
 
         curl_close($curl);
 
-        return json_decode($response);
+        /*
+        log_api_response(
+            'NFC-e API', 
+            getenv('NFE_BASE_URL') . '/gerador/Emissor.php',
+            $postData,
+            $response_decoded,
+            'success'
+        );  
+        */
+        log_activity("NFC-e API Request: " . json_encode($postData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 1);
+        log_activity("NFC-e API Response: " . $response, 1);
+
+        return $response_decoded;
     }
+}
+
+/**
+ * Função para log de respostas de API
+ * @param string $api_name Nome da API
+ * @param string $endpoint Endpoint da API
+ * @param mixed $request_data Dados da requisição
+ * @param mixed $response_data Dados da resposta
+ * @param string $status Status da resposta (success/error)
+ * @param string $error_message Mensagem de erro (opcional)
+ */
+function log_api_response($api_name, $endpoint, $request_data = null, $response_data = null, $status = 'success', $error_message = '')
+{
+    // Cria o diretório de logs se não existir
+    $log_dir = FCPATH . 'uploads/logs/api/';
+ 
+    if (!is_dir($log_dir)) {
+        mkdir($log_dir, 0755, true);
+    }
+
+    // Nome do arquivo de log com data
+    $log_file = $log_dir . 'api_log_' . date('Y-m-d') . '.txt';
+
+    // Prepara os dados para o log
+    $log_data = [
+        'timestamp' => date('Y-m-d H:i:s'),
+        'api_name' => $api_name,
+        'endpoint' => $endpoint,
+        'status' => $status,
+        'request_data' => $request_data,
+        'response_data' => $response_data,
+        'error_message' => $error_message,
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+    ];
+
+    // Formata a entrada do log
+    $log_entry = "=== API LOG ENTRY ===\n";
+    $log_entry .= "Data/Hora: " . $log_data['timestamp'] . "\n";
+    $log_entry .= "API: " . $log_data['api_name'] . "\n";
+    $log_entry .= "Endpoint: " . $log_data['endpoint'] . "\n";
+    $log_entry .= "Status: " . $log_data['status'] . "\n";
+    $log_entry .= "IP: " . $log_data['ip_address'] . "\n";
+    $log_entry .= "User Agent: " . $log_data['user_agent'] . "\n";
+    
+    if ($request_data) {
+        $log_entry .= "Request Data: " . json_encode($request_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+    }
+    
+    if ($response_data) {
+        $log_entry .= "Response Data: " . json_encode($response_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+    }
+    
+    if ($error_message) {
+        $log_entry .= "Error: " . $error_message . "\n";
+    }
+    
+    $log_entry .= "=== FIM LOG ===\n\n";
+
+    // Escreve no arquivo de log
+    file_put_contents($log_file, $log_entry, FILE_APPEND | LOCK_EX);
+}
+
+/**
+ * Função para log simples de resposta de API
+ * @param string $message Mensagem para log
+ * @param mixed $data Dados adicionais (opcional)
+ */
+function log_api_simple($message, $data = null)
+{
+    // Cria o diretório de logs se não existir
+    $log_dir = FCPATH . 'uploads/logs/api/';
+    if (!is_dir($log_dir)) {
+        mkdir($log_dir, 0755, true);
+    }
+
+    // Nome do arquivo de log com data
+    $log_file = $log_dir . 'api_simple_log_' . date('Y-m-d') . '.txt';
+
+    // Formata a entrada do log
+    $log_entry = "[" . date('Y-m-d H:i:s') . "] " . $message;
+    
+    if ($data) {
+        $log_entry .= " - Data: " . json_encode($data, JSON_UNESCAPED_UNICODE);
+    }
+    
+    $log_entry .= "\n";
+
+    // Escreve no arquivo de log
+    file_put_contents($log_file, $log_entry, FILE_APPEND | LOCK_EX);
 }
 
 

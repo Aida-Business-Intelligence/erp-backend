@@ -577,68 +577,10 @@ class Settings extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
-        public function menu_list_post($id = '')
-    {
-        $page = $this->post('page') ? (int) $this->post('page') : 0;
-        $page = $page + 1;
-
-        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
-        $search = $this->post('search') ?: '';
-        $sortField = $this->post('sortField') ?: 'ordem';
-        
-        $sortOrder = strtoupper($this->post('sortOrder')) === 'DESC' ? 'DESC' : 'ASC';
-
-        $data = $this->Settings_model->get_api_menu($id, $page, $limit, $search, $sortField, $sortOrder);
-
-        // Verifica se há dados retornados
-        if (empty($data['data'])) {
-            $this->response(
-                [
-                    'status' => FALSE,
-                    'message' => 'No data were found'
-                ],
-                REST_Controller::HTTP_NOT_FOUND
-            );
-        } else {
-            $this->response(
-                [
-                    'status' => true,
-                    'total' => (int) $data['total'],
-                    'data' => $data['data']
-                ],
-                REST_Controller::HTTP_OK
-            );
-        }
-    }
-
-    public function get_menu_post($id)
-    {
-        if (empty($id) || !is_numeric($id)) {
-            return $this->response([
-                'status' => false,
-                'message' => 'ID inválido',
-            ], REST_Controller::HTTP_BAD_REQUEST);
-        }
-
-        $this->load->model('Settings_model');
-        $menu = $this->Settings_model->get($id);
-
-        if ($menu) {
-            return $this->response([
-                'status' => true,
-                'data' => $menu,
-            ], REST_Controller::HTTP_OK);
-        } else {
-            return $this->response([
-                'status' => false,
-                'message' => 'Menu não encontrado',
-            ], REST_Controller::HTTP_NOT_FOUND);
-        }
-    }
-
-
     public function create_menu_post()
     {
+
+      
 
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
@@ -765,7 +707,6 @@ class Settings extends REST_Controller
             $this->response($responseData, REST_Controller::HTTP_OK);
         }
     }
-
     public function update_menus_patch()
     {
         // Retrieve and clean the input data

@@ -219,7 +219,6 @@ class Warehouse extends REST_Controller
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             return;
         }
-
         if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
             $file      = $_FILES['arquivo_nfe'];
             $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));

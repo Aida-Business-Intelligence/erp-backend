@@ -232,7 +232,6 @@ class Warehouse extends REST_Controller
                     if (!file_exists($upload_dir)) {
                         mkdir($upload_dir, 0777, true);
                     }
-
                     $filename    = uniqid() . '.pfx';
                     $upload_path = $upload_dir . $filename;
 

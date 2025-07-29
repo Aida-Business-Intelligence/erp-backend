@@ -31,7 +31,7 @@ jobs:
           script: |
             set -e
 
-            APP_DIR="/srv/erp/mk9"
+            APP_DIR="/srv/erp/imperio"
 
             echo "⏩  Entrando na pasta ${APP_DIR}..."
             cd "${APP_DIR}"

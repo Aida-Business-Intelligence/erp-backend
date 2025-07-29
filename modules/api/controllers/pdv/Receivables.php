@@ -554,7 +554,11 @@ class Receivables extends REST_Controller
         // Processar parcelas se fornecidas
         $installments = null;
         if (isset($data['num_parcelas']) && $data['num_parcelas'] > 1) {
-            $installments = $this->process_installments($data);
+            // Criar array temporário com todos os campos necessários para processar parcelas
+            $installment_data = array_merge($data, [
+                'tipo_juros' => $input['tipo_juros'] ?? 'simples',
+            ]);
+            $installments = $this->process_installments($installment_data);
             $data['installments'] = $installments;
         }
 
@@ -750,7 +754,11 @@ class Receivables extends REST_Controller
         // Processar parcelas se fornecidas
         $installments = null;
         if (isset($data['num_parcelas']) && $data['num_parcelas'] > 1) {
-            $installments = $this->process_installments($data);
+            // Criar array temporário com todos os campos necessários para processar parcelas
+            $installment_data = array_merge($data, [
+                'tipo_juros' => $input['tipo_juros'] ?? 'simples',
+            ]);
+            $installments = $this->process_installments($installment_data);
             $data['installments'] = $installments;
         }
 
@@ -858,29 +866,65 @@ class Receivables extends REST_Controller
         $installments = [];
         $valor_parcela = $valor_original / $num_parcelas;
 
-        for ($i = 1; $i <= $num_parcelas; $i++) {
-            $tem_juros = $i >= $juros_apartir;
-            $juros_parcela = $tem_juros ? $valor_parcela * ($juros / 100) : 0;
-            $valor_com_juros = $valor_parcela + $juros_parcela;
+        if ($tipo_juros === 'composto') {
+            // Juros compostos: aplicado sobre o valor acumulado
+            $valor_acumulado = $valor_parcela;
+            for ($i = 1; $i <= $num_parcelas; $i++) {
+                $tem_juros = $i >= $juros_apartir;
+                $juros_parcela = 0;
+                $valor_com_juros = $valor_parcela;
+                
+                if ($tem_juros) {
+                    $juros_parcela = $valor_acumulado * ($juros / 100);
+                    $valor_com_juros = $valor_parcela + $juros_parcela;
+                    $valor_acumulado += $juros_parcela;
+                }
 
-            // Calcular data de vencimento da parcela
-            $data_vencimento_parcela = date('Y-m-d', strtotime($data_vencimento . ' + ' . ($i - 1) . ' months'));
+                // Calcular data de vencimento da parcela
+                $data_vencimento_parcela = date('Y-m-d', strtotime($data_vencimento . ' + ' . ($i - 1) . ' months'));
 
-            $installments[] = [
-                'numero_parcela' => $i,
-                'data_vencimento' => $data_vencimento_parcela,
-                'valor_parcela' => $valor_parcela,
-                'valor_com_juros' => $valor_com_juros,
-                'juros' => $juros_parcela,
-                'juros_adicional' => 0, // Será preenchido no momento do recebimento
-                'desconto' => 0, // Será preenchido no momento do recebimento
-                'multa' => 0, // Será preenchido no momento do recebimento
-                'percentual_juros' => $tem_juros ? $juros : 0,
-                'tipo_juros' => $tipo_juros,
-                'paymentmode_id' => $paymentmode_id,
-                'documento_parcela' => $data['receivable_identifier'] ?? null,
-                'observacoes' => $data['note'] ?? null,
-            ];
+                $installments[] = [
+                    'numero_parcela' => $i,
+                    'data_vencimento' => $data_vencimento_parcela,
+                    'valor_parcela' => $valor_parcela,
+                    'valor_com_juros' => $valor_com_juros,
+                    'juros' => $juros_parcela,
+                    'juros_adicional' => 0, // Será preenchido no momento do recebimento
+                    'desconto' => 0, // Será preenchido no momento do recebimento
+                    'multa' => 0, // Será preenchido no momento do recebimento
+                    'percentual_juros' => $tem_juros ? $juros : 0,
+                    'tipo_juros' => $tipo_juros,
+                    'paymentmode_id' => $paymentmode_id,
+                    'documento_parcela' => $data['receivable_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+            }
+        } else {
+            // Juros simples: aplicado sobre o valor original da parcela
+            for ($i = 1; $i <= $num_parcelas; $i++) {
+                $tem_juros = $i >= $juros_apartir;
+                $juros_parcela = $tem_juros ? $valor_parcela * ($juros / 100) : 0;
+                $valor_com_juros = $valor_parcela + $juros_parcela;
+
+                // Calcular data de vencimento da parcela
+                $data_vencimento_parcela = date('Y-m-d', strtotime($data_vencimento . ' + ' . ($i - 1) . ' months'));
+
+                $installments[] = [
+                    'numero_parcela' => $i,
+                    'data_vencimento' => $data_vencimento_parcela,
+                    'valor_parcela' => $valor_parcela,
+                    'valor_com_juros' => $valor_com_juros,
+                    'juros' => $juros_parcela,
+                    'juros_adicional' => 0, // Será preenchido no momento do recebimento
+                    'desconto' => 0, // Será preenchido no momento do recebimento
+                    'multa' => 0, // Será preenchido no momento do recebimento
+                    'percentual_juros' => $tem_juros ? $juros : 0,
+                    'tipo_juros' => $tipo_juros,
+                    'paymentmode_id' => $paymentmode_id,
+                    'documento_parcela' => $data['receivable_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+            }
         }
 
         return $installments;

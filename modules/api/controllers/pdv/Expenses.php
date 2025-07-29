@@ -1123,8 +1123,14 @@ class Expenses extends REST_Controller
             
             $expense_id = $data['id'];
             $installment_id = $data['installment_id'] ?? null;
+            $installment_numbers = $data['installment_numbers'] ?? null;
             
-            // Se há installment_id, é pagamento de parcela
+            // Se há installment_numbers, é pagamento de múltiplas parcelas
+            if ($installment_numbers && is_array($installment_numbers)) {
+                return $this->pay_multiple_installments($expense_id, $installment_numbers, $data);
+            }
+            
+            // Se há installment_id, é pagamento de parcela única
             if ($installment_id) {
                 return $this->pay_installment($expense_id, $installment_id, $data);
             }
@@ -1202,6 +1208,122 @@ class Expenses extends REST_Controller
                 'message' => 'Pagamento baixado com sucesso',
                 'voucher_url' => $voucher_path ? base_url($voucher_path) : null
             ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Pagar múltiplas parcelas em sequência
+     * @param int $expense_id ID da despesa
+     * @param array $installment_numbers Array com números das parcelas
+     * @param array $data Dados do pagamento
+     * @return mixed
+     */
+    private function pay_multiple_installments($expense_id, $installment_numbers, $data)
+    {
+        try {
+            $this->load->model('Expenses_installments_model');
+            
+            // Verificar se as parcelas são sequenciais
+            sort($installment_numbers);
+            for ($i = 1; $i < count($installment_numbers); $i++) {
+                if ($installment_numbers[$i] !== $installment_numbers[$i-1] + 1) {
+                    throw new Exception('As parcelas devem ser sequenciais. Não é possível pular parcelas.');
+                }
+            }
+            
+            // Buscar todas as parcelas da despesa
+            $all_installments = $this->Expenses_installments_model->get_installments_by_expense($expense_id);
+            
+            // Filtrar apenas as parcelas selecionadas
+            $selected_installments = array_filter($all_installments, function($installment) use ($installment_numbers) {
+                return in_array($installment['numero_parcela'], $installment_numbers);
+            });
+            
+            if (count($selected_installments) !== count($installment_numbers)) {
+                throw new Exception('Algumas parcelas selecionadas não foram encontradas');
+            }
+            
+            // Verificar se todas as parcelas estão pendentes
+            foreach ($selected_installments as $installment) {
+                if ($installment['status'] === 'Pago') {
+                    throw new Exception("A parcela {$installment['numero_parcela']} já foi paga");
+                }
+            }
+            
+            // Upload do comprovante (voucher) - será usado para todas as parcelas
+            $voucher_path = null;
+            if (!empty($data['comprovante'])) {
+                $voucher_path = $this->upload_voucher($expense_id, $data['comprovante']);
+            }
+            
+            $success_count = 0;
+            $failed_count = 0;
+            $errors = [];
+            
+            // Processar cada parcela
+            foreach ($selected_installments as $installment) {
+                try {
+                    $payment_data = [
+                        'data_pagamento' => $data['payment_date'] ?? date('Y-m-d'),
+                        'valor_pago' => $data['valorPago'] ?? $installment['valor_com_juros'],
+                        'banco_id' => $data['bank_account_id'] ?? null,
+                        'observacoes' => $data['note'] ?? null,
+                        'juros_adicional' => $data['juros'] ?? 0,
+                        'desconto' => $data['desconto'] ?? 0,
+                        'multa' => $data['multa'] ?? 0,
+                        'id_cheque' => $data['check_identifier'] ?? null,
+                        'id_boleto' => $data['boleto_identifier'] ?? null,
+                        'comprovante' => $voucher_path,
+                    ];
+                    
+                    $success = $this->Expenses_installments_model->pay_installment($installment['id'], $payment_data);
+                    if ($success) {
+                        $success_count++;
+                    } else {
+                        $failed_count++;
+                        $errors[] = "Falha ao processar parcela {$installment['numero_parcela']}";
+                    }
+                } catch (Exception $e) {
+                    $failed_count++;
+                    $errors[] = "Erro na parcela {$installment['numero_parcela']}: " . $e->getMessage();
+                }
+            }
+            
+            // Verificar se todas as parcelas foram pagas
+            $summary = $this->Expenses_installments_model->get_installments_summary($expense_id);
+            if ($summary['parcelas_pendentes'] == 0) {
+                // Marcar despesa como paga
+                $this->load->model('Expenses_model');
+                $this->Expenses_model->updatetwo([
+                    'status' => 'paid',
+                    'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
+                ], $expense_id);
+            }
+            
+            if ($failed_count > 0) {
+                return $this->response([
+                    'status' => false,
+                    'message' => "Algumas parcelas não puderam ser processadas",
+                    'success_count' => $success_count,
+                    'failed_count' => $failed_count,
+                    'errors' => $errors,
+                    'voucher_url' => $voucher_path ? base_url($voucher_path) : null
+                ], REST_Controller::HTTP_PARTIAL_CONTENT);
+            }
+            
+            return $this->response([
+                'status' => true,
+                'message' => "Todas as parcelas foram pagas com sucesso",
+                'success_count' => $success_count,
+                'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
+                'installment_summary' => $summary
+            ], REST_Controller::HTTP_OK);
+            
         } catch (Exception $e) {
             return $this->response([
                 'status' => false,

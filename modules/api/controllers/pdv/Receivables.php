@@ -195,12 +195,18 @@ class Receivables extends REST_Controller
         $id = $input['id'] ?? null;
         $status = $input['status'] ?? null;
         $installment_id = $input['installment_id'] ?? null;
+        $installment_numbers = $input['installment_numbers'] ?? null;
 
         if (empty($id) || !in_array($status, ['pending', 'received'])) {
             return $this->response([
                 'status' => false,
                 'message' => 'ID e status são obrigatórios (pending ou received)'
             ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        // Se há installment_numbers, é recebimento de múltiplas parcelas
+        if ($installment_numbers && is_array($installment_numbers)) {
+            return $this->receive_multiple_installments($id, $installment_numbers, $input);
         }
 
         // Se não há installment_id, buscar a primeira parcela disponível
@@ -309,6 +315,122 @@ class Receivables extends REST_Controller
             return $this->response([
                 'status' => true,
                 'message' => 'Parcela recebida com sucesso',
+                'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
+                'installment_summary' => $summary
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Receber múltiplas parcelas em sequência
+     * @param int $receivable_id ID da receita
+     * @param array $installment_numbers Array com números das parcelas
+     * @param array $data Dados do recebimento
+     * @return mixed
+     */
+    private function receive_multiple_installments($receivable_id, $installment_numbers, $data)
+    {
+        try {
+            $this->load->model('Receivables_installments_model');
+            
+            // Verificar se as parcelas são sequenciais
+            sort($installment_numbers);
+            for ($i = 1; $i < count($installment_numbers); $i++) {
+                if ($installment_numbers[$i] !== $installment_numbers[$i-1] + 1) {
+                    throw new Exception('As parcelas devem ser sequenciais. Não é possível pular parcelas.');
+                }
+            }
+            
+            // Buscar todas as parcelas da receita
+            $all_installments = $this->Receivables_installments_model->get_installments_by_receivable($receivable_id);
+            
+            // Filtrar apenas as parcelas selecionadas
+            $selected_installments = array_filter($all_installments, function($installment) use ($installment_numbers) {
+                return in_array($installment['numero_parcela'], $installment_numbers);
+            });
+            
+            if (count($selected_installments) !== count($installment_numbers)) {
+                throw new Exception('Algumas parcelas selecionadas não foram encontradas');
+            }
+            
+            // Verificar se todas as parcelas estão pendentes
+            foreach ($selected_installments as $installment) {
+                if ($installment['status'] === 'Pago') {
+                    throw new Exception("A parcela {$installment['numero_parcela']} já foi recebida");
+                }
+            }
+            
+            // Upload do comprovante (voucher) - será usado para todas as parcelas
+            $voucher_path = null;
+            if (!empty($data['comprovante'])) {
+                $voucher_path = $this->upload_voucher($receivable_id, $data['comprovante']);
+            }
+            
+            $success_count = 0;
+            $failed_count = 0;
+            $errors = [];
+            
+            // Processar cada parcela
+            foreach ($selected_installments as $installment) {
+                try {
+                    $payment_data = [
+                        'data_pagamento' => $data['payment_date'] ?? date('Y-m-d'),
+                        'valor_pago' => $data['valorPago'] ?? $installment['valor_com_juros'],
+                        'banco_id' => $data['bank_account_id'] ?? null,
+                        'observacoes' => $data['descricao_recebimento'] ?? null,
+                        'juros_adicional' => $data['juros'] ?? 0,
+                        'desconto' => $data['desconto'] ?? 0,
+                        'multa' => $data['multa'] ?? 0,
+                        'id_cheque' => $data['check_identifier'] ?? null,
+                        'id_boleto' => $data['boleto_identifier'] ?? null,
+                        'comprovante' => $voucher_path,
+                    ];
+                    
+                    $success = $this->Receivables_installments_model->receive_installment($installment['id'], $payment_data);
+                    if ($success) {
+                        $success_count++;
+                    } else {
+                        $failed_count++;
+                        $errors[] = "Falha ao processar parcela {$installment['numero_parcela']}";
+                    }
+                } catch (Exception $e) {
+                    $failed_count++;
+                    $errors[] = "Erro na parcela {$installment['numero_parcela']}: " . $e->getMessage();
+                }
+            }
+            
+            // Verificar se todas as parcelas foram recebidas
+            $summary = $this->Receivables_installments_model->get_installments_summary($receivable_id);
+            if ($summary['parcelas_pendentes'] == 0) {
+                // Marcar receita como recebida
+                $this->load->model('Receivables_model');
+                $this->Receivables_model->update([
+                    'status' => 'received',
+                    'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
+                ], $receivable_id);
+            }
+            
+            if ($failed_count > 0) {
+                return $this->response([
+                    'status' => false,
+                    'message' => "Algumas parcelas não puderam ser processadas",
+                    'success_count' => $success_count,
+                    'failed_count' => $failed_count,
+                    'errors' => $errors,
+                    'voucher_url' => $voucher_path ? base_url($voucher_path) : null
+                ], REST_Controller::HTTP_PARTIAL_CONTENT);
+            }
+            
+            return $this->response([
+                'status' => true,
+                'message' => "Todas as parcelas foram recebidas com sucesso",
+                'success_count' => $success_count,
                 'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
                 'installment_summary' => $summary
             ], REST_Controller::HTTP_OK);

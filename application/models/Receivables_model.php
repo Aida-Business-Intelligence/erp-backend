@@ -110,6 +110,35 @@ class Receivables_model extends App_Model
             // Adicionar parcelas aos dados da receita
             if (!empty($installments)) {
                 $result->installments = $installments;
+
+                // --- AJUSTE PARA PADRONIZAR CAMPOS DE JUROS ---
+                // Encontrar a primeira parcela que realmente tem juros (percentual_juros > 0)
+                $first_interest_installment = null;
+                foreach ($installments as $inst) {
+                    if (isset($inst['percentual_juros']) && $inst['percentual_juros'] > 0) {
+                        $first_interest_installment = $inst;
+                        break;
+                    }
+                }
+                
+                // Se encontrou uma parcela com juros, usar seus dados para popular os campos principais
+                if ($first_interest_installment) {
+                    $result->juros = $first_interest_installment['percentual_juros'];
+                    $result->juros_apartir = $first_interest_installment['numero_parcela'];
+                    if (isset($first_interest_installment['tipo_juros'])) {
+                        $result->tipo_juros = $first_interest_installment['tipo_juros'];
+                    }
+                } else {
+                    // Se não encontrou nenhuma parcela com juros, definir valores padrão
+                    $result->juros = '0.00';
+                    $result->juros_apartir = '1';
+                }
+                
+                // Fallback para tipo_juros caso não tenha sido definido pela lógica anterior
+                if (!isset($result->tipo_juros)) {
+                    $result->tipo_juros = 'simples'; // Fallback default
+                }
+                // --- FIM DO AJUSTE ---
             }
             
         } catch (Exception $e) {

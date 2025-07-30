@@ -1068,23 +1068,34 @@ class Expenses extends REST_Controller
         if (!empty($installments)) {
             $expense->installments = $installments;
 
-            // --- AJUSTE PARA PADRONIZAR CAMPOS DE JUROS ---
-            if (
-                (empty($expense->juros) || $expense->juros == 0 || $expense->juros == '0.00' || $expense->juros == '0') &&
-                isset($installments[0]['percentual_juros']) &&
-                $installments[0]['percentual_juros'] > 0
-            ) {
-                $expense->juros = $installments[0]['percentual_juros'];
-                // Tenta pegar a partir de qual parcela começa o juros
-                $expense->juros_apartir = 1;
+                            // --- AJUSTE PARA PADRONIZAR CAMPOS DE JUROS ---
+                // Encontrar a primeira parcela que realmente tem juros (percentual_juros > 0)
+                $first_interest_installment = null;
                 foreach ($installments as $inst) {
                     if (isset($inst['percentual_juros']) && $inst['percentual_juros'] > 0) {
-                        $expense->juros_apartir = $inst['numero_parcela'];
+                        $first_interest_installment = $inst;
                         break;
                     }
                 }
-            }
-            // --- FIM DO AJUSTE ---
+                
+                // Se encontrou uma parcela com juros, usar seus dados para popular os campos principais
+                if ($first_interest_installment) {
+                    $expense->juros = $first_interest_installment['percentual_juros'];
+                    $expense->juros_apartir = $first_interest_installment['numero_parcela'];
+                    if (isset($first_interest_installment['tipo_juros'])) {
+                        $expense->tipo_juros = $first_interest_installment['tipo_juros'];
+                    }
+                } else {
+                    // Se não encontrou nenhuma parcela com juros, definir valores padrão
+                    $expense->juros = '0.00';
+                    $expense->juros_apartir = '1';
+                }
+                
+                // Fallback para tipo_juros caso não tenha sido definido pela lógica anterior
+                if (!isset($expense->tipo_juros)) {
+                    $expense->tipo_juros = 'simples'; // Fallback default
+                }
+                // --- FIM DO AJUSTE ---
         }
         
         return $this->response([

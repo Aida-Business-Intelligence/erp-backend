@@ -1,7 +1,7 @@
 <?php
 
 defined('BASEPATH') or exit('No direct script access allowed');
-// This can be removed if you use __autoload() in config.php OR use Modular Extensions
+
 
 /** @noinspection PhpIncludeInspection */
 require __DIR__ . '/../REST_Controller.php';
@@ -26,6 +26,7 @@ class Warehouse extends REST_Controller
         parent::__construct();
         $this->load->model('Warehouse_model');
         $this->load->model('Invoice_items_model');
+        $this->load->library('storage_s3');
     }
 
     /**
@@ -116,7 +117,6 @@ class Warehouse extends REST_Controller
 
     public function create_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $content_type = isset($this->input->request_headers()['Content-Type'])
             ? $this->input->request_headers()['Content-Type']
@@ -219,38 +219,70 @@ class Warehouse extends REST_Controller
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             return;
         }
-        if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
-            $file      = $_FILES['arquivo_nfe'];
-            $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+       
 
-            if ($extension !== 'pfx') {
-                log_activity('Invalid file type for warehouse ' . $new_id);
-            } else {
-                $max_size = 5 * 1024 * 1024; // 5MB
-                if ($file['size'] <= $max_size) {
-                    $upload_dir = './uploads/warehouse/' . $new_id . '/';
-                    if (!file_exists($upload_dir)) {
-                        mkdir($upload_dir, 0777, true);
-                    }
-                    $filename    = uniqid() . '.pfx';
-                    $upload_path = $upload_dir . $filename;
 
-                    if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                        $file_url = base_url(str_replace('./', '', $upload_path));
-                        $this->db->where('warehouse_id', $new_id);
-                        $this->db->update(db_prefix() . 'warehouse', ['arquivo_nfe' => $file_url]);
-                    } else {
-                        log_activity('Erro ao mover certificado para warehouse ' . $new_id);
-                    }
-                } else {
-                    log_activity('Arquivo de certificado excede 5MB: warehouse ' . $new_id);
-                }
+
+        require 'vendor/autoload.php';
+
+
+$s3 = $this->storage_s3->getClient();
+
+// Seu código atualizado para upload
+if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
+    $file = $_FILES['arquivo_nfe'];
+  
+    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+    if ($extension !== 'pfx') {
+        log_activity('Invalid file type for warehouse ' . $new_id);
+    } else {
+        $max_size = 5 * 1024 * 1024; // 5MB
+        if ($file['size'] <= $max_size) {
+            $unique_filename = uniqid() . '.pfx';
+
+            $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $new_id . '/certificado/'. $unique_filename;
+
+      
+            try {
+                // Dá o upload para o DigitalOcean Spaces
+                $content = fopen($file['tmp_name'], 'r');
+                $s3->putObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $blobName,
+                    'SourceFile' => $file['tmp_name'],
+                    'ACL' => 'public-read', // ou 'public-read' se desejar acesso público
+                ]);
+
+                // Recupera a URL do arquivo
+
+                $file_url = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+
+               
+
+                // Atualiza no banco (ajuste conforme seu método)
+                $this->db->where('warehouse_id', $new_id);
+                $this->db->update(db_prefix() . 'warehouse', ['arquivo_nfe' => $file_url, 'name_arquivo_nfe' => $blobName]);
+
+            } catch (Exception $e) {
+
+           
+                log_activity('Erro no upload para DigitalOcean: ' . $e->getMessage());
             }
+
+        } else {
+            log_activity('Arquivo de certificado excede 5MB: warehouse ' . $new_id);
         }
+    }
+}
+
 
         $warehouse = $this->Warehouse_model->get($new_id);
-        if ($warehouse && in_array($warehouse->type, ['franquia', 'filial', 'distribuidor'])) {
-            $produtos = $this->Invoice_items_model->get_by_type($warehouse->type);
+
+       // if ($warehouse && in_array($warehouse->type, ['franquia', 'filial', 'distribuidor'])) {
+        if ($warehouse && in_array($warehouse->type, ['distribuidor'])) {
+           
+       $produtos = $this->Invoice_items_model->get_by_type($warehouse->type);
             foreach ($produtos as $prod) {
                 $prod->warehouse_id = $warehouse->warehouse_id;
                 $this->Invoice_items_model->add((array) $prod);
@@ -388,44 +420,63 @@ class Warehouse extends REST_Controller
         ]));
 
         $output = $this->Warehouse_model->update($update_data, $id);
-
+        $s3 = $this->storage_s3->getClient();
         if ($is_multipart && isset($_FILES['arquivo_nfe']) && $_FILES['arquivo_nfe']['error'] === UPLOAD_ERR_OK) {
             $file = $_FILES['arquivo_nfe'];
-
+        
             $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             if ($extension !== 'pfx') {
-                log_activity('Invalid file type uploaded for warehouse ' . $id . '. Only PFX files are allowed.');
+                log_activity('Invalid file type for warehouse ' . $id);
             } else {
-                $max_size = 5 * 1024 * 1024;
+                $max_size = 5 * 1024 * 1024; // 5MB
                 if ($file['size'] <= $max_size) {
-                    $upload_dir = './uploads/warehouse/' . $id . '/';
-                    if (!file_exists($upload_dir)) {
-                        mkdir($upload_dir, 0777, true);
+                    $unique_filename = uniqid() . '.pfx';
+
+                    $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $id . '/certificado/'. $unique_filename;
+
+                    if($current_warehouse->name_arquivo_nfe != null){
+            
+                    try {
+                        $s3->deleteObject([
+                            'Bucket' =>getenv('STORAGE_S3_NAME_SPACE'),
+                            'Key' => $current_warehouse->name_arquivo_nfe,
+                        ]);
+                     
+                    } catch (Aws\Exception\AwsException $e) {
+                        log_activity("Erro ao deletar o objeto: " . $e->getMessage(), 1);
+            
                     }
+                }
+        
+                    try {
+                        // Upload para o S3 / DigitalOcean Spaces
+             
+                        $s3->putObject([
+                            'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                            'Key' => $blobName,
+                            'SourceFile' => $file['tmp_name'],
+                            'ACL' => 'public-read', // ou 'private' se preferir
+                        ]);
+        
+                        // Correção na URL de acesso
+                        $bucket = getenv('STORAGE_S3_NAME_SPACE');
+                        $file_url = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
 
-                    $old_file = $current_warehouse->arquivo_nfe;
-                    if ($old_file) {
-                        $old_file_path = str_replace(base_url(), './', $old_file);
-                        if (file_exists($old_file_path)) {
-                            unlink($old_file_path);
-                        }
-                    }
-
-                    $filename = uniqid() . '.pfx';
-                    $upload_path = $upload_dir . $filename;
-
-                    if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                        $file_url = base_url(str_replace('./', '', $upload_path));
+                       
+                        // Atualiza banco de dados
                         $this->db->where('warehouse_id', $id);
-                        $this->db->update(db_prefix() . 'warehouse', ['arquivo_nfe' => $file_url]);
-                    } else {
-                        log_activity('Failed to move uploaded file for warehouse ' . $id);
+                        $this->db->update(db_prefix() . 'warehouse', ['arquivo_nfe' => $file_url, 'name_arquivo_nfe' => $file_url]);
+        
+                    } catch (Exception $e) {
+                        log_activity('Erro no upload para S3: ' . $e->getMessage());
                     }
                 } else {
-                    log_activity('File too large for warehouse ' . $id . '. Maximum size is 5MB.');
+                    log_activity('Arquivo de certificado excede 5MB: warehouse ' . $id);
                 }
             }
         }
+        
+        
 
         $updated_warehouse = $this->Warehouse_model->get($id);
 

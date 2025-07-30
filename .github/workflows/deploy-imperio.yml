@@ -1,61 +1,61 @@
-name: Deploy Imperio
-on:
-  push:
-    branches: [imperio]
+#name: Deploy Imperio
+#on:
+#  push:
+#    branches: [imperio]
 
-env:                       # opcional (torna IMAGE_NAME visível em todos os jobs)
-  IMAGE_NAME: aidabusiness/aida-repo
+#env:                       # opcional (torna IMAGE_NAME visível em todos os jobs)
+#  IMAGE_NAME: aidabusiness/aida-repo
 
-jobs:
+#jobs:
    # ---------- JOB 2: deploy ----------
-  deploy:
-    name: Deploy na VPS
-    runs-on: ubuntu-latest
+#  deploy:
+#    name: Deploy na VPS
+#    runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout código
-        uses: actions/checkout@v4
+#    steps:
+#      - name: Checkout código
+#        uses: actions/checkout@v4
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+#      - name: Deploy via SSH
+#        uses: appleboy/ssh-action@v1.0.3
+#        env:
+#          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+#          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
 
-        with:
-          host:     ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key:      ${{ secrets.SSH_KEY }}
-          envs:     DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+#        with:
+#          host:     ${{ secrets.SSH_HOST }}
+#          username: ${{ secrets.SSH_USER }}
+#          key:      ${{ secrets.SSH_KEY }}
+#          envs:     DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
 
-          script: |
-            set -e
+#          script: |
+#            set -e
 
-            APP_DIR="/srv/erp/imperio"
+#            APP_DIR="/srv/erp/imperio"
 
-            echo "⏩  Entrando na pasta ${APP_DIR}..."
-            cd "${APP_DIR}"
+#            echo "⏩  Entrando na pasta ${APP_DIR}..."
+#            cd "${APP_DIR}"
 
-            echo "⏩  Autenticando no Docker Hub..."
-            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+#            echo "⏩  Autenticando no Docker Hub..."
+#            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
-            echo "⏩  Pull da imagem mais recente..."
-            docker compose pull
+#            echo "⏩  Pull da imagem mais recente..."
+#            docker compose pull
 
-            docker rm -f aida-app-imperio || true
+#            docker rm -f aida-app-imperio || true
 
-            echo "⏩  Subindo/recriando container..."
-            docker compose up -d
+#            echo "⏩  Subindo/recriando container..."
+#            docker compose up -d
 
-            echo "✅  Deploy concluído!"
+#            echo "✅  Deploy concluído!"
 
-            echo "🧹 Limpando imagens antigas não utilizadas..."
-            docker image prune -af --filter "until=24h"
+#            echo "🧹 Limpando imagens antigas não utilizadas..."
+#            docker image prune -af --filter "until=24h"
 
-            echo "⏩  Subindo/recriando container..."
-            docker compose up -d
+#            echo "⏩  Subindo/recriando container..."
+#            docker compose up -d
 
-            echo "✅  Deploy concluído!"
+#            echo "✅  Deploy concluído!"
 
-            echo "🧹 Limpando imagens antigas não utilizadas..."
-            docker image prune -af --filter "until=24h"
+#            echo "🧹 Limpando imagens antigas não utilizadas..."
+#            docker image prune -af --filter "until=24h"

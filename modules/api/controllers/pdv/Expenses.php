@@ -1067,6 +1067,24 @@ class Expenses extends REST_Controller
         // Adicionar parcelas aos dados da despesa
         if (!empty($installments)) {
             $expense->installments = $installments;
+
+            // --- AJUSTE PARA PADRONIZAR CAMPOS DE JUROS ---
+            if (
+                (empty($expense->juros) || $expense->juros == 0 || $expense->juros == '0.00' || $expense->juros == '0') &&
+                isset($installments[0]['percentual_juros']) &&
+                $installments[0]['percentual_juros'] > 0
+            ) {
+                $expense->juros = $installments[0]['percentual_juros'];
+                // Tenta pegar a partir de qual parcela começa o juros
+                $expense->juros_apartir = 1;
+                foreach ($installments as $inst) {
+                    if (isset($inst['percentual_juros']) && $inst['percentual_juros'] > 0) {
+                        $expense->juros_apartir = $inst['numero_parcela'];
+                        break;
+                    }
+                }
+            }
+            // --- FIM DO AJUSTE ---
         }
         
         return $this->response([

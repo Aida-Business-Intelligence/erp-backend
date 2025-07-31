@@ -899,6 +899,22 @@ foreach ($warehouses as $warehouse) {
 
         $s3 = $this->storage_s3->getClient();
 
+         // Se for a primeira imagem, atualiza também na tabela de produtos
+                // Verifica se o produto não possui imagem
+        if ($product->image == "" || !$product->image) {
+            // Busca a primeira imagem associada ao item
+            $this->db->where('item_id', $product->id);
+            $this->db->limit(1);
+            $imagem = $this->db->get(db_prefix() . 'item_images')->row();
+
+            // Atualiza a imagem do produto com o URL da nova imagem
+            if($imagem->name != null){
+                $this->db->where('id', $product->id);
+                $this->db->update(db_prefix() . 'items', ['image' => $imagem->url]);
+            }
+        }
+        
+
 
         if (isset($_FILES['images'])) {
             $files = $_FILES['images']['tmp_name'];

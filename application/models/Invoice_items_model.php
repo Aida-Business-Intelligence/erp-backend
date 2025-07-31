@@ -271,6 +271,8 @@ class Invoice_items_model extends App_Model
             if ($send == 'pdv') {
                 $this->db->where("$items_table.id", $id);
                 $this->db->or_where("$items_table.commodity_barcode", $id)->limit(1);
+                $this->db->or_where("$items_table.sku_code", $id)->limit(1);
+                $this->db->or_where("$items_table.code", $id)->limit(1);
                 $item = $this->db->get()->row();
             } else {
 
@@ -318,7 +320,8 @@ class Invoice_items_model extends App_Model
             "$items_table.tag_id",
             "$groups_table.name as group_name",
             "$items_table.unit",
-            "$items_table.sku_code",
+            "$items_table.sku_code as sku_code",
+            "$items_table.code as code",
             "$items_table.image",
             "$items_table.commodity_barcode",
             "$items_table.status",
@@ -372,7 +375,9 @@ class Invoice_items_model extends App_Model
         if (!empty($search)) {
             if (is_numeric($search)) {
                 $this->db->group_start()
-                    ->where('sku_code', $search)
+                    ->where("$items_table.sku_code", $search)
+                    ->or_where("$items_table.code", $search) 
+                    ->or_where('commodity_barcode', $search)
                     ->or_where("$items_table.commodity_barcode", $search)
                     ->group_end(); // Esto agrupa la condición de búsqueda que incluye OR
             } else {

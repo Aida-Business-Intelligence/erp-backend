@@ -1,0 +1,145 @@
+name: Deploy Geral
+
+on:
+  push:
+    branches: [main]
+
+env:  # Torna IMAGE_NAME visível em todos os jobs
+  IMAGE_NAME: aidabusiness/aida-repo
+
+jobs:
+
+  # ---------- JOB 1: Deploy GRINGA ----------
+  deploy_gringa:
+    name: Deploy Gringa
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+
+        with:
+          host:     ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key:      ${{ secrets.SSH_KEY }}
+          envs:     DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+
+          script: |
+            set -e
+
+            APP_DIR="/srv/erp/gringa"
+
+            echo "⏩  Entrando na pasta ${APP_DIR}..."
+            cd "${APP_DIR}"
+
+            echo "⏩  Autenticando no Docker Hub..."
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+            echo "⏩  Pull da imagem mais recente..."
+            docker compose pull
+
+            echo "⏩  Parando container antigo..."
+            docker rm -f aida-app-gringa || true
+
+            echo "⏩  Subindo/recriando container..."
+            docker compose up -d
+
+            echo "✅  Deploy concluído!"
+            echo "🧹 Limpando imagens antigas não utilizadas..."
+            docker image prune -af --filter "until=24h"
+
+  # ---------- JOB 2: Deploy IMPÉRIO ----------
+  deploy_imperio:
+    name: Deploy Império
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+
+        with:
+          host:     ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key:      ${{ secrets.SSH_KEY }}
+          envs:     DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+
+          script: |
+            set -e
+
+            APP_DIR="/srv/erp/imperio"
+
+            echo "⏩  Entrando na pasta ${APP_DIR}..."
+            cd "${APP_DIR}"
+
+            echo "⏩  Autenticando no Docker Hub..."
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+            echo "⏩  Pull da imagem mais recente..."
+            docker compose pull
+
+            echo "⏩  Parando container antigo..."
+            docker rm -f aida-app-imperio || true
+
+            echo "⏩  Subindo/recriando container..."
+            docker compose up -d
+
+            echo "✅  Deploy concluído!"
+            echo "🧹 Limpando imagens antigas não utilizadas..."
+            docker image prune -af --filter "until=24h"
+
+  # ---------- JOB 3: Deploy LOJAS7 ----------
+  deploy_lojas7:
+    name: Deploy Lojas7
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+
+        with:
+          host:     ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key:      ${{ secrets.SSH_KEY }}
+          envs:     DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+
+          script: |
+            set -e
+
+            APP_DIR="/srv/erp/lojas7"
+
+            echo "⏩  Entrando na pasta ${APP_DIR}..."
+            cd "${APP_DIR}"
+
+            echo "⏩  Autenticando no Docker Hub..."
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+            echo "⏩  Pull da imagem mais recente..."
+            docker compose pull
+
+            echo "⏩  Parando container antigo..."
+            docker rm -f aida-app-lojas7 || true
+
+            echo "⏩  Subindo/recriando container..."
+            docker compose up -d
+
+            echo "✅  Deploy concluído!"
+            echo "🧹 Limpando imagens antigas não utilizadas..."
+            docker image prune -af --filter "until=24h"

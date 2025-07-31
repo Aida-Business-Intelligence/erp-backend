@@ -1,53 +1,53 @@
-name: Deploy lojas7
-on:
-  push:
-    branches: [lojas7]
+#name: Deploy lojas7
+#on:
+#  push:
+#    branches: [lojas7]
 
-env:                       # opcional (torna IMAGE_NAME visível em todos os jobs)
-  IMAGE_NAME: aidabusiness/aida-repo
+#env:                       # opcional (torna IMAGE_NAME visível em todos os jobs)
+#  IMAGE_NAME: aidabusiness/aida-repo
 
-jobs:
+#jobs:
    # ---------- JOB 2: deploy ----------
-  deploy:
-    name: Deploy na VPS
-    runs-on: ubuntu-latest
+ # deploy:
+  #  name: Deploy na VPS
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Checkout código
+#        uses: actions/checkout@v4
+#
+#      - name: Deploy via SSH
+#        uses: appleboy/ssh-action@v1.0.3
+#        env:
+#          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+#          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
 
-    steps:
-      - name: Checkout código
-        uses: actions/checkout@v4
+#        with:
+#          host:     ${{ secrets.SSH_HOST }}
+#          username: ${{ secrets.SSH_USER }}
+#          key:      ${{ secrets.SSH_KEY }}
+#          envs:     DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+#          script: |
+#            set -e
 
-        with:
-          host:     ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key:      ${{ secrets.SSH_KEY }}
-          envs:     DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+#            APP_DIR="/srv/erp/lojas7"
 
-          script: |
-            set -e
+#            echo "⏩  Entrando na pasta ${APP_DIR}..."
+#            cd "${APP_DIR}"
 
-            APP_DIR="/srv/erp/lojas7"
+#            echo "⏩  Autenticando no Docker Hub..."
+#            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
-            echo "⏩  Entrando na pasta ${APP_DIR}..."
-            cd "${APP_DIR}"
+#            echo "⏩  Pull da imagem mais recente..."
+#            docker compose pull
 
-            echo "⏩  Autenticando no Docker Hub..."
-            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+#            docker rm -f aida-app-lojas7 || true
 
-            echo "⏩  Pull da imagem mais recente..."
-            docker compose pull
+#            echo "⏩  Subindo/recriando container..."
+#            docker compose up -d
 
-            docker rm -f aida-app-lojas7 || true
+#            echo "✅  Deploy concluído!"
 
-            echo "⏩  Subindo/recriando container..."
-            docker compose up -d
-
-            echo "✅  Deploy concluído!"
-
-            echo "🧹 Limpando imagens antigas não utilizadas..."
-            docker image prune -af --filter "until=24h"
+#            echo "🧹 Limpando imagens antigas não utilizadas..."
+#           docker image prune -af --filter "until=24h"

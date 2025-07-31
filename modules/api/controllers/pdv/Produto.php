@@ -28,6 +28,7 @@ class Produto extends REST_Controller
         $this->load->model('warehouse_model');
         $this->load->library('upload');
         $this->load->model('Settings_model');
+        $this->load->library('storage_s3');
     }
 
     public function get_by_sku_or_commodity_post()
@@ -290,264 +291,81 @@ class Produto extends REST_Controller
 
         $products = isset($_POST['products']) ? $_POST['products'] : [$_POST];
 
+// Inicialize o cliente S3 antes do loop, se ainda não estiver feito
+$s3 = $this->storage_s3->getClient();
 
+foreach ($warehouses as $warehouse) {
+    foreach ($products as $index => $productData) {
+        unset($productData['images_base64'], $productData['packagings'], $productData['reservedStock'], $productData['primary_image_index'], $productData['itemType']);
 
-
-
-        foreach ($warehouses as $warehouse) {
-            foreach ($products as $index => $productData) {
-                unset($productData['images_base64'], $productData['packagings'], $productData['reservedStock'], $productData['primary_image_index'], $productData['itemType']);
-
-                if (isset($productData['price_franquia'])) {
-                    $productData['cost'] = $productData['price_franquia'];
-                }
-
-                $productData['warehouse_id'] = $warehouse['warehouse_id'];
-                $product_id = $this->Invoice_items_model->add($productData);
-
-                if ($product_id) {
-                    $createdCount++;
-
-                    $upload_dir = './uploads/items/' . $product_id . '/';
-                    $max_size = 10 * 1024 * 1024; // 10 MB
-
-                    if (!file_exists($upload_dir)) {
-                        mkdir($upload_dir, 0777, true);
-                    }
-
-                    if (isset($_FILES['images']['tmp_name'][$index])) {
-                        // Verificação para garantir que os valores existence
-                        $upload_dir = './uploads/items/' . $product_id . '/';
-                        if (!file_exists($upload_dir)) {
-                            mkdir($upload_dir, 0777, true);
-                        }
-
-                        $file_paths = []; // Um array para armazenar caminhos de arquivos únicos
-
-                        $count = 0;
-                        foreach ($_FILES['images']['tmp_name'] as $key => $file_temp) {
-                            $file_name = $_FILES['images']['name'][$key];
-                            $file_size = $_FILES['images']['size'][$key];
-                            $file_error = $_FILES['images']['error'][$key];
-
-                            if ($file_error === UPLOAD_ERR_OK) {
-                                $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-                                $unique_filename = uniqid() . '.' . $file_extension;
-                                $upload_path = $upload_dir . $unique_filename;
-
-                                if (move_uploaded_file($file_temp, $upload_path)) {
-                                    $server_url = base_url();
-                                    $relative_path = str_replace('./', '', $upload_path);
-                                    $full_url = rtrim($server_url, '/') . '/' . $relative_path;
-
-                                    // Adicionar o caminho ao array de caminhos de arquivo
-                                    array_push($file_paths, $full_url);
-
-                                  
-
-                                    // Insere este caminho no banco de dados para o histórico de imagens
-                                    $this->db->insert(db_prefix() . 'item_images', [
-                                        'item_id' => $product_id,
-                                        'url' => $full_url,
-                                        'name' => $relative_path
-                                    ]);
-
-                                    if($count == 0){
-
-                                        $this->db->where('id', $product_id);
-                                        $result = $this->db->update(db_prefix() . 'items',  array('image' => $full_url));
-
-                                    }
-
-                                   
-
-                                }
-                            }
-                            $count++;
-                        }
-
-                       
-                    }
-
-                } else {
-                    $failedCount++;
-                    $errors[] = [
-                        'warehouse_id' => $warehouse['warehouse_id'],
-                        'message' => 'Failed to create product for warehouse ID: ' . $warehouse['warehouse_id']
-                    ];
-                }
-            }
+        if (isset($productData['price_franquia'])) {
+            $productData['cost'] = $productData['price_franquia'];
         }
 
-        $message = [
-            'status' => TRUE,
-            'message' => 'Products creation summary',
-            'created_count' => $createdCount,
-            'failed_count' => $failedCount,
-            'errors' => $errors
-        ];
+        $productData['warehouse_id'] = $warehouse['warehouse_id'];
+        $product_id = $this->Invoice_items_model->add($productData);
 
-        $this->response($message, REST_Controller::HTTP_OK);
-    }
+        if ($product_id) {
+            $createdCount++;
 
+            // Checa se há imagens enviadas pelo formulário
+            if (isset($_FILES['images']['tmp_name'][$index])) {
+                $files = $_FILES['images']['tmp_name'];
+                $names = $_FILES['images']['name'];
+                $errors = $_FILES['images']['error'];
 
-    public function create1_post()
-    {
+                $image_count = 0;
 
-
-        // $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-
-
-
-
-
-        if (isset($_POST['data'])) {
-
-            $_POST = (array) json_decode($_POST['data'], true);
-
-        }
-
-
-
-
-        if (empty($_POST['warehouse_id'])) {
-            $this->response(
-                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
-                REST_Controller::HTTP_BAD_REQUEST
-            );
-            return;
-        }
-
-        $warehouses = $this->getWarehouses($_POST['warehouse_id']);
-
-        if (!$warehouses) {
-            $this->response(
-                ['status' => FALSE, 'message' => 'No warehouses found'],
-                REST_Controller::HTTP_BAD_REQUEST
-            );
-            return;
-        }
-
-        $createdCount = 0;
-        $failedCount = 0;
-        $errors = [];
-
-        // Verificando se $_POST['products'] é um array. Se não for, converta para array.
-        $products = isset($_POST['products']) ? $_POST['products'] : [$_POST];
-
-
-
-
-        foreach ($warehouses as $warehouse) {
-            foreach ($products as $productData) {
-
-
-                unset($productData['images_base64']);
-                unset($productData['packagings']);
-                unset($productData['reservedStock']);
-                unset($productData['primary_image_index']);
-                unset($productData['itemType']);
-
-
-                if (isset($productData['price_franquia'])) {
-                    $productData['cost'] = $productData['price_franquia'];
-
-                }
-
-
-
-
-                $dataToValidate = array_merge($productData, $warehouse);
-
-                /*
-
-                $this->form_validation->set_data($dataToValidate);
-                $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');
-                $this->form_validation->set_rules('rate', 'Rate', 'numeric');
-                $this->form_validation->set_rules('stock', 'Stock', 'numeric');
-                $this->form_validation->set_rules('minStock', 'Minimum Stock', 'numeric');
-                $this->form_validation->set_rules('warehouse_id', 'Warehouse', 'required|numeric');
-
-                if ($this->form_validation->run() == FALSE) {
-                    $errors[] = [
-                        'warehouse_id' => $warehouse['warehouse_id'],
-                        'error' => $this->form_validation->error_array(),
-                        'message' => validation_errors()
-                    ];
-                    $failedCount++;
-                    continue;
-                }
-                    */
-
-                $productData['warehouse_id'] = $warehouse['warehouse_id'];
-                $product_id = $this->Invoice_items_model->add($productData);
-
-                if ($product_id) {
-                    $createdCount++;
-
-
-                    // Configure o diretório de upload e outros parâmetros
-                    $upload_dir = './uploads/items/' . $product_id . '/';
-                    $max_size = 10 * 1024 * 1024; // 10 MB em bytes
-
-
-                    if (!file_exists($upload_dir)) {
-                        mkdir($upload_dir, 0777, true);
-                    }
-
-
-                    $file_temp = $_FILES['image']['tmp_name'];
-                    $file_name = $_FILES['image']['name'];
-                    $file_size = $_FILES['image']['size'];
-                    $file_error = $_FILES['image']['error'];
-
-                    // Verifique se houve um erro no upload
-                    if ($file_error === UPLOAD_ERR_OK) {
-                        // Verifica se o tamanho do arquivo é maior que 4 MB
-                        /*
-                        if ($file_size > $max_size) {
-                            echo json_encode(['status' => FALSE, 'error' => 'File exceeds the maximum allowed size of 4 MB.']);
-                            return;
-                        }
-                            */
-
+                foreach ($files as $key => $file_temp) {
+                    if ($errors[$key] === UPLOAD_ERR_OK && $image_count < 10) {
+                        $file_name = $names[$key];
                         $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
                         $unique_filename = uniqid() . '.' . $file_extension;
-                        $upload_path = $upload_dir . $unique_filename;
 
-                        // Mover o arquivo carregado para o diretório final
-                        if (move_uploaded_file($file_temp, $upload_path)) {
-                            $server_url = base_url();
-                            $relative_path = str_replace('./', '', $upload_path);
-                            $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+                        // Define o caminho do blob no S3
+                        $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse['warehouse_id'] . '/produtos/' . $product_id . '/' . $unique_filename;
 
-                            // Atualiza o banco de dados com o novo caminho da imagem
-                            $this->db->where('id', $product_id);
-                            $this->db->update(db_prefix() . 'items', ['image' => $full_url]);
+                        try {
+                            // Faz o upload na S3
+                            $s3->putObject([
+                                'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                                'Key' => $blobName,
+                                'SourceFile' => $file_temp,
+                                'ACL' => 'public-read',
+                            ]);
 
+                            // Constrói a URL do arquivo
+                            $file_url = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+
+                            // Insere a imagem no banco de dados
+                            $this->db->insert(db_prefix() . 'item_images', [
+                                'item_id' => $product_id,
+                                'url' => $file_url,
+                                'name' => $blobName
+                            ]);
+
+                            // Atualiza a primeira imagem do produto, se necessário
+                            if ($image_count === 0) {
+                                $this->db->where('id', $product_id);
+                                $this->db->update(db_prefix() . 'items', ['image' => $file_url]);
+                            }
+
+                            $image_count++;
+                        } catch (Exception $e) {
+                            log_activity('Erro no upload para DigitalOcean: ' . $e->getMessage());
                         }
                     }
-                    /*
-                    else {
-                        echo json_encode(['status' => FALSE, 'error' => 'Upload error. Code: ' . $file_error]);
-                        return;
-                    }
-                        */
-
-
-
-
-
-                } else {
-                    $errors[] = [
-                        'warehouse_id' => $warehouse['warehouse_id'],
-                        'message' => 'Failed to create product for warehouse ID: ' . $warehouse['warehouse_id']
-                    ];
-                    $failedCount++;
                 }
             }
+        } else {
+            $failedCount++;
+            $errors[] = [
+                'warehouse_id' => $warehouse['warehouse_id'],
+                'message' => 'Failed to create product for warehouse ID: ' . $warehouse['warehouse_id']
+            ];
         }
+    }
+}
 
         $message = [
             'status' => TRUE,
@@ -559,6 +377,8 @@ class Produto extends REST_Controller
 
         $this->response($message, REST_Controller::HTTP_OK);
     }
+
+
     public function include_products_nf_post()
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -1050,6 +870,8 @@ class Produto extends REST_Controller
             mkdir($upload_dir, 0777, true);
         }
 
+        $warehouse_id = $_POST['warehouse_id'];
+
 
 
         // Coletar os IDs das imagens que devem ser mantidas
@@ -1075,46 +897,75 @@ class Produto extends REST_Controller
 
         // Inicializa todos os campos de imagem como null
 
+        $s3 = $this->storage_s3->getClient();
+
+         // Se for a primeira imagem, atualiza também na tabela de produtos
+                // Verifica se o produto não possui imagem
+        if ($product->image == "" || !$product->image) {
+            // Busca a primeira imagem associada ao item
+            $this->db->where('item_id', $product->id);
+            $this->db->limit(1);
+            $imagem = $this->db->get(db_prefix() . 'item_images')->row();
+
+            // Atualiza a imagem do produto com o URL da nova imagem
+            if($imagem->name != null){
+                $this->db->where('id', $product->id);
+                $this->db->update(db_prefix() . 'items', ['image' => $imagem->url]);
+            }
+        }
+        
+
+
         if (isset($_FILES['images'])) {
             $files = $_FILES['images']['tmp_name'];
             $names = $_FILES['images']['name'];
             $errors = $_FILES['images']['error'];
-
+        
             $image_count = 0;
-
+        
             foreach ($files as $key => $file_temp) {
                 if ($errors[$key] === UPLOAD_ERR_OK && $image_count < 10) {
                     $file_name = $names[$key];
                     $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
                     $unique_filename = uniqid() . '.' . $file_extension;
-                    $upload_path = $upload_dir . $unique_filename;
+        
+                    // Nome do arquivo para o blob
+                    $file_name_for_blob = $file_name; // Pode usar o $unique_filename se preferir
+                    $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/produtos/'.$id.'/' . $unique_filename;
+        
+                    try {
+                        // Faz o upload para o Space
+                        $s3->putObject([
+                            'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                            'Key' => $blobName,
+                            'SourceFile' => $file_temp,
+                            'ACL' => 'public-read', // ou 'private' se desejar
+                        ]);
 
-                    if (move_uploaded_file($file_temp, $upload_path)) {
-                        $server_url = base_url();
-                        $relative_path = str_replace('./', '', $upload_path);
-                        $full_url = rtrim($server_url, '/') . '/' . $relative_path;
+                       
+        
+                        // Constrói a URL do arquivo
+                        $file_url = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
 
-                      
-
+        
                         // Inserir a imagem no banco de dados (todas até 10)
                         $this->db->insert(db_prefix() . 'item_images', [
                             'item_id' => $id,
-                            'url' => $full_url,
-                            'name' => $relative_path
+                            'url' => $file_url,
+                            'name' => $blobName
                         ]);
-
-                        
-                        if($image_count == 0){
-
-                            if($product->image=="" || !$product->image){
-                        
+        
+                        // Se for a primeira imagem, atualiza também na tabela de produtos
+                        if ($image_count == 0) {
+                            if ($product->image == "" || !$product->image) {
                                 $this->db->where('id', $product->id);
-                                $result = $this->db->update(db_prefix() . 'items',  array('image' => $full_url));
-
+                                $this->db->update(db_prefix() . 'items', ['image' => $file_url]);
+                            }
                         }
-                    }
-
+        
                         $image_count++;
+                    } catch (Exception $e) {
+                        log_activity('Erro no upload para DigitalOcean: ' . $e->getMessage());
                     }
                 }
             }
@@ -1138,9 +989,8 @@ class Produto extends REST_Controller
             $result = $this->db->update(db_prefix() . 'items',  array('image' => ""));
         }
 
-        exit;
 
-        if (empty($data['id']) || empty($data['name'])) {
+        if (empty($data['id'])) {
             $this->response(['status' => FALSE, 'message' => 'ID e nome do arquivo são obrigatórios.'], REST_Controller::HTTP_BAD_REQUEST);
             return;
         }
@@ -1148,6 +998,8 @@ class Produto extends REST_Controller
         // Verifica se a imagem existe no banco
         $this->db->where('id', $data['id']);
         $imagem = $this->db->get(db_prefix() . 'item_images')->row();
+
+      
 
         if (!$imagem) {
             $this->response(['status' => FALSE, 'message' => 'Imagem não encontrada no banco de dados.'], REST_Controller::HTTP_NOT_FOUND);
@@ -1158,13 +1010,21 @@ class Produto extends REST_Controller
         $this->db->where('id', $data['id']);
         $this->db->delete(db_prefix() . 'item_images');
 
-        // Remove o arquivo físico
-        $file_path = FCPATH . $data['url'];
-        if (file_exists($file_path)) {
-            @unlink($file_path);
-        }
-
        
+        $s3 = $this->storage_s3->getClient();
+if($imagem->name != null){
+        try {
+            $s3->deleteObject([
+                'Bucket' =>getenv('STORAGE_S3_NAME_SPACE'),
+                'Key' => $imagem->name,
+            ]);
+         
+        } catch (Aws\Exception\AwsException $e) {
+            log_activity("Erro ao deletar o objeto: " . $e->getMessage(), 1);
+
+        }
+        
+    }
 
 
         $this->response(['status' => TRUE, 'message' => 'Imagem removida com sucesso.'], REST_Controller::HTTP_OK);

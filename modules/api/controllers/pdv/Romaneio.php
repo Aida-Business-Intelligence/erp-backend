@@ -922,7 +922,7 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
         $total_query = $this->db->get_compiled_select();
         $total = $this->db->query("SELECT COUNT(*) as count FROM ($total_query) as subquery")->row()->count;
 
-        $this->db->select('id, sku_code as code, description, cost, rate as price');
+        $this->db->select('id, sku_code as code, description, cost, rate as price, commodity_barcode');
         $this->db->from(db_prefix() . 'items');
         /*
         if ('WAR' != substr($supplier_id, 0, 3)) {
@@ -941,6 +941,7 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
          */
         if(is_numeric($search)){
         $this->db->where('sku_code', $search);
+        $this->db->or_where('commodity_barcode', $search);
         }else{
         
         $this->db->like('description', $search);
@@ -958,6 +959,7 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
             $cost = (float) $product['cost'];
             $price = (float) $product['price'];
             $product['cost'] = $cost;
+            $product['commodity_barcode'] = $product['commodity_barcode'];
             $product['margin'] = $cost > 0 ? number_format((($price - $cost) / $cost * 100), 2) : '0.00';
         }
 

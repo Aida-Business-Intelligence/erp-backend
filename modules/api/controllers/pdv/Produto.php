@@ -908,9 +908,11 @@ foreach ($warehouses as $warehouse) {
             $imagem = $this->db->get(db_prefix() . 'item_images')->row();
 
             // Atualiza a imagem do produto com o URL da nova imagem
+            if(isset($imagem->name)){
             if($imagem->name != null){
                 $this->db->where('id', $product->id);
                 $this->db->update(db_prefix() . 'items', ['image' => $imagem->url]);
+            }
             }
         }
         
@@ -1089,6 +1091,7 @@ if($imagem->name != null){
             return;
         }
 
+        /*
         if (empty($group_id)) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Group ID is required'],
@@ -1096,6 +1099,7 @@ if($imagem->name != null){
             );
             return;
         }
+        */
 
         // First verify if the group belongs to this warehouse
         $this->db->where('id', $group_id);

@@ -392,7 +392,12 @@ class Receivables_model extends App_Model
         $offset = 0; // sempre retorna os primeiros 5
         $this->db->limit($limit, $offset);
 
-        return $this->db->get(db_prefix() . 'staff')->result_array();
+        $result = $this->db->get(db_prefix() . 'staff')->result_array();
+        
+        log_message('debug', 'get_franchisees - warehouse_id: ' . $warehouse_id . ', search: ' . $search . ', result count: ' . count($result));
+        log_message('debug', 'get_franchisees - SQL: ' . $this->db->last_query());
+        
+        return $result;
     }
 
     // Exemplo de método para validação de duplicatas (ajuste conforme sua lógica)

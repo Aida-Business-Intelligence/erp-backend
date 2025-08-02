@@ -504,11 +504,15 @@ class Receivables extends REST_Controller
             $limit = $this->input->get('pageSize') ?: 5;
             $type = $this->input->get('type') ?: 'clients'; // 'clients' ou 'franchisees'
 
+            log_message('debug', 'Receivables clients_get - type: ' . $type . ', warehouse_id: ' . $warehouse_id . ', search: ' . $search);
+
             if ($type === 'franchisees') {
                 $clients = $this->Receivables_model->get_franchisees($warehouse_id, $search, $limit, $page);
             } else {
                 $clients = $this->Receivables_model->get_clients($warehouse_id, $search, $limit, $page);
             }
+
+            log_message('debug', 'Receivables clients_get - result count: ' . count($clients));
 
             $this->response([
                 'success' => true,
@@ -664,6 +668,7 @@ class Receivables extends REST_Controller
             'receivables_document' => $receivables_document,
             'registration_date' => $input['registration_date'] ?? null,
             'is_staff' => isset($input['is_staff']) ? ($input['is_staff'] ? 1 : 0) : 0,
+            'is_client' => isset($input['is_client']) ? ($input['is_client'] ? 1 : 0) : 0,
             // Campos de parcelamento de cartão de crédito, cheque e boleto
             'num_parcelas' => $input['num_parcelas'] ?? 1,
             'juros' => $input['juros'] ?? 0,
@@ -858,6 +863,7 @@ class Receivables extends REST_Controller
             'bank_account_id' => $input['bank_account_id'] ?? null,
             'registration_date' => $input['registration_date'] ?? null,
             'is_staff' => isset($input['is_staff']) ? ($input['is_staff'] ? 1 : 0) : 0,
+            'is_client' => isset($input['is_client']) ? ($input['is_client'] ? 1 : 0) : 0,
             // Campos de parcelamento de cartão de crédito, cheque e boleto
             'num_parcelas' => $input['num_parcelas'] ?? 1,
             'juros' => $input['juros'] ?? 0,

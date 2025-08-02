@@ -201,12 +201,70 @@ class Receivables_installments_model extends App_Model
     }
 
     /**
+     * Método de debug para verificar o estado das parcelas
+     * @param int $receivable_id ID da receita
+     * @return array
+     */
+    public function debug_installments_status($receivable_id)
+    {
+        log_message('debug', '=== DEBUG INSTALLMENTS STATUS para receivable_id: ' . $receivable_id . ' ===');
+        
+        // Buscar todas as parcelas
+        $this->db->select('id, numero_parcela, data_vencimento, data_pagamento, status, valor_pago');
+        $this->db->where('receivables_id', $receivable_id);
+        $this->db->order_by('numero_parcela', 'ASC');
+        
+        $installments = $this->db->get(db_prefix() . 'account_installments')->result_array();
+        
+        log_message('debug', 'Total de parcelas encontradas: ' . count($installments));
+        
+        foreach ($installments as $inst) {
+            log_message('debug', 'Parcela ' . $inst['numero_parcela'] . ': Status=' . $inst['status'] . ', Vencimento=' . $inst['data_vencimento'] . ', Pagamento=' . $inst['data_pagamento'] . ', Valor Pago=' . $inst['valor_pago']);
+        }
+        
+        // Verificar parcelas pendentes
+        $this->db->select('COUNT(*) as total_pendentes');
+        $this->db->where('receivables_id', $receivable_id);
+        $this->db->where('status !=', 'Pago');
+        $pendentes = $this->db->get(db_prefix() . 'account_installments')->row();
+        
+        log_message('debug', 'Parcelas pendentes: ' . $pendentes->total_pendentes);
+        
+        // Verificar último pagamento
+        $this->db->select('data_pagamento, numero_parcela');
+        $this->db->where('receivables_id', $receivable_id);
+        $this->db->where('status', 'Pago');
+        $this->db->where('data_pagamento IS NOT NULL');
+        $this->db->order_by('data_pagamento', 'DESC');
+        $this->db->limit(1);
+        
+        $ultimo_pagamento = $this->db->get(db_prefix() . 'account_installments')->row();
+        
+        if ($ultimo_pagamento) {
+            log_message('debug', 'Último pagamento: Parcela ' . $ultimo_pagamento->numero_parcela . ' em ' . $ultimo_pagamento->data_pagamento);
+        } else {
+            log_message('debug', 'Nenhum pagamento encontrado');
+        }
+        
+        return [
+            'installments' => $installments,
+            'pendentes' => $pendentes->total_pendentes,
+            'ultimo_pagamento' => $ultimo_pagamento
+        ];
+    }
+
+    /**
      * Atualizar o due_date da receita com a data da próxima parcela não recebida
      * @param int $receivable_id ID da receita
      * @return bool
      */
     public function update_receivable_due_date($receivable_id)
     {
+        log_message('debug', '=== INICIANDO update_receivable_due_date para receivable_id: ' . $receivable_id . ' ===');
+        
+        // Debug: verificar estado atual das parcelas
+        $this->debug_installments_status($receivable_id);
+        
         // Buscar a próxima parcela não recebida (incluindo parciais)
         $this->db->select('data_vencimento');
         $this->db->where('receivables_id', $receivable_id);
@@ -223,16 +281,77 @@ class Receivables_installments_model extends App_Model
                 'due_date' => $next_installment->data_vencimento
             ]);
             
-            log_message('debug', 'Due date atualizado para receivable_id ' . $receivable_id . ': ' . $next_installment->data_vencimento);
+            log_message('debug', 'Due date atualizado para receivable_id ' . $receivable_id . ': ' . $next_installment->data_vencimento . ' (próxima parcela pendente)');
             return true;
         } else {
-            // Se não há mais parcelas pendentes, limpar o due_date ou definir como null
-            $this->db->where('id', $receivable_id);
-            $this->db->update(db_prefix() . 'receivables', [
-                'due_date' => null
-            ]);
+            log_message('debug', 'Nenhuma parcela pendente encontrada para receivable_id: ' . $receivable_id . '. Buscando data do pagamento mais recente...');
             
-            log_message('debug', 'Due date limpo para receivable_id ' . $receivable_id . ' (todas as parcelas recebidas)');
+            // Se não há mais parcelas pendentes, buscar a data do pagamento mais recente
+            // Primeiro, vamos buscar todas as parcelas pagas para debug
+            $this->db->select('data_pagamento, numero_parcela, status');
+            $this->db->where('receivables_id', $receivable_id);
+            $this->db->where('status', 'Pago');
+            $this->db->where('data_pagamento IS NOT NULL');
+            $this->db->order_by('data_pagamento', 'ASC');
+            
+            $all_paid_installments = $this->db->get(db_prefix() . 'account_installments')->result();
+            
+            log_message('debug', 'Todas as parcelas pagas encontradas para receivable_id ' . $receivable_id . ':');
+            foreach ($all_paid_installments as $inst) {
+                log_message('debug', '  - Parcela ' . $inst->numero_parcela . ': data_pagamento = ' . $inst->data_pagamento . ', status = ' . $inst->status);
+            }
+            
+            // Agora buscar especificamente a mais recente
+            $this->db->select('data_pagamento, numero_parcela');
+            $this->db->where('receivables_id', $receivable_id);
+            $this->db->where('status', 'Pago');
+            $this->db->where('data_pagamento IS NOT NULL');
+            $this->db->order_by('data_pagamento', 'DESC');
+            $this->db->limit(1);
+            
+            $last_payment = $this->db->get(db_prefix() . 'account_installments')->row();
+            
+            // Debug: verificar se a consulta retornou o resultado esperado
+            log_message('debug', 'Consulta SQL executada: ' . $this->db->last_query());
+            
+            if ($last_payment) {
+                log_message('debug', 'Último pagamento encontrado: parcela ' . $last_payment->numero_parcela . ' com data ' . $last_payment->data_pagamento);
+                
+                // Verificação adicional: encontrar a data mais recente programaticamente
+                $latest_date = null;
+                $latest_installment = null;
+                foreach ($all_paid_installments as $inst) {
+                    if ($latest_date === null || strtotime($inst->data_pagamento) > strtotime($latest_date)) {
+                        $latest_date = $inst->data_pagamento;
+                        $latest_installment = $inst->numero_parcela;
+                    }
+                }
+                
+                log_message('debug', 'Data mais recente encontrada programaticamente: ' . $latest_date . ' (parcela ' . $latest_installment . ')');
+                log_message('debug', 'Data retornada pela consulta SQL: ' . $last_payment->data_pagamento . ' (parcela ' . $last_payment->numero_parcela . ')');
+                
+                // Usar a data mais recente encontrada
+                $final_date = $latest_date ?: $last_payment->data_pagamento;
+                
+                // Atualizar o due_date da receita com a data do pagamento mais recente
+                $this->db->where('id', $receivable_id);
+                $this->db->update(db_prefix() . 'receivables', [
+                    'due_date' => $final_date
+                ]);
+                
+                log_message('debug', 'Due date atualizado para receivable_id ' . $receivable_id . ' com data do último pagamento: ' . $final_date);
+            } else {
+                log_message('debug', 'Nenhuma data de pagamento encontrada para receivable_id: ' . $receivable_id . '. Usando data atual como fallback.');
+                
+                // Fallback: se não encontrar data de pagamento, manter a data atual
+                $this->db->where('id', $receivable_id);
+                $this->db->update(db_prefix() . 'receivables', [
+                    'due_date' => date('Y-m-d')
+                ]);
+                
+                log_message('debug', 'Due date mantido com data atual para receivable_id ' . $receivable_id . ' (todas as parcelas recebidas)');
+            }
+            
             return true;
         }
     }

@@ -412,7 +412,6 @@ class Receivables extends REST_Controller
                 $this->load->model('Receivables_model');
                 $this->Receivables_model->update([
                     'status' => 'received',
-                    'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
                 ], $receivable_id);
             }
             

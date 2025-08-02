@@ -870,11 +870,25 @@ class Receivables extends REST_Controller
             'juros_apartir' => $input['juros_apartir'] ?? 1,
             'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
         ];
+        
+        // Remover campos nulos, exceto installments
+        $installments_backup = $data['installments'] ?? null;
         $data = array_filter($data, function ($v) { return $v !== null; });
+        if ($installments_backup !== null) {
+            $data['installments'] = $installments_backup;
+        }
         
         // Processar parcelas se fornecidas
         $installments = null;
-        if (isset($data['num_parcelas']) && $data['num_parcelas'] > 1) {
+        
+        // Se já existem parcelas no input, usar elas
+        if (isset($input['installments']) && is_array($input['installments']) && !empty($input['installments'])) {
+            log_message('debug', 'Parcelas encontradas no input: ' . json_encode($input['installments']));
+            $installments = $input['installments'];
+            $data['installments'] = $installments;
+        }
+        // Se não existem parcelas mas num_parcelas > 1, criar novas parcelas
+        else if (isset($data['num_parcelas']) && $data['num_parcelas'] > 1) {
             // Criar array temporário com todos os campos necessários para processar parcelas
             $installment_data = array_merge($data, [
                 'tipo_juros' => $input['tipo_juros'] ?? 'simples',

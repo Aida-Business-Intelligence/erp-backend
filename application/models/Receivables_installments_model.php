@@ -31,6 +31,7 @@ class Receivables_installments_model extends App_Model
                 'receivables_id' => $receivable_id,
                 'numero_parcela' => $installment['numero_parcela'],
                 'data_vencimento' => $installment['data_vencimento'],
+                'data_referencia' => $installment['data_vencimento'], // Usar a mesma data de vencimento como referência
                 'valor_parcela' => $installment['valor_parcela'],
                 'valor_com_juros' => $installment['valor_com_juros'],
                 'juros' => $installment['juros'] ?? 0,

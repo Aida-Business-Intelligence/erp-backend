@@ -217,16 +217,16 @@ class Expenses extends REST_Controller
                 'date' => $data['date'] ?? date('Y-m-d'),
                 'due_date' => $data['due_date'] ?? null,
                 'reference_date' => $data['reference_date'] ?? null,
-                'recurring_type' => $data['recurring_type'] ?? null,
-                'repeat_every' => $data['repeat_every'] ?? null,
-                'recurring' => isset($data['recurring']) ? ($data['recurring'] ? 1 : 0) : 0,
-                'cycles' => $data['cycles'] ?? 0,
-                'total_cycles' => $data['total_cycles'] ?? 0,
-                'custom_recurring' => isset($data['custom_recurring']) ? ($data['custom_recurring'] ? 1 : 0) : 0,
-                'last_recurring_date' => $data['last_recurring_date'] ?? null,
+                'recurring_type' => null,
+                'repeat_every' => null,
+                'recurring' => 0,
+                'cycles' => 0,
+                'total_cycles' => 0,
+                'custom_recurring' => 0,
+                'last_recurring_date' => null,
                 'create_invoice_billable' => isset($data['create_invoice_billable']) ? ($data['create_invoice_billable'] ? 1 : 0) : 0,
                 'send_invoice_to_customer' => isset($data['send_invoice_to_customer']) ? ($data['send_invoice_to_customer'] ? 1 : 0) : 0,
-                'recurring_from' => $data['recurring_from'] ?? null,
+                'recurring_from' => null,
                 'dateadded' => date('Y-m-d H:i:s'),
                 'addedfrom' => get_staff_user_id() ?? 1,
                 'perfex_saas_tenant_id' => 'master',
@@ -875,23 +875,9 @@ class Expenses extends REST_Controller
             'date',
             'due_date',
             'reference_date',
-            'recurring_type',
-            'repeat_every',
-            'recurring',
-            'cycles',
-            'total_cycles',
-            'custom_recurring',
-            'last_recurring_date',
             'create_invoice_billable',
             'send_invoice_to_customer',
-            'recurring_from',
             'warehouse_id',
-            'due_day',
-            'installments',
-            'consider_business_days',
-            'week_day',
-            'end_date',
-            'due_day_2',
             'bank_account_id',
             'expense_document',
             'order_number',
@@ -904,12 +890,8 @@ class Expenses extends REST_Controller
 
         foreach ($fields as $field) {
             if (isset($input[$field])) {
-                if (in_array($field, ['billable', 'send_invoice_to_customer', 'recurring', 'custom_recurring', 'create_invoice_billable'])) {
+                if (in_array($field, ['billable', 'send_invoice_to_customer', 'create_invoice_billable'])) {
                     $updateData[$field] = (!empty($input[$field]) && $input[$field] !== 'false') ? 1 : 0;
-                } elseif (in_array($field, ['repeat_every', 'cycles', 'total_cycles'])) {
-                    $updateData[$field] = is_numeric($input[$field]) ? $input[$field] : 0;
-                } elseif (in_array($field, ['last_recurring_date'])) {
-                    $updateData[$field] = !empty($input[$field]) ? $input[$field] : null;
                 } else {
                     $updateData[$field] = $input[$field];
                 }

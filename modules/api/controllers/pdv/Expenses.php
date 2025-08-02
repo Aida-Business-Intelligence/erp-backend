@@ -238,6 +238,7 @@ class Expenses extends REST_Controller
                 'nfe_key' => $data['nfe_key'] ?? null,
                 'barcode' => $data['barcode'] ?? null,
                 'origin' => $data['origin'] ?? null,
+                'is_client' => isset($data['is_client']) ? ($data['is_client'] ? 1 : 0) : 0,
             ];
 
             // Processar parcelas se fornecidas
@@ -883,14 +884,15 @@ class Expenses extends REST_Controller
             'order_number',
             'installment_number',
             'nfe_key',
-            'barcode'
+            'barcode',
+            'is_client'
         ];
 
         $updateData = [];
 
         foreach ($fields as $field) {
             if (isset($input[$field])) {
-                if (in_array($field, ['billable', 'send_invoice_to_customer', 'create_invoice_billable'])) {
+                if (in_array($field, ['billable', 'send_invoice_to_customer', 'create_invoice_billable', 'is_client'])) {
                     $updateData[$field] = (!empty($input[$field]) && $input[$field] !== 'false') ? 1 : 0;
                 } else {
                     $updateData[$field] = $input[$field];

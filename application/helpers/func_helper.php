@@ -966,6 +966,44 @@ if (!function_exists('gerarNFC')) {
     }
 }
 
+function processPaymentsForms($payments,  $payment_codes) {
+
+     // Array de mapeamento dos tipos do frontend
+     $frontend_types = [
+        'DINHEIRO' => 'DINHEIRO',
+        'PIX' => 'PIX',
+        'CREDITO' => 'CARTAO DE CREDITO',
+        'DEBITO' => 'CARTAO DE DEBITO',
+        'BANRICOMPRAS' => 'VALE ALIMENTACAO', // Mapeia para Vale Alimentação
+        'CREDITO OFFLINE' => 'CARTAO DE CREDITO',
+        'DEBITO OFFLINE' => 'CARTAO DE DEBITO'
+    ];
+
+     
+
+    $result = [];
+    foreach ($payments as $payment) {
+        // Remove caracteres não numéricos de parcelas
+        $parcelas = preg_replace('/\D/', '', $payment['parcelas']);
+
+        // Normaliza o tipo de pagamento para comparação
+        $payment_type = strtoupper(trim($payment['type']));
+
+        // Mapeia o tipo do frontend para o tipo do sistema
+        $mapped_type = isset($frontend_types[$payment_type]) ? $frontend_types[$payment_type] : $payment_type;
+
+        // Obtém o código do pagamento, ou usa '99' se não encontrado
+        $payment_code = isset($payment_codes[$mapped_type]) ? $payment_codes[$mapped_type] : '99';
+
+        $result[] = [
+            'valor' => $payment['value'],
+            'tipo' => $payment_code,
+            'parcelas' => $parcelas,
+        ];
+    }
+    return $result;
+}
+
 /**
  * Função para log de respostas de API
  * @param string $api_name Nome da API

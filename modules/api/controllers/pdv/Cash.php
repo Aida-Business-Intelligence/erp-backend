@@ -28,6 +28,7 @@ class Cash extends REST_Controller
         parent::__construct();
         $this->load->model('cashs_model');
         $this->load->model('Authentication_model');
+        $this->load->model('Warehouse_model');
 
         $decodedToken = $this->authservice->decodeToken($this->token_jwt);
         if (!$decodedToken['status']) {
@@ -44,12 +45,10 @@ class Cash extends REST_Controller
 
     public function nfce_post($id = '')
     {
+        $warehouse_id = $this->post('warehouse_id');
+        $id = $this->post('id');
 
-         $warehouse_id = $this->post('warehouse_id') ?: 0; // Se não vier, define como 0
-         $id = $this->post('id') ?: 0; // Se não vier, define como 0
-
-         if (empty($id)) {
-  
+        if (empty($id)) {
             $this->response([
                 'status' => false,
                 'message' => 'Número do recibo invalido.'
@@ -58,7 +57,6 @@ class Cash extends REST_Controller
         }
 
         if (empty($warehouse_id)) {
-  
             $this->response([
                 'status' => false,
                 'message' => 'ID da loja invalido.'
@@ -66,25 +64,146 @@ class Cash extends REST_Controller
             return;
         }
 
+        // Buscar dados da transação
+        $transactions = $this->cashs_model->get_extracts('', $id);
+      
         
+        if (empty($transactions['data'])) {
+            $this->response([
+                'status' => false,
+                'message' => 'Transação não encontrada.'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
 
+        $transaction = $transactions['data']; // Pega a primeira transação
 
+        // Buscar dados do warehouse
+        $warehouse = $this->Warehouse_model->get($warehouse_id);
+        
+        if (!$warehouse) {
+            $this->response([
+                'status' => false,
+                'message' => 'Loja não encontrada.'
+            ], REST_Controller::HTTP_NOT_FOUND);
+            return;
+        }
 
-        $data = $this->cashs_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
+        // Buscar dados da NFC-e
+        $nfce = $this->cashs_model->get_nfce($id);
 
-        if ($data['total'] == 0) {
+        // Se não existe NFC-e, gerar uma nova
+        if (!$nfce) {
+            // Preparar dados para gerar NFC-e
+            $data = [
+                'client_id' => $transaction['client_id'],
+                'cash_id' => $transaction['cash_id'],
+                'user_id' => $transaction['user_id'],
+                'type' => $transaction['type'],
+                'subtotal' => $transaction['subtotal'],
+                'discount' => $transaction['discount'],
+                'total' => $transaction['total'],
+                'nota' => $transaction['nota'],
+                'doc' => $transaction['doc'],
+                'warehouse_id' => $warehouse_id,
+                'newitems' => json_decode($transaction['items'], true),
+                'form_payments' => $transaction['form_payments'],
+                'operacao' => $transaction['operacao'],
+            ];
 
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_OK);
-        } else {
+            // Gerar NFC-e
+            $result_nfce = gerarNFC($data, $id);
 
-            if ($data) {
-                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            if ($result_nfce && isset($result_nfce->status) && $result_nfce->status == 'aprovado') {
+                $nfce = $result_nfce;
+
+                // Insere dados NFC-e
+                $this->cashs_model->insert_nfce([
+                    'status' => $nfce->status,
+                    'documento' => $nfce->documento ?? $transaction['doc'],
+                    'data_autorizacao' => $nfce->data_autorizacao,
+                    'tributo_incidente' => $nfce->tributo_incidente,
+                    'url_sefaz' => $nfce->url_sefaz,
+                    'nfe' => $nfce->nfe,
+                    'serie' => $nfce->serie,
+                    'qrcode' => $nfce->qrcode,
+                    'protocolo' => $nfce->protocolo,
+                    'recibo' => $nfce->recibo,
+                    'chave' => $nfce->chave,
+                    'order_id' => $id,
+                    'order_type' => 'PDV'
+                ]);
+
+                // Atualiza a transação com os dados da NFC-e
+                $this->cashs_model->update([
+                    'nfe' => $nfce->nfe,
+                    'serie' => $nfce->serie,
+                    'qrcode' => $nfce->qrcode,
+                    'protocolo' => $nfce->protocolo,
+                    'chave' => $nfce->chave,
+                ], $id);
             } else {
-                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+                $this->response([
+                    'status' => false,
+                    'message' => 'Erro ao gerar NFC-e.'
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                return;
             }
         }
 
+        // Formatar data de autorização
+        $data_autorizacao_formatada = '';
+        if (isset($nfce->data_autorizacao)) {
+            $data_obj = new DateTime($nfce->data_autorizacao);
+            $data_autorizacao_formatada = $data_obj->format('d/m/Y H:i:s');
+        }
 
+        // Formatar tributo incidente
+        $tributo_formatado = 'R$ 0,00';
+        if (isset($nfce->tributo_incidente) && $nfce->tributo_incidente > 0) {
+            $tributo_formatado = 'R$ ' . number_format($nfce->tributo_incidente, 2, ',', '.');
+        }
+
+        // Preparar response no formato solicitado
+        $response = [
+            'status' => true,
+            'nfce' => [
+                'status' => $nfce->status ?? 'aprovado',
+                'nfe' => $nfce->nfe ?? '',
+                'serie' => $nfce->serie ?? '',
+                'chave' => $nfce->chave ?? '',
+                'protocolo' => $nfce->protocolo ?? '',
+                'data_autorizacao' => $nfce->data_autorizacao ?? '',
+                'data_autorizacao_formatada' => $data_autorizacao_formatada,
+                'documento' => $nfce->documento ?? $transaction['doc'] ?? '',
+                'url_sefaz' => $nfce->url_sefaz ?? '',
+                'qrcode' => $nfce->qrcode ?? '',
+                'tributo_incidente' => $tributo_formatado
+            ],
+            'transaction' => [
+                'id' => (int)$transaction['id'],
+                'datesale' => $transaction['datesale'],
+                'operacao' => $transaction['operacao'],
+                'subtotal' => (float)$transaction['subtotal'],
+                'discount' => (float)$transaction['discount'],
+                'total' => (float)$transaction['total'],
+                'items' => $transaction['items'],
+                'form_payments' => $transaction['form_payments']
+            ],
+            'warehouse' => [
+                'razao_social' => $warehouse->razao_social ?? '',
+                'warehouse_name' => $warehouse->warehouse_name ?? '',
+                'cnpj' => $warehouse->cnpj ?? '',
+                'ie' => $warehouse->ie ?? '',
+                'endereco' => $warehouse->endereco ?? '',
+                'numero' => $warehouse->numero ?? '',
+                'bairro' => $warehouse->bairro ?? '',
+                'cidade' => $warehouse->cidade ?? '',
+                'estado' => $warehouse->estado ?? ''
+            ]
+        ];
+
+        $this->response($response, REST_Controller::HTTP_OK);
     }
 
     public function get_by_number_get($id)

@@ -201,38 +201,8 @@ class Payment extends REST_Controller
                 ];
               
 
-            // Array de mapeamento dos tipos do frontend
-            $frontend_types = [
-                'DINHEIRO' => 'DINHEIRO',
-                'PIX' => 'PIX',
-                'CREDITO' => 'CARTAO DE CREDITO',
-                'DEBITO' => 'CARTAO DE DEBITO',
-                'BANRICOMPRAS' => 'VALE ALIMENTACAO', // Mapeia para Vale Alimentação
-                'CREDITO OFFLINE' => 'CARTAO DE CREDITO',
-                'DEBITO OFFLINE' => 'CARTAO DE DEBITO'
-            ];
 
-             
-
-                $data['forma_pagamento'] = [];
-                foreach ($payments as $payment) {
-                    $parcelas = preg_replace('/\D/', '', $payment['parcelas']);
-                    
-                    // Normaliza o tipo de pagamento para comparação
-                    $payment_type = strtoupper(trim($payment['type']));
-                    
-                    // Mapeia o tipo do frontend para o tipo do sistema
-                    $mapped_type = isset($frontend_types[$payment_type]) ? $frontend_types[$payment_type] : $payment_type;
-                    
-                    // Obtém o código do pagamento
-                    $payment_code = isset($payment_codes[$mapped_type]) ? $payment_codes[$mapped_type] : '99';
-
-                    $data['forma_pagamento'][] = [
-                        'valor' => $payment['value'],
-                        'tipo' => $payment_code,
-                        'parcelas' => $parcelas,
-                    ];
-                }
+                $data['forma_pagamento'] = processPaymentsForms($payments, $payment_codes);
 
              
 
@@ -264,6 +234,8 @@ class Payment extends REST_Controller
                                 'protocolo' => $nfce->protocolo,
                                 'recibo' => $nfce->recibo,
                                 'chave' => $nfce->chave,
+                                'order_id' => $venda_id,
+                                'order_type' => 'PDV'
                             ]);
 
                             // Atualiza a venda com os dados da NFC-e
@@ -295,7 +267,7 @@ class Payment extends REST_Controller
                     'nfce' => $nfce,
                     'print_recibo' => $print_recibo,
                     'status_payment' => 'paid',
-                    'payment_id' => 1, // Pode adaptar para o ID do pagamento real
+                    'order_id' => $venda_id, // Pode adaptar para o ID do pagamento real
                     'message' => 'Pagamento realizado com sucesso'
                 ], REST_Controller::HTTP_OK);
             } else {

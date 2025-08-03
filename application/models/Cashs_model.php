@@ -345,6 +345,15 @@ class Cashs_model extends App_Model
         return $this->db->get()->result_array();
     }
 
+    public function get_nfce($order_id)
+    {
+        $this->db->from(db_prefix() . 'nfce');
+        $this->db->where('order_id', $order_id); 
+        $this->db->where('order_type', 'PDV'); // Filtra pelo item_order correspondente ao ID da venda
+        // Filtra pelo item_order correspondente ao ID da venda
+        return $this->db->get()->row();
+    }
+
     public function get_extracts($cash_id, $id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
     {
         if (!is_numeric($id)) {

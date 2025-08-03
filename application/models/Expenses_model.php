@@ -1150,6 +1150,7 @@ class Expenses_model extends App_Model
             $this->db->group_start();
             $this->db->like('e.note', $search);
             $this->db->or_like('e.amount', $search);
+            $this->db->or_like('e.expense_identifier', $search);
             $this->db->group_end();
         }
 
@@ -1299,6 +1300,7 @@ class Expenses_model extends App_Model
         $this->db->group_start();
         $this->db->like('e.note', $params['search']);
         $this->db->or_like('e.amount', $params['search']);
+        $this->db->or_like('e.expense_identifier', $params['search']);
         $this->db->group_end();
     }
 
@@ -1404,6 +1406,7 @@ class Expenses_model extends App_Model
             $this->db->group_start();
             $this->db->like('e.note', $search);
             $this->db->or_like('e.amount', $search);
+            $this->db->or_like('e.expense_identifier', $search);
             $this->db->group_end();
         }
 
@@ -1464,6 +1467,7 @@ class Expenses_model extends App_Model
             $this->db->group_start();
             $this->db->like('e.note', $params['search']);
             $this->db->or_like('e.amount', $params['search']);
+            $this->db->or_like('e.expense_identifier', $params['search']);
             $this->db->group_end();
         }
 

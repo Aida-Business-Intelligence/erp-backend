@@ -885,7 +885,12 @@ class Expenses extends REST_Controller
             'installment_number',
             'nfe_key',
             'barcode',
-            'is_client'
+            'is_client',
+            // Adiciona campos de parcelamento
+            'num_parcelas',
+            'juros',
+            'juros_apartir',
+            'total_parcelado',
         ];
 
         $updateData = [];
@@ -898,6 +903,13 @@ class Expenses extends REST_Controller
                     $updateData[$field] = $input[$field];
                 }
             }
+        }
+
+        // Processar parcelas se fornecidas (igual ao create)
+        $installments = null;
+        if (isset($input['num_parcelas']) && $input['num_parcelas'] > 1) {
+            $installments = $this->process_installments($input);
+            // Não adicionar ao updateData para não tentar salvar no banco
         }
 
         // Processar o documento se existir
@@ -987,6 +999,13 @@ class Expenses extends REST_Controller
         }
 
         $success = $this->Expenses_model->updatetwo($updateData, $id);
+
+        // Atualizar parcelas se necessário
+        if ($success && $installments) {
+            $this->load->model('Expenses_installments_model');
+            $this->Expenses_installments_model->delete_installments_by_expense($id);
+            $this->Expenses_installments_model->add_installments($id, $installments);
+        }
 
         if (!$success) {
             return $this->response([

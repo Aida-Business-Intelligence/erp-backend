@@ -646,8 +646,6 @@ class Receivables extends REST_Controller
             'order_number' => $input['order_number'] ?? null,
             'installment_number' => $input['installment_number'] ?? null,
             'nfe_key' => $input['nfe_key'] ?? null,
-            'nfe_number' => $input['nfe_number'] ?? null,
-            'boleto_number' => $input['boleto_number'] ?? null,
             'barcode' => $input['barcode'] ?? null,
             'origin_id' => $input['origin_id'],
             'recurring_type' => null,
@@ -674,6 +672,7 @@ class Receivables extends REST_Controller
             'juros' => $input['juros'] ?? 0,
             'juros_apartir' => $input['juros_apartir'] ?? 1,
             'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
+            // 'tipo_juros' => $input['tipo_juros'] ?? 'simples', // continua fora do principal
         ];
         $data = array_filter($data, function ($v) { return $v !== null; });
         
@@ -869,6 +868,7 @@ class Receivables extends REST_Controller
             'juros' => $input['juros'] ?? 0,
             'juros_apartir' => $input['juros_apartir'] ?? 1,
             'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
+            // 'tipo_juros' => $input['tipo_juros'] ?? 'simples', // continua fora do principal
         ];
         
         // Remover campos nulos, exceto installments

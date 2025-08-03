@@ -283,6 +283,7 @@ class Produto extends REST_Controller
             return;
         }
 
+      
 
 
         $createdCount = 0;
@@ -303,6 +304,15 @@ foreach ($warehouses as $warehouse) {
         }
 
         $productData['warehouse_id'] = $warehouse['warehouse_id'];
+
+
+
+       // $product_by_code = $this->Invoice_items_model->get_by_code($productData['code']);
+           
+   
+
+
+
         $product_id = $this->Invoice_items_model->add($productData);
 
         if ($product_id) {
@@ -851,6 +861,18 @@ foreach ($warehouses as $warehouse) {
             $this->response(['status' => FALSE, 'message' => 'Product not found'], REST_Controller::HTTP_NOT_FOUND);
             return;
         }
+
+        if($product->code != $_POST['code']){
+           $product_by_code = $this->Invoice_items_model->get_by_code($_POST['code']);
+           
+   
+           if($product_by_code){
+            $this->response(['status' => FALSE, 'message' => 'Código já existe'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+           }
+        }
+
+     
 
         // Prepare os dados para atualização
         $update_data = $_POST;

@@ -126,6 +126,7 @@ class Invoice_items_model extends App_Model
 
         $this->db->select([
             "$items_table.id as id",
+            "$items_table.code as code",
             "$items_table.rate",
             "$items_table.description",
             "$items_table.long_description",
@@ -180,6 +181,14 @@ class Invoice_items_model extends App_Model
     {
         $this->db->from(db_prefix() . 'items');
         $this->db->where(db_prefix() . 'items.sku_code', $id);
+
+        return $this->db->get()->row();
+    }
+
+    public function get_by_code($id = '')
+    {
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where(db_prefix() . 'items.code', $id);
 
         return $this->db->get()->row();
     }
@@ -386,12 +395,14 @@ class Invoice_items_model extends App_Model
                     ->like("$items_table.description", $search)
                     ->or_like("$items_table.long_description", $search)
                     ->or_like("$items_table.rate", $search)
+                    ->or_like("$items_table.code", $search) 
                     ->or_like("$items_table.sku_code", $search)
                     ->or_like("$items_table.commodity_barcode", $search)
                     ->or_like("$items_table.id", $search)
                     ->group_end();
             }
         }
+      
 
         $total = $this->db->count_all_results('', false);
 
@@ -403,7 +414,6 @@ class Invoice_items_model extends App_Model
 
         $items = $this->db->get()->result_array();
 
-        //var_dump($this->db->last_query());
 
         return ['data' => $items, 'total' => $total];
     }

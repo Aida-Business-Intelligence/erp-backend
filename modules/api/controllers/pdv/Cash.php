@@ -40,6 +40,53 @@ class Cash extends REST_Controller
 
 
     }
+
+
+    public function nfce_post($id = '')
+    {
+
+         $warehouse_id = $this->post('warehouse_id') ?: 0; // Se não vier, define como 0
+         $id = $this->post('id') ?: 0; // Se não vier, define como 0
+
+         if (empty($id)) {
+  
+            $this->response([
+                'status' => false,
+                'message' => 'Número do recibo invalido.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        if (empty($warehouse_id)) {
+  
+            $this->response([
+                'status' => false,
+                'message' => 'ID da loja invalido.'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        
+
+
+
+        $data = $this->cashs_model->get_api($id, $page, $limit, $search, $sortField, $sortOrder, $warehouse_id);
+
+        if ($data['total'] == 0) {
+
+            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_OK);
+        } else {
+
+            if ($data) {
+                $this->response(['status' => true, 'total' => $data['total'], 'data' => $data['data']], REST_Controller::HTTP_OK);
+            } else {
+                $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
+            }
+        }
+
+
+    }
+
     public function get_by_number_get($id)
     {
 
@@ -51,28 +98,6 @@ class Cash extends REST_Controller
         }
 
     }
-
-    /*
-    public function validate()
-    {
-
-
-        $warehouse_id = $this->post('warehouse_id');
-        $user_id = $this->post('user_id');
-        $cash_id = $this->post('cash_id');
-
-        $data = $this->cashs_model->validate($warehouse_id, $user_id, $cash_id);
-
-        if ($data) {
-            $this->response(['status' => true, 'total' => 1, 'data' => $data], REST_Controller::HTTP_OK);
-        } else {
-            $this->response(['status' => FALSE, 'message' => 'No data were found'], REST_Controller::HTTP_NOT_FOUND);
-        }
-
-
-
-    }
-        */
 
     public function list_post($id = '')
     {
@@ -127,13 +152,7 @@ class Cash extends REST_Controller
     public function extracts_get($id = '')
     {
 
-        /*
-          $this->load->model('clients_model');
-
-          $this->clients_model->add_import_items();
-          exit;
-         * 
-         */
+    
 
         $page = $this->post('page') ? (int) $this->post('page') : 0; // Página atual, padrão 1
 
@@ -159,13 +178,8 @@ class Cash extends REST_Controller
     }
 
 
-
-
-
     public function create_post()
     {
-
-        
         // Lê os dados do corpo da requisição
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -244,8 +258,6 @@ class Cash extends REST_Controller
         }
     }
 
-
-
     public function remove_post()
     {
         $data = json_decode(file_get_contents("php://input"), true);
@@ -254,15 +266,9 @@ class Cash extends REST_Controller
         $warehouse_id = $data['warehouse_id'];
         $extract = $this->cashs_model->count_extracts($id_cash);
 
-
-
         if ($extract == 0) {
 
-
-
             if ($this->cashs_model->delete_finaly($id_cash)) {
-
-
 
                 $this->response([
                     'status' => FALSE,
@@ -283,13 +289,8 @@ class Cash extends REST_Controller
         }
 
 
-
-
-
         $email = $this->authservice->user->email;
         $password = $data['password'];
-
-
         $data_pw = $this->Authentication_model->login_api($email, $password);
 
         if (!$data_pw['success']) {
@@ -364,7 +365,6 @@ class Cash extends REST_Controller
         }
     }
 
-
     public function get_get($id = '')
     {
         if (empty($id) || !is_numeric($id)) {
@@ -410,7 +410,39 @@ class Cash extends REST_Controller
 
         $data = $this->cashs_model->get_transactions($id, $page + 1, $limit, $search, $sortField, $sortOrder, $filters, $number, $warehouse_id);
 
-        // Always return HTTP_OK with the data and total, even if total is 0
+        $this->response([
+            'status' => true,
+            'total' => $data['total'],
+            'data' => $data['data'] ?? []
+        ], REST_Controller::HTTP_OK);
+    }
+    
+
+    public function last_transactions_post($transaction_id = '')
+    {
+
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+        // Verifica se o ID do caixa foi fornecido
+        if (empty($_POST['cash_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'ID do caixa não fornecido'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+          // Verifica se o ID do caixa foi fornecido
+          if (empty($_POST['warehouse_id'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'ID da loja não fornecido'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $cash_id = $_POST['cash_id'];   
+        $warehouse_id = $_POST['warehouse_id'];
+        $data = $this->cashs_model->get_last_transactions($cash_id, $warehouse_id, $transaction_id);
+
         $this->response([
             'status' => true,
             'total' => $data['total'],
@@ -614,25 +646,6 @@ class Cash extends REST_Controller
         $type = $status == 0 ? "debito" : "credito";
         $user_id = $this->authservice->user->staffid;
 
-
-
-        /*
-        $email = $this->authservice->user->email;
-        $password = $_POST['password'];
-        $data = $this->Authentication_model->login_api($email, $password);
-         * 
-        
-
-        if (!$data['success']) {
-
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Senha inválida'
-            ], REST_Controller::HTTP_OK);
-        }
-         * 
-         */
-
         $detalhes_caixa = $this->cashs_model->get_by_id($caixaId);
 
         if ($status == 1) {
@@ -705,19 +718,15 @@ class Cash extends REST_Controller
             ], REST_Controller::HTTP_NOT_FOUND);
         }
 
-
     }
 
     public function sangria_patch()
     {
 
-
-
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         $number = $_POST['caixaId'];
         $valor = $_POST['valor'];
         $user_id = $this->authservice->user->staffid;
-
         $email = $this->authservice->user->email;
         $password = $_POST['password'];
         $data = $this->Authentication_model->login_api($email, $password);
@@ -729,8 +738,6 @@ class Cash extends REST_Controller
                 'message' => 'Senha inválida'
             ], REST_Controller::HTTP_OK);
         }
-
-
 
         $detalhes_caixa = $this->cashs_model->get_by_id($number);
         if (!$detalhes_caixa) {
@@ -788,7 +795,6 @@ class Cash extends REST_Controller
                 'message' => 'Erro ao atualizar status'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
-
 
     }
 }

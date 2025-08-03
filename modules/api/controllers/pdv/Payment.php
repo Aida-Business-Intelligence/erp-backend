@@ -111,9 +111,7 @@ class Payment extends REST_Controller
     public function finish_post()
 {
 
-	ini_set('display_errors', 1);
-		ini_set('display_startup_erros', 1);
-		error_reporting(E_ALL);
+	
 
             $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
             
@@ -178,22 +176,85 @@ class Payment extends REST_Controller
             if ($venda_id) {
                 // Geração da NFC-e se necessário
                 $nfce = false;
+                
+                // Array com códigos de pagamento conforme especificação
+                $payment_codes = [
+                    'DINHEIRO' => '01',
+                    'CHEQUE' => '02', 
+                    'CARTAO DE CREDITO' => '03',
+                    'CARTAO DE DEBITO' => '04',
+                    'CREDITO LOJA' => '05',
+                    'VALE ALIMENTACAO' => '10',
+                    'VALE REFEICAO' => '11',
+                    'VALE PRESENTE' => '12',
+                    'VALE COMBUSTIVEL' => '13',
+                    'BOLETO BANCARIO' => '15',
+                    'DEPOSITO BANCARIO' => '16',
+                    'PIX' => '17',
+                    'TRANSFERENCIA BANCARIA' => '18',
+                    'CARTEIRA DIGITAL' => '18',
+                    'PROGRAMA DE FIDELIDADE' => '19',
+                    'CASHBACK' => '19',
+                    'CREDITO VIRTUAL' => '19',
+                    'SEM PAGAMENTO' => '90',
+                    'OUTROS' => '99'
+                ];
+              
+
+            // Array de mapeamento dos tipos do frontend
+            $frontend_types = [
+                'DINHEIRO' => 'DINHEIRO',
+                'PIX' => 'PIX',
+                'CREDITO' => 'CARTAO DE CREDITO',
+                'DEBITO' => 'CARTAO DE DEBITO',
+                'BANRICOMPRAS' => 'VALE ALIMENTACAO', // Mapeia para Vale Alimentação
+                'CREDITO OFFLINE' => 'CARTAO DE CREDITO',
+                'DEBITO OFFLINE' => 'CARTAO DE DEBITO'
+            ];
+
+             
+
+                $data['forma_pagamento'] = [];
                 foreach ($payments as $payment) {
+                    $parcelas = preg_replace('/\D/', '', $payment['parcelas']);
+                    
+                    // Normaliza o tipo de pagamento para comparação
+                    $payment_type = strtoupper(trim($payment['type']));
+                    
+                    // Mapeia o tipo do frontend para o tipo do sistema
+                    $mapped_type = isset($frontend_types[$payment_type]) ? $frontend_types[$payment_type] : $payment_type;
+                    
+                    // Obtém o código do pagamento
+                    $payment_code = isset($payment_codes[$mapped_type]) ? $payment_codes[$mapped_type] : '99';
 
-               
+                    $data['forma_pagamento'][] = [
+                        'valor' => $payment['value'],
+                        'tipo' => $payment_code,
+                        'parcelas' => $parcelas,
+                    ];
+                }
 
-                    if (!$nfce && (strtolower($payment['type'])  != 'dinheiro') || $doc != '') {
+             
+
+                foreach ($payments as $payment) {
+                    // Normaliza o tipo de pagamento para comparação
+                    $payment_type = strtoupper(trim($payment['type']));
+                    $mapped_type = isset($frontend_types[$payment_type]) ? $frontend_types[$payment_type] : $payment_type;
+
+                    if (!$nfce && ($mapped_type != 'DINHEIRO') || $doc != '') {
 
                         $result_nfce = gerarNFC($data, $venda_id);
 
-                 
+                 if(isset($result_nfce->status)){
                         if ($result_nfce && $result_nfce->status == 'aprovado' ) {
                             $nfce = $result_nfce;
+
+                            $nfce->documento = (!isset($doc) || $doc == '') ? "0" : $doc;
 
                             // Insere dados NFC-e
                             $this->Cashs_model->insert_nfce([
                                 'status' => $nfce->status,
-                                'documento' => $nfce->status,
+                                'documento' => $nfce->documento,
                                 'data_autorizacao' => $nfce->data_autorizacao,
                                 'tributo_incidente' => $nfce->tributo_incidente,
                                 'url_sefaz' => $nfce->url_sefaz,
@@ -215,6 +276,7 @@ class Payment extends REST_Controller
                                 'chave' => $nfce->chave,
                             ], $venda_id);
                         }
+                    }
                     }
                 }
                 $print_recibo = true;

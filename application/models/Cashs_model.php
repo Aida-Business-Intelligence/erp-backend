@@ -57,21 +57,6 @@ class Cashs_model extends App_Model
         return $client;
     }
 
-    /*
-    public function validate($warehouse_id, $user_id, $cash_id)
-    {
-
-        $this->db->from(db_prefix() . 'cashs');
-        $this->db->where(key: 'cashs.warehouse_id', $warehouse_id);
-        $this->db->where(key: 'cashs.user_id', $user_id);
-        $this->db->where(key: 'cashs.number', $cash_id);
-        $this->db->where(key: 'cashs.status', 1);
-        $client = $this->db->get()->row();
-        return $client;
-    }
-        */
-
-
     public function get_by_id($id)
     {
 
@@ -327,12 +312,46 @@ class Cashs_model extends App_Model
         ];
     }
 
+    public function get_last_transactions($cash_id, $warehouse_id, $id_transaction)
+    {
+        $this->db->from(db_prefix() . 'cashextracts');
+       
+        if ($id_transaction > 0) {      
+            $this->db->where('id', $id_transaction);
+            $client = $this->db->get()->row();
+            $total = $client ? 1 : 0;
+            return ['data' => (array) $client, 'total' => $total];
+        }
+
+     
+        $this->db->where('cash_id', $cash_id);
+        $this->db->where('warehouse_id', $warehouse_id);
+        $this->db->order_by('id',  'Desc');
+        $this->db->limit(10);
+        $clients = $this->db->get()->result_array();
+
+        return [
+            'data' => $clients,
+            'total' => count($clients)
+        ];
+    }
+
+
     // Nova função para buscar itens pelo item_order
     public function get_items_cashs_by_order($sale_id)
     {
         $this->db->from(db_prefix() . 'itemcash');
         $this->db->where('item_order', $sale_id); // Filtra pelo item_order correspondente ao ID da venda
         return $this->db->get()->result_array();
+    }
+
+    public function get_nfce($order_id)
+    {
+        $this->db->from(db_prefix() . 'nfce');
+        $this->db->where('order_id', $order_id); 
+        $this->db->where('order_type', 'PDV'); // Filtra pelo item_order correspondente ao ID da venda
+        // Filtra pelo item_order correspondente ao ID da venda
+        return $this->db->get()->row();
     }
 
     public function get_extracts($cash_id, $id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'ASC')
@@ -474,11 +493,8 @@ class Cashs_model extends App_Model
         return false;
     }
 
-
     public function delete_finaly($id)
     {
-
-
 
         $this->db->where('id', $id);
         return $this->db->delete('cashs');
@@ -510,7 +526,6 @@ class Cashs_model extends App_Model
         return $this->db->update('cashextracts', $data);
     }
 
-
     public function update_itemstocksmov($data, $id)
     {
 
@@ -524,11 +539,8 @@ class Cashs_model extends App_Model
         return $this->db->insert_id();
     }
 
-
     public function add1($data)
     {
-
-
 
         $data['hash'] = app_generate_hash();
         $detalhes_caixa = $this->get_by_number($data['cash_id']);
@@ -606,11 +618,8 @@ class Cashs_model extends App_Model
         return false;
     }
 
-
     public function add($data)
     {
-
-        // Iniciar transação
         $this->db->trans_start();
 
         // Gera hash e obtém detalhes da caixa

@@ -775,14 +775,16 @@ if (!function_exists('gerarNFC')) {
         $cont = 1;
 
         foreach ($data['newitems'] as $item) {
-
-            $tributo = $CI->db->select('id, ncm, cfop as codigo_cfop, tax_percent as pICMS')->get(db_prefix() . 'items', ['id' => $item['id']])->row();
+    
+            $tributo = $CI->db->select('id, ncm, cfop as codigo_cfop, tax_percent as pICMS')
+                   ->get_where(db_prefix() . 'items', ['id' => $item['id']])
+                   ->row();
 
 
             $items[] = [
                 'item' => $cont,
                 'nome' => $item['description'],
-                'ncm' => $tributo->ncm, // Adicione se necessário
+                'ncm' => $tributo->ncm,  
 'total' => ($item['qty'] * $item['rate']) * (1 - ($item['discount'] / 100)),
                 'subtotal' => $item['subtotal'],
                 'quantidade' => $item['qty'],
@@ -824,6 +826,13 @@ if (!function_exists('gerarNFC')) {
             $email = '';
         }
 
+       
+        if(!$loja->cnae || !$loja->telefone){
+           return false;
+        }
+
+    
+
         // Monta o JSON de envio
         $postData = [
             "emitente" => [
@@ -834,7 +843,7 @@ if (!function_exists('gerarNFC')) {
                 "fantasia" => $loja->warehouse_name,
                 "ie" => $loja->ie,
                 "im" => $loja->im,
-                "cnae" => preg_replace('/\D/', '', $loja->cnae),
+                "cnae" => $loja->cnae,
                 "crt" => $loja->crt,
                 "rua" => $loja->endereco,
                 "numero" => $loja->numero,
@@ -850,8 +859,8 @@ if (!function_exists('gerarNFC')) {
                 "tokenIBPT" => "01",
                 "password_nfe" => $loja->password_nfe,
                 "arquivo_nfe" => $loja->arquivo_nfe,
-                "CSC" => $loja->csc,
-                "CSCid" => $loja->cscid,
+                "CSC" => $loja->tpAmb=="1" ? $loja->csc : "",
+                "CSCid" => $loja->tpAmb=="1" ? $loja->cscid : ""    ,
                 "proxyConf" => [
                     "proxyIp" => "",
                     "proxyPort" => "",
@@ -876,8 +885,8 @@ if (!function_exists('gerarNFC')) {
             "pedido" => [
                 "id" => $pedido,
                 "presenca" => "1",
-                "forma_pagamento" => "01",
-                "valor_pagamento" => number_format($data['total'], 2, '.', '') // Garante formato decimal
+                "forma_pagamento" => $data['forma_pagamento']
+                    
             ],
             "produtos" => $items // já é um array, será convertido para JSON na requisição
         ];
@@ -955,6 +964,44 @@ if (!function_exists('gerarNFC')) {
 
         return $response_decoded;
     }
+}
+
+function processPaymentsForms($payments,  $payment_codes) {
+
+     // Array de mapeamento dos tipos do frontend
+     $frontend_types = [
+        'DINHEIRO' => 'DINHEIRO',
+        'PIX' => 'PIX',
+        'CREDITO' => 'CARTAO DE CREDITO',
+        'DEBITO' => 'CARTAO DE DEBITO',
+        'BANRICOMPRAS' => 'VALE ALIMENTACAO', // Mapeia para Vale Alimentação
+        'CREDITO OFFLINE' => 'CARTAO DE CREDITO',
+        'DEBITO OFFLINE' => 'CARTAO DE DEBITO'
+    ];
+
+     
+
+    $result = [];
+    foreach ($payments as $payment) {
+        // Remove caracteres não numéricos de parcelas
+        $parcelas = preg_replace('/\D/', '', $payment['parcelas']);
+
+        // Normaliza o tipo de pagamento para comparação
+        $payment_type = strtoupper(trim($payment['type']));
+
+        // Mapeia o tipo do frontend para o tipo do sistema
+        $mapped_type = isset($frontend_types[$payment_type]) ? $frontend_types[$payment_type] : $payment_type;
+
+        // Obtém o código do pagamento, ou usa '99' se não encontrado
+        $payment_code = isset($payment_codes[$mapped_type]) ? $payment_codes[$mapped_type] : '99';
+
+        $result[] = [
+            'valor' => $payment['value'],
+            'tipo' => $payment_code,
+            'parcelas' => $parcelas,
+        ];
+    }
+    return $result;
 }
 
 /**

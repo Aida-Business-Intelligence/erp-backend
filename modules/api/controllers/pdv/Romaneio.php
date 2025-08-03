@@ -908,16 +908,14 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
         $this->db->where('active', 1);
 
         $this->db->group_start();
-       // $this->db->like('code', $search);
+       
         
-        if(is_numeric($search)){
             $this->db->where('code', $search);
             $this->db->or_where('sku_code', $search);
             $this->db->or_where('commodity_barcode', $search);
-        }else{
-        
-        $this->db->like('description', $search);
-        }
+            $this->db->or_where('code', $search);
+            $this->db->or_like('description', $search);
+
         $this->db->group_end();
 
         $total_query = $this->db->get_compiled_select();
@@ -934,21 +932,11 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
         $this->db->where('active', 1);
 
         $this->db->group_start();
-       // $this->db->like('code', $search);
-        /*
-        $this->db->or_like('sku_code', $search);
-        $this->db->or_like('description', $search);
-         * 
-         */
-        if(is_numeric($search)){
-            $this->db->where('code', $search);
+        $this->db->where('code', $search);
         $this->db->or_where('sku_code', $search);
         $this->db->or_where('commodity_barcode', $search);
-        }else{
-        
-        $this->db->like('description', $search);
-        }
-        $this->db->group_end();
+       $this->db->or_like('description', $search);
+           $this->db->group_end();
 
         $this->db->order_by('description', 'ASC');
         $this->db->limit($limit, $offset);

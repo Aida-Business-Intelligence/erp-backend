@@ -75,8 +75,9 @@ class Expenses extends REST_Controller
             $search = $this->input->get('search') ?: '';
             $page = $this->input->get('page') ?: 0;
             $limit = $this->input->get('pageSize') ?: 5;
+            $type = $this->input->get('type') ?: 'suppliers'; // 'suppliers', 'clients'
 
-            $clients = $this->Expenses_model->get_clients($warehouse_id, $search, $limit, $page);
+            $clients = $this->Expenses_model->get_clients($warehouse_id, $search, $limit, $page, $type);
 
             $this->response([
                 'success' => true,
@@ -216,16 +217,16 @@ class Expenses extends REST_Controller
                 'date' => $data['date'] ?? date('Y-m-d'),
                 'due_date' => $data['due_date'] ?? null,
                 'reference_date' => $data['reference_date'] ?? null,
-                'recurring_type' => $data['recurring_type'] ?? null,
-                'repeat_every' => $data['repeat_every'] ?? null,
-                'recurring' => isset($data['recurring']) ? ($data['recurring'] ? 1 : 0) : 0,
-                'cycles' => $data['cycles'] ?? 0,
-                'total_cycles' => $data['total_cycles'] ?? 0,
-                'custom_recurring' => isset($data['custom_recurring']) ? ($data['custom_recurring'] ? 1 : 0) : 0,
-                'last_recurring_date' => $data['last_recurring_date'] ?? null,
+                'recurring_type' => null,
+                'repeat_every' => null,
+                'recurring' => 0,
+                'cycles' => 0,
+                'total_cycles' => 0,
+                'custom_recurring' => 0,
+                'last_recurring_date' => null,
                 'create_invoice_billable' => isset($data['create_invoice_billable']) ? ($data['create_invoice_billable'] ? 1 : 0) : 0,
                 'send_invoice_to_customer' => isset($data['send_invoice_to_customer']) ? ($data['send_invoice_to_customer'] ? 1 : 0) : 0,
-                'recurring_from' => $data['recurring_from'] ?? null,
+                'recurring_from' => null,
                 'dateadded' => date('Y-m-d H:i:s'),
                 'addedfrom' => get_staff_user_id() ?? 1,
                 'perfex_saas_tenant_id' => 'master',
@@ -237,7 +238,15 @@ class Expenses extends REST_Controller
                 'nfe_key' => $data['nfe_key'] ?? null,
                 'barcode' => $data['barcode'] ?? null,
                 'origin' => $data['origin'] ?? null,
+                'is_client' => isset($data['is_client']) ? ($data['is_client'] ? 1 : 0) : 0,
             ];
+
+            // Processar parcelas se fornecidas
+            $installments = null;
+            if (isset($data['num_parcelas']) && $data['num_parcelas'] > 1) {
+                $installments = $this->process_installments($data);
+                $input['installments'] = $installments;
+            }
 
             $input = array_filter($input, function ($value) {
                 return $value !== null;
@@ -866,45 +875,40 @@ class Expenses extends REST_Controller
             'date',
             'due_date',
             'reference_date',
-            'recurring_type',
-            'repeat_every',
-            'recurring',
-            'cycles',
-            'total_cycles',
-            'custom_recurring',
-            'last_recurring_date',
             'create_invoice_billable',
             'send_invoice_to_customer',
-            'recurring_from',
             'warehouse_id',
-            'due_day',
-            'installments',
-            'consider_business_days',
-            'week_day',
-            'end_date',
-            'due_day_2',
             'bank_account_id',
             'expense_document',
             'order_number',
             'installment_number',
             'nfe_key',
-            'barcode'
+            'barcode',
+            'is_client',
+            // Adiciona campos de parcelamento
+            'num_parcelas',
+            'juros',
+            'juros_apartir',
+            'total_parcelado',
         ];
 
         $updateData = [];
 
         foreach ($fields as $field) {
             if (isset($input[$field])) {
-                if (in_array($field, ['billable', 'send_invoice_to_customer', 'recurring', 'custom_recurring', 'create_invoice_billable'])) {
+                if (in_array($field, ['billable', 'send_invoice_to_customer', 'create_invoice_billable', 'is_client'])) {
                     $updateData[$field] = (!empty($input[$field]) && $input[$field] !== 'false') ? 1 : 0;
-                } elseif (in_array($field, ['repeat_every', 'cycles', 'total_cycles'])) {
-                    $updateData[$field] = is_numeric($input[$field]) ? $input[$field] : 0;
-                } elseif (in_array($field, ['last_recurring_date'])) {
-                    $updateData[$field] = !empty($input[$field]) ? $input[$field] : null;
                 } else {
                     $updateData[$field] = $input[$field];
                 }
             }
+        }
+
+        // Processar parcelas se fornecidas (igual ao create)
+        $installments = null;
+        if (isset($input['num_parcelas']) && $input['num_parcelas'] > 1) {
+            $installments = $this->process_installments($input);
+            // Não adicionar ao updateData para não tentar salvar no banco
         }
 
         // Processar o documento se existir
@@ -995,6 +999,13 @@ class Expenses extends REST_Controller
 
         $success = $this->Expenses_model->updatetwo($updateData, $id);
 
+        // Atualizar parcelas se necessário
+        if ($success && $installments) {
+            $this->load->model('Expenses_installments_model');
+            $this->Expenses_installments_model->delete_installments_by_expense($id);
+            $this->Expenses_installments_model->add_installments($id, $installments);
+        }
+
         if (!$success) {
             return $this->response([
                 'status' => false,
@@ -1050,10 +1061,71 @@ class Expenses extends REST_Controller
                 'message' => 'Despesa não encontrada'
             ], REST_Controller::HTTP_NOT_FOUND);
         }
+        
+        // Carregar parcelas se existirem
+        $this->load->model('Expenses_installments_model');
+        $installments = $this->Expenses_installments_model->get_installments_by_expense($id);
+        
+        // Adicionar parcelas aos dados da despesa
+        if (!empty($installments)) {
+            $expense->installments = $installments;
+
+            // --- AJUSTE PARA PADRONIZAR CAMPOS DE JUROS ---
+            if (
+                (empty($expense->juros) || $expense->juros == 0 || $expense->juros == '0.00' || $expense->juros == '0') &&
+                isset($installments[0]['percentual_juros']) &&
+                $installments[0]['percentual_juros'] > 0
+            ) {
+                $expense->juros = $installments[0]['percentual_juros'];
+                // Tenta pegar a partir de qual parcela começa o juros
+                $expense->juros_apartir = 1;
+                foreach ($installments as $inst) {
+                    if (isset($inst['percentual_juros']) && $inst['percentual_juros'] > 0) {
+                        $expense->juros_apartir = $inst['numero_parcela'];
+                        break;
+                    }
+                }
+            }
+            // --- FIM DO AJUSTE ---
+        }
+        
         return $this->response([
             'status' => true,
             'data' => $expense
         ], REST_Controller::HTTP_OK);
+    }
+
+    /**
+     * Obter parcelas de uma despesa
+     * @param int $id ID da despesa
+     */
+    public function installments_get($id = null)
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        try {
+            if (!$id) {
+                throw new Exception('ID da despesa é obrigatório');
+            }
+
+            $this->load->model('Expenses_installments_model');
+            
+            $installments = $this->Expenses_installments_model->get_installments_by_expense($id);
+            $summary = $this->Expenses_installments_model->get_installments_summary($id);
+
+            return $this->response([
+                'status' => true,
+                'data' => [
+                    'installments' => $installments,
+                    'summary' => $summary
+                ]
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     public function pay_post()
@@ -1068,18 +1140,35 @@ class Expenses extends REST_Controller
             if (empty($data['id'])) {
                 throw new Exception('ID da despesa é obrigatório');
             }
+            
             $expense_id = $data['id'];
+            $installment_id = $data['installment_id'] ?? null;
+            $installment_numbers = $data['installment_numbers'] ?? null;
+            
+            // Se há installment_numbers, é pagamento de múltiplas parcelas
+            if ($installment_numbers && is_array($installment_numbers)) {
+                return $this->pay_multiple_installments($expense_id, $installment_numbers, $data);
+            }
+            
+            // Se há installment_id, é pagamento de parcela única
+            if ($installment_id) {
+                return $this->pay_installment($expense_id, $installment_id, $data);
+            }
+            
+            // Pagamento da despesa completa
             $updateData = [
                 'status' => 'paid',
                 'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
                 'bank_account_id' => $data['bank_account_id'] ?? null,
                 'category' => $data['category_id'] ?? null,
                 'note' => $data['note'] ?? null,
-                'descricao_pagamento' => $data['descricao_pagamento'] ?? null, // novo campo
+                'descricao_pagamento' => $data['descricao_pagamento'] ?? null,
                 'juros' => $data['juros'] ?? null,
                 'desconto' => $data['desconto'] ?? null,
                 'multa' => $data['multa'] ?? null,
                 'valor_pago' => $data['valorPago'] ?? null,
+                'check_identifier' => $data['check_identifier'] ?? null,
+                'boleto_identifier' => $data['boleto_identifier'] ?? null,
             ];
             // Upload do comprovante (voucher)
             $voucher_path = null;
@@ -1145,5 +1234,435 @@ class Expenses extends REST_Controller
                 'message' => 'Erro: ' . $e->getMessage(),
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * Pagar múltiplas parcelas em sequência
+     * @param int $expense_id ID da despesa
+     * @param array $installment_numbers Array com números das parcelas
+     * @param array $data Dados do pagamento
+     * @return mixed
+     */
+    private function pay_multiple_installments($expense_id, $installment_numbers, $data)
+    {
+        try {
+            $this->load->model('Expenses_installments_model');
+            
+            // Verificar se as parcelas são sequenciais
+            sort($installment_numbers);
+            for ($i = 1; $i < count($installment_numbers); $i++) {
+                if ($installment_numbers[$i] !== $installment_numbers[$i-1] + 1) {
+                    throw new Exception('As parcelas devem ser sequenciais. Não é possível pular parcelas.');
+                }
+            }
+            
+            // Buscar todas as parcelas da despesa
+            $all_installments = $this->Expenses_installments_model->get_installments_by_expense($expense_id);
+            
+            // Filtrar apenas as parcelas selecionadas
+            $selected_installments = array_filter($all_installments, function($installment) use ($installment_numbers) {
+                return in_array($installment['numero_parcela'], $installment_numbers);
+            });
+            
+            if (count($selected_installments) !== count($installment_numbers)) {
+                throw new Exception('Algumas parcelas selecionadas não foram encontradas');
+            }
+            
+            // Verificar se todas as parcelas estão pendentes
+            foreach ($selected_installments as $installment) {
+                if ($installment['status'] === 'Pago') {
+                    throw new Exception("A parcela {$installment['numero_parcela']} já foi paga");
+                }
+            }
+            
+            // Upload do comprovante (voucher) - será usado para todas as parcelas
+            $voucher_path = null;
+            if (!empty($data['comprovante'])) {
+                $voucher_path = $this->upload_voucher($expense_id, $data['comprovante']);
+            }
+            
+            $success_count = 0;
+            $failed_count = 0;
+            $errors = [];
+            
+            // Processar cada parcela
+            foreach ($selected_installments as $installment) {
+                try {
+                    $payment_data = [
+                        'data_pagamento' => $data['payment_date'] ?? date('Y-m-d'),
+                        'valor_pago' => $data['valorPago'] ?? $installment['valor_com_juros'],
+                        'banco_id' => $data['bank_account_id'] ?? null,
+                        'observacoes' => $data['note'] ?? null,
+                        'juros_adicional' => $data['juros'] ?? 0,
+                        'desconto' => $data['desconto'] ?? 0,
+                        'multa' => $data['multa'] ?? 0,
+                        'id_cheque' => $data['check_identifier'] ?? null,
+                        'id_boleto' => $data['boleto_identifier'] ?? null,
+                        'comprovante' => $voucher_path,
+                    ];
+                    
+                    $success = $this->Expenses_installments_model->pay_installment($installment['id'], $payment_data);
+                    if ($success) {
+                        $success_count++;
+                    } else {
+                        $failed_count++;
+                        $errors[] = "Falha ao processar parcela {$installment['numero_parcela']}";
+                    }
+                } catch (Exception $e) {
+                    $failed_count++;
+                    $errors[] = "Erro na parcela {$installment['numero_parcela']}: " . $e->getMessage();
+                }
+            }
+            
+            // Verificar se todas as parcelas foram pagas
+            $summary = $this->Expenses_installments_model->get_installments_summary($expense_id);
+            if ($summary['parcelas_pendentes'] == 0) {
+                // Marcar despesa como paga
+                $this->load->model('Expenses_model');
+                $this->Expenses_model->updatetwo([
+                    'status' => 'paid',
+                    'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
+                ], $expense_id);
+            }
+            
+            if ($failed_count > 0) {
+                return $this->response([
+                    'status' => false,
+                    'message' => "Algumas parcelas não puderam ser processadas",
+                    'success_count' => $success_count,
+                    'failed_count' => $failed_count,
+                    'errors' => $errors,
+                    'voucher_url' => $voucher_path ? base_url($voucher_path) : null
+                ], REST_Controller::HTTP_PARTIAL_CONTENT);
+            }
+            
+            return $this->response([
+                'status' => true,
+                'message' => "Todas as parcelas foram pagas com sucesso",
+                'success_count' => $success_count,
+                'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
+                'installment_summary' => $summary
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Atualizar due_date de todas as despesas que têm parcelas
+     * Endpoint para correção em massa
+     */
+    public function update_due_dates_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        
+        try {
+            $this->load->model('Expenses_installments_model');
+            
+            $stats = $this->Expenses_installments_model->update_all_expenses_due_dates();
+            
+            return $this->response([
+                'status' => true,
+                'message' => 'Atualização de due_dates concluída com sucesso',
+                'data' => $stats
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Teste da funcionalidade de atualização de due_date
+     * Endpoint para testar a funcionalidade
+     */
+    public function test_due_date_update_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        
+        try {
+            $raw_input = file_get_contents("php://input");
+            $data = json_decode($raw_input, true);
+            
+            if (empty($data['expense_id'])) {
+                throw new Exception('ID da despesa é obrigatório');
+            }
+            
+            $expense_id = $data['expense_id'];
+            $this->load->model('Expenses_installments_model');
+            
+            // Buscar dados da despesa antes da atualização
+            $expense_before = $this->db->get_where(db_prefix() . 'expenses', ['id' => $expense_id])->row();
+            
+            // Atualizar o due_date
+            $success = $this->Expenses_installments_model->update_expense_due_date($expense_id);
+            
+            // Buscar dados da despesa após a atualização
+            $expense_after = $this->db->get_where(db_prefix() . 'expenses', ['id' => $expense_id])->row();
+            
+            // Buscar parcelas da despesa
+            $installments = $this->Expenses_installments_model->get_installments_by_expense($expense_id);
+            
+            return $this->response([
+                'status' => true,
+                'message' => 'Teste concluído com sucesso',
+                'data' => [
+                    'success' => $success,
+                    'expense_before' => $expense_before,
+                    'expense_after' => $expense_after,
+                    'installments' => $installments,
+                    'due_date_changed' => $expense_before->due_date !== $expense_after->due_date
+                ]
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Corrigir valores existentes no banco de dados
+     * Endpoint para correção em massa dos valores após implementação dos novos campos
+     */
+    public function fix_existing_values_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        
+        try {
+            $this->load->model('Expenses_installments_model');
+            
+            $stats = $this->Expenses_installments_model->fix_existing_values();
+            
+            return $this->response([
+                'status' => true,
+                'message' => 'Correção de valores existentes concluída com sucesso',
+                'data' => $stats
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Processar dados de parcelas
+     * @param array $data Dados da requisição
+     * @return array Array com as parcelas processadas
+     */
+    private function process_installments($data)
+    {
+        $num_parcelas = $data['num_parcelas'] ?? 1;
+        $valor_original = $data['valor_original'] ?? $data['amount'] ?? 0; // Usar valor_original se disponível, senão amount
+        $juros = $data['juros'] ?? 0;
+        $juros_apartir = $data['juros_apartir'] ?? 1;
+        $tipo_juros = $data['tipo_juros'] ?? 'simples';
+        $data_vencimento = $data['due_date'] ?? date('Y-m-d');
+        $paymentmode_id = $data['paymentmode'] ?? 0;
+
+        $installments = [];
+        $valor_parcela = $valor_original / $num_parcelas;
+
+        if ($tipo_juros === 'composto') {
+            // Juros compostos: aplicado sobre o valor acumulado
+            $valor_acumulado = $valor_parcela;
+            for ($i = 1; $i <= $num_parcelas; $i++) {
+                $tem_juros = $i >= $juros_apartir;
+                $juros_parcela = 0;
+                $valor_com_juros = $valor_parcela;
+                
+                if ($tem_juros) {
+                    $juros_parcela = $valor_acumulado * ($juros / 100);
+                    $valor_com_juros = $valor_parcela + $juros_parcela;
+                    $valor_acumulado += $juros_parcela;
+                }
+
+                // Calcular data de vencimento da parcela
+                $data_vencimento_parcela = date('Y-m-d', strtotime($data_vencimento . ' + ' . ($i - 1) . ' months'));
+
+                $installments[] = [
+                    'numero_parcela' => $i,
+                    'data_vencimento' => $data_vencimento_parcela,
+                    'valor_parcela' => $valor_parcela,
+                    'valor_com_juros' => $valor_com_juros,
+                    'juros' => $juros_parcela,
+                    'juros_adicional' => 0, // Será preenchido no momento do pagamento
+                    'desconto' => 0, // Será preenchido no momento do pagamento
+                    'multa' => 0, // Será preenchido no momento do pagamento
+                    'percentual_juros' => $tem_juros ? $juros : 0,
+                    'tipo_juros' => $tipo_juros,
+                    'paymentmode_id' => $paymentmode_id,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+            }
+        } else {
+            // Juros simples: aplicado sobre o valor original da parcela
+            for ($i = 1; $i <= $num_parcelas; $i++) {
+                $tem_juros = $i >= $juros_apartir;
+                $juros_parcela = $tem_juros ? $valor_parcela * ($juros / 100) : 0;
+                $valor_com_juros = $valor_parcela + $juros_parcela;
+
+                // Calcular data de vencimento da parcela
+                $data_vencimento_parcela = date('Y-m-d', strtotime($data_vencimento . ' + ' . ($i - 1) . ' months'));
+
+                $installments[] = [
+                    'numero_parcela' => $i,
+                    'data_vencimento' => $data_vencimento_parcela,
+                    'valor_parcela' => $valor_parcela,
+                    'valor_com_juros' => $valor_com_juros,
+                    'juros' => $juros_parcela,
+                    'juros_adicional' => 0, // Será preenchido no momento do pagamento
+                    'desconto' => 0, // Será preenchido no momento do pagamento
+                    'multa' => 0, // Será preenchido no momento do pagamento
+                    'percentual_juros' => $tem_juros ? $juros : 0,
+                    'tipo_juros' => $tipo_juros,
+                    'paymentmode_id' => $paymentmode_id,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+            }
+        }
+
+        return $installments;
+    }
+
+    /**
+     * Pagar uma parcela específica
+     * @param int $expense_id ID da despesa
+     * @param int $installment_id ID da parcela
+     * @param array $data Dados do pagamento
+     * @return mixed
+     */
+    private function pay_installment($expense_id, $installment_id, $data)
+    {
+        try {
+            $this->load->model('Expenses_installments_model');
+            
+            // Verificar se a parcela existe
+            $installment = $this->Expenses_installments_model->get_installment($installment_id);
+            if (!$installment) {
+                throw new Exception('Parcela não encontrada');
+            }
+            
+            // Verificar se a parcela pertence à despesa
+            if ($installment->expenses_id != $expense_id) {
+                throw new Exception('Parcela não pertence à despesa informada');
+            }
+            
+            // Preparar dados do pagamento
+            $payment_data = [
+                'data_pagamento' => $data['payment_date'] ?? date('Y-m-d'),
+                'valor_pago' => $data['valorPago'] ?? $installment->valor_com_juros,
+                'banco_id' => $data['bank_account_id'] ?? null,
+                'observacoes' => $data['note'] ?? null,
+                'juros_adicional' => $data['juros'] ?? 0,
+                'desconto' => $data['desconto'] ?? 0,
+                'multa' => $data['multa'] ?? 0,
+                'id_cheque' => $data['check_identifier'] ?? null,
+                'id_boleto' => $data['boleto_identifier'] ?? null,
+            ];
+            
+            // Upload do comprovante (voucher)
+            $voucher_path = null;
+            if (!empty($data['comprovante'])) {
+                $voucher_path = $this->upload_voucher($expense_id, $data['comprovante']);
+            }
+            
+            // Realizar o pagamento
+            $success = $this->Expenses_installments_model->pay_installment($installment_id, $payment_data);
+            if (!$success) {
+                throw new Exception('Falha ao processar pagamento da parcela');
+            }
+            
+            // Verificar se todas as parcelas foram pagas
+            $summary = $this->Expenses_installments_model->get_installments_summary($expense_id);
+            if ($summary['parcelas_pendentes'] == 0) {
+                // Marcar despesa como paga
+                $this->load->model('Expenses_model');
+                $this->Expenses_model->updatetwo([
+                    'status' => 'paid',
+                    'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
+                ], $expense_id);
+            }
+            
+            return $this->response([
+                'status' => true,
+                'message' => 'Parcela paga com sucesso',
+                'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
+                'installment_summary' => $summary
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Upload de voucher
+     * @param int $expense_id ID da despesa
+     * @param string $document_data Dados do documento em base64
+     * @return string|null Caminho do arquivo ou null
+     */
+    private function upload_voucher($expense_id, $document_data)
+    {
+        if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
+            $mime_type = $matches[1];
+            $document_data = substr($document_data, strpos($document_data, ',') + 1);
+            $allowed_types = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'image/jpeg',
+                'image/jpg',
+                'image/png'
+            ];
+            if (!in_array($mime_type, $allowed_types)) {
+                throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG');
+            }
+            $document_data = base64_decode($document_data);
+            if ($document_data === false) {
+                throw new Exception('Falha ao decodificar o comprovante');
+            }
+            if (strlen($document_data) > 5 * 1024 * 1024) {
+                throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+            }
+            $upload_path = FCPATH . 'uploads/expenses/voucher/';
+            if (!is_dir($upload_path)) {
+                mkdir($upload_path, 0755, true);
+            }
+            $extension_map = [
+                'application/pdf' => 'pdf',
+                'application/msword' => 'doc',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                'image/jpeg' => 'jpg',
+                'image/jpg' => 'jpg',
+                'image/png' => 'png'
+            ];
+            $extension = $extension_map[$mime_type] ?? 'bin';
+            $filename = 'voucher_' . $expense_id . '_' . time() . '_' . uniqid() . '.' . $extension;
+            $file_path = $upload_path . $filename;
+            if (file_put_contents($file_path, $document_data)) {
+                return 'uploads/expenses/voucher/' . $filename;
+            } else {
+                throw new Exception('Falha ao salvar o comprovante no servidor');
+            }
+        }
+        return null;
     }
 }

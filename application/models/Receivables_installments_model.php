@@ -170,6 +170,15 @@ class Receivables_installments_model extends App_Model
      */
     public function receive_installment($installment_id, $payment_data)
     {
+        $this->db->trans_start();
+        
+        // Obter dados da parcela antes do recebimento
+        $installment = $this->get_installment($installment_id);
+        if (!$installment) {
+            $this->db->trans_rollback();
+            return false;
+        }
+        
         // Log para debug
         log_message('debug', 'Recebendo parcela ID: ' . $installment_id . ' - Valor: ' . $payment_data['valor_pago']);
         
@@ -189,16 +198,23 @@ class Receivables_installments_model extends App_Model
 
         $result = $this->update_installment($installment_id, $data);
         
-        // Se o recebimento foi bem-sucedido, atualizar o due_date da receita
+        // Se o recebimento foi bem-sucedido, abater o valor da receita
         if ($result) {
-            $installment = $this->get_installment($installment_id);
-            if ($installment) {
-                log_message('debug', 'Parcela recebida com sucesso. Atualizando due_date para receivable_id: ' . $installment->receivables_id);
-                $this->update_receivable_due_date($installment->receivables_id);
-            }
+            // Calcular o valor a ser abatido (valor da parcela com juros)
+            $valor_abatido = $installment->valor_com_juros;
+            
+            // Atualizar o valor total da receita
+            $this->db->set('amount', 'amount - ' . $valor_abatido, false);
+            $this->db->where('id', $installment->receivables_id);
+            $this->db->update(db_prefix() . 'receivables');
+            
+            log_message('debug', 'Parcela recebida com sucesso. Atualizando due_date para receivable_id: ' . $installment->receivables_id);
+            $this->update_receivable_due_date($installment->receivables_id);
         }
         
-        return $result;
+        $this->db->trans_complete();
+        
+        return $this->db->trans_status() && $result;
     }
 
     /**

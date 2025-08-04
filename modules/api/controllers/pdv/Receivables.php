@@ -991,7 +991,7 @@ class Receivables extends REST_Controller
     private function process_installments($data)
     {
         $num_parcelas = $data['num_parcelas'] ?? 1;
-        $valor_original = $data['amount'] ?? 0;
+        $valor_original = $data['valor_original'] ?? $data['amount'] ?? 0; // Usar valor_original se disponível, senão amount
         $juros = $data['juros'] ?? 0;
         $juros_apartir = $data['juros_apartir'] ?? 1;
         $tipo_juros = $data['tipo_juros'] ?? 'simples';

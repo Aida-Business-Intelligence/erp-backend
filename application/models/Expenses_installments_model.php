@@ -142,6 +142,15 @@ class Expenses_installments_model extends App_Model
      */
     public function pay_installment($installment_id, $payment_data)
     {
+        $this->db->trans_start();
+        
+        // Obter dados da parcela antes do pagamento
+        $installment = $this->get_installment($installment_id);
+        if (!$installment) {
+            $this->db->trans_rollback();
+            return false;
+        }
+        
         $data = [
             'data_pagamento' => $payment_data['data_pagamento'] ?? date('Y-m-d'),
             'valor_pago' => $payment_data['valor_pago'],
@@ -157,15 +166,23 @@ class Expenses_installments_model extends App_Model
 
         $result = $this->update_installment($installment_id, $data);
         
-        // Se o pagamento foi bem-sucedido, atualizar o due_date da despesa
+        // Se o pagamento foi bem-sucedido, abater o valor da despesa
         if ($result) {
-            $installment = $this->get_installment($installment_id);
-            if ($installment) {
-                $this->update_expense_due_date($installment->expenses_id);
-            }
+            // Calcular o valor a ser abatido (valor da parcela com juros)
+            $valor_abatido = $installment->valor_com_juros;
+            
+            // Atualizar o valor total da despesa
+            $this->db->set('amount', 'amount - ' . $valor_abatido, false);
+            $this->db->where('id', $installment->expenses_id);
+            $this->db->update(db_prefix() . 'expenses');
+            
+            // Atualizar o due_date da despesa
+            $this->update_expense_due_date($installment->expenses_id);
         }
         
-        return $result;
+        $this->db->trans_complete();
+        
+        return $this->db->trans_status() && $result;
     }
 
     /**

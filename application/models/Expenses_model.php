@@ -1024,7 +1024,7 @@ class Expenses_model extends App_Model
     {
         $this->db->select(
             'e.*, '
-            . 'c.company as company, '
+            . get_sql_select_client_company('company', 'c') . ', '
             . 'w.warehouse_name as warehouse_name, '
             . 'cat.name as category_name, '
             . 'pm.name as payment_mode_name'
@@ -1045,7 +1045,7 @@ class Expenses_model extends App_Model
             return false;
         }
 
-        $this->db->select('c.userid AS id_cliente, c.company AS nome_cliente');
+        $this->db->select('c.userid AS id_cliente, ' . get_sql_select_client_company('company', 'c') . ' as nome_cliente');
         $this->db->from(db_prefix() . 'expenses e');
         $this->db->join(db_prefix() . 'clients c', 'e.clientid = c.userid');
         $this->db->where('e.id', $expenseId);
@@ -1089,6 +1089,7 @@ class Expenses_model extends App_Model
             e.reference_no,
             e.note,
             e.expense_name,
+            e.expense_identifier,
             e.clientid,
             e.project_id,
             e.billable,
@@ -1122,7 +1123,7 @@ class Expenses_model extends App_Model
         ');
 
         $this->db->from(db_prefix() . 'expenses e');
-        $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
         $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
@@ -1148,9 +1149,8 @@ class Expenses_model extends App_Model
 
         if (!empty($search) && $search !== 'null') {
             $this->db->group_start();
-            $this->db->like('e.note', $search);
-            $this->db->or_like('e.amount', $search);
-            $this->db->or_like('e.expense_identifier', $search);
+            $this->db->like('e.expense_identifier', $search);
+            $this->db->or_like('c.company', $search);
             $this->db->group_end();
         }
 
@@ -1232,7 +1232,7 @@ class Expenses_model extends App_Model
         e.barcode,
 
         c.userid as userid,
-        c.company as company,
+        ' . get_sql_select_client_company('company', 'c') . ',
         c.vat,
         c.phonenumber,
         c.address,
@@ -1298,9 +1298,8 @@ class Expenses_model extends App_Model
     }
     if (!empty($params['search'])) {
         $this->db->group_start();
-        $this->db->like('e.note', $params['search']);
-        $this->db->or_like('e.amount', $params['search']);
-        $this->db->or_like('e.expense_identifier', $params['search']);
+        $this->db->like('e.expense_identifier', $params['search']);
+        $this->db->or_like('c.company', $params['search']);
         $this->db->group_end();
     }
 
@@ -1368,7 +1367,7 @@ class Expenses_model extends App_Model
             e.warehouse_id,
             e.file,
             ' . db_prefix() . 'expenses_categories.name as category_name,
-            ' . db_prefix() . 'clients.company as company,
+            ' . get_sql_select_client_company('company', 'c') . ',
             ' . db_prefix() . 'taxes.name as tax_name,
             ' . db_prefix() . 'taxes.taxrate as taxrate,
             ' . db_prefix() . 'taxes_2.name as tax_name2,
@@ -1379,7 +1378,7 @@ class Expenses_model extends App_Model
         ');
 
         $this->db->from(db_prefix() . 'expenses e');
-        $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
         $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
@@ -1404,9 +1403,8 @@ class Expenses_model extends App_Model
 
         if (!empty($search) && $search !== 'null') {
             $this->db->group_start();
-            $this->db->like('e.note', $search);
-            $this->db->or_like('e.amount', $search);
-            $this->db->or_like('e.expense_identifier', $search);
+            $this->db->like('e.expense_identifier', $search);
+            $this->db->or_like('c.company', $search);
             $this->db->group_end();
         }
 
@@ -1465,9 +1463,8 @@ class Expenses_model extends App_Model
         }
         if (!empty($params['search'])) {
             $this->db->group_start();
-            $this->db->like('e.note', $params['search']);
-            $this->db->or_like('e.amount', $params['search']);
-            $this->db->or_like('e.expense_identifier', $params['search']);
+            $this->db->like('e.expense_identifier', $params['search']);
+            $this->db->or_like('c.company', $params['search']);
             $this->db->group_end();
         }
 
@@ -1496,7 +1493,7 @@ class Expenses_model extends App_Model
 
         $this->db->select('
             e.*,
-            c.company as client,
+            ' . get_sql_select_client_company('client', 'c') . ',
             pm.name as payment_mode_name,
             pm.is_check,
             pm.is_boleto,

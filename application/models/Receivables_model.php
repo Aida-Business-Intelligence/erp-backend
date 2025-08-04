@@ -172,10 +172,8 @@ class Receivables_model extends App_Model
         }
         if (!empty($filters['search'])) {
             $this->db->group_start();
-            $this->db->like('r.expense_name', $filters['search']);
-            $this->db->or_like('r.reference_no', $filters['search']);
-            $this->db->or_like('r.receivable_identifier', $filters['search']);
-            $this->db->or_like('r.note', $filters['search']);
+            $this->db->like('r.receivable_identifier', $filters['search']);
+            $this->db->or_like('c.company', $filters['search']);
             $this->db->group_end();
         }
         
@@ -216,6 +214,7 @@ class Receivables_model extends App_Model
     public function count_receivables($filters = [])
     {
         $this->db->from($this->table() . ' as r');
+        $this->db->join(db_prefix() . 'clients as c', 'r.clientid = c.userid', 'left');
         if (!empty($filters['warehouse_id'])) {
             $this->db->where('r.warehouse_id', $filters['warehouse_id']);
         }
@@ -227,10 +226,8 @@ class Receivables_model extends App_Model
         }
         if (!empty($filters['search'])) {
             $this->db->group_start();
-            $this->db->like('r.expense_name', $filters['search']);
-            $this->db->or_like('r.reference_no', $filters['search']);
-            $this->db->or_like('r.receivable_identifier', $filters['search']);
-            $this->db->or_like('r.note', $filters['search']);
+            $this->db->like('r.receivable_identifier', $filters['search']);
+            $this->db->or_like('c.company', $filters['search']);
             $this->db->group_end();
         }
         if (

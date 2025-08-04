@@ -179,6 +179,16 @@ class Receivables_installments_model extends App_Model
             return false;
         }
         
+        // Obter dados da receita atual
+        $this->db->select('amount, total_descontos, excedente_recebido');
+        $this->db->where('id', $installment->receivables_id);
+        $receivable = $this->db->get(db_prefix() . 'receivables')->row();
+        
+        if (!$receivable) {
+            $this->db->trans_rollback();
+            return false;
+        }
+        
         // Log para debug
         log_message('debug', 'Recebendo parcela ID: ' . $installment_id . ' - Valor: ' . $payment_data['valor_pago']);
         
@@ -198,15 +208,44 @@ class Receivables_installments_model extends App_Model
 
         $result = $this->update_installment($installment_id, $data);
         
-        // Se o recebimento foi bem-sucedido, abater o valor da receita
+        // Se o recebimento foi bem-sucedido, processar o valor da receita
         if ($result) {
-            // Calcular o valor a ser abatido (valor da parcela com juros)
-            $valor_abatido = $installment->valor_com_juros;
+            // Calcular o valor base da parcela (sem juros adicionais)
+            $valor_base_parcela = floatval($installment->valor_parcela ?? 0);
             
-            // Atualizar o valor total da receita
-            $this->db->set('amount', 'amount - ' . $valor_abatido, false);
+            // Calcular juros e descontos da parcela
+            $juros_parcela = floatval($installment->juros ?? 0);
+            $juros_adicional = floatval($payment_data['juros_adicional'] ?? 0);
+            $desconto_parcela = floatval($payment_data['desconto'] ?? 0);
+            $multa_parcela = floatval($payment_data['multa'] ?? 0);
+            
+            // Calcular valor total da parcela com juros e multa, menos desconto
+            $valor_total_parcela = $valor_base_parcela + $juros_parcela + $juros_adicional + $multa_parcela - $desconto_parcela;
+            
+            // Para receitas, abater o valor total recebido (incluindo juros e multa, menos desconto)
+            $valor_a_abater = $valor_total_parcela;
+            
+            // Calcular desconto total (soma dos descontos de todas as parcelas)
+            $desconto_total = floatval($receivable->total_descontos ?? 0) + $desconto_parcela;
+            
+            // Atualizar o valor principal da receita (subtrair o valor total recebido)
+            $novo_amount = max(0, floatval($receivable->amount ?? 0) - $valor_a_abater);
+            
+            // Atualizar a receita com os novos valores
+            $update_data = [
+                'amount' => $novo_amount,
+                'total_descontos' => $desconto_total
+            ];
+            
             $this->db->where('id', $installment->receivables_id);
-            $this->db->update(db_prefix() . 'receivables');
+            $this->db->update(db_prefix() . 'receivables', $update_data);
+            
+            log_message('debug', 'Recebimento processado - Parcela ID: ' . $installment_id . 
+                        ', Valor base: ' . $valor_base_parcela . 
+                        ', Valor total: ' . $valor_total_parcela . 
+                        ', Valor abatido: ' . $valor_a_abater . 
+                        ', Desconto: ' . $desconto_parcela . 
+                        ', Novo amount: ' . $novo_amount);
             
             log_message('debug', 'Parcela recebida com sucesso. Atualizando due_date para receivable_id: ' . $installment->receivables_id);
             $this->update_receivable_due_date($installment->receivables_id);
@@ -381,19 +420,32 @@ class Receivables_installments_model extends App_Model
      */
     public function receive_installment_partial($installment_id, $payment_data)
     {
+        $this->db->trans_start();
+        
         $installment = $this->get_installment($installment_id);
         if (!$installment) {
+            $this->db->trans_rollback();
             return false;
         }
 
-        $valor_pago_atual = $installment->valor_pago ?? 0;
-        $novo_valor_pago = $valor_pago_atual + $payment_data['valor_pago'];
+        // Obter dados da receita atual
+        $this->db->select('amount, total_descontos, excedente_recebido');
+        $this->db->where('id', $installment->receivables_id);
+        $receivable = $this->db->get(db_prefix() . 'receivables')->row();
+        
+        if (!$receivable) {
+            $this->db->trans_rollback();
+            return false;
+        }
+
+        $valor_pago_atual = floatval($installment->valor_pago ?? 0);
+        $novo_valor_pago = $valor_pago_atual + floatval($payment_data['valor_pago'] ?? 0);
 
         // Calcular valor total da parcela incluindo juros adicional, multa e desconto
-        $valor_total_parcela = $installment->valor_com_juros + 
-                              ($installment->juros_adicional ?? 0) + 
-                              ($installment->multa ?? 0) - 
-                              ($installment->desconto ?? 0);
+        $valor_total_parcela = floatval($installment->valor_com_juros ?? 0) + 
+                              floatval($installment->juros_adicional ?? 0) + 
+                              floatval($installment->multa ?? 0) - 
+                              floatval($installment->desconto ?? 0);
 
         $data = [
             'data_pagamento' => $payment_data['data_pagamento'] ?? date('Y-m-d'),
@@ -416,12 +468,62 @@ class Receivables_installments_model extends App_Model
 
         $result = $this->update_installment($installment_id, $data);
         
-        // Se a atualização foi bem-sucedida, atualizar o due_date da receita
+        // Se a atualização foi bem-sucedida, processar o valor da receita
         if ($result) {
+            // Calcular o valor base da parcela (sem juros adicionais)
+            $valor_base_parcela = floatval($installment->valor_parcela ?? 0);
+            
+            // Calcular juros e descontos da parcela
+            $juros_parcela = floatval($installment->juros ?? 0);
+            $juros_adicional = floatval($payment_data['juros_adicional'] ?? 0);
+            $desconto_parcela = floatval($payment_data['desconto'] ?? 0);
+            $multa_parcela = floatval($payment_data['multa'] ?? 0);
+            
+            // Calcular valor total da parcela com juros e multa, menos desconto
+            $valor_total_parcela_calc = $valor_base_parcela + $juros_parcela + $juros_adicional + $multa_parcela - $desconto_parcela;
+            
+            // Calcular quanto pode ser adicionado ao valor principal da receita
+            $valor_disponivel_para_adicionar = max(0, floatval($receivable->amount ?? 0));
+            $valor_a_adicionar = min($valor_base_parcela, $valor_disponivel_para_adicionar);
+            
+            // Calcular excedente (valor recebido além do valor base da parcela)
+            $excedente = max(0, $valor_total_parcela_calc - $valor_base_parcela);
+            
+            // Calcular desconto total (soma dos descontos de todas as parcelas)
+            $desconto_total = floatval($receivable->total_descontos ?? 0) + $desconto_parcela;
+            
+            // Calcular excedente total (soma dos excedentes de todas as parcelas)
+            $excedente_total = floatval($receivable->excedente_recebido ?? 0) + $excedente;
+            
+            // Atualizar o valor principal da receita (adicionar o valor recebido)
+            $novo_amount = floatval($receivable->amount ?? 0) + $valor_a_adicionar;
+            
+            // Atualizar a receita com os novos valores
+            $update_data = [
+                'amount' => $novo_amount,
+                'total_descontos' => $desconto_total,
+                'excedente_recebido' => $excedente_total
+            ];
+            
+            $this->db->where('id', $installment->receivables_id);
+            $this->db->update(db_prefix() . 'receivables', $update_data);
+            
+            // Atualizar o due_date da receita
             $this->update_receivable_due_date($installment->receivables_id);
+            
+            // Log para debug
+            log_message('debug', 'Recebimento parcial processado - Parcela ID: ' . $installment_id . 
+                        ', Valor base: ' . $valor_base_parcela . 
+                        ', Valor total: ' . $valor_total_parcela_calc . 
+                        ', Valor adicionado: ' . $valor_a_adicionar . 
+                        ', Excedente: ' . $excedente . 
+                        ', Desconto: ' . $desconto_parcela . 
+                        ', Novo amount: ' . $novo_amount);
         }
         
-        return $result;
+        $this->db->trans_complete();
+        
+        return $this->db->trans_status() && $result;
     }
 
     /**
@@ -639,6 +741,96 @@ class Receivables_installments_model extends App_Model
 
         log_message('info', 'Atualização em massa de due_dates concluída. Total: ' . $stats['total_receivables'] . ', Atualizadas: ' . $stats['updated'] . ', Erros: ' . $stats['errors']);
 
+        return $stats;
+    }
+
+    /**
+     * Corrigir valores existentes no banco de dados
+     * Este método deve ser executado uma vez após a implementação dos novos campos
+     * @return array Estatísticas da correção
+     */
+    public function fix_existing_values()
+    {
+        $stats = [
+            'receivables_processed' => 0,
+            'receivables_fixed' => 0,
+            'errors' => []
+        ];
+        
+        // Buscar todas as receitas que têm parcelas
+        $this->db->select('DISTINCT receivables_id');
+        $this->db->from(db_prefix() . 'account_installments');
+        $this->db->where('receivables_id IS NOT NULL');
+        $receivable_ids = $this->db->get()->result_array();
+        
+        foreach ($receivable_ids as $row) {
+            $receivable_id = $row['receivables_id'];
+            
+            try {
+                // Buscar a receita
+                $this->db->select('id, amount, total_descontos, excedente_recebido');
+                $this->db->where('id', $receivable_id);
+                $receivable = $this->db->get(db_prefix() . 'receivables')->row();
+                
+                if (!$receivable) {
+                    continue;
+                }
+                
+                // Buscar todas as parcelas recebidas da receita
+                $this->db->select('valor_parcela, valor_com_juros, juros, juros_adicional, desconto, multa, valor_pago');
+                $this->db->where('receivables_id', $receivable_id);
+                $this->db->where('status', 'Pago');
+                $installments = $this->db->get(db_prefix() . 'account_installments')->result_array();
+                
+                $total_descontos = 0;
+                $total_excedente = 0;
+                $valor_recebido_total = 0;
+                
+                foreach ($installments as $installment) {
+                    $valor_base_parcela = floatval($installment['valor_parcela'] ?? 0);
+                    $juros_parcela = floatval($installment['juros'] ?? 0);
+                    $juros_adicional = floatval($installment['juros_adicional'] ?? 0);
+                    $desconto_parcela = floatval($installment['desconto'] ?? 0);
+                    $multa_parcela = floatval($installment['multa'] ?? 0);
+                    
+                    // Calcular valor total da parcela
+                    $valor_total_parcela = $valor_base_parcela + $juros_parcela + $juros_adicional + $multa_parcela - $desconto_parcela;
+                    
+                    // Calcular excedente
+                    $excedente = max(0, $valor_total_parcela - $valor_base_parcela);
+                    
+                    $total_descontos += $desconto_parcela;
+                    $total_excedente += $excedente;
+                    $valor_recebido_total += $valor_base_parcela;
+                }
+                
+                // Calcular novo amount (adicionar o valor recebido)
+                $novo_amount = floatval($receivable->amount ?? 0) + $valor_recebido_total;
+                
+                // Atualizar a receita
+                $update_data = [
+                    'amount' => $novo_amount,
+                    'total_descontos' => $total_descontos,
+                    'excedente_recebido' => $total_excedente
+                ];
+                
+                $this->db->where('id', $receivable_id);
+                $this->db->update(db_prefix() . 'receivables', $update_data);
+                
+                $stats['receivables_processed']++;
+                
+                // Verificar se houve mudança
+                if ($receivable->amount != $novo_amount || 
+                    $receivable->total_descontos != $total_descontos || 
+                    $receivable->excedente_recebido != $total_excedente) {
+                    $stats['receivables_fixed']++;
+                }
+                
+            } catch (Exception $e) {
+                $stats['errors'][] = "Erro ao processar receita ID {$receivable_id}: " . $e->getMessage();
+            }
+        }
+        
         return $stats;
     }
 } 

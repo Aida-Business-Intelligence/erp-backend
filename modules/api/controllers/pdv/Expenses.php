@@ -1432,6 +1432,33 @@ class Expenses extends REST_Controller
     }
 
     /**
+     * Corrigir valores existentes no banco de dados
+     * Endpoint para correção em massa dos valores após implementação dos novos campos
+     */
+    public function fix_existing_values_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        
+        try {
+            $this->load->model('Expenses_installments_model');
+            
+            $stats = $this->Expenses_installments_model->fix_existing_values();
+            
+            return $this->response([
+                'status' => true,
+                'message' => 'Correção de valores existentes concluída com sucesso',
+                'data' => $stats
+            ], REST_Controller::HTTP_OK);
+            
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * Processar dados de parcelas
      * @param array $data Dados da requisição
      * @return array Array com as parcelas processadas

@@ -1117,31 +1117,4 @@ class Receivables extends REST_Controller
         }
         return null;
     }
-
-    /**
-     * Corrigir valores existentes no banco de dados
-     * Endpoint para correção em massa dos valores após implementação dos novos campos
-     */
-    public function fix_existing_values_post()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-        
-        try {
-            $this->load->model('Receivables_installments_model');
-            
-            $stats = $this->Receivables_installments_model->fix_existing_values();
-            
-            return $this->response([
-                'status' => true,
-                'message' => 'Correção de valores existentes concluída com sucesso',
-                'data' => $stats
-            ], REST_Controller::HTTP_OK);
-            
-        } catch (Exception $e) {
-            return $this->response([
-                'status' => false,
-                'message' => 'Erro: ' . $e->getMessage(),
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
 }

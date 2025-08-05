@@ -60,12 +60,13 @@ class Receivables_model extends App_Model
             
             // Buscar nome do modo de pagamento
             if ($result->paymentmode) {
-                $this->db->select('name');
+                $this->db->select('name, is_check, is_boleto');
                 $this->db->from(db_prefix() . 'payment_modes');
                 $this->db->where('id', $result->paymentmode);
                 $paymentMode = $this->db->get()->row();
                 if ($paymentMode) {
                     $result->payment_mode_name = $paymentMode->name;
+                    $result->payment_mode = $paymentMode;
                 }
             }
             
@@ -102,6 +103,30 @@ class Receivables_model extends App_Model
                 }
             }
             
+            // Carregar parcelas se existirem
+            $this->load->model('Receivables_installments_model');
+            $installments = $this->Receivables_installments_model->get_installments_by_receivable($id);
+            
+            // Adicionar parcelas aos dados da receita
+            if (!empty($installments)) {
+                $result->installments = $installments;
+                // Buscar tipo_juros da primeira parcela que possuir esse campo
+                $first_interest_installment = null;
+                foreach ($installments as $inst) {
+                    if (isset($inst['tipo_juros'])) {
+                        $first_interest_installment = $inst;
+                        break;
+                    }
+                }
+                if ($first_interest_installment && isset($first_interest_installment['tipo_juros'])) {
+                    $result->tipo_juros = $first_interest_installment['tipo_juros'];
+                } else {
+                    $result->tipo_juros = 'simples'; // fallback
+                }
+            } else {
+                $result->tipo_juros = 'simples'; // fallback
+            }
+            
         } catch (Exception $e) {
         }
         
@@ -112,6 +137,7 @@ class Receivables_model extends App_Model
             $result->custom_recurring = (bool) $result->custom_recurring;
             $result->create_invoice_billable = (bool) $result->create_invoice_billable;
             $result->send_invoice_to_customer = (bool) $result->send_invoice_to_customer;
+            $result->is_staff = (bool) $result->is_staff;
         }
         
         return $result;
@@ -125,6 +151,8 @@ class Receivables_model extends App_Model
             c.company as company,
             cat.name as category_name,
             pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
             w.warehouse_name
         ');
         $this->db->from($this->table() . ' as r');
@@ -144,10 +172,8 @@ class Receivables_model extends App_Model
         }
         if (!empty($filters['search'])) {
             $this->db->group_start();
-            $this->db->like('r.expense_name', $filters['search']);
-            $this->db->or_like('r.reference_no', $filters['search']);
-            $this->db->or_like('r.receivable_identifier', $filters['search']);
-            $this->db->or_like('r.note', $filters['search']);
+            $this->db->like('r.receivable_identifier', $filters['search']);
+            $this->db->or_like('c.company', $filters['search']);
             $this->db->group_end();
         }
         
@@ -188,6 +214,7 @@ class Receivables_model extends App_Model
     public function count_receivables($filters = [])
     {
         $this->db->from($this->table() . ' as r');
+        $this->db->join(db_prefix() . 'clients as c', 'r.clientid = c.userid', 'left');
         if (!empty($filters['warehouse_id'])) {
             $this->db->where('r.warehouse_id', $filters['warehouse_id']);
         }
@@ -199,10 +226,8 @@ class Receivables_model extends App_Model
         }
         if (!empty($filters['search'])) {
             $this->db->group_start();
-            $this->db->like('r.expense_name', $filters['search']);
-            $this->db->or_like('r.reference_no', $filters['search']);
-            $this->db->or_like('r.receivable_identifier', $filters['search']);
-            $this->db->or_like('r.note', $filters['search']);
+            $this->db->like('r.receivable_identifier', $filters['search']);
+            $this->db->or_like('c.company', $filters['search']);
             $this->db->group_end();
         }
         if (
@@ -309,6 +334,7 @@ class Receivables_model extends App_Model
     
     public function get_payment_modes()
     {
+        $this->db->select('id, name, is_credit_card, is_check, is_boleto');
         return $this->db->get(db_prefix() . 'payment_modes')->result_array();
     }
 
@@ -331,6 +357,32 @@ class Receivables_model extends App_Model
         return $this->db->get(db_prefix() . 'clients')->result_array();
     }
 
+    public function get_franchisees($warehouse_id = 0, $search = '', $limit = 5, $page = 0)
+    {
+        $this->db->select('staffid as id, CONCAT(firstname, " ", lastname) as name, vat');
+        $this->db->where('active', 1);
+        $this->db->where('type', 'franchisees');
+        $this->db->where('warehouse_id', $warehouse_id);
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('firstname', $search);
+            $this->db->or_like('lastname', $search);
+            $this->db->or_like('vat', $search);
+            $this->db->group_end();
+        }
+
+        $offset = 0; // sempre retorna os primeiros 5
+        $this->db->limit($limit, $offset);
+
+        $result = $this->db->get(db_prefix() . 'staff')->result_array();
+        
+        log_message('debug', 'get_franchisees - warehouse_id: ' . $warehouse_id . ', search: ' . $search . ', result count: ' . count($result));
+        log_message('debug', 'get_franchisees - SQL: ' . $this->db->last_query());
+        
+        return $result;
+    }
+
     // Exemplo de método para validação de duplicatas (ajuste conforme sua lógica)
     public function validate_duplicates($warehouse_id, $data, $mappedColumns)
     {
@@ -338,7 +390,112 @@ class Receivables_model extends App_Model
         return [];
     }
 
-    // Métodos de add, update, delete podem ser implementados conforme necessidade
+    /**
+     * Add new receivable
+     * @param array $data All $_POST data
+     * @return mixed
+     */
+    public function add($data)
+    {
+        $this->db->trans_start();
+
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
+
+        $this->db->insert(db_prefix() . 'receivables', $data);
+        $receivable_id = $this->db->insert_id();
+
+        // SEMPRE criar pelo menos uma parcela na tabela de parcelas (padronização)
+        if ($receivable_id) {
+            $this->load->model('Receivables_installments_model');
+            
+            if ($installments) {
+                // Se há parcelas definidas, usar elas
+                $this->Receivables_installments_model->add_installments($receivable_id, $installments);
+            } else {
+                // Se não há parcelas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['receivable_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Receivables_installments_model->add_installments($receivable_id, [$single_installment]);
+            }
+        }
+
+        $this->db->trans_complete();
+        
+        if ($this->db->trans_status() === FALSE) {
+            return false;
+        }
+
+        return $receivable_id;
+    }
+
+    /**
+     * Update receivable
+     * @param array $data All $_POST data
+     * @param int $id receivable id to update
+     * @return boolean
+     */
+    public function update($data, $id)
+    {
+        $this->db->trans_start();
+
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
+
+        $this->db->where('id', $id);
+        $this->db->update(db_prefix() . 'receivables', $data);
+
+        // Atualizar parcelas se fornecidas
+        if ($installments !== null) {
+            $this->load->model('Receivables_installments_model');
+            $this->Receivables_installments_model->add_installments($id, $installments);
+        }
+
+        $this->db->trans_complete();
+        
+        return $this->db->trans_status();
+    }
+
+    /**
+     * Delete receivable
+     * @param int $id receivable id to delete
+     * @return boolean
+     */
+    public function delete($id)
+    {
+        $this->db->trans_start();
+
+        // Deletar parcelas primeiro
+        $this->load->model('Receivables_installments_model');
+        $this->Receivables_installments_model->delete_installments_by_receivable($id);
+
+        // Deletar receita
+        $this->db->where('id', $id);
+        $this->db->delete(db_prefix() . 'receivables');
+
+        $this->db->trans_complete();
+        
+        return $this->db->trans_status();
+    }
 
     public function get_receivables_by_day($params)
     {
@@ -355,6 +512,8 @@ class Receivables_model extends App_Model
             cat.name as category_name,
             pm.name as paymentmode,
             pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
             w.warehouse_name
         ');
         $this->db->from($this->table() . ' as r');

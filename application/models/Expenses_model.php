@@ -16,8 +16,51 @@ class Expenses_model extends App_Model
     //26/05
     public function add($data)
     {
+        $this->db->trans_start();
+
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
+
         $this->db->insert(db_prefix() . 'expenses', $data);
-        return $this->db->insert_id();
+        $expense_id = $this->db->insert_id();
+
+        // SEMPRE criar pelo menos uma parcela na tabela de parcelas (padronização)
+        if ($expense_id) {
+            $this->load->model('Expenses_installments_model');
+            
+            if ($installments) {
+                // Se há parcelas definidas, usar elas
+                $this->Expenses_installments_model->add_installments($expense_id, $installments);
+            } else {
+                // Se não há parcelas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Expenses_installments_model->add_installments($expense_id, [$single_installment]);
+            }
+        }
+
+        $this->db->trans_complete();
+        
+        if ($this->db->trans_status() === FALSE) {
+            return false;
+        }
+
+        return $expense_id;
     }
     public function handle_file_uploads($expense_id, $files)
     {
@@ -54,14 +97,23 @@ class Expenses_model extends App_Model
 
     public function get_payment_modes()
     {
+        $this->db->select('id, name, description, is_credit_card, is_check, is_boleto, active');
+        $this->db->where('active', 1);
         return $this->db->get(db_prefix() . 'payment_modes')->result_array();
     }
 
-    public function get_clients($warehouse_id = 0, $search = '', $limit = 5, $page = 0)
+    public function get_clients($warehouse_id = 0, $search = '', $limit = 5, $page = 0, $type = 'suppliers')
     {
         $this->db->select('userid as id, company as name, vat, is_supplier');
         $this->db->where('active', 1);
         $this->db->where('warehouse_id', $warehouse_id);
+
+        // Filtrar por tipo (fornecedores ou clientes)
+        if ($type === 'suppliers') {
+            $this->db->where('is_supplier', 1);
+        } elseif ($type === 'clients') {
+            $this->db->where('is_supplier', 0);
+        }
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -167,6 +219,11 @@ class Expenses_model extends App_Model
                         }
                     }
                 }
+
+                // SEMPRE carregar parcelas (padronização)
+                $this->load->model('Expenses_installments_model');
+                $expense->installments = $this->Expenses_installments_model->get_installments_by_expense($id);
+                $expense->installments_summary = $this->Expenses_installments_model->get_installments_summary($id);
             }
 
             return $expense;
@@ -319,10 +376,19 @@ class Expenses_model extends App_Model
      */
     public function update($data, $id)
     {
+        $this->db->trans_start();
+
         $original_expense = $this->get($id);
 
         $data['date'] = to_sql_date($data['date']);
         $data['note'] = nl2br($data['note']);
+
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
 
         // Recurring expense set to NO, Cancelled
         if ($original_expense->repeat_every != '' && ($data['repeat_every'] ?? '') == '') {
@@ -375,6 +441,56 @@ class Expenses_model extends App_Model
             $updated = true;
         }
 
+        // SEMPRE atualizar parcelas (padronização)
+        $this->load->model('Expenses_installments_model');
+        
+        if ($installments !== null) {
+            // Deletar parcelas existentes
+            $this->Expenses_installments_model->delete_installments_by_expense($id);
+            
+            if (!empty($installments)) {
+                // Adicionar novas parcelas definidas
+                $this->Expenses_installments_model->add_installments($id, $installments);
+            } else {
+                // Se não há parcelas definidas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Expenses_installments_model->add_installments($id, [$single_installment]);
+            }
+            $updated = true;
+        } else {
+            // Se não foram fornecidas parcelas, verificar se já existem
+            if (!$this->Expenses_installments_model->has_installments($id)) {
+                // Se não existem parcelas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Expenses_installments_model->add_installments($id, [$single_installment]);
+                $updated = true;
+            }
+        }
+
         do_action_deprecated('after_expense_updated', [$id], '2.9.4', 'expense_updated');
 
         hooks()->do_action('expense_updated', [
@@ -383,6 +499,12 @@ class Expenses_model extends App_Model
             'custom_fields' => $custom_fields,
             'updated'       => &$updated,
         ]);
+
+        $this->db->trans_complete();
+
+        if ($this->db->trans_status() === FALSE) {
+            return false;
+        }
 
         if ($updated) {
             log_activity('Expense Updated [' . $id . ']');
@@ -410,6 +532,10 @@ class Expenses_model extends App_Model
         $this->db->delete(db_prefix() . 'expenses');
 
         if ($this->db->affected_rows() > 0) {
+            // Deletar parcelas relacionadas (padronização)
+            $this->load->model('Expenses_installments_model');
+            $this->Expenses_installments_model->delete_installments_by_expense($id);
+            
             // Delete the custom field values
             $this->db->where('relid', $id);
             $this->db->where('fieldto', 'expenses');
@@ -898,15 +1024,18 @@ class Expenses_model extends App_Model
     {
         $this->db->select(
             'e.*, '
-            . 'c.company as company, '
+            . get_sql_select_client_company('company', 'c') . ', '
             . 'w.warehouse_name as warehouse_name, '
-            . 'cat.name as category_name'
+            . 'cat.name as category_name, '
+            . 'pm.name as payment_mode_name'
         );
         $this->db->from(db_prefix() . 'expenses e');
         $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'warehouse w', 'w.warehouse_id = e.warehouse_id', 'left');
         $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
+        $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
         $this->db->where('e.id', $id);
+        
         return $this->db->get()->row();
     }
 
@@ -916,7 +1045,7 @@ class Expenses_model extends App_Model
             return false;
         }
 
-        $this->db->select('c.userid AS id_cliente, c.company AS nome_cliente');
+        $this->db->select('c.userid AS id_cliente, ' . get_sql_select_client_company('company', 'c') . ' as nome_cliente');
         $this->db->from(db_prefix() . 'expenses e');
         $this->db->join(db_prefix() . 'clients c', 'e.clientid = c.userid');
         $this->db->where('e.id', $expenseId);
@@ -960,6 +1089,7 @@ class Expenses_model extends App_Model
             e.reference_no,
             e.note,
             e.expense_name,
+            e.expense_identifier,
             e.clientid,
             e.project_id,
             e.billable,
@@ -988,10 +1118,12 @@ class Expenses_model extends App_Model
             ' . db_prefix() . 'taxes_2.name as tax_name2,
             ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
             ' . db_prefix() . 'payment_modes.name as payment_mode_name,
+            ' . db_prefix() . 'payment_modes.is_check,
+            ' . db_prefix() . 'payment_modes.is_boleto,
         ');
 
         $this->db->from(db_prefix() . 'expenses e');
-        $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
         $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
@@ -1017,8 +1149,8 @@ class Expenses_model extends App_Model
 
         if (!empty($search) && $search !== 'null') {
             $this->db->group_start();
-            $this->db->like('e.note', $search);
-            $this->db->or_like('e.amount', $search);
+            $this->db->like('e.expense_identifier', $search);
+            $this->db->or_like('c.company', $search);
             $this->db->group_end();
         }
 
@@ -1089,12 +1221,10 @@ class Expenses_model extends App_Model
         e.expense_document,
         e.due_date,
         e.reference_date,
-        e.due_day,
         e.installments,
         e.consider_business_days,
         e.week_day,
         e.end_date,
-        e.due_day_2,
         e.bank_account_id,
         e.order_number,
         e.installment_number,
@@ -1102,7 +1232,7 @@ class Expenses_model extends App_Model
         e.barcode,
 
         c.userid as userid,
-        c.company as company,
+        ' . get_sql_select_client_company('company', 'c') . ',
         c.vat,
         c.phonenumber,
         c.address,
@@ -1114,7 +1244,9 @@ class Expenses_model extends App_Model
         t1.taxrate as taxrate,
         t2.name as tax_name2,
         t2.taxrate as taxrate2,
-        pm.name as payment_mode_name'
+        pm.name as payment_mode_name,
+        pm.is_check,
+        pm.is_boleto'
         );
 
         $this->db->from(db_prefix() . 'expenses e');
@@ -1142,6 +1274,8 @@ class Expenses_model extends App_Model
         e.addedfrom as addedfrom,
         cat.name as category_name,
         pm.name as payment_mode_name,
+        pm.is_check,
+        pm.is_boleto,
         t1.name as tax_name, 
         t1.taxrate as taxrate,
         t2.name as tax_name2, 
@@ -1164,8 +1298,8 @@ class Expenses_model extends App_Model
     }
     if (!empty($params['search'])) {
         $this->db->group_start();
-        $this->db->like('e.note', $params['search']);
-        $this->db->or_like('e.amount', $params['search']);
+        $this->db->like('e.expense_identifier', $params['search']);
+        $this->db->or_like('c.company', $params['search']);
         $this->db->group_end();
     }
 
@@ -1233,16 +1367,18 @@ class Expenses_model extends App_Model
             e.warehouse_id,
             e.file,
             ' . db_prefix() . 'expenses_categories.name as category_name,
-            ' . db_prefix() . 'clients.company as company,
+            ' . get_sql_select_client_company('company', 'c') . ',
             ' . db_prefix() . 'taxes.name as tax_name,
             ' . db_prefix() . 'taxes.taxrate as taxrate,
             ' . db_prefix() . 'taxes_2.name as tax_name2,
             ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
             ' . db_prefix() . 'payment_modes.name as payment_mode_name,
+            ' . db_prefix() . 'payment_modes.is_check,
+            ' . db_prefix() . 'payment_modes.is_boleto,
         ');
 
         $this->db->from(db_prefix() . 'expenses e');
-        $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
         $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
@@ -1267,8 +1403,8 @@ class Expenses_model extends App_Model
 
         if (!empty($search) && $search !== 'null') {
             $this->db->group_start();
-            $this->db->like('e.note', $search);
-            $this->db->or_like('e.amount', $search);
+            $this->db->like('e.expense_identifier', $search);
+            $this->db->or_like('c.company', $search);
             $this->db->group_end();
         }
 
@@ -1303,6 +1439,8 @@ class Expenses_model extends App_Model
             e.addedfrom as addedfrom,
             cat.name as category_name,
             pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
             t1.name as tax_name, 
             t1.taxrate as taxrate,
             t2.name as tax_name2, 
@@ -1325,8 +1463,8 @@ class Expenses_model extends App_Model
         }
         if (!empty($params['search'])) {
             $this->db->group_start();
-            $this->db->like('e.note', $params['search']);
-            $this->db->or_like('e.amount', $params['search']);
+            $this->db->like('e.expense_identifier', $params['search']);
+            $this->db->or_like('c.company', $params['search']);
             $this->db->group_end();
         }
 
@@ -1355,8 +1493,10 @@ class Expenses_model extends App_Model
 
         $this->db->select('
             e.*,
-            c.company as client,
+            ' . get_sql_select_client_company('client', 'c') . ',
             pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
             cat.name as category_name,
             t1.name as tax_name,
             t1.taxrate as taxrate,

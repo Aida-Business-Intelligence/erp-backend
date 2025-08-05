@@ -1278,9 +1278,9 @@ function _check_vault_entries_visibility($entries)
  *
  * @return string
  */
-function get_sql_select_client_company($as = 'company')
+function get_sql_select_client_company($as = 'company', $alias = 'c')
 {
-    return 'CASE ' . db_prefix() . 'clients.company WHEN \' \' THEN (SELECT CONCAT(firstname, \' \', lastname) FROM ' . db_prefix() . 'contacts WHERE userid = ' . db_prefix() . 'clients.userid and is_primary = 1) ELSE ' . db_prefix() . 'clients.company END as ' . $as;
+    return 'CASE ' . $alias . '.company WHEN \' \' THEN (SELECT CONCAT(firstname, \' \' , lastname) FROM ' . db_prefix() . 'contacts WHERE userid = ' . $alias . '.userid and is_primary = 1) ELSE ' . $alias . '.company END as ' . $as;
 }
 
 /**

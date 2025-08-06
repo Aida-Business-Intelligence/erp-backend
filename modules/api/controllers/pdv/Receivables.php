@@ -279,8 +279,11 @@ class Receivables extends REST_Controller
             
             // Upload do comprovante (voucher)
             $voucher_path = null;
-            if (!empty($data['comprovante'])) {
-                $voucher_path = $this->upload_voucher($receivable_id, $data['comprovante']);
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+            
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $voucher_path = $this->upload_voucher($receivable_id, $_FILES['comprovante']);
             }
             
             // Adicionar o caminho do comprovante aos dados de pagamento
@@ -544,9 +547,33 @@ class Receivables extends REST_Controller
         $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
 
         if ($is_multipart) {
-            $input = $this->input->post();
+            // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
+            if (isset($_POST['data'])) {
+                $input = json_decode($_POST['data'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'JSON inválido: ' . json_last_error_msg(),
+                        'debug' => [
+                            'input' => $_POST['data'],
+                            'decoded' => null
+                        ]
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $_POST = $input; // Reatribuir $_POST
+            } else {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Campo "data" não encontrado na requisição multipart',
+                    'debug' => [
+                        'input' => '',
+                        'decoded' => null
+                    ]
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
         } else {
             $input = json_decode($raw_input, true);
+            $_POST = $input; // Reatribuir $_POST
         }
 
         // Validação robusta dos campos obrigatórios
@@ -569,59 +596,50 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
+        // Inicializar cliente S3
+        $s3 = $this->storage_s3->getClient();
         $receivables_document = null;
-        // Salvar documento apenas se vier base64 válido (igual despesas)
-        if (!empty($input['receivables_document']) && preg_match('/^data:(.+);base64,/', $input['receivables_document'], $matches)) {
-            $mime_type = $matches[1];
-            $document_data = substr($input['receivables_document'], strpos($input['receivables_document'], ',') + 1);
-            $allowed_types = [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'image/jpeg',
-                'image/jpg',
-                'image/png'
-            ];
-            if (!in_array($mime_type, $allowed_types)) {
+
+        // Processar documento da receita se enviado via multipart
+        if ($is_multipart && isset($_FILES['receivables_document']) && $_FILES['receivables_document']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['receivables_document'];
+            $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            
+            // Validar tipos de arquivo permitidos
+            $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+            if (!in_array($file_extension, $allowed_extensions)) {
                 return $this->response([
                     'status' => false,
-                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
+                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG'
                 ], REST_Controller::HTTP_BAD_REQUEST);
             }
-            $document_data = base64_decode($document_data);
-            if ($document_data === false) {
-                return $this->response([
-                    'status' => false,
-                    'message' => 'Falha ao decodificar o documento'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-            }
-            if (strlen($document_data) > 5 * 1024 * 1024) {
+
+            // Verificar tamanho do arquivo (5MB)
+            if ($file['size'] > 5 * 1024 * 1024) {
                 return $this->response([
                     'status' => false,
                     'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
                 ], REST_Controller::HTTP_BAD_REQUEST);
             }
-            $upload_path = FCPATH . 'uploads/receivables/documents/';
-            if (!is_dir($upload_path)) {
-                mkdir($upload_path, 0755, true);
-            }
-            $extension_map = [
-                'application/pdf' => 'pdf',
-                'application/msword' => 'doc',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                'image/jpeg' => 'jpg',
-                'image/jpg' => 'jpg',
-                'image/png' => 'png'
-            ];
-            $extension = $extension_map[$mime_type] ?? 'bin';
-            $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
-            $file_path = $upload_path . $filename;
-            if (file_put_contents($file_path, $document_data)) {
-                $receivables_document = 'uploads/receivables/documents/' . $filename;
-            } else {
+
+            $unique_filename = 'receivable_' . time() . '_' . uniqid() . '.' . $file_extension;
+            $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $input['warehouse_id'] . '/receivables/documents/' . $unique_filename;
+
+            try {
+                // Upload para S3
+                $s3->putObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $blobName,
+                    'SourceFile' => $file['tmp_name'],
+                    'ACL' => 'public-read',
+                ]);
+
+                // Constrói a URL do arquivo
+                $receivables_document = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+            } catch (Exception $e) {
                 return $this->response([
                     'status' => false,
-                    'message' => 'Falha ao salvar o documento no servidor'
+                    'message' => 'Falha ao fazer upload do documento para S3: ' . $e->getMessage()
                 ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
@@ -713,8 +731,34 @@ class Receivables extends REST_Controller
                 'message' => 'ID é obrigatório'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        $raw_input = file_get_contents('php://input');
-        $input = json_decode($raw_input, true);
+
+        // Verificar se é multipart/form-data ou JSON
+        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+
+        if ($is_multipart) {
+            // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
+            if (isset($_POST['data'])) {
+                $input = json_decode($_POST['data'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'JSON inválido: ' . json_last_error_msg()
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $_POST = $input; // Reatribuir $_POST
+            } else {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Campo "data" não encontrado na requisição multipart'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+        } else {
+            $raw_input = file_get_contents('php://input');
+            $input = json_decode($raw_input, true);
+            $_POST = $input; // Reatribuir $_POST
+        }
+
         if (empty($input)) {
             return $this->response([
                 'status' => false,
@@ -742,84 +786,67 @@ class Receivables extends REST_Controller
         $old_document = $current && isset($current->receivables_document) ? $current->receivables_document : null;
         $receivables_document = $old_document;
         $document_was_updated = false;
-        // Processar documento
-        if (array_key_exists('receivables_document', $input)) {
-            $document_data = $input['receivables_document'];
-            if (empty($document_data)) {
-                // Se veio vazio, apagar arquivo antigo
-                if ($old_document && strpos($old_document, 'data:') !== 0) {
-                    $old_path = FCPATH . ltrim($old_document, '/');
-                    if (file_exists($old_path)) {
-                        @unlink($old_path);
-                    }
+        // Processar documento se existir via multipart
+        if ($is_multipart && isset($_FILES['receivables_document']) && $_FILES['receivables_document']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['receivables_document'];
+            $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            
+            // Validar tipos de arquivo permitidos
+            $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+            if (!in_array($file_extension, $allowed_extensions)) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            // Verificar tamanho do arquivo (5MB)
+            if ($file['size'] > 5 * 1024 * 1024) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            // Apagar o arquivo antigo do S3, se existir
+            if ($old_document && strpos($old_document, 'https://') === 0) {
+                try {
+                    $s3 = $this->storage_s3->getClient();
+                    $old_key = str_replace("https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/", "", $old_document);
+                    $s3->deleteObject([
+                        'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                        'Key' => $old_key
+                    ]);
+                } catch (Exception $e) {
+                    // Log do erro, mas não falhar a operação
+                    log_message('error', 'Erro ao deletar arquivo antigo do S3: ' . $e->getMessage());
                 }
-                $receivables_document = null;
+            }
+
+            $warehouse_id = $current ? $current->warehouse_id : 0;
+            $unique_filename = 'receivable_' . time() . '_' . uniqid() . '.' . $file_extension;
+            $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/receivables/documents/' . $unique_filename;
+
+            try {
+                // Inicializar cliente S3
+                $s3 = $this->storage_s3->getClient();
+                
+                // Upload para S3
+                $s3->putObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $blobName,
+                    'SourceFile' => $file['tmp_name'],
+                    'ACL' => 'public-read',
+                ]);
+
+                // Constrói a URL do arquivo
+                $receivables_document = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
                 $document_was_updated = true;
-            } else if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
-                $mime_type = $matches[1];
-                $document_data = substr($document_data, strpos($document_data, ',') + 1);
-                $allowed_types = [
-                    'application/pdf',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'image/jpeg',
-                    'image/jpg',
-                    'image/png'
-                ];
-                if (!in_array($mime_type, $allowed_types)) {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                }
-                $document_data = base64_decode($document_data);
-                if ($document_data === false) {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'Falha ao decodificar o documento'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                }
-                if (strlen($document_data) > 5 * 1024 * 1024) {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                }
-                // Apagar o arquivo antigo, se existir e não for base64
-                if ($old_document && strpos($old_document, 'data:') !== 0) {
-                    $old_path = FCPATH . ltrim($old_document, '/');
-                    if (file_exists($old_path)) {
-                        @unlink($old_path);
-                    }
-                }
-                $upload_path = FCPATH . 'uploads/receivables/documents/';
-                if (!is_dir($upload_path)) {
-                    mkdir($upload_path, 0755, true);
-                }
-                $extension_map = [
-                    'application/pdf' => 'pdf',
-                    'application/msword' => 'doc',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                    'image/jpeg' => 'jpg',
-                    'image/jpg' => 'jpg',
-                    'image/png' => 'png'
-                ];
-                $extension = $extension_map[$mime_type] ?? 'bin';
-                $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
-                $file_path = $upload_path . $filename;
-                if (file_put_contents($file_path, $document_data)) {
-                    $receivables_document = 'uploads/receivables/documents/' . $filename;
-                    $document_was_updated = true;
-                } else {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'Falha ao salvar o documento no servidor'
-                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-                }
-            } else if (is_string($document_data) && strpos($document_data, 'uploads/') === 0) {
-                // Se for caminho relativo, apenas atualiza o campo
-                $receivables_document = $document_data;
-                $document_was_updated = true;
+            } catch (Exception $e) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Falha ao fazer upload do documento para S3: ' . $e->getMessage()
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
         $data = [
@@ -1071,50 +1098,50 @@ class Receivables extends REST_Controller
      * @param string $document_data Dados do documento em base64
      * @return string|null Caminho do arquivo ou null
      */
-    private function upload_voucher($receivable_id, $document_data)
+    /**
+     * Upload de voucher para S3
+     * @param int $receivable_id ID da receita
+     * @param array $file Dados do arquivo do $_FILES
+     * @return string|null URL do arquivo ou null
+     */
+    private function upload_voucher($receivable_id, $file)
     {
-        if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
-            $mime_type = $matches[1];
-            $document_data = substr($document_data, strpos($document_data, ',') + 1);
-            $allowed_types = [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'image/jpeg',
-                'image/jpg',
-                'image/png'
-            ];
-            if (!in_array($mime_type, $allowed_types)) {
-                throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG');
-            }
-            $document_data = base64_decode($document_data);
-            if ($document_data === false) {
-                throw new Exception('Falha ao decodificar o comprovante');
-            }
-            if (strlen($document_data) > 5 * 1024 * 1024) {
-                throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
-            }
-            $upload_path = FCPATH . 'uploads/receivables/voucher/';
-            if (!is_dir($upload_path)) {
-                mkdir($upload_path, 0755, true);
-            }
-            $extension_map = [
-                'application/pdf' => 'pdf',
-                'application/msword' => 'doc',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                'image/jpeg' => 'jpg',
-                'image/jpg' => 'jpg',
-                'image/png' => 'png'
-            ];
-            $extension = $extension_map[$mime_type] ?? 'bin';
-            $filename = 'voucher_' . $receivable_id . '_' . time() . '_' . uniqid() . '.' . $extension;
-            $file_path = $upload_path . $filename;
-            if (file_put_contents($file_path, $document_data)) {
-                return 'uploads/receivables/voucher/' . $filename;
-            } else {
-                throw new Exception('Falha ao salvar o comprovante no servidor');
-            }
+        $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        
+        // Validar tipos de arquivo permitidos
+        $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+        if (!in_array($file_extension, $allowed_extensions)) {
+            throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG');
         }
-        return null;
+
+        // Verificar tamanho do arquivo (5MB)
+        if ($file['size'] > 5 * 1024 * 1024) {
+            throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+        }
+
+        // Buscar warehouse_id da receita
+        $receivable = $this->Receivables_model->get_receivable_by_id($receivable_id);
+        $warehouse_id = $receivable ? $receivable->warehouse_id : 0;
+
+        $unique_filename = 'voucher_' . $receivable_id . '_' . time() . '_' . uniqid() . '.' . $file_extension;
+        $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/receivables/vouchers/' . $receivable_id . '/' . $unique_filename;
+
+        try {
+            // Inicializar cliente S3
+            $s3 = $this->storage_s3->getClient();
+            
+            // Upload para S3
+            $s3->putObject([
+                'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                'Key' => $blobName,
+                'SourceFile' => $file['tmp_name'],
+                'ACL' => 'public-read',
+            ]);
+
+            // Constrói a URL do arquivo
+            return "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+        } catch (Exception $e) {
+            throw new Exception('Falha ao fazer upload do comprovante para S3: ' . $e->getMessage());
+        }
     }
 }

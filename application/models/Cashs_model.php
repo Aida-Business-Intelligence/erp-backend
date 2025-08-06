@@ -139,7 +139,7 @@ class Cashs_model extends App_Model
         $this->db->from(db_prefix() . 'cashs');
         //   $this->db->join(db_prefix() . 'staff', 'cashs.user_id = staff.staffid', 'left'); // LEFT JOIN para vincular as tabelas
         // Filtra somente as caixas ativas (status=1)
-        $this->db->where('cashs.status', '0');
+        //$this->db->where('cashs.status', '0');
         $this->db->where('cashs.active', '0');
         $this->db->where('cashs.warehouse_id', $warehouse_id);
 

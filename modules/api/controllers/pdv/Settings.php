@@ -25,6 +25,7 @@ class Settings extends REST_Controller
         // Construct the parent class
         parent::__construct();
         $this->load->model('Settings_model');
+        $this->load->library('storage_s3');
     }
 
 
@@ -99,6 +100,9 @@ class Settings extends REST_Controller
 
     public function upload_put($option_name, $warehouse_id = '')
     {
+
+       
+
         if (empty($warehouse_id)) {
             $this->response([
                 'status' => FALSE,
@@ -151,10 +155,8 @@ class Settings extends REST_Controller
 
         $parts = explode($boundary, $raw_body);
 
-        $upload_dir = './uploads/settings/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
+        // Inicializar cliente S3
+        $s3 = $this->storage_s3->getClient();
 
         foreach ($parts as $part) {
             if (strpos($part, 'Content-Disposition:') !== false) {
@@ -166,7 +168,8 @@ class Settings extends REST_Controller
                     $file_content_start = strpos($part, "\r\n\r\n") + 4;
                     $file_content = substr($part, $file_content_start, -4);
 
-                    $extension = pathinfo($filename_match[1], PATHINFO_EXTENSION);
+                    $extension = strtolower(pathinfo($filename_match[1], PATHINFO_EXTENSION));
+                   
                     $allowed_types = ['jpeg', 'jpg', 'png', 'svg'];
                     if (!in_array(strtolower($extension), $allowed_types)) {
                         $this->response([
@@ -186,44 +189,107 @@ class Settings extends REST_Controller
                         return;
                     }
 
+                    /*
+                    $this->db->where('name', $option_name);
+                    $this->db->where('warehouse_id', $warehouse_id);
+                    $existing_option = $this->db->get(db_prefix() . 'options')->row();
+                    
+                    if ($existing_option && !empty($existing_option->value)) {
+                        // Extrair o nome do arquivo da URL existente
+                        $existing_url = $existing_option->value;
+                        $existing_filename = basename($existing_url);
+                        
+                        // Deletar arquivo anterior do S3
+                        try {
+                            $s3->deleteObject([
+                                'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                                'Key' => 'settings/' . $existing_filename,
+                            ]);
+                        } catch (Exception $e) {
+                            // Log do erro, mas continuar com o upload
+                            log_message('error', 'Erro ao deletar arquivo anterior do S3: ' . $e->getMessage());
+                        }
+                    }
+
+                    */
+                    // Criar arquivo temporário para upload
                     $unique_filename = $option_name . '_' . uniqid() . '.' . $extension;
-                    $upload_path = $upload_dir . $unique_filename;
+                    $temp_file = tempnam(sys_get_temp_dir(), 'upload_');
+                    file_put_contents($temp_file, $file_content); // Escrever o conteúdo no arquivo temporário
+                    $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id  . '/' . $unique_filename;
 
-                    if (file_put_contents($upload_path, $file_content)) {
-                        $server_url = base_url();
-                        $relative_path = str_replace('./', '', $upload_path);
-                        $full_url = rtrim($server_url, '/') . '/' . $relative_path;
 
-                        $this->db->where('name', $option_name);
-                        $this->db->where('warehouse_id', $warehouse_id);
-                        $this->db->update(db_prefix() . 'options', [
-                            'value' => $full_url,
-                            'type' => 'pdv'
+                   
+                    try {
+                        // Upload para S3
+                        $s3->putObject([
+                            'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                            'Key' => $blobName,
+                            'SourceFile' => $temp_file,
+                            'ACL' => 'public-read',
                         ]);
 
-                        if ($this->db->affected_rows() > 0) {
-                            $this->response([
-                                'status' => TRUE,
-                                'message' => 'Image uploaded successfully',
-                                'file' => $full_url
-                            ], REST_Controller::HTTP_OK);
-                            return;
-                        } else {
+                       
+                        $s3_url = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+
+                        // Limpar arquivo temporário
+                        unlink($temp_file);
+
+
+                        $option = $this->Settings_model->get_option_by_name($option_name, $warehouse_id);
+                        if($option->value){
+                            // Extrair o caminho da URL
+                        $url_path = parse_url($option->value, PHP_URL_PATH);
+                        $result = ltrim($url_path, '/');
+                     
+                            try {
+                                $s3->deleteObject([
+                                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                                    'Key' => $result,
+                                ]);
+                            } catch (Exception $e) {
+                                // Log do erro, mas continuar com o upload
+                                log_message('error', 'Erro ao deletar arquivo anterior do S3: ' . $e->getMessage());
+                            }
+                            
+                            $this->db->where('name', $option_name);
+                            $this->db->where('warehouse_id', $warehouse_id);
+                            $this->db->update(db_prefix() . 'options', [
+                                'value' => $s3_url,
+                            ]);
+                        }else{
                             $this->db->insert(db_prefix() . 'options', [
                                 'name' => $option_name,
-                                'value' => $full_url,
+                                'value' => $s3_url,
                                 'autoload' => 1,
                                 'type' => 'pdv',
                                 'warehouse_id' => $warehouse_id
                             ]);
+                        }
+
+
+                       
+
+                     
 
                             $this->response([
                                 'status' => TRUE,
                                 'message' => 'Image uploaded and new option created',
-                                'file' => $full_url
+                                'file' => $s3_url
                             ], REST_Controller::HTTP_OK);
                             return;
+                        
+                    } catch (Exception $e) {
+                        // Limpar arquivo temporário em caso de erro
+                        if (file_exists($temp_file)) {
+                            unlink($temp_file);
                         }
+                        
+                        $this->response([
+                            'status' => FALSE,
+                            'message' => 'Error uploading file to S3: ' . $e->getMessage()
+                        ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+                        return;
                     }
                 }
             }
@@ -269,7 +335,7 @@ class Settings extends REST_Controller
                 'max_length' => 100
             ],
             'pdv_desconto_produto' => [
-                'type' => 'boolean',
+                'type' => 'text',
                 'required' => false
             ],
             'pdv_nfe_dinheiro' => [
@@ -437,7 +503,7 @@ class Settings extends REST_Controller
         $updates = [];
         $errors = [];
         
-          unset($_POST['pdv_limite_itens']);
+            unset($_POST['pdv_limite_itens']);
             unset($_POST['pdv_limite_itens_quantidade']);
             unset($_POST['pdv_tempo_carrinho']);
             unset($_POST['pdv_tempo_carrinho_minutos']);

@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y \
 COPY . /var/www/html/
 WORKDIR /var/www/html
 
+# Copia o php.ini personalizado para o local de configuração do PHP
+COPY php.ini /usr/local/etc/php/conf.d/custom.ini
+
 # composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN composer install || true

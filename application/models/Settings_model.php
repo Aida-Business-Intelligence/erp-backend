@@ -253,6 +253,14 @@ class Settings_model extends App_Model
         return false; // Retorna falso em caso de falha
     }
 
+    public function get_option_by_name($name, $warehouse_id)
+    {
+        $this->db->select('value');
+        $this->db->where('name', $name);
+        $this->db->where('warehouse_id', $warehouse_id);
+        return $this->db->get(db_prefix() . 'options')->row();
+    }
+
     public function get_menus_old()
     {
         $this->db->select('*');

@@ -14,6 +14,7 @@ class Receivables extends REST_Controller
     {
         parent::__construct();
         $this->load->model('Receivables_model');
+        $this->load->library('storage_s3');
     }
 
     public function get_get($id = null)
@@ -542,9 +543,9 @@ class Receivables extends REST_Controller
                 : null);
         $raw_input = file_get_contents('php://input');
 
-        // Detectar tipo de conteúdo
-        $content_type = $log_content_type;
-        $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
+        // Verificar se é multipart/form-data ou JSON
+        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
 
         if ($is_multipart) {
             // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
@@ -553,7 +554,7 @@ class Receivables extends REST_Controller
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     return $this->response([
                         'status' => false,
-                        'message' => 'JSON inválido: ' . json_last_error_msg(),
+                        'message' => 'JSON inválido: ' . json_last_error_msg() . ' - Input: ' . $_POST['data'] . ' - Content-Type: ' . $content_type,
                         'debug' => [
                             'input' => $_POST['data'],
                             'decoded' => null
@@ -601,7 +602,7 @@ class Receivables extends REST_Controller
         $receivables_document = null;
 
         // Processar documento da receita se enviado via multipart
-        if ($is_multipart && isset($_FILES['receivables_document']) && $_FILES['receivables_document']['error'] === UPLOAD_ERR_OK) {
+        if ($is_multipart && isset($_FILES['receivables_document']) && $_FILES['receivables_document']['error'] === UPLOAD_ERR_OK && $_FILES['receivables_document']['size'] > 0) {
             $file = $_FILES['receivables_document'];
             $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             
@@ -734,7 +735,7 @@ class Receivables extends REST_Controller
 
         // Verificar se é multipart/form-data ou JSON
         $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
 
         if ($is_multipart) {
             // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
@@ -787,7 +788,7 @@ class Receivables extends REST_Controller
         $receivables_document = $old_document;
         $document_was_updated = false;
         // Processar documento se existir via multipart
-        if ($is_multipart && isset($_FILES['receivables_document']) && $_FILES['receivables_document']['error'] === UPLOAD_ERR_OK) {
+        if ($is_multipart && isset($_FILES['receivables_document']) && $_FILES['receivables_document']['error'] === UPLOAD_ERR_OK && $_FILES['receivables_document']['size'] > 0) {
             $file = $_FILES['receivables_document'];
             $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             

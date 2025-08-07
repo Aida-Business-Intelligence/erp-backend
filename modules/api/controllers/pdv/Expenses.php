@@ -851,7 +851,7 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
         $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
 
         if ($is_multipart) {
             // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
@@ -1143,7 +1143,7 @@ class Expenses extends REST_Controller
         try {
             // Verificar se é multipart/form-data ou JSON
             $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
 
             if ($is_multipart) {
                 // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
@@ -1201,7 +1201,7 @@ class Expenses extends REST_Controller
             // Upload do comprovante (voucher) - agora via multipart/form-data
             $voucher_path = null;
             $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
             
             if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES['comprovante'];
@@ -1304,7 +1304,7 @@ class Expenses extends REST_Controller
             // Upload do comprovante (voucher) - será usado para todas as parcelas
             $voucher_path = null;
             $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
             
             if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
                 $voucher_path = $this->upload_voucher($expense_id, $_FILES['comprovante']);
@@ -1607,7 +1607,7 @@ class Expenses extends REST_Controller
             // Upload do comprovante (voucher)
             $voucher_path = null;
             $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
             
             if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
                 $voucher_path = $this->upload_voucher($expense_id, $_FILES['comprovante']);

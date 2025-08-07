@@ -189,14 +189,37 @@ class Receivables extends REST_Controller
     public function payment_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
+        
+        try {
+            // Verificar se é multipart/form-data ou JSON
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
 
-        $raw_input = file_get_contents('php://input');
-        $input = json_decode($raw_input, true);
+            if ($is_multipart) {
+                // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
+                if (isset($_POST['data'])) {
+                    $input = json_decode($_POST['data'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new Exception('JSON inválido: ' . json_last_error_msg());
+                    }
+                    $_POST = $input; // Reatribuir $_POST
+                } else {
+                    throw new Exception('Campo "data" não encontrado na requisição multipart');
+                }
+            } else {
+                // Processar dados JSON
+                $raw_input = file_get_contents('php://input');
+                $input = json_decode($raw_input, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception('JSON inválido: ' . json_last_error_msg());
+                }
+                $_POST = $input; // Reatribuir $_POST
+            }
 
-        $id = $input['id'] ?? null;
-        $status = $input['status'] ?? null;
-        $installment_id = $input['installment_id'] ?? null;
-        $installment_numbers = $input['installment_numbers'] ?? null;
+            $id = $input['id'] ?? null;
+            $status = $input['status'] ?? null;
+            $installment_id = $input['installment_id'] ?? null;
+            $installment_numbers = $input['installment_numbers'] ?? null;
 
         if (empty($id) || !in_array($status, ['pending', 'received'])) {
             return $this->response([
@@ -240,6 +263,13 @@ class Receivables extends REST_Controller
 
         // Sempre processar através do sistema de parcelas
         return $this->receive_installment($id, $installment_id, $input);
+        
+    } catch (Exception $e) {
+        return $this->response([
+            'status' => false,
+            'message' => 'Erro: ' . $e->getMessage(),
+        ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+    }
     }
 
     /**
@@ -281,7 +311,7 @@ class Receivables extends REST_Controller
             // Upload do comprovante (voucher)
             $voucher_path = null;
             $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
             
             if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
                 $voucher_path = $this->upload_voucher($receivable_id, $_FILES['comprovante']);
@@ -372,7 +402,13 @@ class Receivables extends REST_Controller
             
             // Upload do comprovante (voucher) - será usado para todas as parcelas
             $voucher_path = null;
-            if (!empty($data['comprovante'])) {
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+            
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $voucher_path = $this->upload_voucher($receivable_id, $_FILES['comprovante']);
+            } elseif (!empty($data['comprovante'])) {
+                // Fallback para dados base64 (se ainda existir)
                 $voucher_path = $this->upload_voucher($receivable_id, $data['comprovante']);
             }
             

@@ -909,15 +909,17 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
 
         $this->db->group_start();
        
-        
+        if(is_numeric($search)){
+            $this->db->where('code', $search);
+        }else{
             $this->db->where('code', $search);
             $this->db->or_where('sku_code', $search);
             $this->db->or_where('commodity_barcode', $search);
             $this->db->or_where('code', $search);
             $this->db->or_like('description', $search);
+        }
 
         $this->db->group_end();
-
         $total_query = $this->db->get_compiled_select();
         $total = $this->db->query("SELECT COUNT(*) as count FROM ($total_query) as subquery")->row()->count;
 
@@ -930,13 +932,18 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
             */
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('active', 1);
-
         $this->db->group_start();
+        if(is_numeric($search)){
+            $this->db->where('code', $search);
+        }else{
+      
         $this->db->where('code', $search);
         $this->db->or_where('sku_code', $search);
         $this->db->or_where('commodity_barcode', $search);
-       $this->db->or_like('description', $search);
-           $this->db->group_end();
+        $this->db->or_like('description', $search);
+      
+        }
+        $this->db->group_end();
 
         $this->db->order_by('description', 'ASC');
         $this->db->limit($limit, $offset);

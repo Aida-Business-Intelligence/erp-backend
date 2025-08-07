@@ -1219,8 +1219,8 @@ class Receivables extends REST_Controller
         
         if ($installments) {
             foreach ($installments as $installment) {
-                if (!empty($installment->comprovante)) {
-                    $this->delete_receivable_document_file($installment->comprovante);
+                if (!empty($installment['comprovante'])) {
+                    $this->delete_receivable_document_file($installment['comprovante']);
                 }
             }
         }

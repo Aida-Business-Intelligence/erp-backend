@@ -199,6 +199,159 @@ class Notafiscal_model extends App_Model
         ];
     }
 
+    public function get_api_nfce($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'DESC', $warehouse_id = 0, $status = null, $start_date = null, $end_date = null, $invoice_id = '')
+    {
+        $allowedSortFields = [
+            'id',
+            'documento',
+            'nfe',
+            'recibo',
+            'qrcode',
+            'serie',
+            'protocolo',
+            'data_autorizacao',
+            'chave',
+            'status',
+            'created_at'
+        ];
+
+        if (!in_array($sortField, $allowedSortFields)) {
+            $sortField = 'id';
+        }
+
+        $this->db->select('*');
+        $this->db->from(db_prefix() . 'nfce');
+
+        // Filtro por warehouse_id (obrigatório)
+        if ($warehouse_id > 0) {
+            $this->db->where('warehouse_id', $warehouse_id);
+        } else {
+            // Se não tiver warehouse_id, não retorna nada
+            return ['data' => [], 'total' => 0];
+        }
+
+        // Filtro por status (aceita array ou valor único)
+        if ($status !== null) {
+            if (is_array($status)) {
+                // Converte status string para numérico se necessário
+                $status = array_map(function ($s) {
+                    $statusMap = [
+                        'pending' => 0,
+                        'processing' => 1,
+                        'completed' => 2,
+                        'linked' => 3,
+                        'canceled' => 4
+                    ];
+                    return $statusMap[$s] ?? $s;
+                }, $status);
+                $this->db->where_in('status', $status);
+            } else {
+                // Converte status string para numérico se necessário
+                $statusMap = [
+                    'pending' => 0,
+                    'processing' => 1,
+                    'completed' => 2,
+                    'linked' => 3,
+                    'canceled' => 4
+                ];
+                $numericStatus = $statusMap[$status] ?? $status;
+                $this->db->where('status', $numericStatus);
+            }
+        }
+
+        // Filtro por data (aceita apenas start_date ou apenas end_date)
+        if ($start_date) {
+            $this->db->where('created_at >=', date('Y-m-d 00:00:00', strtotime($start_date)));
+        }
+        if ($end_date) {
+            $this->db->where('created_at <=', date('Y-m-d 23:59:59', strtotime($end_date)));
+        }
+
+        // Filtro de busca
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('documento', $search);
+            $this->db->or_like('nfe', $search);
+            $this->db->or_like('recibo', $search);
+            $this->db->or_like('qrcode', $search);
+            $this->db->or_like('serie', $search);
+            $this->db->or_like('protocolo', $search);
+            $this->db->or_like('data_autorizacao', $search);
+            $this->db->or_like('chave', $search);
+            $this->db->group_end();
+        }
+
+        // Filtro de numero invoice
+        if (!empty($invoice_id)) {
+            $this->db->group_start();
+            $this->db->like('chave', $invoice_id);
+            $this->db->or_like('id', $invoice_id);
+            $this->db->group_end();
+        }
+
+        // Ordenação
+        $this->db->order_by($sortField, $sortOrder);
+
+        // Paginação
+        $offset = ($page - 1) * $limit;
+        $this->db->limit($limit, $offset);
+
+        $invoices = $this->db->get()->result();
+
+
+        // Contagem total (com os mesmos filtros)
+        $this->db->reset_query();
+        $this->db->from(db_prefix() . 'nfce');
+
+        // Aplica os mesmos filtros da query principal
+        if ($warehouse_id > 0) {
+            $this->db->where('warehouse_id', $warehouse_id);
+        }
+
+        if ($status !== null) {
+            if (is_array($status)) {
+                $this->db->where_in('status', $status);
+            } else {
+                $this->db->where('status', $status);
+            }
+        }
+
+        if ($start_date) {
+            $this->db->where('created_at >=', date('Y-m-d 00:00:00', strtotime($start_date)));
+        }
+        if ($end_date) {
+            $this->db->where('created_at <=', date('Y-m-d 23:59:59', strtotime($end_date)));
+        }
+
+        if (!empty($search)) {
+            $this->db->group_start();
+            $this->db->like('invoice_number', $search);
+            $this->db->or_like('invoice_key', $search);
+            $this->db->or_like('recibo', $search);
+            $this->db->or_like('qrcode', $search);
+            $this->db->or_like('serie', $search);
+            $this->db->or_like('protocolo', $search);
+            $this->db->or_like('data_autorizacao', $search);
+            $this->db->or_like('chave', $search);
+            $this->db->group_end();
+        }
+
+        // Filtro de numero invoice
+        if (!empty($invoice_id)) {
+            $this->db->group_start();
+            $this->db->like('chave', $invoice_id);
+            $this->db->or_like('id', $invoice_id);
+            $this->db->group_end();
+        }
+
+        $total = $this->db->count_all_results();
+
+        return [
+            'data' => $invoices,
+            'total' => $total
+        ];
+    }
+
     public function add($data)
     {
         // Certificar que campos JSON estão codificados

@@ -11,8 +11,61 @@ class Notafiscal extends REST_Controller
         $this->load->model('Notafiscal_model');
     }
 
+    public function nfce_post()
+    {
+        
+        $page = $this->post('page') ? (int) $this->post('page') : 0;
+        $page = $page + 1;
+        $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
+        $search = $this->post('search') ?: '';
+        $sortField = $this->post('sortField') ?: 'id';
+        $sortOrder = $this->post('sortOrder') === 'DESC' ? 'DESC' : 'ASC';
+        $warehouse_id = $this->post('warehouse_id') ? (int) $this->post('warehouse_id') : 0;
+        $status = $this->post('invoice_status') ?: null;
+        $start_date = $this->post('start_date') ?: null;
+        $end_date = $this->post('end_date') ?: null;
+        $invoice_id = $this->post('invoice_id') ?: '';
+
+        // Validar warehouse_id
+        if ($warehouse_id <= 0) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Warehouse ID é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $data = $this->Notafiscal_model->get_api_nfce(
+            $this->post('id') ?: '',
+            $page,
+            $limit,
+            $search,
+            $sortField,
+            $sortOrder,
+            $warehouse_id, // Passando o warehouse_id para o model
+            $status,
+            $start_date,
+            $end_date,
+            $invoice_id,
+        );
+
+        if (empty($data['data'])) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Nenhuma nota fiscal encontrada para esta Fatura'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        } else {
+            $this->response([
+                'status' => TRUE,
+                'total' => $data['total'],
+                'data' => $data['data']
+            ], REST_Controller::HTTP_OK);
+        }
+    }
+
     public function list_post()
     {
+        echo 2; exit;
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;

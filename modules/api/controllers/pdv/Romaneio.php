@@ -920,7 +920,6 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
         }
 
         $this->db->group_end();
-
         $total_query = $this->db->get_compiled_select();
         $total = $this->db->query("SELECT COUNT(*) as count FROM ($total_query) as subquery")->row()->count;
 

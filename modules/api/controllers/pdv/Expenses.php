@@ -763,11 +763,8 @@ class Expenses extends REST_Controller
             $success = 0;
             $fail = 0;
             foreach ($rows as $rowId) {
-                // Buscar documento antes de deletar
-                $expense = $this->Expenses_model->gettwo($rowId);
-                if ($expense && !empty($expense->expense_document)) {
-                    $this->delete_expense_document_file($expense->expense_document);
-                }
+                // Deletar arquivos S3 antes de deletar o registro
+                $this->delete_expense_files_from_s3($rowId);
                 $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id);
                 if ($deleted) {
                     $success++;
@@ -791,11 +788,8 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        // Buscar documento antes de deletar
-        $expense = $this->Expenses_model->gettwo($id);
-        if ($expense && !empty($expense->expense_document)) {
-            $this->delete_expense_document_file($expense->expense_document);
-        }
+        // Deletar arquivos S3 antes de deletar o registro
+        $this->delete_expense_files_from_s3($id);
 
         $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id);
 
@@ -836,6 +830,27 @@ class Expenses extends REST_Controller
             $filePath = FCPATH . ltrim($document, '/');
             if (file_exists($filePath)) {
                 @unlink($filePath);
+            }
+        }
+    }
+
+    // Função para deletar todos os arquivos S3 relacionados a uma despesa
+    private function delete_expense_files_from_s3($expense_id) {
+        // Buscar a despesa para obter o documento principal
+        $expense = $this->Expenses_model->gettwo($expense_id);
+        if ($expense && !empty($expense->expense_document)) {
+            $this->delete_expense_document_file($expense->expense_document);
+        }
+
+        // Buscar e deletar todos os comprovantes das parcelas
+        $this->load->model('Expenses_installments_model');
+        $installments = $this->Expenses_installments_model->get_installments_by_expense($expense_id);
+        
+        if ($installments) {
+            foreach ($installments as $installment) {
+                if (!empty($installment->comprovante)) {
+                    $this->delete_expense_document_file($installment->comprovante);
+                }
             }
         }
     }

@@ -987,15 +987,9 @@ class Receivables extends REST_Controller
                 'message' => 'ID é obrigatório para deletar'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        // Buscar o documento associado
-        $this->load->model('Receivables_model');
-        $receivable = $this->Receivables_model->get_receivable_by_id($id);
-        if ($receivable && !empty($receivable->receivables_document)) {
-            $file_path = FCPATH . $receivable->receivables_document;
-            if (file_exists($file_path)) {
-                @unlink($file_path);
-            }
-        }
+        
+        // Deletar arquivos S3 antes de deletar o registro
+        $this->delete_receivable_files_from_s3($id);
         
         $success = $this->Receivables_model->delete($id);
         
@@ -1179,6 +1173,56 @@ class Receivables extends REST_Controller
             return "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
         } catch (Exception $e) {
             throw new Exception('Falha ao fazer upload do comprovante para S3: ' . $e->getMessage());
+        }
+    }
+
+    // Função auxiliar para deletar arquivo do S3
+    private function delete_receivable_document_file($document) {
+        if (strpos($document, 'data:') === 0) {
+            // Documento em base64, nada a deletar
+            return;
+        }
+        
+        // Se for URL do S3, deletar do S3
+        if (strpos($document, 'https://') === 0) {
+            try {
+                $s3 = $this->storage_s3->getClient();
+                $key = str_replace("https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/", "", $document);
+                $s3->deleteObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $key
+                ]);
+            } catch (Exception $e) {
+                log_message('error', 'Erro ao deletar arquivo do S3: ' . $e->getMessage());
+            }
+        } else {
+            // Fallback para arquivo local (legado)
+            $filePath = FCPATH . ltrim($document, '/');
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
+        }
+    }
+
+    // Função para deletar todos os arquivos S3 relacionados a uma receita
+    private function delete_receivable_files_from_s3($receivable_id) {
+        // Buscar a receita para obter o documento principal
+        $this->load->model('Receivables_model');
+        $receivable = $this->Receivables_model->get_receivable_by_id($receivable_id);
+        if ($receivable && !empty($receivable->receivables_document)) {
+            $this->delete_receivable_document_file($receivable->receivables_document);
+        }
+
+        // Buscar e deletar todos os comprovantes das parcelas
+        $this->load->model('Receivables_installments_model');
+        $installments = $this->Receivables_installments_model->get_installments_by_receivable($receivable_id);
+        
+        if ($installments) {
+            foreach ($installments as $installment) {
+                if (!empty($installment->comprovante)) {
+                    $this->delete_receivable_document_file($installment->comprovante);
+                }
+            }
         }
     }
 }

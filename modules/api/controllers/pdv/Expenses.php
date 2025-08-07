@@ -1613,6 +1613,9 @@ class Expenses extends REST_Controller
                 $voucher_path = $this->upload_voucher($expense_id, $_FILES['comprovante']);
             }
             
+            // Adicionar o comprovante aos dados de pagamento
+            $payment_data['comprovante'] = $voucher_path;
+            
             // Realizar o pagamento
             $success = $this->Expenses_installments_model->pay_installment($installment_id, $payment_data);
             if (!$success) {

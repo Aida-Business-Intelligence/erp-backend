@@ -457,6 +457,7 @@ class Receivables_installments_model extends App_Model
             'multa' => $payment_data['multa'] ?? 0,
             'id_cheque' => $payment_data['id_cheque'] ?? null,
             'id_boleto' => $payment_data['id_boleto'] ?? null,
+            'comprovante' => $payment_data['comprovante'] ?? null,
         ];
 
         // Se recebeu o valor total, marca como pago

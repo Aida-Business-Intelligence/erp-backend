@@ -871,7 +871,7 @@ class Expenses extends REST_Controller
         }
     }
 
-    public function update_put($id = '')
+    public function update_post($id = '')
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
@@ -881,40 +881,59 @@ class Expenses extends REST_Controller
                 'message' => 'ID is required'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+        $headers = $this->input->request_headers();
+        $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? $_SERVER['CONTENT_TYPE'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES) || isset($_POST['data']);
+        
+
 
         if ($is_multipart) {
-            // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
+            // Processar dados do FormData - usar $_POST diretamente como no Produto.php
             if (isset($_POST['data'])) {
-                $input = json_decode($_POST['data'], true);
+                $_POST = json_decode($_POST['data'], true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     return $this->response([
                         'status' => false,
                         'message' => 'JSON inválido: ' . json_last_error_msg()
                     ], REST_Controller::HTTP_BAD_REQUEST);
                 }
-                $_POST = $input; // Reatribuir $_POST
+                $input = $_POST;
             } else {
                 return $this->response([
                     'status' => false,
-                    'message' => 'Campo "data" não encontrado na requisição multipart'
+                    'message' => 'Campo "data" não encontrado na requisição multipart',
+                    'debug' => [
+                        'post_keys' => array_keys($_POST),
+                        'post_data' => $_POST
+                    ]
                 ], REST_Controller::HTTP_BAD_REQUEST);
             }
         } else {
+            // Processar dados JSON
             $raw_input = file_get_contents("php://input");
             $input = json_decode($raw_input, true);
-            $_POST = $input; // Reatribuir $_POST
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'JSON inválido: ' . json_last_error_msg() . ' - Input: ' . $raw_input . ' - Content-Type: ' . $content_type
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+            $_POST = $input;
         }
 
         if (empty($input)) {
             return $this->response([
                 'status' => false,
-                'message' => 'Invalid input data'
+                'message' => 'Invalid input data - Input vazio ou inválido',
+                'debug' => [
+                    'is_multipart' => $is_multipart,
+                    'post_data' => isset($_POST['data']) ? $_POST['data'] : 'não encontrado',
+                    'raw_input' => isset($raw_input) ? $raw_input : 'não aplicável'
+                ]
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        // Atualizado: incluir todos os campos da tabela tblexpenses
+        // Campos da tabela tblexpenses (excluindo campos de parcelamento que vão para tblexpenses_installments)
         $fields = [
             'expense_name',
             'type',
@@ -944,11 +963,6 @@ class Expenses extends REST_Controller
             'nfe_key',
             'barcode',
             'is_client',
-            // Adiciona campos de parcelamento
-            'num_parcelas',
-            'juros',
-            'juros_apartir',
-            'total_parcelado',
         ];
 
         $updateData = [];
@@ -957,6 +971,8 @@ class Expenses extends REST_Controller
             if (isset($input[$field])) {
                 if (in_array($field, ['billable', 'send_invoice_to_customer', 'create_invoice_billable', 'is_client'])) {
                     $updateData[$field] = (!empty($input[$field]) && $input[$field] !== 'false') ? 1 : 0;
+                } elseif ($field === 'bank_account_id' && (empty($input[$field]) || $input[$field] === '')) {
+                    $updateData[$field] = null;
                 } else {
                     $updateData[$field] = $input[$field];
                 }

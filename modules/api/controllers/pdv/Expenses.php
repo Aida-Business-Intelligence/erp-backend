@@ -125,8 +125,16 @@ class Expenses extends REST_Controller
 
         try {
             // Verificar se é multipart/form-data ou JSON
-            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+            $headers = $this->input->request_headers();
+            $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? $_SERVER['CONTENT_TYPE'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES) || isset($_POST['data']);
+            
+            // Log para debug
+            log_message('debug', 'Content-Type: ' . $content_type);
+            log_message('debug', 'Is multipart: ' . ($is_multipart ? 'true' : 'false'));
+            log_message('debug', 'FILES: ' . json_encode($_FILES));
+            log_message('debug', 'POST keys: ' . json_encode(array_keys($_POST)));
+            log_message('debug', 'POST data exists: ' . (isset($_POST['data']) ? 'true' : 'false'));
 
             if ($is_multipart) {
                 // Processar dados do FormData - usar $_POST diretamente como no Produto.php
@@ -206,7 +214,7 @@ class Expenses extends REST_Controller
                 'note' => $data['note'] ?? null,
                 'expense_identifier' => $data['expense_identifier'] ?? null,
                 'clientid' => $data['clientid'] ?? null,
-                'project_id' => $data['project_id'] ?? null,
+                'project_id' => $data['project_id'] ?? 0,
                 'billable' => isset($data['billable']) ? ($data['billable'] ? 1 : 0) : 0,
                 'invoiceid' => $data['invoiceid'] ?? null,
                 'paymentmode' => $data['paymentmode'] ?? null,
@@ -244,9 +252,17 @@ class Expenses extends REST_Controller
                 $input['installments'] = $installments;
             }
 
-            $input = array_filter($input, function ($value) {
+            // Filtrar apenas valores null, mas manter campos opcionais como expense_document
+            $input = array_filter($input, function ($value, $key) {
+                // Campos que podem ser null
+                $nullable_fields = ['expense_document', 'tax', 'tax2', 'reference_no', 'note', 'clientid', 'invoiceid', 'bank_account_id', 'order_number', 'installment_number', 'nfe_key', 'barcode'];
+                
+                if (in_array($key, $nullable_fields)) {
+                    return true; // Manter o campo mesmo se for null
+                }
+                
                 return $value !== null;
-            });
+            }, ARRAY_FILTER_USE_BOTH);
 
             $expense_id = $this->Expenses_model->add($input);
 

@@ -580,8 +580,16 @@ class Receivables extends REST_Controller
         $raw_input = file_get_contents('php://input');
 
         // Verificar se é multipart/form-data ou JSON
-        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+        $headers = $this->input->request_headers();
+        $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? $_SERVER['CONTENT_TYPE'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES) || isset($_POST['data']);
+        
+        // Log para debug
+        log_message('debug', 'Receivables Content-Type: ' . $content_type);
+        log_message('debug', 'Receivables Is multipart: ' . ($is_multipart ? 'true' : 'false'));
+        log_message('debug', 'Receivables FILES: ' . json_encode($_FILES));
+        log_message('debug', 'Receivables POST keys: ' . json_encode(array_keys($_POST)));
+        log_message('debug', 'Receivables POST data exists: ' . (isset($_POST['data']) ? 'true' : 'false'));
 
         if ($is_multipart) {
             // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
@@ -729,7 +737,17 @@ class Receivables extends REST_Controller
             'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
             // 'tipo_juros' => $input['tipo_juros'] ?? 'simples', // continua fora do principal
         ];
-        $data = array_filter($data, function ($v) { return $v !== null; });
+        // Filtrar apenas valores null, mas manter campos opcionais como receivables_document
+        $data = array_filter($data, function ($value, $key) {
+            // Campos que podem ser null
+            $nullable_fields = ['receivables_document', 'tax', 'tax2', 'reference_no', 'note', 'expense_name', 'clientid', 'invoiceid', 'order_number', 'installment_number', 'nfe_key', 'barcode', 'registration_date'];
+            
+            if (in_array($key, $nullable_fields)) {
+                return true; // Manter o campo mesmo se for null
+            }
+            
+            return $value !== null;
+        }, ARRAY_FILTER_USE_BOTH);
         
         // Processar parcelas se fornecidas
         $installments = null;
@@ -937,7 +955,16 @@ class Receivables extends REST_Controller
         
         // Remover campos nulos, exceto installments
         $installments_backup = $data['installments'] ?? null;
-        $data = array_filter($data, function ($v) { return $v !== null; });
+        $data = array_filter($data, function ($value, $key) {
+            // Campos que podem ser null
+            $nullable_fields = ['receivables_document', 'tax', 'tax2', 'reference_no', 'note', 'expense_name', 'clientid', 'invoiceid', 'order_number', 'installment_number', 'nfe_key', 'barcode', 'registration_date'];
+            
+            if (in_array($key, $nullable_fields)) {
+                return true; // Manter o campo mesmo se for null
+            }
+            
+            return $value !== null;
+        }, ARRAY_FILTER_USE_BOTH);
         if ($installments_backup !== null) {
             $data['installments'] = $installments_backup;
         }

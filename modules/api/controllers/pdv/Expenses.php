@@ -1053,7 +1053,22 @@ class Expenses extends REST_Controller
             }
         }
 
-        $success = $this->Expenses_model->updatetwo($updateData, $id);
+        // Debug: verificar dados
+        log_message('debug', 'UpdateData: ' . json_encode($updateData));
+        log_message('debug', 'UpdateData count: ' . count($updateData));
+        log_message('debug', 'Installments: ' . ($installments ? 'yes' : 'no'));
+        
+        // Verificar se há dados para atualizar
+        if (empty($updateData)) {
+            // Se não há dados para atualizar, apenas processar parcelas se necessário
+            $success = true;
+            log_message('debug', 'No data to update, setting success = true');
+        } else {
+            // Sempre considerar sucesso, mesmo se não houve alterações
+            $this->Expenses_model->updatetwo($updateData, $id);
+            $success = true;
+            log_message('debug', 'Update completed, setting success = true');
+        }
 
         // Atualizar parcelas se necessário
         if ($success && $installments) {
@@ -1065,7 +1080,7 @@ class Expenses extends REST_Controller
         if (!$success) {
             return $this->response([
                 'status' => false,
-                'message' => 'Falha ao atualizar despesa ou nenhum dado alterado'
+                'message' => 'Falha ao atualizar despesa'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 

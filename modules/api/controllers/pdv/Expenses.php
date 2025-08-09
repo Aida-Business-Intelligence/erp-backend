@@ -243,6 +243,7 @@ class Expenses extends REST_Controller
                 'barcode' => $data['barcode'] ?? null,
                 'origin' => $data['origin'] ?? null,
                 'is_client' => isset($data['is_client']) ? ($data['is_client'] ? 1 : 0) : 0,
+                'juros' => $data['juros'] ?? 0,
             ];
 
             // Processar parcelas se fornecidas
@@ -963,6 +964,7 @@ class Expenses extends REST_Controller
             'nfe_key',
             'barcode',
             'is_client',
+            'juros',
         ];
 
         $updateData = [];

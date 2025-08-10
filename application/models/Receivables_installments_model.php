@@ -613,9 +613,7 @@ class Receivables_installments_model extends App_Model
      */
     public function get_overdue_installments($date = null)
     {
-        if (!$date) {
-            $date = date('Y-m-d');
-        }
+        $date = $date ?: date('Y-m-d');
 
         $this->db->select('
             ai.id,
@@ -639,12 +637,17 @@ class Receivables_installments_model extends App_Model
             ai.banco_id,
             r.receivable_identifier,
             r.note,
-            c.company as client_name,
+            CASE 
+                WHEN r.is_client = 1 THEN c.company 
+                WHEN r.is_client = 0 THEN CONCAT(s.firstname, " ", s.lastname)
+                ELSE c.company 
+            END as client_name,
             pm.name as payment_mode_name
         ');
         $this->db->from(db_prefix() . 'account_installments ai');
         $this->db->join(db_prefix() . 'receivables r', 'r.id = ai.receivables_id', 'left');
-        $this->db->join(db_prefix() . 'clients c', 'c.userid = r.clientid', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = r.clientid AND r.is_client = 1', 'left');
+        $this->db->join(db_prefix() . 'staff s', 's.staffid = r.clientid AND r.is_client = 0', 'left');
         $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = ai.paymentmode_id', 'left');
         $this->db->where('ai.data_vencimento <', $date);
         $this->db->where('ai.status !=', 'Pago');
@@ -685,12 +688,17 @@ class Receivables_installments_model extends App_Model
             r.receivable_identifier,
             r.note,
             r.warehouse_id,
-            c.company as client_name,
+            CASE 
+                WHEN r.is_client = 1 THEN c.company 
+                WHEN r.is_client = 0 THEN CONCAT(s.firstname, " ", s.lastname)
+                ELSE c.company 
+            END as client_name,
             pm.name as payment_mode_name
         ');
         $this->db->from(db_prefix() . 'account_installments ai');
         $this->db->join(db_prefix() . 'receivables r', 'r.id = ai.receivables_id', 'left');
-        $this->db->join(db_prefix() . 'clients c', 'c.userid = r.clientid', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = r.clientid AND r.is_client = 1', 'left');
+        $this->db->join(db_prefix() . 'staff s', 's.staffid = r.clientid AND r.is_client = 0', 'left');
         $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = ai.paymentmode_id', 'left');
         $this->db->where('ai.data_vencimento >=', $start_date);
         $this->db->where('ai.data_vencimento <=', $end_date);

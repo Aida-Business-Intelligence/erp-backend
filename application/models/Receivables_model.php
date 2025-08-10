@@ -148,7 +148,11 @@ class Receivables_model extends App_Model
         $this->db->select('
             r.*,
             r.receivable_identifier,
-            c.company as company,
+            CASE 
+                WHEN r.is_client = 1 THEN c.company 
+                WHEN r.is_client = 0 THEN CONCAT(s.firstname, " ", s.lastname)
+                ELSE c.company 
+            END as company,
             cat.name as category_name,
             pm.name as payment_mode_name,
             pm.is_check,
@@ -156,7 +160,8 @@ class Receivables_model extends App_Model
             w.warehouse_name
         ');
         $this->db->from($this->table() . ' as r');
-        $this->db->join(db_prefix() . 'clients as c', 'r.clientid = c.userid', 'left');
+        $this->db->join(db_prefix() . 'clients as c', 'r.clientid = c.userid AND r.is_client = 1', 'left');
+        $this->db->join(db_prefix() . 'staff as s', 'r.clientid = s.staffid AND r.is_client = 0', 'left');
         $this->db->join(db_prefix() . 'expenses_categories  as cat', 'r.category = cat.id', 'left');
         $this->db->join(db_prefix() . 'payment_modes as pm', 'r.paymentmode = pm.id', 'left');
         $this->db->join(db_prefix() . 'warehouse as w', 'w.warehouse_id = r.warehouse_id', 'left');
@@ -174,6 +179,8 @@ class Receivables_model extends App_Model
             $this->db->group_start();
             $this->db->like('r.receivable_identifier', $filters['search']);
             $this->db->or_like('c.company', $filters['search']);
+            $this->db->or_like('s.firstname', $filters['search']);
+            $this->db->or_like('s.lastname', $filters['search']);
             $this->db->group_end();
         }
         
@@ -197,7 +204,7 @@ class Receivables_model extends App_Model
             'date' => 'r.due_date',
             'amount' => 'r.amount',
             'status' => 'r.status',
-            'company' => 'c.company',
+            'company' => 'CASE WHEN r.is_client = 1 THEN c.company ELSE CONCAT(s.firstname, " ", s.lastname) END',
             'category_name' => 'cat.name',
             'payment_mode_name' => 'pm.name',
         ];
@@ -214,7 +221,8 @@ class Receivables_model extends App_Model
     public function count_receivables($filters = [])
     {
         $this->db->from($this->table() . ' as r');
-        $this->db->join(db_prefix() . 'clients as c', 'r.clientid = c.userid', 'left');
+        $this->db->join(db_prefix() . 'clients as c', 'r.clientid = c.userid AND r.is_client = 1', 'left');
+        $this->db->join(db_prefix() . 'staff as s', 'r.clientid = s.staffid AND r.is_client = 0', 'left');
         if (!empty($filters['warehouse_id'])) {
             $this->db->where('r.warehouse_id', $filters['warehouse_id']);
         }
@@ -228,6 +236,8 @@ class Receivables_model extends App_Model
             $this->db->group_start();
             $this->db->like('r.receivable_identifier', $filters['search']);
             $this->db->or_like('c.company', $filters['search']);
+            $this->db->or_like('s.firstname', $filters['search']);
+            $this->db->or_like('s.lastname', $filters['search']);
             $this->db->group_end();
         }
         if (
@@ -507,8 +517,16 @@ class Receivables_model extends App_Model
 
         $this->db->select('
             r.*, 
-            c.company as client,
-            c.company as company,
+            CASE 
+                WHEN r.is_client = 1 THEN c.company 
+                WHEN r.is_client = 0 THEN CONCAT(s.firstname, " ", s.lastname)
+                ELSE c.company 
+            END as client,
+            CASE 
+                WHEN r.is_client = 1 THEN c.company 
+                WHEN r.is_client = 0 THEN CONCAT(s.firstname, " ", s.lastname)
+                ELSE c.company 
+            END as company,
             cat.name as category_name,
             pm.name as paymentmode,
             pm.name as payment_mode_name,
@@ -517,7 +535,8 @@ class Receivables_model extends App_Model
             w.warehouse_name
         ');
         $this->db->from($this->table() . ' as r');
-        $this->db->join(db_prefix() . 'clients c', 'c.userid = r.clientid', 'left');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = r.clientid AND r.is_client = 1', 'left');
+        $this->db->join(db_prefix() . 'staff s', 's.staffid = r.clientid AND r.is_client = 0', 'left');
         $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = r.category', 'left');
         $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = r.paymentmode', 'left');
         $this->db->join(db_prefix() . 'warehouse w', 'w.warehouse_id = r.warehouse_id', 'left');
@@ -532,15 +551,24 @@ class Receivables_model extends App_Model
         $this->db->limit($limit, $offset);
         $data = $this->db->get()->result_array();
 
-        // Garantir que o campo 'client' sempre traga o nome do cliente, mesmo se vier null
+        // Garantir que o campo 'client' sempre traga o nome correto
         foreach ($data as &$row) {
             if (empty($row['client']) && !empty($row['clientid'])) {
-                // Buscar nome do cliente manualmente
-                $this->db->select('company');
-                $this->db->from(db_prefix() . 'clients');
-                $this->db->where('userid', $row['clientid']);
-                $client = $this->db->get()->row();
-                $row['client'] = $client ? $client->company : null;
+                if ($row['is_client'] == 1) {
+                    // Buscar nome do cliente
+                    $this->db->select('company');
+                    $this->db->from(db_prefix() . 'clients');
+                    $this->db->where('userid', $row['clientid']);
+                    $client = $this->db->get()->row();
+                    $row['client'] = $client ? $client->company : null;
+                } else {
+                    // Buscar nome da franquia
+                    $this->db->select('CONCAT(firstname, " ", lastname) as name');
+                    $this->db->from(db_prefix() . 'staff');
+                    $this->db->where('staffid', $row['clientid']);
+                    $staff = $this->db->get()->row();
+                    $row['client'] = $staff ? $staff->name : null;
+                }
             }
         }
         unset($row);

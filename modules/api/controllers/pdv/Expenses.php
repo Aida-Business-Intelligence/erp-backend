@@ -268,7 +268,7 @@ class Expenses extends REST_Controller
             $expense_id = $this->Expenses_model->add($input);
 
             if (!$expense_id) {
-                throw new Exception('Falha ao criar a despesa/receita');
+                throw new Exception('Falha ao criar a despesa');
             }
 
             $this->db->trans_complete();
@@ -307,7 +307,7 @@ class Expenses extends REST_Controller
             $field_name = $this->input->post('field_name');
 
             if (empty($expense_id) || empty($field_name)) {
-                throw new Exception("ID da despesa/receita e nome do campo são obrigatórios", REST_Controller::HTTP_BAD_REQUEST);
+                throw new Exception("ID da despesa e nome do campo são obrigatórios", REST_Controller::HTTP_BAD_REQUEST);
             }
 
             if (empty($_FILES['file'])) {

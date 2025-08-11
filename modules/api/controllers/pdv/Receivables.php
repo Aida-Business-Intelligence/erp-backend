@@ -709,6 +709,8 @@ class Receivables extends REST_Controller
             'order_number' => $input['order_number'] ?? null,
             'installment_number' => $input['installment_number'] ?? null,
             'nfe_key' => $input['nfe_key'] ?? null,
+            'nfe_number' => $input['nfe_number'] ?? null,
+            'boleto_number' => $input['boleto_number'] ?? null,
             'barcode' => $input['barcode'] ?? null,
             'origin_id' => $input['origin_id'],
             'recurring_type' => null,
@@ -740,7 +742,7 @@ class Receivables extends REST_Controller
         // Filtrar apenas valores null, mas manter campos opcionais como receivables_document
         $data = array_filter($data, function ($value, $key) {
             // Campos que podem ser null
-            $nullable_fields = ['receivables_document', 'tax', 'tax2', 'reference_no', 'note', 'expense_name', 'clientid', 'invoiceid', 'order_number', 'installment_number', 'nfe_key', 'barcode', 'registration_date'];
+            $nullable_fields = ['receivables_document', 'tax', 'tax2', 'reference_no', 'note', 'expense_name', 'clientid', 'invoiceid', 'order_number', 'installment_number', 'nfe_key', 'nfe_number', 'boleto_number', 'barcode', 'registration_date'];
             
             if (in_array($key, $nullable_fields)) {
                 return true; // Manter o campo mesmo se for null
@@ -957,7 +959,7 @@ class Receivables extends REST_Controller
         $installments_backup = $data['installments'] ?? null;
         $data = array_filter($data, function ($value, $key) {
             // Campos que podem ser null
-            $nullable_fields = ['receivables_document', 'tax', 'tax2', 'reference_no', 'note', 'expense_name', 'clientid', 'invoiceid', 'order_number', 'installment_number', 'nfe_key', 'barcode', 'registration_date'];
+            $nullable_fields = ['receivables_document', 'tax', 'tax2', 'reference_no', 'note', 'expense_name', 'clientid', 'invoiceid', 'order_number', 'installment_number', 'nfe_key', 'nfe_number', 'boleto_number', 'barcode', 'registration_date'];
             
             if (in_array($key, $nullable_fields)) {
                 return true; // Manter o campo mesmo se for null

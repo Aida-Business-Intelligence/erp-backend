@@ -263,10 +263,11 @@ class Receivables_model extends App_Model
         $currentMonth = date('m');
         $currentYear = date('Y');
 
-        $received_today = $this->sum_receivables_amount('received', $warehouse_id, '=', $today);
+        // Para valores recebidos, considerar parcelas recebidas e não apenas o campo amount
+        $received_today = $this->sum_receivables_received_amount('received', $warehouse_id, '=', $today);
         $received_today_count = $this->count_receivables_by_status('received', $warehouse_id, '=', $today);
 
-        $received = $this->sum_receivables_amount('received', $warehouse_id);
+        $received = $this->sum_receivables_received_amount('received', $warehouse_id);
         $received_count = $this->count_receivables_by_status('received', $warehouse_id);
 
         $to_receive_month = $this->sum_receivables_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
@@ -577,5 +578,49 @@ class Receivables_model extends App_Model
             'data' => $data,
             'total' => $total
         ];
+    }
+
+    /**
+     * Calcula o valor total recebido considerando parcelas recebidas
+     */
+    private function sum_receivables_received_amount($status, $warehouse_id, $date_operator = null, $specific_date = null)
+    {
+        // Se não há parcelas, usar o método antigo
+        if (!$this->has_installments_table()) {
+            return $this->sum_receivables_amount($status, $warehouse_id, $date_operator, $specific_date);
+        }
+
+        // Verificar se há parcelas recebidas
+        $this->db->select('SUM(ai.valor_pago) as total_received');
+        $this->db->from(db_prefix() . 'account_installments ai');
+        $this->db->join($this->table() . ' r', 'r.id = ai.receivables_id');
+        $this->db->where('r.warehouse_id', $warehouse_id);
+        $this->db->where('ai.status', 'Pago');
+
+        if ($date_operator && !$specific_date) {
+            $this->db->where('ai.data_pagamento ' . $date_operator, date('Y-m-d'));
+        }
+
+        if ($specific_date) {
+            $this->db->where('ai.data_pagamento', $specific_date);
+        }
+
+        $result = $this->db->get()->row();
+        $total_from_installments = (float) ($result->total_received ?? 0);
+
+        // Se não há parcelas ou parcelas recebidas, usar o método antigo
+        if ($total_from_installments == 0) {
+            return $this->sum_receivables_amount($status, $warehouse_id, $date_operator, $specific_date);
+        }
+
+        return $total_from_installments;
+    }
+
+    /**
+     * Verifica se a tabela de parcelas existe
+     */
+    private function has_installments_table()
+    {
+        return $this->db->table_exists(db_prefix() . 'account_installments');
     }
 }

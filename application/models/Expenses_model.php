@@ -896,10 +896,11 @@ class Expenses_model extends App_Model
         $currentMonth = date('m');
         $currentYear = date('Y');
 
-        $paid_today = $this->sum_expenses_amount('paid', $warehouse_id, '=', $today);
+        // Para valores pagos, considerar parcelas pagas e não apenas o campo amount
+        $paid_today = $this->sum_expenses_paid_amount('paid', $warehouse_id, '=', $today);
         $paid_today_count = $this->count_expenses_by_status('paid', $warehouse_id, '=', $today);
 
-        $paid = $this->sum_expenses_amount('paid', $warehouse_id);
+        $paid = $this->sum_expenses_paid_amount('paid', $warehouse_id);
         $paid_count = $this->count_expenses_by_status('paid', $warehouse_id);
 
         $to_pay_month = $this->sum_expenses_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
@@ -923,6 +924,50 @@ class Expenses_model extends App_Model
             'overdue' => $overdue,
             'overdue_count' => $overdue_count,
         ];
+    }
+
+    /**
+     * Calcula o valor total pago considerando parcelas pagas
+     */
+    private function sum_expenses_paid_amount($status, $warehouse_id, $date_operator = null, $specific_date = null)
+    {
+        // Se não há parcelas, usar o método antigo
+        if (!$this->has_installments_table()) {
+            return $this->sum_expenses_amount($status, $warehouse_id, $date_operator, $specific_date);
+        }
+
+        // Verificar se há parcelas pagas
+        $this->db->select('SUM(ai.valor_pago) as total_paid');
+        $this->db->from(db_prefix() . 'account_installments ai');
+        $this->db->join(db_prefix() . 'expenses e', 'e.id = ai.expenses_id');
+        $this->db->where('e.warehouse_id', $warehouse_id);
+        $this->db->where('ai.status', 'Pago');
+
+        if ($date_operator && !$specific_date) {
+            $this->db->where('ai.data_pagamento ' . $date_operator, date('Y-m-d'));
+        }
+
+        if ($specific_date) {
+            $this->db->where('ai.data_pagamento', $specific_date);
+        }
+
+        $result = $this->db->get()->row();
+        $total_from_installments = (float) ($result->total_paid ?? 0);
+
+        // Se não há parcelas ou parcelas pagas, usar o método antigo
+        if ($total_from_installments == 0) {
+            return $this->sum_expenses_amount($status, $warehouse_id, $date_operator, $specific_date);
+        }
+
+        return $total_from_installments;
+    }
+
+    /**
+     * Verifica se a tabela de parcelas existe
+     */
+    private function has_installments_table()
+    {
+        return $this->db->table_exists(db_prefix() . 'account_installments');
     }
 
     private function sum_expenses_amount($status, $warehouse_id, $date_operator = null, $specific_date = null)

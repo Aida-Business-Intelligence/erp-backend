@@ -15,6 +15,7 @@ class Expenses extends REST_Controller
     {
         parent::__construct();
         $this->load->model('Expenses_model');
+        $this->load->library('storage_s3');
     }
 
     public function currencies_get()
@@ -123,14 +124,40 @@ class Expenses extends REST_Controller
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         try {
-            // Obter o conteúdo raw da requisição
-            $raw_input = file_get_contents("php://input");
+            // Verificar se é multipart/form-data ou JSON
+            $headers = $this->input->request_headers();
+            $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? $_SERVER['CONTENT_TYPE'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES) || isset($_POST['data']);
+            
+            // Log para debug
+            log_message('debug', 'Content-Type: ' . $content_type);
+            log_message('debug', 'Is multipart: ' . ($is_multipart ? 'true' : 'false'));
+            log_message('debug', 'FILES: ' . json_encode($_FILES));
+            log_message('debug', 'POST keys: ' . json_encode(array_keys($_POST)));
+            log_message('debug', 'POST data exists: ' . (isset($_POST['data']) ? 'true' : 'false'));
 
-            $data = json_decode($raw_input, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new Exception('JSON inválido: ' . json_last_error_msg());
+            if ($is_multipart) {
+                // Processar dados do FormData - usar $_POST diretamente como no Produto.php
+                if (isset($_POST['data'])) {
+                    $_POST = json_decode($_POST['data'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new Exception('JSON inválido: ' . json_last_error_msg());
+                    }
+                    $data = $_POST;
+                } else {
+                    throw new Exception('Campo "data" não encontrado na requisição multipart');
+                }
+            } else {
+                // Processar dados JSON
+                $raw_input = file_get_contents("php://input");
+                $data = json_decode($raw_input, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception('JSON inválido: ' . json_last_error_msg() . ' - Input: ' . $raw_input . ' - Content-Type: ' . $content_type);
+                }
+                $_POST = $data;
             }
+
+
 
             if (empty($data)) {
                 throw new Exception('Nenhum dado recebido');
@@ -138,65 +165,42 @@ class Expenses extends REST_Controller
 
             $this->db->trans_start();
 
+            // Inicializar cliente S3
+            $s3 = $this->storage_s3->getClient();
             $expense_document = null;
-            $document_field = !empty($data['expense_document']) ? 'expense_document' : (!empty($data['expense_document']) ? 'expense_document' : null);
 
-            if ($document_field && !empty($data[$document_field])) {
-                $document_data = $data[$document_field];
+            // Processar documento da despesa se enviado via multipart
+            if ($is_multipart && isset($_FILES['expense_document']) && $_FILES['expense_document']['error'] === UPLOAD_ERR_OK && $_FILES['expense_document']['size'] > 0) {
+                $file = $_FILES['expense_document'];
+                $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                
+                // Validar tipos de arquivo permitidos
+                $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+                if (!in_array($file_extension, $allowed_extensions)) {
+                    throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG');
+                }
 
-                // Verificar se é uma string base64 válida
-                if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
-                    $mime_type = $matches[1];
-                    $document_data = substr($document_data, strpos($document_data, ',') + 1);
+                // Verificar tamanho do arquivo (5MB)
+                if ($file['size'] > 5 * 1024 * 1024) {
+                    throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+                }
 
-                    // Validar tipos de arquivo permitidos
-                    $allowed_types = [
-                        'application/pdf',
-                        'application/msword',
-                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                        'image/jpeg',
-                        'image/jpg',
-                        'image/png'
-                    ];
+                $unique_filename = 'expense_' . time() . '_' . uniqid() . '.' . $file_extension;
+                $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $data['warehouse_id'] . '/expenses/documents/' . $unique_filename;
 
-                    if (!in_array($mime_type, $allowed_types)) {
-                        throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG');
-                    }
+                try {
+                    // Upload para S3
+                    $s3->putObject([
+                        'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                        'Key' => $blobName,
+                        'SourceFile' => $file['tmp_name'],
+                        'ACL' => 'public-read',
+                    ]);
 
-                    $document_data = base64_decode($document_data);
-
-                    if ($document_data === false) {
-                        throw new Exception('Falha ao decodificar o documento');
-                    }
-
-                    if (strlen($document_data) > 5 * 1024 * 1024) {
-                        throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
-                    }
-
-                    $upload_path = FCPATH . 'uploads/expenses/documents/';
-                    if (!is_dir($upload_path)) {
-                        mkdir($upload_path, 0755, true);
-                    }
-
-                    $extension_map = [
-                        'application/pdf' => 'pdf',
-                        'application/msword' => 'doc',
-                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                        'image/jpeg' => 'jpg',
-                        'image/jpg' => 'jpg',
-                        'image/png' => 'png'
-                    ];
-
-                    $extension = $extension_map[$mime_type] ?? 'bin';
-
-                    $filename = 'expense_' . time() . '_' . uniqid() . '.' . $extension;
-                    $file_path = $upload_path . $filename;
-
-                    if (file_put_contents($file_path, $document_data)) {
-                        $expense_document = 'uploads/expenses/documents/' . $filename;
-                    } else {
-                        throw new Exception('Falha ao salvar o documento no servidor');
-                    }
+                    // Constrói a URL do arquivo
+                    $expense_document = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+                } catch (Exception $e) {
+                    throw new Exception('Falha ao fazer upload do documento para S3: ' . $e->getMessage());
                 }
             }
 
@@ -204,13 +208,14 @@ class Expenses extends REST_Controller
                 'category' => $data['category'] ?? null,
                 'currency' => $data['currency'] ?? 1,
                 'amount' => $data['amount'] ?? null,
+                'amount_base' => $data['amount_base'] ?? $data['amount'] ?? null,
                 'tax' => $data['tax'] ?? null,
                 'tax2' => $data['tax2'] ?? 0,
                 'reference_no' => $data['reference_no'] ?? null,
                 'note' => $data['note'] ?? null,
                 'expense_identifier' => $data['expense_identifier'] ?? null,
                 'clientid' => $data['clientid'] ?? null,
-                'project_id' => $data['project_id'] ?? null,
+                'project_id' => $data['project_id'] ?? 0,
                 'billable' => isset($data['billable']) ? ($data['billable'] ? 1 : 0) : 0,
                 'invoiceid' => $data['invoiceid'] ?? null,
                 'paymentmode' => $data['paymentmode'] ?? null,
@@ -239,6 +244,7 @@ class Expenses extends REST_Controller
                 'barcode' => $data['barcode'] ?? null,
                 'origin' => $data['origin'] ?? null,
                 'is_client' => isset($data['is_client']) ? ($data['is_client'] ? 1 : 0) : 0,
+                'juros' => $data['juros'] ?? 0,
             ];
 
             // Processar parcelas se fornecidas
@@ -248,14 +254,22 @@ class Expenses extends REST_Controller
                 $input['installments'] = $installments;
             }
 
-            $input = array_filter($input, function ($value) {
+            // Filtrar apenas valores null, mas manter campos opcionais como expense_document
+            $input = array_filter($input, function ($value, $key) {
+                // Campos que podem ser null
+                $nullable_fields = ['expense_document', 'tax', 'tax2', 'reference_no', 'note', 'clientid', 'invoiceid', 'bank_account_id', 'order_number', 'installment_number', 'nfe_key', 'barcode'];
+                
+                if (in_array($key, $nullable_fields)) {
+                    return true; // Manter o campo mesmo se for null
+                }
+                
                 return $value !== null;
-            });
+            }, ARRAY_FILTER_USE_BOTH);
 
             $expense_id = $this->Expenses_model->add($input);
 
             if (!$expense_id) {
-                throw new Exception('Falha ao criar a despesa/receita');
+                throw new Exception('Falha ao criar a despesa');
             }
 
             $this->db->trans_complete();
@@ -269,7 +283,7 @@ class Expenses extends REST_Controller
                 'message' => 'Despesa criada com sucesso',
                 'data' => [
                     'id' => $expense_id,
-                    'document_url' => $expense_document ? base_url($expense_document) : null
+                    'document_url' => $expense_document
                 ]
             ], REST_Controller::HTTP_OK);
         } catch (Exception $e) {
@@ -294,7 +308,7 @@ class Expenses extends REST_Controller
             $field_name = $this->input->post('field_name');
 
             if (empty($expense_id) || empty($field_name)) {
-                throw new Exception("ID da despesa/receita e nome do campo são obrigatórios", REST_Controller::HTTP_BAD_REQUEST);
+                throw new Exception("ID da despesa e nome do campo são obrigatórios", REST_Controller::HTTP_BAD_REQUEST);
             }
 
             if (empty($_FILES['file'])) {
@@ -767,11 +781,8 @@ class Expenses extends REST_Controller
             $success = 0;
             $fail = 0;
             foreach ($rows as $rowId) {
-                // Buscar documento antes de deletar
-                $expense = $this->Expenses_model->gettwo($rowId);
-                if ($expense && !empty($expense->expense_document)) {
-                    $this->delete_expense_document_file($expense->expense_document);
-                }
+                // Deletar arquivos S3 antes de deletar o registro
+                $this->delete_expense_files_from_s3($rowId);
                 $deleted = $this->Expenses_model->delete_expense($rowId, $warehouse_id);
                 if ($deleted) {
                     $success++;
@@ -795,11 +806,8 @@ class Expenses extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        // Buscar documento antes de deletar
-        $expense = $this->Expenses_model->gettwo($id);
-        if ($expense && !empty($expense->expense_document)) {
-            $this->delete_expense_document_file($expense->expense_document);
-        }
+        // Deletar arquivos S3 antes de deletar o registro
+        $this->delete_expense_files_from_s3($id);
 
         $deleted = $this->Expenses_model->delete_expense($id, $warehouse_id);
 
@@ -816,19 +824,56 @@ class Expenses extends REST_Controller
         }
     }
 
-    // Função auxiliar para deletar arquivo físico se não for base64
+    // Função auxiliar para deletar arquivo do S3
     private function delete_expense_document_file($document) {
         if (strpos($document, 'data:') === 0) {
             // Documento em base64, nada a deletar
             return;
         }
-        $filePath = FCPATH . ltrim($document, '/');
-        if (file_exists($filePath)) {
-            @unlink($filePath);
+        
+        // Se for URL do S3, deletar do S3
+        if (strpos($document, 'https://') === 0) {
+            try {
+                $s3 = $this->storage_s3->getClient();
+                $key = str_replace("https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/", "", $document);
+                $s3->deleteObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $key
+                ]);
+            } catch (Exception $e) {
+                log_message('error', 'Erro ao deletar arquivo do S3: ' . $e->getMessage());
+            }
+        } else {
+            // Fallback para arquivo local (legado)
+            $filePath = FCPATH . ltrim($document, '/');
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
         }
     }
 
-    public function update_put($id = '')
+    // Função para deletar todos os arquivos S3 relacionados a uma despesa
+    private function delete_expense_files_from_s3($expense_id) {
+        // Buscar a despesa para obter o documento principal
+        $expense = $this->Expenses_model->gettwo($expense_id);
+        if ($expense && !empty($expense->expense_document)) {
+            $this->delete_expense_document_file($expense->expense_document);
+        }
+
+        // Buscar e deletar todos os comprovantes das parcelas
+        $this->load->model('Expenses_installments_model');
+        $installments = $this->Expenses_installments_model->get_installments_by_expense($expense_id);
+        
+        if ($installments) {
+            foreach ($installments as $installment) {
+                if (!empty($installment['comprovante'])) {
+                    $this->delete_expense_document_file($installment['comprovante']);
+                }
+            }
+        }
+    }
+
+    public function update_post($id = '')
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
@@ -838,30 +883,66 @@ class Expenses extends REST_Controller
                 'message' => 'ID is required'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+        $headers = $this->input->request_headers();
+        $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? $_SERVER['CONTENT_TYPE'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES) || isset($_POST['data']);
+        
+
 
         if ($is_multipart) {
-            $input = $this->input->post();
+            // Processar dados do FormData - usar $_POST diretamente como no Produto.php
+            if (isset($_POST['data'])) {
+                $_POST = json_decode($_POST['data'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'JSON inválido: ' . json_last_error_msg()
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $input = $_POST;
+            } else {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Campo "data" não encontrado na requisição multipart',
+                    'debug' => [
+                        'post_keys' => array_keys($_POST),
+                        'post_data' => $_POST
+                    ]
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
         } else {
+            // Processar dados JSON
             $raw_input = file_get_contents("php://input");
             $input = json_decode($raw_input, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'JSON inválido: ' . json_last_error_msg() . ' - Input: ' . $raw_input . ' - Content-Type: ' . $content_type
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+            $_POST = $input;
         }
 
         if (empty($input)) {
             return $this->response([
                 'status' => false,
-                'message' => 'Invalid input data'
+                'message' => 'Invalid input data - Input vazio ou inválido',
+                'debug' => [
+                    'is_multipart' => $is_multipart,
+                    'post_data' => isset($_POST['data']) ? $_POST['data'] : 'não encontrado',
+                    'raw_input' => isset($raw_input) ? $raw_input : 'não aplicável'
+                ]
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        // Atualizado: incluir todos os campos da tabela tblexpenses
+        // Campos da tabela tblexpenses (excluindo campos de parcelamento que vão para tblexpenses_installments)
         $fields = [
             'expense_name',
             'type',
             'category',
             'currency',
             'amount',
+            'amount_base',
             'tax',
             'tax2',
             'reference_no',
@@ -885,11 +966,7 @@ class Expenses extends REST_Controller
             'nfe_key',
             'barcode',
             'is_client',
-            // Adiciona campos de parcelamento
-            'num_parcelas',
             'juros',
-            'juros_apartir',
-            'total_parcelado',
         ];
 
         $updateData = [];
@@ -898,6 +975,8 @@ class Expenses extends REST_Controller
             if (isset($input[$field])) {
                 if (in_array($field, ['billable', 'send_invoice_to_customer', 'create_invoice_billable', 'is_client'])) {
                     $updateData[$field] = (!empty($input[$field]) && $input[$field] !== 'false') ? 1 : 0;
+                } elseif ($field === 'bank_account_id' && (empty($input[$field]) || $input[$field] === '')) {
+                    $updateData[$field] = null;
                 } else {
                     $updateData[$field] = $input[$field];
                 }
@@ -911,93 +990,89 @@ class Expenses extends REST_Controller
             // Não adicionar ao updateData para não tentar salvar no banco
         }
 
-        // Processar o documento se existir
-        if (!empty($input['expense_document'])) {
+        // Processar o documento se existir via multipart
+        if ($is_multipart && isset($_FILES['expense_document']) && $_FILES['expense_document']['error'] === UPLOAD_ERR_OK) {
             // Buscar o registro atual para pegar o caminho do arquivo antigo
             $current = $this->Expenses_model->gettwo($id);
             $old_document = $current && isset($current->expense_document) ? $current->expense_document : null;
 
-            $document_data = $input['expense_document'];
-            if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
-                $mime_type = $matches[1];
-                $document_data = substr($document_data, strpos($document_data, ',') + 1);
+            $file = $_FILES['expense_document'];
+            $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            
+            // Validar tipos de arquivo permitidos
+            $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+            if (!in_array($file_extension, $allowed_extensions)) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
 
-                // Validar tipos de arquivo permitidos
-                $allowed_types = [
-                    'application/pdf',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'image/jpeg',
-                    'image/jpg',
-                    'image/png'
-                ];
+            // Verificar tamanho do arquivo (5MB)
+            if ($file['size'] > 5 * 1024 * 1024) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
 
-                if (!in_array($mime_type, $allowed_types)) {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                }
-
-                $document_data = base64_decode($document_data);
-
-                if ($document_data === false) {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'Falha ao decodificar o documento'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                }
-
-                // Verificar tamanho do arquivo (5MB)
-                if (strlen($document_data) > 5 * 1024 * 1024) {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                }
-
-                // Apagar o arquivo antigo, se existir e não for base64
-                if ($old_document && strpos($old_document, 'data:') !== 0) {
-                    $old_path = FCPATH . ltrim($old_document, '/');
-                    if (file_exists($old_path)) {
-                        @unlink($old_path);
-                    }
-                }
-
-                $upload_path = FCPATH . 'uploads/expenses/documents/';
-                if (!is_dir($upload_path)) {
-                    mkdir($upload_path, 0755, true);
-                }
-
-                $extension_map = [
-                    'application/pdf' => 'pdf',
-                    'application/msword' => 'doc',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                    'image/jpeg' => 'jpg',
-                    'image/jpg' => 'jpg',
-                    'image/png' => 'png'
-                ];
-
-                $extension = $extension_map[$mime_type] ?? 'bin';
-
-                $filename = 'expense_' . time() . '_' . uniqid() . '.' . $extension;
-                $file_path = $upload_path . $filename;
-
-                if (file_put_contents($file_path, $document_data)) {
-                    $updateData['expense_document'] = 'uploads/expenses/documents/' . $filename;
-                } else {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'Falha ao salvar o documento no servidor'
-                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            // Apagar o arquivo antigo do S3, se existir
+            if ($old_document && strpos($old_document, 'https://') === 0) {
+                try {
+                    $s3 = $this->storage_s3->getClient();
+                    $old_key = str_replace("https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/", "", $old_document);
+                    $s3->deleteObject([
+                        'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                        'Key' => $old_key
+                    ]);
+                } catch (Exception $e) {
+                    // Log do erro, mas não falhar a operação
+                    log_message('error', 'Erro ao deletar arquivo antigo do S3: ' . $e->getMessage());
                 }
             }
-            else if (!empty($input['expense_document']) && !preg_match('/^data:(.+);base64,/', $input['expense_document'])) {
-                $updateData['expense_document'] = $input['expense_document'];
+
+            $warehouse_id = $current ? $current->warehouse_id : 0;
+            $unique_filename = 'expense_' . time() . '_' . uniqid() . '.' . $file_extension;
+            $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/expenses/documents/' . $unique_filename;
+
+            try {
+                // Inicializar cliente S3
+                $s3 = $this->storage_s3->getClient();
+                
+                // Upload para S3
+                $s3->putObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $blobName,
+                    'SourceFile' => $file['tmp_name'],
+                    'ACL' => 'public-read',
+                ]);
+
+                // Constrói a URL do arquivo
+                $updateData['expense_document'] = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+            } catch (Exception $e) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Falha ao fazer upload do documento para S3: ' . $e->getMessage()
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
 
-        $success = $this->Expenses_model->updatetwo($updateData, $id);
+        // Debug: verificar dados
+        log_message('debug', 'UpdateData: ' . json_encode($updateData));
+        log_message('debug', 'UpdateData count: ' . count($updateData));
+        log_message('debug', 'Installments: ' . ($installments ? 'yes' : 'no'));
+        
+        // Verificar se há dados para atualizar
+        if (empty($updateData)) {
+            // Se não há dados para atualizar, apenas processar parcelas se necessário
+            $success = true;
+            log_message('debug', 'No data to update, setting success = true');
+        } else {
+            // Sempre considerar sucesso, mesmo se não houve alterações
+            $this->Expenses_model->updatetwo($updateData, $id);
+            $success = true;
+            log_message('debug', 'Update completed, setting success = true');
+        }
 
         // Atualizar parcelas se necessário
         if ($success && $installments) {
@@ -1009,7 +1084,7 @@ class Expenses extends REST_Controller
         if (!$success) {
             return $this->response([
                 'status' => false,
-                'message' => 'Falha ao atualizar despesa ou nenhum dado alterado'
+                'message' => 'Falha ao atualizar despesa'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
@@ -1132,10 +1207,29 @@ class Expenses extends REST_Controller
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
         try {
-            $raw_input = file_get_contents("php://input");
-            $data = json_decode($raw_input, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new Exception('JSON inválido: ' . json_last_error_msg());
+            // Verificar se é multipart/form-data ou JSON
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+
+            if ($is_multipart) {
+                // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
+                if (isset($_POST['data'])) {
+                    $data = json_decode($_POST['data'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new Exception('JSON inválido: ' . json_last_error_msg());
+                    }
+                    $_POST = $data; // Reatribuir $_POST
+                } else {
+                    throw new Exception('Campo "data" não encontrado na requisição multipart');
+                }
+            } else {
+                // Processar dados JSON
+                $raw_input = file_get_contents("php://input");
+                $data = json_decode($raw_input, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception('JSON inválido: ' . json_last_error_msg());
+                }
+                $_POST = $data; // Reatribuir $_POST
             }
             if (empty($data['id'])) {
                 throw new Exception('ID da despesa é obrigatório');
@@ -1170,52 +1264,50 @@ class Expenses extends REST_Controller
                 'check_identifier' => $data['check_identifier'] ?? null,
                 'boleto_identifier' => $data['boleto_identifier'] ?? null,
             ];
-            // Upload do comprovante (voucher)
+            // Upload do comprovante (voucher) - agora via multipart/form-data
             $voucher_path = null;
-            if (!empty($data['comprovante'])) {
-                $document_data = $data['comprovante'];
-                if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
-                    $mime_type = $matches[1];
-                    $document_data = substr($document_data, strpos($document_data, ',') + 1);
-                    $allowed_types = [
-                        'application/pdf',
-                        'application/msword',
-                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                        'image/jpeg',
-                        'image/jpg',
-                        'image/png'
-                    ];
-                    if (!in_array($mime_type, $allowed_types)) {
-                        throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG');
-                    }
-                    $document_data = base64_decode($document_data);
-                    if ($document_data === false) {
-                        throw new Exception('Falha ao decodificar o comprovante');
-                    }
-                    if (strlen($document_data) > 5 * 1024 * 1024) {
-                        throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
-                    }
-                    $upload_path = FCPATH . 'uploads/expenses/voucher/';
-                    if (!is_dir($upload_path)) {
-                        mkdir($upload_path, 0755, true);
-                    }
-                    $extension_map = [
-                        'application/pdf' => 'pdf',
-                        'application/msword' => 'doc',
-                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                        'image/jpeg' => 'jpg',
-                        'image/jpg' => 'jpg',
-                        'image/png' => 'png'
-                    ];
-                    $extension = $extension_map[$mime_type] ?? 'bin';
-                    $filename = 'voucher_' . $expense_id . '_' . time() . '_' . uniqid() . '.' . $extension;
-                    $file_path = $upload_path . $filename;
-                    if (file_put_contents($file_path, $document_data)) {
-                        $voucher_path = 'uploads/expenses/voucher/' . $filename;
-                        $updateData['voucher'] = $voucher_path;
-                    } else {
-                        throw new Exception('Falha ao salvar o comprovante no servidor');
-                    }
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+            
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES['comprovante'];
+                $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                
+                // Validar tipos de arquivo permitidos
+                $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+                if (!in_array($file_extension, $allowed_extensions)) {
+                    throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG');
+                }
+
+                // Verificar tamanho do arquivo (5MB)
+                if ($file['size'] > 5 * 1024 * 1024) {
+                    throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+                }
+
+                // Buscar warehouse_id da despesa
+                $expense = $this->Expenses_model->gettwo($expense_id);
+                $warehouse_id = $expense ? $expense->warehouse_id : 0;
+
+                $unique_filename = 'voucher_' . $expense_id . '_' . time() . '_' . uniqid() . '.' . $file_extension;
+                $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/expenses/vouchers/' . $expense_id . '/' . $unique_filename;
+
+                try {
+                    // Inicializar cliente S3
+                    $s3 = $this->storage_s3->getClient();
+                    
+                    // Upload para S3
+                    $s3->putObject([
+                        'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                        'Key' => $blobName,
+                        'SourceFile' => $file['tmp_name'],
+                        'ACL' => 'public-read',
+                    ]);
+
+                    // Constrói a URL do arquivo
+                    $voucher_path = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+                    $updateData['voucher'] = $voucher_path;
+                } catch (Exception $e) {
+                    throw new Exception('Falha ao fazer upload do comprovante para S3: ' . $e->getMessage());
                 }
             }
             $this->load->model('Expenses_model');
@@ -1226,7 +1318,7 @@ class Expenses extends REST_Controller
             return $this->response([
                 'status' => true,
                 'message' => 'Pagamento baixado com sucesso',
-                'voucher_url' => $voucher_path ? base_url($voucher_path) : null
+                'voucher_url' => $voucher_path
             ], REST_Controller::HTTP_OK);
         } catch (Exception $e) {
             return $this->response([
@@ -1277,8 +1369,11 @@ class Expenses extends REST_Controller
             
             // Upload do comprovante (voucher) - será usado para todas as parcelas
             $voucher_path = null;
-            if (!empty($data['comprovante'])) {
-                $voucher_path = $this->upload_voucher($expense_id, $data['comprovante']);
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+            
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $voucher_path = $this->upload_voucher($expense_id, $_FILES['comprovante']);
             }
             
             $success_count = 0;
@@ -1332,7 +1427,7 @@ class Expenses extends REST_Controller
                     'success_count' => $success_count,
                     'failed_count' => $failed_count,
                     'errors' => $errors,
-                    'voucher_url' => $voucher_path ? base_url($voucher_path) : null
+                    'voucher_url' => $voucher_path
                 ], REST_Controller::HTTP_PARTIAL_CONTENT);
             }
             
@@ -1340,7 +1435,7 @@ class Expenses extends REST_Controller
                 'status' => true,
                 'message' => "Todas as parcelas foram pagas com sucesso",
                 'success_count' => $success_count,
-                'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
+                'voucher_url' => $voucher_path,
                 'installment_summary' => $summary
             ], REST_Controller::HTTP_OK);
             
@@ -1577,9 +1672,15 @@ class Expenses extends REST_Controller
             
             // Upload do comprovante (voucher)
             $voucher_path = null;
-            if (!empty($data['comprovante'])) {
-                $voucher_path = $this->upload_voucher($expense_id, $data['comprovante']);
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+            
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $voucher_path = $this->upload_voucher($expense_id, $_FILES['comprovante']);
             }
+            
+            // Adicionar o comprovante aos dados de pagamento
+            $payment_data['comprovante'] = $voucher_path;
             
             // Realizar o pagamento
             $success = $this->Expenses_installments_model->pay_installment($installment_id, $payment_data);
@@ -1601,7 +1702,7 @@ class Expenses extends REST_Controller
             return $this->response([
                 'status' => true,
                 'message' => 'Parcela paga com sucesso',
-                'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
+                'voucher_url' => $voucher_path,
                 'installment_summary' => $summary
             ], REST_Controller::HTTP_OK);
             
@@ -1614,55 +1715,49 @@ class Expenses extends REST_Controller
     }
 
     /**
-     * Upload de voucher
+     * Upload de voucher para S3
      * @param int $expense_id ID da despesa
-     * @param string $document_data Dados do documento em base64
-     * @return string|null Caminho do arquivo ou null
+     * @param array $file Dados do arquivo do $_FILES
+     * @return string|null URL do arquivo ou null
      */
-    private function upload_voucher($expense_id, $document_data)
+    private function upload_voucher($expense_id, $file)
     {
-        if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
-            $mime_type = $matches[1];
-            $document_data = substr($document_data, strpos($document_data, ',') + 1);
-            $allowed_types = [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'image/jpeg',
-                'image/jpg',
-                'image/png'
-            ];
-            if (!in_array($mime_type, $allowed_types)) {
-                throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG');
-            }
-            $document_data = base64_decode($document_data);
-            if ($document_data === false) {
-                throw new Exception('Falha ao decodificar o comprovante');
-            }
-            if (strlen($document_data) > 5 * 1024 * 1024) {
-                throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
-            }
-            $upload_path = FCPATH . 'uploads/expenses/voucher/';
-            if (!is_dir($upload_path)) {
-                mkdir($upload_path, 0755, true);
-            }
-            $extension_map = [
-                'application/pdf' => 'pdf',
-                'application/msword' => 'doc',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                'image/jpeg' => 'jpg',
-                'image/jpg' => 'jpg',
-                'image/png' => 'png'
-            ];
-            $extension = $extension_map[$mime_type] ?? 'bin';
-            $filename = 'voucher_' . $expense_id . '_' . time() . '_' . uniqid() . '.' . $extension;
-            $file_path = $upload_path . $filename;
-            if (file_put_contents($file_path, $document_data)) {
-                return 'uploads/expenses/voucher/' . $filename;
-            } else {
-                throw new Exception('Falha ao salvar o comprovante no servidor');
-            }
+        $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        
+        // Validar tipos de arquivo permitidos
+        $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+        if (!in_array($file_extension, $allowed_extensions)) {
+            throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG');
         }
-        return null;
+
+        // Verificar tamanho do arquivo (5MB)
+        if ($file['size'] > 5 * 1024 * 1024) {
+            throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+        }
+
+        // Buscar warehouse_id da despesa
+        $expense = $this->Expenses_model->gettwo($expense_id);
+        $warehouse_id = $expense ? $expense->warehouse_id : 0;
+
+        $unique_filename = 'voucher_' . $expense_id . '_' . time() . '_' . uniqid() . '.' . $file_extension;
+        $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/expenses/vouchers/' . $expense_id . '/' . $unique_filename;
+
+        try {
+            // Inicializar cliente S3
+            $s3 = $this->storage_s3->getClient();
+            
+            // Upload para S3
+            $s3->putObject([
+                'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                'Key' => $blobName,
+                'SourceFile' => $file['tmp_name'],
+                'ACL' => 'public-read',
+            ]);
+
+            // Constrói a URL do arquivo
+            return "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+        } catch (Exception $e) {
+            throw new Exception('Falha ao fazer upload do comprovante para S3: ' . $e->getMessage());
+        }
     }
 }

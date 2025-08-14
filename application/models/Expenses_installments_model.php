@@ -93,6 +93,7 @@ class Expenses_installments_model extends App_Model
             paymentmode_id,
             documento_parcela,
             observacoes,
+            comprovante,
             data_pagamento,
             valor_pago,
             banco_id,
@@ -172,6 +173,7 @@ class Expenses_installments_model extends App_Model
             'multa' => $payment_data['multa'] ?? 0,
             'id_cheque' => $payment_data['id_cheque'] ?? null,
             'id_boleto' => $payment_data['id_boleto'] ?? null,
+            'comprovante' => $payment_data['comprovante'] ?? null,
         ];
 
         $result = $this->update_installment($installment_id, $data);
@@ -426,6 +428,7 @@ class Expenses_installments_model extends App_Model
             'multa' => $payment_data['multa'] ?? 0,
             'id_cheque' => $payment_data['id_cheque'] ?? null,
             'id_boleto' => $payment_data['id_boleto'] ?? null,
+            'comprovante' => $payment_data['comprovante'] ?? null,
         ];
 
         // Se pagou o valor total, marca como pago

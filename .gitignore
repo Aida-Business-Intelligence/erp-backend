@@ -42,6 +42,7 @@ ngproject/
 public/
 
 
+
 # Arquivos com senhas e credenciais
 .env
 .codegpt

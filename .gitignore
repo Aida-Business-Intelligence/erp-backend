@@ -40,7 +40,7 @@ application/third_party/
 robots.txt
 ngproject/
 public/
-
+vendor/
 
 
 # Arquivos com senhas e credenciais

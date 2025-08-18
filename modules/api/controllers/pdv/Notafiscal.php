@@ -65,7 +65,7 @@ class Notafiscal extends REST_Controller
 
     public function list_post()
     {
-        echo 2; exit;
+        // echo 2; exit;
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;
@@ -126,6 +126,32 @@ class Notafiscal extends REST_Controller
         }
 
         $list_nf = $this->Notafiscal_model->get($id);
+
+        if ($list_nf) {
+            $this->response([
+                'status' => TRUE,
+                'data' => $list_nf
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'No data were found'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+    }
+
+    public function nfce_get($id = '')
+    {
+        // var_dump($id);
+        if (empty($id) || !is_numeric($id)) {
+            $this->response([
+                'status' => FALSE,
+                'message' => 'Invalid NF ID'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+
+        $list_nf = $this->Notafiscal_model->get_nfce($id);
 
         if ($list_nf) {
             $this->response([

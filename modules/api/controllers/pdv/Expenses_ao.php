@@ -15,26 +15,7 @@ class Expenses_ao extends REST_Controller
     {
         parent::__construct();
         $this->load->model('Expenses_ao_model');
-    }
-
-    public function categoriestwo_get()
-    {
-        try {
-            $warehouse_id = $this->input->get('warehouse_id') ?: 0;
-            $search = $this->input->get('search') ?: '';
-            $pageSize = $this->input->get('pageSize') ?: 5;
-            $categories = $this->Expenses_ao_model->get_categories($warehouse_id, $search, $pageSize);
-
-            $this->response([
-                'success' => true,
-                'data' => $categories
-            ], REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        $this->load->library('storage_s3');
     }
 
     public function currencies_get()
@@ -95,8 +76,9 @@ class Expenses_ao extends REST_Controller
             $search = $this->input->get('search') ?: '';
             $page = $this->input->get('page') ?: 0;
             $limit = $this->input->get('pageSize') ?: 5;
+            $type = $this->input->get('type') ?: 'suppliers'; // 'suppliers', 'clients'
 
-            $clients = $this->Expenses_ao_model->get_clients($warehouse_id, $search, $limit, $page);
+            $clients = $this->Expenses_ao_model->get_clients($warehouse_id, $search, $limit, $page, $type);
 
             $this->response([
                 'success' => true,
@@ -137,73 +119,186 @@ class Expenses_ao extends REST_Controller
         }
     }
 
-    public function createtwo_post()
+    public function create_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+        try {
+            // Verificar se é multipart/form-data ou JSON
+            $headers = $this->input->request_headers();
+            $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? $_SERVER['CONTENT_TYPE'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES) || isset($_POST['data']);
 
-        if ($is_multipart) {
-            $_POST = $this->input->post();
-        } else {
-            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+            // Log para debug
+            log_message('debug', 'Content-Type: ' . $content_type);
+            log_message('debug', 'Is multipart: ' . ($is_multipart ? 'true' : 'false'));
+            log_message('debug', 'FILES: ' . json_encode($_FILES));
+            log_message('debug', 'POST keys: ' . json_encode(array_keys($_POST)));
+            log_message('debug', 'POST data exists: ' . (isset($_POST['data']) ? 'true' : 'false'));
+
+            if ($is_multipart) {
+                // Processar dados do FormData - usar $_POST diretamente como no Produto.php
+                if (isset($_POST['data'])) {
+                    $_POST = json_decode($_POST['data'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new Exception('JSON inválido: ' . json_last_error_msg());
+                    }
+                    $data = $_POST;
+                } else {
+                    throw new Exception('Campo "data" não encontrado na requisição multipart');
+                }
+            } else {
+                // Processar dados JSON
+                $raw_input = file_get_contents("php://input");
+                $data = json_decode($raw_input, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception('JSON inválido: ' . json_last_error_msg() . ' - Input: ' . $raw_input . ' - Content-Type: ' . $content_type);
+                }
+                $_POST = $data;
+            }
+
+
+
+            if (empty($data)) {
+                throw new Exception('Nenhum dado recebido');
+            }
+
+            $this->db->trans_start();
+
+            // Inicializar cliente S3
+            $s3 = $this->storage_s3->getClient();
+            $expense_document = null;
+
+            // Processar documento da despesa se enviado via multipart
+            if ($is_multipart && isset($_FILES['expense_document']) && $_FILES['expense_document']['error'] === UPLOAD_ERR_OK && $_FILES['expense_document']['size'] > 0) {
+                $file = $_FILES['expense_document'];
+                $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+                // Validar tipos de arquivo permitidos
+                $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+                if (!in_array($file_extension, $allowed_extensions)) {
+                    throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG');
+                }
+
+                // Verificar tamanho do arquivo (5MB)
+                if ($file['size'] > 5 * 1024 * 1024) {
+                    throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+                }
+
+                $unique_filename = 'expense_' . time() . '_' . uniqid() . '.' . $file_extension;
+                $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $data['warehouse_id'] . '/expenses_ao/documents/' . $unique_filename;
+
+                try {
+                    // Upload para S3
+                    $s3->putObject([
+                        'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                        'Key' => $blobName,
+                        'SourceFile' => $file['tmp_name'],
+                        'ACL' => 'public-read',
+                    ]);
+
+                    // Constrói a URL do arquivo
+                    $expense_document = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+                } catch (Exception $e) {
+                    throw new Exception('Falha ao fazer upload do documento para S3: ' . $e->getMessage());
+                }
+            }
+
+            $input = [
+                'category' => $data['category'] ?? null,
+                'currency' => $data['currency'] ?? 1,
+                'amount' => $data['amount'] ?? null,
+                'amount_base' => $data['amount_base'] ?? $data['amount'] ?? null,
+                'tax' => $data['tax'] ?? null,
+                'tax2' => $data['tax2'] ?? 0,
+                'reference_no' => $data['reference_no'] ?? null,
+                'note' => $data['note'] ?? null,
+                'expense_identifier' => $data['expense_identifier'] ?? null,
+                'clientid' => $data['clientid'] ?? null,
+                'project_id' => $data['project_id'] ?? 0,
+                'billable' => isset($data['billable']) ? ($data['billable'] ? 1 : 0) : 0,
+                'invoiceid' => $data['invoiceid'] ?? null,
+                'paymentmode' => $data['paymentmode'] ?? null,
+                'date' => $data['date'] ?? date('Y-m-d'),
+                'due_date' => $data['due_date'] ?? null,
+                'reference_date' => $data['reference_date'] ?? null,
+                'recurring_type' => null,
+                'repeat_every' => null,
+                'recurring' => 0,
+                'cycles' => 0,
+                'total_cycles' => 0,
+                'custom_recurring' => 0,
+                'last_recurring_date' => null,
+                'create_invoice_billable' => isset($data['create_invoice_billable']) ? ($data['create_invoice_billable'] ? 1 : 0) : 0,
+                'send_invoice_to_customer' => isset($data['send_invoice_to_customer']) ? ($data['send_invoice_to_customer'] ? 1 : 0) : 0,
+                'recurring_from' => null,
+                'dateadded' => date('Y-m-d H:i:s'),
+                'addedfrom' => get_staff_user_id() ?? 1,
+                'perfex_saas_tenant_id' => 'master',
+                'status' => $data['status'] ?? 'pending',
+                'warehouse_id' => $data['warehouse_id'] ?? 0,
+                'expense_document' => $expense_document,
+                'order_number' => $data['order_number'] ?? null,
+                'installment_number' => $data['installment_number'] ?? null,
+                'nfe_key' => $data['nfe_key'] ?? null,
+                'barcode' => $data['barcode'] ?? null,
+                'origin' => $data['origin'] ?? null,
+                'is_client' => isset($data['is_client']) ? ($data['is_client'] ? 1 : 0) : 0,
+                'juros' => $data['juros'] ?? 0,
+            ];
+
+            // Processar parcelas se fornecidas
+            $installments = null;
+            if (isset($data['num_parcelas']) && $data['num_parcelas'] > 1) {
+                $installments = $this->process_installments($data);
+                $input['installments'] = $installments;
+            }
+
+            // Filtrar apenas valores null, mas manter campos opcionais como expense_document
+            $input = array_filter($input, function ($value, $key) {
+                // Campos que podem ser null
+                $nullable_fields = ['expense_document', 'tax', 'tax2', 'reference_no', 'note', 'clientid', 'invoiceid', 'bank_account_id', 'order_number', 'installment_number', 'nfe_key', 'barcode'];
+
+                if (in_array($key, $nullable_fields)) {
+                    return true; // Manter o campo mesmo se for null
+                }
+
+                return $value !== null;
+            }, ARRAY_FILTER_USE_BOTH);
+
+            $expense_id = $this->Expenses_ao_model->add($input);
+
+            if (!$expense_id) {
+                throw new Exception('Falha ao criar a despesa');
+            }
+
+            $this->db->trans_complete();
+
+            if ($this->db->trans_status() === FALSE) {
+                throw new Exception('Falha na transação do banco de dados');
+            }
+
+            $this->response([
+                'status' => true,
+                'message' => 'Despesa criada com sucesso',
+                'data' => [
+                    'id' => $expense_id,
+                    'document_url' => $expense_document
+                ]
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            // log_message('error', 'ERROR_CREATETWO: ' . $e->getMessage());
+
+            $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+                'debug' => [
+                    'input' => isset($raw_input) ? $raw_input : null,
+                    'decoded' => isset($data) ? $data : null
+                ]
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        if (empty($_POST)) {
-            $this->response(['status' => false, 'message' => 'Invalid input data'], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $input = [
-            'category' => $_POST['category'] ?? null,
-            'currency' => $_POST['currency'] ?? 1,
-            'amount' => $_POST['amount'] ?? null,
-            'tax' => $_POST['tax'] ?? null,
-            'tax2' => $_POST['tax2'] ?? 0,
-            'reference_no' => $_POST['reference_no'] ?? null,
-            'note' => $_POST['note'] ?? null,
-            'expense_name' => $_POST['expense_name'] ?? null,
-            'clientid' => $_POST['clientid'] ?? 0,
-            'project_id' => $_POST['project_id'] ?? 0,
-            'billable' => $_POST['billable'] ?? 0,
-            'invoiceid' => $_POST['invoiceid'] ?? null,
-            'paymentmode' => $_POST['paymentmode'] ?? null,
-            'date' => $_POST['date'] ?? null,
-            'recurring_type' => $_POST['recurring_type'] ?? null,
-            'repeat_every' => $_POST['repeat_every'] ?? null,
-            'recurring' => $_POST['recurring'] ?? 0,
-            'cycles' => $_POST['cycles'] ?? 0,
-            'total_cycles' => $_POST['total_cycles'] ?? 0,
-            'custom_recurring' => $_POST['custom_recurring'] ?? 0,
-            'last_recurring_date' => $_POST['last_recurring_date'] ?? null,
-            'create_invoice_billable' => $_POST['create_invoice_billable'] ?? 0,
-            'send_invoice_to_customer' => $_POST['send_invoice_to_customer'] ?? 0,
-            'recurring_from' => $_POST['recurring_from'] ?? null,
-            'dateadded' => date('Y-m-d H:i:s'),
-            'addedfrom' => get_staff_user_id() ?? 1,
-            'perfex_saas_tenant_id' => 'master',
-            'type' => $_POST['type'] ?? 'despesa',
-            'status' => $_POST['status'] ?? 'pending',
-            'warehouse_id' => $_POST['warehouse_id'] ?? 0,
-        ];
-
-        $input['send_invoice_to_customer'] = (!empty($_POST['send_invoice_to_customer']) && $_POST['send_invoice_to_customer'] !== 'false') ? 1 : 0;
-
-        $expense_id = $this->Expenses_ao_model->addtwo($input);
-
-        if (!$expense_id) {
-            $this->response(['status' => false, 'message' => 'Failed to create expense'], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-            return;
-        }
-
-        $this->Expenses_ao_model->handle_file_uploads($expense_id, $_FILES);
-
-        $this->response([
-            'status' => true,
-            'message' => 'Expense created successfully',
-            'data' => ['id' => $expense_id]
-        ], REST_Controller::HTTP_OK);
     }
 
     public function upload_post()
@@ -213,7 +308,7 @@ class Expenses_ao extends REST_Controller
             $field_name = $this->input->post('field_name');
 
             if (empty($expense_id) || empty($field_name)) {
-                throw new Exception("ID da despesa/receita e nome do campo são obrigatórios", REST_Controller::HTTP_BAD_REQUEST);
+                throw new Exception("ID da despesa e nome do campo são obrigatórios", REST_Controller::HTTP_BAD_REQUEST);
             }
 
             if (empty($_FILES['file'])) {
@@ -238,23 +333,6 @@ class Expenses_ao extends REST_Controller
         }
     }
 
-
-    public function warehouselist_get()
-    {
-        try {
-            $warehouses = $this->Expenses_ao_model->get_warehouses();
-
-            $this->response([
-                'success' => true,
-                'data' => $warehouses
-            ], REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], $e->getCode() ?: REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
 
     public function validateduplicates_post()
     {
@@ -323,10 +401,10 @@ class Expenses_ao extends REST_Controller
         $params['offset'] = $offset;
 
         // Log parameters
-        log_activity('Received parameters: ' . json_encode($params));
+        // log_activity('Received parameters: ' . json_encode($params));
 
         // Get data from model
-        $result = $this->Expenses_ao_model->get_filtered_expenses($params);
+        $result = $this->Expenses_ao_model->get_filtered_expenses_by_due_date($params);
         $data = $result['data'];
         $total = $result['total'];
 
@@ -379,14 +457,14 @@ class Expenses_ao extends REST_Controller
             'page' => (int) ($this->post('page') ?: 1),
             'pageSize' => (int) ($this->post('pageSize') ?: 10),
             'search' => $this->post('search') ?: '',
-            'sortField' => $this->post('sortField') ?: db_prefix() . 'expenses_ao.id',
+            'sortField' => $this->post('sortField') ?: db_prefix() . 'expenses.id',
             'sortOrder' => $this->post('sortOrder') === 'desc' ? 'DESC' : 'ASC',
             'start_date' => $this->post('start_date'),
             'end_date' => $this->post('end_date')
         ];
 
         $this->load->model('Expenses_ao_model');
-        $result = $this->Expenses_ao_model->get_expenses_by_date($params);
+        $result = $this->Expenses_ao_model->get_expenses_by_due_date($params);
 
         // Enriquecer com informações de recorrência no controller (opcional)
         foreach ($result['data'] as &$expense) {
@@ -411,6 +489,40 @@ class Expenses_ao extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
+    public function list_by_day_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        $warehouse_id = $this->post('warehouse_id');
+        $date = $this->post('date');
+        $page = (int) ($this->post('page') ?: 1);
+        $pageSize = (int) ($this->post('pageSize') ?: 10);
+
+        if (empty($warehouse_id) || empty($date)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'warehouse_id e date são obrigatórios'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $params = [
+            'warehouse_id' => $warehouse_id,
+            'date' => $date,
+            'page' => $page,
+            'pageSize' => $pageSize,
+        ];
+
+        $result = $this->Expenses_ao_model->get_expenses_by_day($params);
+
+        return $this->response([
+            'status' => true,
+            'total' => $result['total'],
+            'page' => $page,
+            'limit' => $pageSize,
+            'total_pages' => ceil($result['total'] / $pageSize),
+            'data' => $result['data']
+        ], REST_Controller::HTTP_OK);
+    }
 
     private function calculate_recurring_dates($start_date, $recurring_type, $repeat_every, $range_start, $range_end, $total_cycles, $cycles_completed)
     {
@@ -470,163 +582,6 @@ class Expenses_ao extends REST_Controller
         return number_format($value, 2);
     }
 
-    public function create_post()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        $content_type = isset($this->input->request_headers()['Content-Type'])
-            ? $this->input->request_headers()['Content-Type']
-            : (isset($this->input->request_headers()['content-type'])
-                ? $this->input->request_headers()['content-type']
-                : null);
-
-        $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
-
-        if ($is_multipart) {
-            $input = $this->input->post();
-
-            log_activity('Expense Create Input (multipart): ' . json_encode($input));
-        } else {
-            $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-            log_activity('Expense Create Input (json): ' . json_encode($input));
-        }
-
-        $required_fields = [];
-
-        if (empty($input['category'])) {
-            $required_fields[] = 'category';
-        }
-        if (empty($input['amount'])) {
-            $required_fields[] = 'amount';
-        }
-        if (empty($input['date'])) {
-            $required_fields[] = 'date';
-        }
-        if (empty($input['warehouse_id'])) {
-            $required_fields[] = 'warehouse_id';
-        }
-
-        if (!empty($required_fields)) {
-            $message = array(
-                'status' => FALSE,
-                'message' => 'Missing required fields: ' . implode(', ', $required_fields)
-            );
-            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        if (!empty($input['type']) && !in_array($input['type'], ['despesa', 'receita'])) {
-            $message = array(
-                'status' => FALSE,
-                'message' => 'Invalid type: must be either "despesa" or "receita"'
-            );
-            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $data = array(
-            'category' => $input['category'],
-            'amount' => $input['amount'],
-            'date' => $input['date'],
-            'warehouse_id' => $input['warehouse_id'],
-            'note' => $input['note'] ?? '',
-            'clientid' => isset($input['clientid']) && !empty($input['clientid']) ? $input['clientid'] : 0,
-            'paymentmode' => $input['paymentmode'] ?? null,
-            'tax' => $input['tax'] ?? null,
-            'tax2' => $input['tax2'] ?? null,
-            'currency' => $input['currency'] ?? 3,
-            'reference_no' => $input['reference_no'] ?? null,
-            'addedfrom' => get_staff_user_id(),
-            'type' => $input['type'] ?? 'despesa',
-            'status' => 'pending'
-        );
-
-        if (!empty($input['recurring']) && $input['recurring'] == 1) {
-            if ($input['custom_recurring'] == 1) {
-                $data['repeat_every'] = 'custom';
-                $data['repeat_every_custom'] = $input['repeat_every'];
-                $data['repeat_type_custom'] = $input['recurring_type'];
-            } else {
-                $data['repeat_every'] = $input['repeat_every'] . '-' . $input['recurring_type'];
-            }
-
-            if (isset($input['cycles'])) {
-                $data['cycles'] = $input['cycles'];
-            }
-            if (isset($input['total_cycles'])) {
-                $data['total_cycles'] = $input['total_cycles'];
-            }
-        }
-
-
-        $expense_id = $this->Expenses_ao_model->add($data);
-
-        if (!$expense_id) {
-            log_activity('Failed to create expense. DB Error: ' . $this->db->error()['message']);
-
-            $message = array(
-                'status' => FALSE,
-                'message' => 'Falha ao criar despesa'
-            );
-            $this->response($message, REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-            return;
-        }
-
-        if ($is_multipart && isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['file'];
-
-            $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-            if (!in_array($file['type'], $allowed_types)) {
-                $this->Expenses_ao_model->delete($expense_id);
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: JPG, PNG, PDF, DOC, DOCX'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-                return;
-            }
-
-            $max_size = 5 * 1024 * 1024;
-            if ($file['size'] > $max_size) {
-                $this->Expenses_ao_model->delete($expense_id);
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-                return;
-            }
-
-            $upload_dir = './uploads/expenses/' . $expense_id . '/';
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
-            }
-
-            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = uniqid() . '.' . $extension;
-            $upload_path = $upload_dir . $filename;
-
-            if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                $server_url = base_url();
-                $relative_path = str_replace('./', '', $upload_path);
-                $file_url = rtrim($server_url, '/') . '/' . $relative_path;
-
-                $this->db->where('id', $expense_id);
-                $this->db->update(db_prefix() . 'expenses_ao', ['file' => $file_url]);
-            } else {
-                log_activity('Failed to move uploaded file for expense ' . $expense_id);
-            }
-        }
-
-        $expense = $this->Expenses_ao_model->get($expense_id);
-        log_activity('Created expense: ' . json_encode($expense));
-
-        $message = array(
-            'status' => TRUE,
-            'message' => 'Despesa criada com sucesso',
-            'data' => $expense
-        );
-        $this->response($message, REST_Controller::HTTP_CREATED);
-    }
-
     public function data_delete($id = '')
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -652,102 +607,6 @@ class Expenses_ao extends REST_Controller
         $this->response($message, REST_Controller::HTTP_OK);
     }
 
-
-    public function update_post()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        $content_type = isset($this->input->request_headers()['Content-Type'])
-            ? $this->input->request_headers()['Content-Type']
-            : (isset($this->input->request_headers()['content-type'])
-                ? $this->input->request_headers()['content-type']
-                : null);
-
-        $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
-
-        if ($is_multipart) {
-            $_POST = $this->input->post();
-            log_activity('Expense Update Input (multipart): ' . json_encode($_POST));
-        } else {
-            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-            log_activity('Expense Update Input (json): ' . json_encode($_POST));
-        }
-
-        if (empty($_POST) || !isset($_POST)) {
-            $message = array('status' => FALSE, 'message' => 'Data Not Acceptable OR Not Provided');
-            $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
-            return;
-        }
-
-        $this->form_validation->set_data($_POST);
-
-        if (empty($_POST['id']) || !is_numeric($_POST['id'])) {
-            $message = array('status' => FALSE, 'message' => 'Invalid Expense ID');
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            return;
-        }
-
-        $update_data = $this->input->post();
-        $expense_id = $_POST['id'];
-
-        if ($is_multipart && isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
-            $file = $_FILES['file'];
-
-            $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-            if (!in_array($file['type'], $allowed_types)) {
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: JPG, PNG, PDF, DOC, DOCX'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-                return;
-            }
-
-            $max_size = 5 * 1024 * 1024;
-            if ($file['size'] > $max_size) {
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-                return;
-            }
-
-            $upload_dir = './uploads/expenses/' . $expense_id . '/';
-            if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
-            }
-
-            $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = uniqid() . '.' . $extension;
-            $upload_path = $upload_dir . $filename;
-
-            if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                $server_url = base_url();
-                $relative_path = str_replace('./', '', $upload_path);
-                $file_url = rtrim($server_url, '/') . '/' . $relative_path;
-
-                $update_data['file'] = $file_url;
-            } else {
-                log_activity('Failed to move uploaded file for expense ' . $expense_id);
-            }
-        }
-
-        $this->load->model('Expenses_ao_model');
-        $output = $this->Expenses_ao_model->update($update_data, $expense_id);
-
-        if (!$output || empty($output)) {
-            $message = array('status' => FALSE, 'message' => 'Expenses Update Fail.');
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-            return;
-        }
-
-        $message = array(
-            'status' => TRUE,
-            'message' => 'Expenses Update Successful.',
-            'data' => $this->Expenses_ao_model->get($expense_id)
-        );
-        $this->response($message, REST_Controller::HTTP_OK);
-    }
-
     public function totals_by_period_get()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
@@ -766,7 +625,7 @@ class Expenses_ao extends REST_Controller
         $end_date = $this->get('end_date');
 
         $this->db->select('SUM(amount) as total_amount, COUNT(*) as total_expenses');
-        $this->db->from(db_prefix() . 'expenses_ao');
+        $this->db->from(db_prefix() . 'expenses');
         $this->db->where('warehouse_id', $warehouse_id);
 
         if (!empty($start_date)) {
@@ -792,560 +651,6 @@ class Expenses_ao extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
-
-    public function categories_get()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        $warehouse_id = $this->get('warehouse_id');
-
-        if (empty($warehouse_id)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Warehouse ID is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        try {
-            $this->db->select('id, name, description, warehouse_id');
-            $this->db->from(db_prefix() . 'expenses_categories');
-            $this->db->where('warehouse_id', $warehouse_id);
-            $categories = $this->db->get()->result_array();
-
-            $this->response([
-                'status' => TRUE,
-                'data' => $categories ?: []
-            ], REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Erro ao buscar categorias',
-                'error' => $e->getMessage()
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    public function category_post()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-        if (empty($input['name']) || empty($input['warehouse_id'])) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Name and warehouse_id are required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $data = [
-            'name' => $input['name'],
-            'description' => $input['description'] ?? '',
-            'warehouse_id' => $input['warehouse_id'],
-            'perfex_saas_tenant_id' => 'master'
-        ];
-
-        try {
-            $this->db->insert(db_prefix() . 'expenses_categories', $data);
-            $category_id = $this->db->insert_id();
-
-            if ($category_id) {
-                $inserted_category = $this->db->get_where(db_prefix() . 'expenses_categories', ['id' => $category_id])->row_array();
-                $this->response([
-                    'status' => TRUE,
-                    'message' => 'Categoria criada com sucesso',
-                    'data' => $inserted_category
-                ], REST_Controller::HTTP_CREATED);
-            } else {
-                throw new Exception('Failed to create category');
-            }
-        } catch (Exception $e) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Erro ao criar categoria',
-                'error' => $e->getMessage()
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    public function category_put($id = null)
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        if (empty($id)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Category ID is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-        if (empty($input['name'])) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Name is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $data = [
-            'name' => $input['name'],
-            'description' => $input['description'] ?? '',
-            'warehouse_id' => $input['warehouse_id'] ?? 0
-        ];
-
-        try {
-            $this->db->where('id', $id);
-            $update_result = $this->db->update(db_prefix() . 'expenses_categories', $data);
-
-            if ($update_result) {
-                $updated_category = $this->db->get_where(db_prefix() . 'expenses_categories', ['id' => $id])->row_array();
-                $this->response([
-                    'status' => TRUE,
-                    'message' => 'Categoria atualizada com sucesso',
-                    'data' => $updated_category
-                ], REST_Controller::HTTP_OK);
-            } else {
-                throw new Exception('Failed to update category');
-            }
-        } catch (Exception $e) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Erro ao atualizar categoria',
-                'error' => $e->getMessage()
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    public function category_delete($id = null)
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        if (empty($id)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Category ID is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        try {
-            $this->db->where('category', $id);
-            $expense_count = $this->db->count_all_results(db_prefix() . 'expenses_ao');
-
-            if ($expense_count > 0) {
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'Não é possível excluir a categoria pois existem despesas vinculadas a ela'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-                return;
-            }
-
-            $this->db->where('id', $id);
-            $delete_result = $this->db->delete(db_prefix() . 'expenses_categories');
-
-            if ($delete_result) {
-                $this->response([
-                    'status' => TRUE,
-                    'message' => 'Categoria excluída com sucesso'
-                ], REST_Controller::HTTP_OK);
-            } else {
-                throw new Exception('Failed to delete category');
-            }
-        } catch (Exception $e) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Erro ao excluir categoria',
-                'error' => $e->getMessage()
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    public function remove_delete()
-    {
-        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-        if (!isset($_POST['rows']) || empty($_POST['rows'])) {
-            $message = array('status' => FALSE, 'message' => 'Invalid request: rows array is required');
-            $this->response($message, REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $ids = $_POST['rows'];
-        $success_count = 0;
-        $failed_ids = [];
-
-        foreach ($ids as $id) {
-            $id = $this->security->xss_clean($id);
-
-            if (empty($id) || !is_numeric($id)) {
-                $failed_ids[] = $id;
-                continue;
-            }
-
-            $output = $this->Expenses_ao_model->delete($id);
-            if ($output === TRUE) {
-                $success_count++;
-            } else {
-                $failed_ids[] = $id;
-            }
-        }
-
-        if ($success_count > 0) {
-            $message = array(
-                'status' => TRUE,
-                'message' => $success_count . ' expense(s) deleted successfully'
-            );
-            if (!empty($failed_ids)) {
-                $message['failed_ids'] = $failed_ids;
-            }
-            $this->response($message, REST_Controller::HTTP_OK);
-        } else {
-            $message = array(
-                'status' => FALSE,
-                'message' => 'Failed to delete expenses',
-                'failed_ids' => $failed_ids
-            );
-            $this->response($message, REST_Controller::HTTP_NOT_FOUND);
-        }
-    }
-
-
-    public function payment_post()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        $content_type = isset($this->input->request_headers()['Content-Type'])
-            ? $this->input->request_headers()['Content-Type']
-            : (isset($this->input->request_headers()['content-type'])
-                ? $this->input->request_headers()['content-type']
-                : null);
-
-        $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
-
-        if ($is_multipart) {
-            $input = $this->input->post();
-        } else {
-            $input = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-        }
-
-        if (empty($input['id']) || empty($input['status'])) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Missing required fields: id and status'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        if (!in_array($input['status'], ['pending', 'paid'])) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Invalid status value. Must be "pending" or "paid"'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $expense = $this->db->get_where(db_prefix() . 'expenses_ao', ['id' => $input['id']])->row();
-        if (!$expense) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Expense not found'
-            ], REST_Controller::HTTP_NOT_FOUND);
-            return;
-        }
-
-        $data = [];
-
-        if ($input['status'] === 'paid') {
-            if (empty($input['payment_date'])) {
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'Payment date is required when marking as paid'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-                return;
-            }
-
-            $data['last_recurring_date'] = $input['payment_date'];
-
-            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
-                $file = $_FILES['comprovante'];
-
-                $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-                if (!in_array($file['type'], $allowed_types)) {
-                    $this->response([
-                        'status' => FALSE,
-                        'message' => 'Tipo de arquivo não permitido. Tipos permitidos: JPG, PNG, PDF, DOC, DOCX'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                    return;
-                }
-
-                $max_size = 5 * 1024 * 1024;
-                if ($file['size'] > $max_size) {
-                    $this->response([
-                        'status' => FALSE,
-                        'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                    return;
-                }
-
-                $upload_dir = './uploads/expenses/' . $input['id'] . '/comprovante/';
-                if (!file_exists($upload_dir)) {
-                    mkdir($upload_dir, 0777, true);
-                }
-
-                $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = uniqid() . '.' . $extension;
-                $upload_path = $upload_dir . $filename;
-
-                if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                    $server_url = base_url();
-                    $relative_path = str_replace('./', '', $upload_path);
-                    $file_url = rtrim($server_url, '/') . '/' . $relative_path;
-                    $data['comprovante'] = $file_url;
-                } else {
-                    log_activity('Failed to move uploaded payment receipt for expense ' . $input['id']);
-                    $this->response([
-                        'status' => FALSE,
-                        'message' => 'Failed to upload payment receipt'
-                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-                    return;
-                }
-            }
-
-            if ($expense->recurring == 1) {
-                $new_cycles = (int) $expense->cycles + 1;
-                $data['cycles'] = $new_cycles;
-
-                if ($expense->total_cycles > 0 && $new_cycles >= $expense->total_cycles) {
-                    $data['status'] = 'paid';
-                } else {
-                    $data['status'] = 'pending';
-                }
-            } else {
-                $data['status'] = 'paid';
-            }
-        } else {
-            $data['status'] = 'pending';
-        }
-
-        $this->db->where('id', $input['id']);
-        $success = $this->db->update(db_prefix() . 'expenses_ao', $data);
-
-        if ($success) {
-            $updated_expense = $this->db->get_where(db_prefix() . 'expenses_ao', ['id' => $input['id']])->row();
-
-            $this->response([
-                'status' => TRUE,
-                'message' => 'Payment status updated successfully',
-                'data' => $updated_expense
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Failed to update payment status'
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    private function get_payment_mode_name($payment_mode_id)
-    {
-        $payment_methods = [
-            1 => 'PIX',
-            2 => 'Cartão',
-            3 => 'Dinheiro',
-            4 => 'Boleto',
-            5 => 'Transferência',
-            6 => 'Cheque',
-            7 => 'Outros'
-        ];
-
-        return $payment_methods[$payment_mode_id] ?? 'Desconhecido';
-    }
-
-    public function get_get($id = '')
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        if (empty($id)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'ID is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        $expense = $this->Expenses_ao_model->get_expense_detailed($id);
-
-        if (!$expense) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Expense not found'
-            ], REST_Controller::HTTP_NOT_FOUND);
-            return;
-        }
-
-        // Processar recorrência (pode permanecer aqui se for apenas lógica de exibição)
-        $expense->recurring_info = ($expense->recurring == 1) ? [
-            'recurring' => true,
-            'recurring_type' => $expense->recurring_type,
-            'repeat_every' => $expense->repeat_every,
-            'cycles_completed' => $expense->cycles,
-            'total_cycles' => $expense->total_cycles,
-            'custom_recurring' => $expense->custom_recurring == 1,
-            'last_recurring_date' => $expense->last_recurring_date,
-        ] : null;
-
-        $this->response([
-            'status' => TRUE,
-            'data' => $expense
-        ], REST_Controller::HTTP_OK);
-    }
-
-
-    public function financial_report_post()
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        $warehouse_id = $this->post('warehouse_id');
-
-        if (empty($warehouse_id)) {
-            $this->response(
-                ['status' => FALSE, 'message' => 'Warehouse ID is required'],
-                REST_Controller::HTTP_BAD_REQUEST
-            );
-            return;
-        }
-
-        $today = date('Y-m-d');
-        $yesterday = date('Y-m-d', strtotime('-1 day'));
-        $current_month_start = date('Y-m-01');
-        $current_month_end = date('Y-m-t');
-        $previous_month_start = date('Y-m-01', strtotime('-1 month'));
-        $previous_month_end = date('Y-m-t', strtotime('-1 month'));
-
-        $this->db->select('
-      COALESCE(SUM(amount), 0) as total_expenses,
-      COUNT(id) as transaction_count
-    ');
-        $this->db->from(db_prefix() . 'expenses_ao');
-        $this->db->where('DATE(date)', $today);
-        $this->db->where('warehouse_id', $warehouse_id);
-        $today_data = $this->db->get()->row_array();
-
-        $this->db->select('
-      COALESCE(SUM(amount), 0) as total_expenses,
-      COUNT(id) as transaction_count
-    ');
-        $this->db->from(db_prefix() . 'expenses_ao');
-        $this->db->where('DATE(date)', $yesterday);
-        $this->db->where('warehouse_id', $warehouse_id);
-        $yesterday_data = $this->db->get()->row_array();
-
-        $this->db->select('
-      COALESCE(SUM(amount), 0) as total_expenses,
-      COUNT(id) as transaction_count
-    ');
-        $this->db->from(db_prefix() . 'expenses_ao');
-        $this->db->where('date >=', $current_month_start);
-        $this->db->where('date <=', $current_month_end);
-        $this->db->where('warehouse_id', $warehouse_id);
-        $current_month_data = $this->db->get()->row_array();
-
-        $this->db->select('
-      COALESCE(SUM(amount), 0) as total_expenses,
-      COUNT(id) as transaction_count
-    ');
-        $this->db->from(db_prefix() . 'expenses_ao');
-        $this->db->where('date >=', $previous_month_start);
-        $this->db->where('date <=', $previous_month_end);
-        $this->db->where('warehouse_id', $warehouse_id);
-        $previous_month_data = $this->db->get()->row_array();
-
-        $today_data = $today_data ?: ['total_expenses' => 0, 'transaction_count' => 0];
-        $yesterday_data = $yesterday_data ?: ['total_expenses' => 0, 'transaction_count' => 0];
-        $current_month_data = $current_month_data ?: ['total_expenses' => 0, 'transaction_count' => 0];
-        $previous_month_data = $previous_month_data ?: ['total_expenses' => 0, 'transaction_count' => 0];
-
-        $total_change_percent = $yesterday_data['total_expenses'] > 0
-            ? (($today_data['total_expenses'] - $yesterday_data['total_expenses']) / $yesterday_data['total_expenses']) * 100
-            : 0;
-
-
-        $response = [
-            'status' => true,
-            'daily_performance' => [
-                'total_expenses' => [
-                    'current' => floatval($today_data['total_expenses']),
-                    'previous' => floatval($yesterday_data['total_expenses']),
-                    'change_percent' => round($total_change_percent, 1),
-                    'transaction_count' => (int) $today_data['transaction_count']
-                ]
-            ],
-            'monthly_performance' => [
-                'current_month' => [
-                    'total_expenses' => floatval($current_month_data['total_expenses']),
-                    'transaction_count' => (int) $current_month_data['transaction_count']
-                ],
-                'previous_month' => [
-                    'total_expenses' => floatval($previous_month_data['total_expenses']),
-                    'transaction_count' => (int) $previous_month_data['transaction_count']
-                ]
-            ]
-        ];
-
-        $this->response($response, REST_Controller::HTTP_OK);
-    }
-
-    public function category_get($id = null)
-    {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
-        if (empty($id)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Category ID is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
-        }
-
-        try {
-            $this->db->select('id, name, description, warehouse_id');
-            $this->db->from(db_prefix() . 'expenses_categories');
-            $this->db->where('id', $id);
-            $category = $this->db->get()->row();
-
-            if (!$category) {
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'Category not found'
-                ], REST_Controller::HTTP_NOT_FOUND);
-                return;
-            }
-
-            $this->db->where('category', $id);
-            $expense_count = $this->db->count_all_results(db_prefix() . 'expenses_ao');
-
-            $response = [
-                'status' => TRUE,
-                'data' => [
-                    'category' => $category,
-                    'expense_count' => $expense_count
-                ]
-            ];
-
-            $this->response($response, REST_Controller::HTTP_OK);
-        } catch (Exception $e) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Erro ao buscar categoria',
-                'error' => $e->getMessage()
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
 
     public function calendar_days_get()
     {
@@ -1376,15 +681,15 @@ class Expenses_ao extends REST_Controller
         $today = date('Y-m-d');
 
         $this->db->select('
-      DATE(date) as expense_date,
+      DATE(due_date) as expense_date,
       status,
       COUNT(*) as expense_count
     ');
-        $this->db->from(db_prefix() . 'expenses_ao');
+        $this->db->from(db_prefix() . 'expenses');
         $this->db->where('warehouse_id', $warehouse_id);
-        $this->db->where('date >=', $start_date);
-        $this->db->where('date <=', $end_date);
-        $this->db->group_by('DATE(date), status');
+        $this->db->where('due_date >=', $start_date);
+        $this->db->where('due_date <=', $end_date);
+        $this->db->group_by('DATE(due_date), status');
         $results = $this->db->get()->result_array();
 
         $calendar_days = [];
@@ -1468,13 +773,17 @@ class Expenses_ao extends REST_Controller
         $id = $this->post('id');
         $rows = $this->post('rows');
         $warehouse_id = $this->post('warehouse_id');
-        $type = $this->post('type');
+        // Removendo o parâmetro type já que a coluna não existe na tabela
+        // $type = $this->post('type');
 
+        // Exclusão em lote
         if (!empty($rows) && is_array($rows)) {
             $success = 0;
             $fail = 0;
             foreach ($rows as $rowId) {
-                $deleted = $this->Expenses_ao_model->delete_expense($rowId, $warehouse_id, $type);
+                // Deletar arquivos S3 antes de deletar o registro
+                $this->delete_expense_files_from_s3($rowId);
+                $deleted = $this->Expenses_ao_model->delete_expense($rowId, $warehouse_id);
                 if ($deleted) {
                     $success++;
                 } else {
@@ -1489,6 +798,7 @@ class Expenses_ao extends REST_Controller
             ], $fail === 0 ? REST_Controller::HTTP_OK : REST_Controller::HTTP_PARTIAL_CONTENT);
         }
 
+        // Exclusão unitária
         if (empty($id)) {
             return $this->response([
                 'status' => false,
@@ -1496,7 +806,10 @@ class Expenses_ao extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        $deleted = $this->Expenses_ao_model->delete_expense($id, $warehouse_id, $type);
+        // Deletar arquivos S3 antes de deletar o registro
+        $this->delete_expense_files_from_s3($id);
+
+        $deleted = $this->Expenses_ao_model->delete_expense($id, $warehouse_id);
 
         if ($deleted) {
             return $this->response([
@@ -1510,7 +823,59 @@ class Expenses_ao extends REST_Controller
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    public function updatetwo_post($id = '')
+
+    // Função auxiliar para deletar arquivo do S3
+    private function delete_expense_document_file($document)
+    {
+        if (strpos($document, 'data:') === 0) {
+            // Documento em base64, nada a deletar
+            return;
+        }
+
+        // Se for URL do S3, deletar do S3
+        if (strpos($document, 'https://') === 0) {
+            try {
+                $s3 = $this->storage_s3->getClient();
+                $key = str_replace("https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/", "", $document);
+                $s3->deleteObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $key
+                ]);
+            } catch (Exception $e) {
+                log_message('error', 'Erro ao deletar arquivo do S3: ' . $e->getMessage());
+            }
+        } else {
+            // Fallback para arquivo local (legado)
+            $filePath = FCPATH . ltrim($document, '/');
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
+        }
+    }
+
+    // Função para deletar todos os arquivos S3 relacionados a uma despesa
+    private function delete_expense_files_from_s3($expense_id)
+    {
+        // Buscar a despesa para obter o documento principal
+        $expense = $this->Expenses_ao_model->gettwo($expense_id);
+        if ($expense && !empty($expense->expense_document)) {
+            $this->delete_expense_document_file($expense->expense_document);
+        }
+
+        // Buscar e deletar todos os comprovantes das parcelas
+        $this->load->model('Expenses_installments_model');
+        $installments = $this->Expenses_installments_model->get_installments_by_expense($expense_id);
+
+        if ($installments) {
+            foreach ($installments as $installment) {
+                if (!empty($installment['comprovante'])) {
+                    $this->delete_expense_document_file($installment['comprovante']);
+                }
+            }
+        }
+    }
+
+    public function update_post($id = '')
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
@@ -1520,81 +885,215 @@ class Expenses_ao extends REST_Controller
                 'message' => 'ID is required'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
-        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false;
+        $headers = $this->input->request_headers();
+        $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? $_SERVER['CONTENT_TYPE'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES) || isset($_POST['data']);
+
+
 
         if ($is_multipart) {
-            $_POST = $this->input->post();
+            // Processar dados do FormData - usar $_POST diretamente como no Produto.php
+            if (isset($_POST['data'])) {
+                $_POST = json_decode($_POST['data'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'JSON inválido: ' . json_last_error_msg()
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $input = $_POST;
+            } else {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Campo "data" não encontrado na requisição multipart',
+                    'debug' => [
+                        'post_keys' => array_keys($_POST),
+                        'post_data' => $_POST
+                    ]
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
         } else {
-            $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+            // Processar dados JSON
+            $raw_input = file_get_contents("php://input");
+            $input = json_decode($raw_input, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'JSON inválido: ' . json_last_error_msg() . ' - Input: ' . $raw_input . ' - Content-Type: ' . $content_type
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+            $_POST = $input;
         }
 
-        if (empty($_POST)) {
+        if (empty($input)) {
             return $this->response([
                 'status' => false,
-                'message' => 'Invalid input data'
+                'message' => 'Invalid input data - Input vazio ou inválido',
+                'debug' => [
+                    'is_multipart' => $is_multipart,
+                    'post_data' => isset($_POST['data']) ? $_POST['data'] : 'não encontrado',
+                    'raw_input' => isset($raw_input) ? $raw_input : 'não aplicável'
+                ]
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
+        // Campos da tabela tblexpenses (excluindo campos de parcelamento que vão para tblexpenses_installments)
         $fields = [
             'expense_name',
             'type',
             'category',
+            'currency',
             'amount',
-            'date',
-            'paymentmode',
-            'clientid',
-            'note',
-            'billable',
-            'send_invoice_to_customer',
-            'status',
-            'recurring',
-            'warehouse_id',
+            'amount_base',
+            'tax',
+            'tax2',
             'reference_no',
-            'recurring_type',
-            'repeat_every',
-            'cycles',
-            'total_cycles',
-            'custom_recurring',
-            'last_recurring_date',
+            'note',
+            'expense_identifier',
+            'clientid',
+            'project_id',
+            'billable',
+            'invoiceid',
+            'paymentmode',
+            'date',
+            'due_date',
+            'reference_date',
             'create_invoice_billable',
-            'recurring_from',
-            'nota_tipo_ao',
-            'num_parcelas',
+            'send_invoice_to_customer',
+            'warehouse_id',
+            'bank_account_id',
+            'expense_document',
+            'order_number',
+            'installment_number',
+            'nfe_key',
+            'barcode',
+            'is_client',
             'juros',
-            'juros_apartir',
-            'total_parcelado',
-            'due_date'
+            'nota_tipo_ao',
         ];
 
         $updateData = [];
 
         foreach ($fields as $field) {
-            if (isset($_POST[$field])) {
-                if (in_array($field, ['billable', 'send_invoice_to_customer', 'recurring', 'custom_recurring', 'create_invoice_billable'])) {
-                    $updateData[$field] = (!empty($_POST[$field]) && $_POST[$field] !== 'false') ? 1 : 0;
-                } elseif (in_array($field, ['repeat_every', 'cycles', 'total_cycles'])) {
-                    $updateData[$field] = is_numeric($_POST[$field]) ? $_POST[$field] : 0;
-                } elseif (in_array($field, ['last_recurring_date'])) {
-                    $updateData[$field] = !empty($_POST[$field]) ? $_POST[$field] : null;
+            if (isset($input[$field])) {
+                if (in_array($field, ['billable', 'send_invoice_to_customer', 'create_invoice_billable', 'is_client'])) {
+                    $updateData[$field] = (!empty($input[$field]) && $input[$field] !== 'false') ? 1 : 0;
+                } elseif ($field === 'bank_account_id' && (empty($input[$field]) || $input[$field] === '')) {
+                    $updateData[$field] = null;
                 } else {
-                    $updateData[$field] = $_POST[$field];
+                    $updateData[$field] = $input[$field];
                 }
             }
         }
 
-        $success = $this->Expenses_ao_model->updatetwo($updateData, $id);
+        // Processar parcelas se fornecidas (igual ao create)
+        $installments = null;
+        if (isset($input['num_parcelas']) && $input['num_parcelas'] > 1) {
+            $installments = $this->process_installments($input);
+            // Não adicionar ao updateData para não tentar salvar no banco
+        }
+
+        // Processar o documento se existir via multipart
+        if ($is_multipart && isset($_FILES['expense_document']) && $_FILES['expense_document']['error'] === UPLOAD_ERR_OK) {
+            // Buscar o registro atual para pegar o caminho do arquivo antigo
+            $current = $this->Expenses_ao_model->gettwo($id);
+            $old_document = $current && isset($current->expense_document) ? $current->expense_document : null;
+
+            $file = $_FILES['expense_document'];
+            $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+            // Validar tipos de arquivo permitidos
+            $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+            if (!in_array($file_extension, $allowed_extensions)) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            // Verificar tamanho do arquivo (5MB)
+            if ($file['size'] > 5 * 1024 * 1024) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            // Apagar o arquivo antigo do S3, se existir
+            if ($old_document && strpos($old_document, 'https://') === 0) {
+                try {
+                    $s3 = $this->storage_s3->getClient();
+                    $old_key = str_replace("https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/", "", $old_document);
+                    $s3->deleteObject([
+                        'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                        'Key' => $old_key
+                    ]);
+                } catch (Exception $e) {
+                    // Log do erro, mas não falhar a operação
+                    log_message('error', 'Erro ao deletar arquivo antigo do S3: ' . $e->getMessage());
+                }
+            }
+
+            $warehouse_id = $current ? $current->warehouse_id : 0;
+            $unique_filename = 'expense_' . time() . '_' . uniqid() . '.' . $file_extension;
+            $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/expenses_ao/documents/' . $unique_filename;
+
+            try {
+                // Inicializar cliente S3
+                $s3 = $this->storage_s3->getClient();
+
+                // Upload para S3
+                $s3->putObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $blobName,
+                    'SourceFile' => $file['tmp_name'],
+                    'ACL' => 'public-read',
+                ]);
+
+                // Constrói a URL do arquivo
+                $updateData['expense_document'] = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+            } catch (Exception $e) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Falha ao fazer upload do documento para S3: ' . $e->getMessage()
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+            }
+        }
+
+        // Debug: verificar dados
+        log_message('debug', 'UpdateData: ' . json_encode($updateData));
+        log_message('debug', 'UpdateData count: ' . count($updateData));
+        log_message('debug', 'Installments: ' . ($installments ? 'yes' : 'no'));
+
+        // Verificar se há dados para atualizar
+        if (empty($updateData)) {
+            // Se não há dados para atualizar, apenas processar parcelas se necessário
+            $success = true;
+            log_message('debug', 'No data to update, setting success = true');
+        } else {
+            // Sempre considerar sucesso, mesmo se não houve alterações
+            $this->Expenses_ao_model->updatetwo($updateData, $id);
+            $success = true;
+            log_message('debug', 'Update completed, setting success = true');
+        }
+
+        // Atualizar parcelas se necessário
+        if ($success && $installments) {
+            $this->load->model('Expenses_installments_model');
+            $this->Expenses_installments_model->delete_installments_by_expense($id);
+            $this->Expenses_installments_model->add_installments($id, $installments);
+        }
 
         if (!$success) {
             return $this->response([
                 'status' => false,
-                'message' => 'Failed to update expense/receita or no changes made'
+                'message' => 'Falha ao atualizar despesa'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
         return $this->response([
             'status' => true,
-            'message' => 'Despesa/Receita atualizada com sucesso',
+            'message' => 'Despesa atualizada com sucesso',
             'data' => $this->Expenses_ao_model->gettwo($id)
         ], REST_Controller::HTTP_OK);
     }
@@ -1625,29 +1124,643 @@ class Expenses_ao extends REST_Controller
         ], REST_Controller::HTTP_OK);
     }
 
-    public function categorytwo_get($id = '')
+    public function get_get($id = null)
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-
         if (empty($id)) {
             return $this->response([
                 'status' => false,
-                'message' => 'ID is required'
+                'message' => 'ID é obrigatório'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-
-        $data = $this->Expenses_ao_model->get_expense_category($id);
-
-        if (!$data) {
+        $expense = $this->Expenses_ao_model->gettwo($id);
+        if (!$expense) {
             return $this->response([
                 'status' => false,
-                'message' => 'Categoria não encontrada para esta despesa/receita.'
+                'message' => 'Despesa não encontrada'
             ], REST_Controller::HTTP_NOT_FOUND);
+        }
+
+        // Carregar parcelas se existirem
+        $this->load->model('Expenses_installments_model');
+        $installments = $this->Expenses_installments_model->get_installments_by_expense($id);
+
+        // Adicionar parcelas aos dados da despesa
+        if (!empty($installments)) {
+            $expense->installments = $installments;
+
+            // --- AJUSTE PARA PADRONIZAR CAMPOS DE JUROS ---
+            if (
+                (empty($expense->juros) || $expense->juros == 0 || $expense->juros == '0.00' || $expense->juros == '0') &&
+                isset($installments[0]['percentual_juros']) &&
+                $installments[0]['percentual_juros'] > 0
+            ) {
+                $expense->juros = $installments[0]['percentual_juros'];
+                // Tenta pegar a partir de qual parcela começa o juros
+                $expense->juros_apartir = 1;
+                foreach ($installments as $inst) {
+                    if (isset($inst['percentual_juros']) && $inst['percentual_juros'] > 0) {
+                        $expense->juros_apartir = $inst['numero_parcela'];
+                        break;
+                    }
+                }
+            }
+            // --- FIM DO AJUSTE ---
         }
 
         return $this->response([
             'status' => true,
-            'data' => $data,
+            'data' => $expense
         ], REST_Controller::HTTP_OK);
+    }
+
+    /**
+     * Obter parcelas de uma despesa
+     * @param int $id ID da despesa
+     */
+    public function installments_get($id = null)
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        try {
+            if (!$id) {
+                throw new Exception('ID da despesa é obrigatório');
+            }
+
+            $this->load->model('Expenses_installments_model');
+
+            $installments = $this->Expenses_installments_model->get_installments_by_expense($id);
+            $summary = $this->Expenses_installments_model->get_installments_summary($id);
+
+            return $this->response([
+                'status' => true,
+                'data' => [
+                    'installments' => $installments,
+                    'summary' => $summary
+                ]
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function pay_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        try {
+            // Verificar se é multipart/form-data ou JSON
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+
+            if ($is_multipart) {
+                // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
+                if (isset($_POST['data'])) {
+                    $data = json_decode($_POST['data'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new Exception('JSON inválido: ' . json_last_error_msg());
+                    }
+                    $_POST = $data; // Reatribuir $_POST
+                } else {
+                    throw new Exception('Campo "data" não encontrado na requisição multipart');
+                }
+            } else {
+                // Processar dados JSON
+                $raw_input = file_get_contents("php://input");
+                $data = json_decode($raw_input, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception('JSON inválido: ' . json_last_error_msg());
+                }
+                $_POST = $data; // Reatribuir $_POST
+            }
+            if (empty($data['id'])) {
+                throw new Exception('ID da despesa é obrigatório');
+            }
+
+            $expense_id = $data['id'];
+            $installment_id = $data['installment_id'] ?? null;
+            $installment_numbers = $data['installment_numbers'] ?? null;
+
+            // Se há installment_numbers, é pagamento de múltiplas parcelas
+            if ($installment_numbers && is_array($installment_numbers)) {
+                return $this->pay_multiple_installments($expense_id, $installment_numbers, $data);
+            }
+
+            // Se há installment_id, é pagamento de parcela única
+            if ($installment_id) {
+                return $this->pay_installment($expense_id, $installment_id, $data);
+            }
+
+            // Pagamento da despesa completa
+            $updateData = [
+                'status' => 'paid',
+                'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
+                'bank_account_id' => $data['bank_account_id'] ?? null,
+                'category' => $data['category_id'] ?? null,
+                'note' => $data['note'] ?? null,
+                'descricao_pagamento' => $data['descricao_pagamento'] ?? null,
+                'juros' => $data['juros'] ?? null,
+                'desconto' => $data['desconto'] ?? null,
+                'multa' => $data['multa'] ?? null,
+                'valor_pago' => $data['valorPago'] ?? null,
+                'check_identifier' => $data['check_identifier'] ?? null,
+                'boleto_identifier' => $data['boleto_identifier'] ?? null,
+            ];
+            // Upload do comprovante (voucher) - agora via multipart/form-data
+            $voucher_path = null;
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES['comprovante'];
+                $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+                // Validar tipos de arquivo permitidos
+                $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+                if (!in_array($file_extension, $allowed_extensions)) {
+                    throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG');
+                }
+
+                // Verificar tamanho do arquivo (5MB)
+                if ($file['size'] > 5 * 1024 * 1024) {
+                    throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+                }
+
+                // Buscar warehouse_id da despesa
+                $expense = $this->Expenses_ao_model->gettwo($expense_id);
+                $warehouse_id = $expense ? $expense->warehouse_id : 0;
+
+                $unique_filename = 'voucher_' . $expense_id . '_' . time() . '_' . uniqid() . '.' . $file_extension;
+                $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/expenses_ao/vouchers/' . $expense_id . '/' . $unique_filename;
+
+                try {
+                    // Inicializar cliente S3
+                    $s3 = $this->storage_s3->getClient();
+
+                    // Upload para S3
+                    $s3->putObject([
+                        'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                        'Key' => $blobName,
+                        'SourceFile' => $file['tmp_name'],
+                        'ACL' => 'public-read',
+                    ]);
+
+                    // Constrói a URL do arquivo
+                    $voucher_path = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+                    $updateData['voucher'] = $voucher_path;
+                } catch (Exception $e) {
+                    throw new Exception('Falha ao fazer upload do comprovante para S3: ' . $e->getMessage());
+                }
+            }
+            $this->load->model('Expenses_ao_model');
+            $success = $this->Expenses_ao_model->updatetwo($updateData, $expense_id);
+            if (!$success) {
+                throw new Exception('Falha ao baixar o lançamento');
+            }
+            return $this->response([
+                'status' => true,
+                'message' => 'Pagamento baixado com sucesso',
+                'voucher_url' => $voucher_path
+            ], REST_Controller::HTTP_OK);
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Pagar múltiplas parcelas em sequência
+     * @param int $expense_id ID da despesa
+     * @param array $installment_numbers Array com números das parcelas
+     * @param array $data Dados do pagamento
+     * @return mixed
+     */
+    private function pay_multiple_installments($expense_id, $installment_numbers, $data)
+    {
+        try {
+            $this->load->model('Expenses_installments_model');
+
+            // Verificar se as parcelas são sequenciais
+            sort($installment_numbers);
+            for ($i = 1; $i < count($installment_numbers); $i++) {
+                if ($installment_numbers[$i] !== $installment_numbers[$i - 1] + 1) {
+                    throw new Exception('As parcelas devem ser sequenciais. Não é possível pular parcelas.');
+                }
+            }
+
+            // Buscar todas as parcelas da despesa
+            $all_installments = $this->Expenses_installments_model->get_installments_by_expense($expense_id);
+
+            // Filtrar apenas as parcelas selecionadas
+            $selected_installments = array_filter($all_installments, function ($installment) use ($installment_numbers) {
+                return in_array($installment['numero_parcela'], $installment_numbers);
+            });
+
+            if (count($selected_installments) !== count($installment_numbers)) {
+                throw new Exception('Algumas parcelas selecionadas não foram encontradas');
+            }
+
+            // Verificar se todas as parcelas estão pendentes
+            foreach ($selected_installments as $installment) {
+                if ($installment['status'] === 'Pago') {
+                    throw new Exception("A parcela {$installment['numero_parcela']} já foi paga");
+                }
+            }
+
+            // Upload do comprovante (voucher) - será usado para todas as parcelas
+            $voucher_path = null;
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $voucher_path = $this->upload_voucher($expense_id, $_FILES['comprovante']);
+            }
+
+            $success_count = 0;
+            $failed_count = 0;
+            $errors = [];
+
+            // Processar cada parcela
+            foreach ($selected_installments as $installment) {
+                try {
+                    $payment_data = [
+                        'data_pagamento' => $data['payment_date'] ?? date('Y-m-d'),
+                        'valor_pago' => $data['valorPago'] ?? $installment['valor_com_juros'],
+                        'banco_id' => $data['bank_account_id'] ?? null,
+                        'observacoes' => $data['note'] ?? null,
+                        'juros_adicional' => $data['juros'] ?? 0,
+                        'desconto' => $data['desconto'] ?? 0,
+                        'multa' => $data['multa'] ?? 0,
+                        'id_cheque' => $data['check_identifier'] ?? null,
+                        'id_boleto' => $data['boleto_identifier'] ?? null,
+                        'comprovante' => $voucher_path,
+                    ];
+
+                    $success = $this->Expenses_installments_model->pay_installment($installment['id'], $payment_data);
+                    if ($success) {
+                        $success_count++;
+                    } else {
+                        $failed_count++;
+                        $errors[] = "Falha ao processar parcela {$installment['numero_parcela']}";
+                    }
+                } catch (Exception $e) {
+                    $failed_count++;
+                    $errors[] = "Erro na parcela {$installment['numero_parcela']}: " . $e->getMessage();
+                }
+            }
+
+            // Verificar se todas as parcelas foram pagas
+            $summary = $this->Expenses_installments_model->get_installments_summary($expense_id);
+            if ($summary['parcelas_pendentes'] == 0) {
+                // Marcar despesa como paga
+                $this->load->model('Expenses_ao_model');
+                $this->Expenses_ao_model->updatetwo([
+                    'status' => 'paid',
+                    'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
+                ], $expense_id);
+            }
+
+            if ($failed_count > 0) {
+                return $this->response([
+                    'status' => false,
+                    'message' => "Algumas parcelas não puderam ser processadas",
+                    'success_count' => $success_count,
+                    'failed_count' => $failed_count,
+                    'errors' => $errors,
+                    'voucher_url' => $voucher_path
+                ], REST_Controller::HTTP_PARTIAL_CONTENT);
+            }
+
+            return $this->response([
+                'status' => true,
+                'message' => "Todas as parcelas foram pagas com sucesso",
+                'success_count' => $success_count,
+                'voucher_url' => $voucher_path,
+                'installment_summary' => $summary
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Atualizar due_date de todas as despesas que têm parcelas
+     * Endpoint para correção em massa
+     */
+    public function update_due_dates_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        try {
+            $this->load->model('Expenses_installments_model');
+
+            $stats = $this->Expenses_installments_model->update_all_expenses_due_dates();
+
+            return $this->response([
+                'status' => true,
+                'message' => 'Atualização de due_dates concluída com sucesso',
+                'data' => $stats
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Teste da funcionalidade de atualização de due_date
+     * Endpoint para testar a funcionalidade
+     */
+    public function test_due_date_update_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        try {
+            $raw_input = file_get_contents("php://input");
+            $data = json_decode($raw_input, true);
+
+            if (empty($data['expense_id'])) {
+                throw new Exception('ID da despesa é obrigatório');
+            }
+
+            $expense_id = $data['expense_id'];
+            $this->load->model('Expenses_installments_model');
+
+            // Buscar dados da despesa antes da atualização
+            $expense_before = $this->db->get_where(db_prefix() . 'expenses', ['id' => $expense_id])->row();
+
+            // Atualizar o due_date
+            $success = $this->Expenses_installments_model->update_expense_due_date($expense_id);
+
+            // Buscar dados da despesa após a atualização
+            $expense_after = $this->db->get_where(db_prefix() . 'expenses', ['id' => $expense_id])->row();
+
+            // Buscar parcelas da despesa
+            $installments = $this->Expenses_installments_model->get_installments_by_expense($expense_id);
+
+            return $this->response([
+                'status' => true,
+                'message' => 'Teste concluído com sucesso',
+                'data' => [
+                    'success' => $success,
+                    'expense_before' => $expense_before,
+                    'expense_after' => $expense_after,
+                    'installments' => $installments,
+                    'due_date_changed' => $expense_before->due_date !== $expense_after->due_date
+                ]
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Corrigir valores existentes no banco de dados
+     * Endpoint para correção em massa dos valores após implementação dos novos campos
+     */
+    public function fix_existing_values_post()
+    {
+        \modules\api\core\Apiinit::the_da_vinci_code('api');
+
+        try {
+            $this->load->model('Expenses_installments_model');
+
+            $stats = $this->Expenses_installments_model->fix_existing_values();
+
+            return $this->response([
+                'status' => true,
+                'message' => 'Correção de valores existentes concluída com sucesso',
+                'data' => $stats
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Processar dados de parcelas
+     * @param array $data Dados da requisição
+     * @return array Array com as parcelas processadas
+     */
+    private function process_installments($data)
+    {
+        $num_parcelas = $data['num_parcelas'] ?? 1;
+        $valor_original = $data['valor_original'] ?? $data['amount'] ?? 0; // Usar valor_original se disponível, senão amount
+        $juros = $data['juros'] ?? 0;
+        $juros_apartir = $data['juros_apartir'] ?? 1;
+        $tipo_juros = $data['tipo_juros'] ?? 'simples';
+        $data_vencimento = $data['due_date'] ?? date('Y-m-d');
+        $paymentmode_id = $data['paymentmode'] ?? 0;
+
+        $installments = [];
+        $valor_parcela = $valor_original / $num_parcelas;
+
+        if ($tipo_juros === 'composto') {
+            // Juros compostos: aplicado sobre o valor acumulado
+            $valor_acumulado = $valor_parcela;
+            for ($i = 1; $i <= $num_parcelas; $i++) {
+                $tem_juros = $i >= $juros_apartir;
+                $juros_parcela = 0;
+                $valor_com_juros = $valor_parcela;
+
+                if ($tem_juros) {
+                    $juros_parcela = $valor_acumulado * ($juros / 100);
+                    $valor_com_juros = $valor_parcela + $juros_parcela;
+                    $valor_acumulado += $juros_parcela;
+                }
+
+                // Calcular data de vencimento da parcela
+                $data_vencimento_parcela = date('Y-m-d', strtotime($data_vencimento . ' + ' . ($i - 1) . ' months'));
+
+                $installments[] = [
+                    'numero_parcela' => $i,
+                    'data_vencimento' => $data_vencimento_parcela,
+                    'valor_parcela' => $valor_parcela,
+                    'valor_com_juros' => $valor_com_juros,
+                    'juros' => $juros_parcela,
+                    'juros_adicional' => 0, // Será preenchido no momento do pagamento
+                    'desconto' => 0, // Será preenchido no momento do pagamento
+                    'multa' => 0, // Será preenchido no momento do pagamento
+                    'percentual_juros' => $tem_juros ? $juros : 0,
+                    'tipo_juros' => $tipo_juros,
+                    'paymentmode_id' => $paymentmode_id,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+            }
+        } else {
+            // Juros simples: aplicado sobre o valor original da parcela
+            for ($i = 1; $i <= $num_parcelas; $i++) {
+                $tem_juros = $i >= $juros_apartir;
+                $juros_parcela = $tem_juros ? $valor_parcela * ($juros / 100) : 0;
+                $valor_com_juros = $valor_parcela + $juros_parcela;
+
+                // Calcular data de vencimento da parcela
+                $data_vencimento_parcela = date('Y-m-d', strtotime($data_vencimento . ' + ' . ($i - 1) . ' months'));
+
+                $installments[] = [
+                    'numero_parcela' => $i,
+                    'data_vencimento' => $data_vencimento_parcela,
+                    'valor_parcela' => $valor_parcela,
+                    'valor_com_juros' => $valor_com_juros,
+                    'juros' => $juros_parcela,
+                    'juros_adicional' => 0, // Será preenchido no momento do pagamento
+                    'desconto' => 0, // Será preenchido no momento do pagamento
+                    'multa' => 0, // Será preenchido no momento do pagamento
+                    'percentual_juros' => $tem_juros ? $juros : 0,
+                    'tipo_juros' => $tipo_juros,
+                    'paymentmode_id' => $paymentmode_id,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+            }
+        }
+
+        return $installments;
+    }
+
+    /**
+     * Pagar uma parcela específica
+     * @param int $expense_id ID da despesa
+     * @param int $installment_id ID da parcela
+     * @param array $data Dados do pagamento
+     * @return mixed
+     */
+    private function pay_installment($expense_id, $installment_id, $data)
+    {
+        try {
+            $this->load->model('Expenses_installments_model');
+
+            // Verificar se a parcela existe
+            $installment = $this->Expenses_installments_model->get_installment($installment_id);
+            if (!$installment) {
+                throw new Exception('Parcela não encontrada');
+            }
+
+            // Verificar se a parcela pertence à despesa
+            if ($installment->expenses_id != $expense_id) {
+                throw new Exception('Parcela não pertence à despesa informada');
+            }
+
+            // Preparar dados do pagamento
+            $payment_data = [
+                'data_pagamento' => $data['payment_date'] ?? date('Y-m-d'),
+                'valor_pago' => $data['valorPago'] ?? $installment->valor_com_juros,
+                'banco_id' => $data['bank_account_id'] ?? null,
+                'observacoes' => $data['note'] ?? null,
+                'juros_adicional' => $data['juros'] ?? 0,
+                'desconto' => $data['desconto'] ?? 0,
+                'multa' => $data['multa'] ?? 0,
+                'id_cheque' => $data['check_identifier'] ?? null,
+                'id_boleto' => $data['boleto_identifier'] ?? null,
+            ];
+
+            // Upload do comprovante (voucher)
+            $voucher_path = null;
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $voucher_path = $this->upload_voucher($expense_id, $_FILES['comprovante']);
+            }
+
+            // Adicionar o comprovante aos dados de pagamento
+            $payment_data['comprovante'] = $voucher_path;
+
+            // Realizar o pagamento
+            $success = $this->Expenses_installments_model->pay_installment($installment_id, $payment_data);
+            if (!$success) {
+                throw new Exception('Falha ao processar pagamento da parcela');
+            }
+
+            // Verificar se todas as parcelas foram pagas
+            $summary = $this->Expenses_installments_model->get_installments_summary($expense_id);
+            if ($summary['parcelas_pendentes'] == 0) {
+                // Marcar despesa como paga
+                $this->load->model('Expenses_ao_model');
+                $this->Expenses_ao_model->updatetwo([
+                    'status' => 'paid',
+                    'payment_date' => $data['payment_date'] ?? date('Y-m-d'),
+                ], $expense_id);
+            }
+
+            return $this->response([
+                'status' => true,
+                'message' => 'Parcela paga com sucesso',
+                'voucher_url' => $voucher_path,
+                'installment_summary' => $summary
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Upload de voucher para S3
+     * @param int $expense_id ID da despesa
+     * @param array $file Dados do arquivo do $_FILES
+     * @return string|null URL do arquivo ou null
+     */
+    private function upload_voucher($expense_id, $file)
+    {
+        $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+        // Validar tipos de arquivo permitidos
+        $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+        if (!in_array($file_extension, $allowed_extensions)) {
+            throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG');
+        }
+
+        // Verificar tamanho do arquivo (5MB)
+        if ($file['size'] > 5 * 1024 * 1024) {
+            throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+        }
+
+        // Buscar warehouse_id da despesa
+        $expense = $this->Expenses_ao_model->gettwo($expense_id);
+        $warehouse_id = $expense ? $expense->warehouse_id : 0;
+
+        $unique_filename = 'voucher_' . $expense_id . '_' . time() . '_' . uniqid() . '.' . $file_extension;
+        $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/expenses_ao/vouchers/' . $expense_id . '/' . $unique_filename;
+
+        try {
+            // Inicializar cliente S3
+            $s3 = $this->storage_s3->getClient();
+
+            // Upload para S3
+            $s3->putObject([
+                'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                'Key' => $blobName,
+                'SourceFile' => $file['tmp_name'],
+                'ACL' => 'public-read',
+            ]);
+
+            // Constrói a URL do arquivo
+            return "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+        } catch (Exception $e) {
+            throw new Exception('Falha ao fazer upload do comprovante para S3: ' . $e->getMessage());
+        }
     }
 }

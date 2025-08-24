@@ -80,8 +80,6 @@ class Notafiscal_model extends App_Model
         return $result;
     }
 
-
-
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'DESC', $warehouse_id = 0, $status = null, $start_date = null, $end_date = null, $invoice_id = '')
     {
         $allowedSortFields = [

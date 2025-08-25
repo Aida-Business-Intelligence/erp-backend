@@ -212,4 +212,4 @@ class Expenses_categories extends REST_Controller
             'data' => $category
         ], REST_Controller::HTTP_OK);
     }
-} 
+}

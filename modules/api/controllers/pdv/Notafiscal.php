@@ -65,7 +65,6 @@ class Notafiscal extends REST_Controller
 
     public function list_post()
     {
-        // echo 2; exit;
         $page = $this->post('page') ? (int) $this->post('page') : 0;
         $page = $page + 1;
         $limit = $this->post('pageSize') ? (int) $this->post('pageSize') : 10;

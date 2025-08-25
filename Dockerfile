@@ -1,15 +1,13 @@
 FROM php:8.1-apache-bullseye
 
-# Habilita mod_rewrite
 RUN a2enmod rewrite
 
-# Habilita 'contrib' e 'non-free' nos repositórios do Debian 11
+# habilita contrib/non-free para pegar libc-client2007e-dev
 RUN set -eux; \
     sed -ri 's/bullseye main\b/bullseye main contrib non-free/g; \
              s/bullseye-updates main\b/bullseye-updates main contrib non-free/g; \
              s/bullseye-security main\b/bullseye-security main contrib non-free/g' /etc/apt/sources.list
 
-# Dependências e extensões
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -20,6 +18,7 @@ RUN set -eux; \
         libpspell-dev aspell-en \
         libcurl4-openssl-dev libssl-dev \
         libc-client2007e-dev libkrb5-dev \
+        **libonig-dev** \
     ; \
     docker-php-ext-configure gd --with-freetype --with-jpeg; \
     docker-php-ext-configure imap --with-kerberos --with-imap-ssl; \
@@ -28,6 +27,7 @@ RUN set -eux; \
         pspell snmp tidy intl bcmath \
     ; \
     rm -rf /var/lib/apt/lists/*
+
 
 # App
 WORKDIR /var/www/html

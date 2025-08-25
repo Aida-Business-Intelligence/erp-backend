@@ -217,7 +217,7 @@ class Authentication_model extends App_Model
 
         if ($user) {
 
-            $warehouses = json_decode($user->warehouse, true);
+           
 
 
             if ($user->admin != 1) {
@@ -227,11 +227,13 @@ class Authentication_model extends App_Model
                         'message' => 'Acesso negado a loja selecionada.'
                     ];
                 }
+
+                $warehouses = json_decode($user->warehouse, true);
+                $user->warehouses = $warehouses;
+
             }
 
-
-            $user->warehouse = $warehouse;
-            $user->warehouses = $warehouses;
+            $user->warehouse = $warehouse;         
 
             // Email está correto, agora vamos checar a senha
             if (app_hasher()->CheckPassword($password, $user->password)) {

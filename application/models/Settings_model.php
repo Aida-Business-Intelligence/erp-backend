@@ -287,25 +287,20 @@ class Settings_model extends App_Model
         $grantedMenuIds = array_column($permissions, 'menu_id');
 
         $menus = [];
-          if($user->admin == 1){
-
+        if($user->admin == 1){
+            $menus = $this->db
+                ->where('status', 1)
+                ->get(db_prefix() . 'menu')
+                ->result_array();
+        } else {
+            if (!empty($grantedMenuIds)) {
                 $menus = $this->db
-                        ->get('tblmenu')
-                        ->result_array();
-            
-                }else{
-
-        if (!empty($grantedMenuIds)) {
-
-
-             
-                    $menus = $this->db
-                        ->where_in('id', $grantedMenuIds)
-                        ->get('tblmenu')
-                        ->result_array();
-
-                }
+                    ->where_in('id', $grantedMenuIds)
+                    ->where('status', 1)
+                    ->get(db_prefix() . 'menu')
+                    ->result_array();
             }
+        }
 
         
       
@@ -334,8 +329,8 @@ class Settings_model extends App_Model
         if (!is_numeric($id)) { 
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like('label', $label);
-                $this->db->or_like('value', $value);
+                $this->db->like('label', $search);
+                $this->db->or_like('value', $search);
                 $this->db->group_end();
             }
 
@@ -343,21 +338,22 @@ class Settings_model extends App_Model
             $total = $this->db->count_all_results(db_prefix() . 'menu');
 
             // Obter os dados com paginação e ordenação
+            $this->db->from(db_prefix() . 'menu');
 
             if (!empty($search)) {
                 $this->db->group_start();
-                $this->db->like('search', $search);
-                $this->db->or_like('value', $value);
+                $this->db->like('label', $search);
+                $this->db->or_like('value', $search);
                 $this->db->group_end();
             }
 
             // Aplica a ordenação
             if ($sortField === 'value') {
-                // Ordenação por firstname, tratando valores nulos ou vazios
+                // Ordenação por value
                 $this->db->order_by("value", $sortOrder);
             } elseif ($sortField === 'label') {
-                // Ordenação pelo nome do cargo (tblroles.name)
-                $this->db->order_by(db_prefix() . 'label', $sortOrder);
+                // Ordenação pelo label
+                $this->db->order_by('label', $sortOrder);
             } else {
                 $this->db->order_by($sortField, $sortOrder);
             }

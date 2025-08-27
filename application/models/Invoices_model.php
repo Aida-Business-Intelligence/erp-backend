@@ -2351,7 +2351,7 @@ class Invoices_model extends App_Model
     public function get_cart_items($user_id, $warehouse_id)
     {
         try {
-            $this->db->select('c.*, i.description, i.sku_code, i.image, i.rate as price, i.stock');
+            $this->db->select('c.*, i.description, i.sku_code, i.image, i.price_franquia as price, i.stock');
             $this->db->from(db_prefix() . 'ecommerce_cart c');
             $this->db->join(db_prefix() . 'items i', 'i.id = c.item_id');
             $this->db->where('c.user_id', $user_id);
@@ -2376,7 +2376,7 @@ class Invoices_model extends App_Model
             }
 
             // Busca novamente os itens válidos
-            $this->db->select('c.*, i.description, i.sku_code, i.image, i.rate as price, i.stock');
+            $this->db->select('c.*, i.description, i.sku_code, i.image, i.price_franquia as price, i.stock');
             $this->db->from(db_prefix() . 'ecommerce_cart c');
             $this->db->join(db_prefix() . 'items i', 'i.id = c.item_id');
             $this->db->where('c.user_id', $user_id);

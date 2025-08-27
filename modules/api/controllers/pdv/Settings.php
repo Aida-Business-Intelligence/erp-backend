@@ -759,77 +759,34 @@ class Settings extends REST_Controller
         }
     }
 
-    public function update_menu_ordem_patch()
+    public function update_menu_ordem_patch($id)
     {
         // Recebe e limpa os dados de entrada
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-        // Log da requisição
-        log_api_simple('Menu Ordem Update Request', $_POST);
 
-        if (empty($_POST) || !isset($_POST['items']) || !is_array($_POST['items'])) {
+
+        if (empty($_POST)) {
             $message = ['status' => FALSE, 'message' => 'Dados não aceitáveis ou não fornecidos'];
-            
-            // Log do erro
-            log_api_simple('Menu Ordem Update Error', $message);
-            
             $this->response($message, REST_Controller::HTTP_NOT_ACCEPTABLE);
             return;
         }
+        
+        unset($_POST['id']);
 
-        $items = $_POST['items'];
-        $updated_count = 0;
-        $errors = [];
+   
 
-        // Itera através de cada item para atualizar a ordem
-        foreach ($items as $item) {
-            if (!isset($item['id']) || !isset($item['ordem']) || !is_numeric($item['id']) || !is_numeric($item['ordem'])) {
-                $errors[] = 'ID ou ordem inválidos para o item: ' . json_encode($item);
-                continue;
-            }
+        $result = $this->Settings_model->update_menu($id, $_POST);
 
-            $id = $item['id'];
-            $ordem = $item['ordem'];
-
-            // Atualiza a ordem do menu
-            $result = $this->Settings_model->update_menu($id, ['ordem' => $ordem]);
-
-            if ($result > 0) {
-                $updated_count++;
-            } else {
-                $errors[] = 'Falha ao atualizar menu ID: ' . $id;
-            }
-        }
-
-        // Prepara a resposta
-        if ($updated_count > 0) {
-            $message = [
-                'status' => TRUE, 
-                'message' => 'Ordem dos menus atualizada com sucesso. Atualizados: ' . $updated_count . ' de ' . count($items),
-                'updated_count' => $updated_count,
-                'total_items' => count($items)
-            ];
-            
-            if (!empty($errors)) {
-                $message['errors'] = $errors;
-            }
-            
-            // Log da resposta de sucesso
-            log_api_simple('Menu Ordem Update Success', $message);
-            
+       
+        if ($result > 0) {
+            $message = ['status' => TRUE, 'message' => 'Menu atualizado com sucesso.'];
             $this->response($message, REST_Controller::HTTP_OK);
         } else {
-            $message = [
-                'status' => FALSE, 
-                'message' => 'Falha ao atualizar a ordem dos menus',
-                'errors' => $errors
-            ];
-            
-            // Log da resposta de erro
-            log_api_simple('Menu Ordem Update Failed', $message);
-            
+            $message = ['status' => FALSE, 'message' => 'Falha ao atualizar menu.'];
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         }
+        
     }
 
     public function delete_menu_delete($id)

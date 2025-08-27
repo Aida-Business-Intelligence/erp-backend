@@ -325,21 +325,25 @@ class Settings_model extends App_Model
 
     public function get_api_menu($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'ordem', $sortOrder = 'ASC')
     {
-
         if (!is_numeric($id)) { 
-            if (!empty($search)) {
-                $this->db->group_start();
-                $this->db->like('label', $search);
-                $this->db->or_like('value', $search);
-                $this->db->group_end();
-            }
-
-            // Contagem total de registros sem paginação
-            $total = $this->db->count_all_results(db_prefix() . 'menu');
-
-            // Obter os dados com paginação e ordenação
+            // Construir a query base
             $this->db->from(db_prefix() . 'menu');
+            
+            // Aplicar filtros de busca se houver
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('label', $search);
+                $this->db->or_like('value', $search);
+                $this->db->group_end();
+            }
+            
+            // Contagem total de registros
+            $total = $this->db->count_all_results();
 
+            // Reset da query para buscar os dados
+            $this->db->from(db_prefix() . 'menu');
+            
+            // Aplicar filtros de busca novamente
             if (!empty($search)) {
                 $this->db->group_start();
                 $this->db->like('label', $search);
@@ -347,21 +351,21 @@ class Settings_model extends App_Model
                 $this->db->group_end();
             }
 
-            // Aplica a ordenação
+            // Aplicar ordenação
             if ($sortField === 'value') {
-                // Ordenação por value
                 $this->db->order_by("value", $sortOrder);
             } elseif ($sortField === 'label') {
-                // Ordenação pelo label
                 $this->db->order_by('label', $sortOrder);
             } else {
                 $this->db->order_by($sortField, $sortOrder);
             }
 
+            // Aplicar paginação
             $offset = ($page - 1) * $limit;
             $this->db->limit($limit, $offset);
-            $data = $this->db->get(db_prefix() . 'menu')->result_array();
-
+            
+            // Executar a query
+            $data = $this->db->get()->result_array();
 
             return ['data' => $data, 'total' => $total];
         } else {

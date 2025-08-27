@@ -317,6 +317,7 @@ class Invoice_items_model extends App_Model
             "$items_table.id as id",
             "$supplier_table.company as supplier",
             "$items_table.rate",
+            "$items_table.price_franquia",
             't1.taxrate as taxrate',
             't1.id as taxid',
             't1.name as taxname',
@@ -498,6 +499,7 @@ class Invoice_items_model extends App_Model
         $this->db->select([
             "$items_table.id as id",
             "$items_table.rate",
+            "$items_table.price_franquia",
             't1.taxrate as taxrate',
             't1.id as taxid',
             't1.name as taxname',

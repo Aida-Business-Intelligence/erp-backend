@@ -10,15 +10,13 @@ class Invoices extends REST_Controller
         parent::__construct();
         $this->load->model('Invoices_model');
 
-        /*
         $decodedToken = $this->authservice->decodeToken($this->token_jwt);
         if (!$decodedToken['status']) {
             $this->response([
                 'status' => FALSE,
                 'message' => 'Usuario nao autenticado'
-            ], REST_Controller::HTTP_NOT_FOUND);
+            ], REST_Controller::HTTP_UNAUTHORIZED);
         }
-            */
     }
 
     public function create_purchase_order_post()
@@ -1857,12 +1855,18 @@ class Invoices extends REST_Controller
         try {
             $data = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
-            // Verifica se o user_id foi enviado
-            if (!isset($data['user_id'])) {
+        
+
+            $data['user_id'] = $this->authservice->user->staffid;
+
+            if(!isset($data['user_id'])){
+
                 $this->response(['status' => false, 'message' => 'user_id é obrigatório'], 400);
                 return;
+
             }
 
+            
             // Verifica se o item_id foi enviado
             if (!isset($data['item_id'])) {
                 $this->response(['status' => false, 'message' => 'item_id é obrigatório'], 400);

@@ -44,6 +44,42 @@ class Notafiscal_model extends App_Model
         return $result;
     }
 
+    public function get_nfce($id = '', $where = [])
+    {
+        $this->db->select('*');
+        $this->db->from(db_prefix() . 'nfce');
+
+        if ((is_array($where) && count($where) > 0) || (is_string($where) && $where != '')) {
+            $this->db->where($where);
+        }
+
+        if (is_numeric($id)) {
+            $this->db->where('id', $id);
+            $invoice = $this->db->get()->row();
+
+            if ($invoice) {
+                // Decodificar campos JSON
+                $invoice->orders_id = json_decode($invoice->orders_id, true) ?? [];
+                $invoice->items = json_decode($invoice->items, true) ?? [];
+                $invoice->installments = json_decode($invoice->installments, true) ?? [];
+            }
+
+            return $invoice;
+        }
+
+        $this->db->order_by('invoice_date', 'DESC');
+        $result = $this->db->get()->result();
+
+        // Decodificar campos JSON para cada registro
+        foreach ($result as &$row) {
+            $row->orders_id = json_decode($row->orders_id, true) ?? [];
+            $row->items = json_decode($row->items, true) ?? [];
+            $row->installments = json_decode($row->installments, true) ?? [];
+        }
+
+        return $result;
+    }
+
     public function get_api($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'id', $sortOrder = 'DESC', $warehouse_id = 0, $status = null, $start_date = null, $end_date = null, $invoice_id = '')
     {
         $allowedSortFields = [

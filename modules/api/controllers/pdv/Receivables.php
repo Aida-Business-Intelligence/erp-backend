@@ -14,6 +14,7 @@ class Receivables extends REST_Controller
     {
         parent::__construct();
         $this->load->model('Receivables_model');
+        $this->load->library('storage_s3');
     }
 
     public function get_get($id = null)
@@ -29,7 +30,7 @@ class Receivables extends REST_Controller
 
         try {
             $receivable = $this->Receivables_model->get_receivable_by_id($id);
-            
+
             if ($receivable) {
                 return $this->response([
                     'status' => true,
@@ -63,7 +64,7 @@ class Receivables extends REST_Controller
             }
 
             $this->load->model('Receivables_installments_model');
-            
+
             $installments = $this->Receivables_installments_model->get_installments_by_receivable($id);
             $summary = $this->Receivables_installments_model->get_installments_summary($id);
 
@@ -153,11 +154,11 @@ class Receivables extends REST_Controller
 
         $filters = [
             'warehouse_id' => $this->post('warehouse_id'),
-            'search'       => $this->post('search'),
-            'category'     => $this->post('category'),
-            'status'       => $this->post('status'),
-            'startDate'    => $this->post('startDate'),
-            'endDate'      => $this->post('endDate'),
+            'search' => $this->post('search'),
+            'category' => $this->post('category'),
+            'status' => $this->post('status'),
+            'startDate' => $this->post('startDate'),
+            'endDate' => $this->post('endDate'),
         ];
 
         if (empty($filters['warehouse_id'])) {
@@ -167,8 +168,8 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
-        $page      = (int) ($this->post('page') ?? 0);
-        $pageSize  = (int) ($this->post('pageSize') ?? 10);
+        $page = (int) ($this->post('page') ?? 0);
+        $pageSize = (int) ($this->post('pageSize') ?? 10);
         $sortField = $this->post('sortField') ?? 'id';
         $sortOrder = strtolower($this->post('sortOrder')) === 'desc' ? 'DESC' : 'ASC';
 
@@ -176,11 +177,11 @@ class Receivables extends REST_Controller
         $total = $this->Receivables_model->count_receivables($filters);
 
         return $this->response([
-            'status'      => true,
-            'data'        => $data,
-            'total'       => $total,
-            'page'        => $page + 1,
-            'limit'       => $pageSize,
+            'status' => true,
+            'data' => $data,
+            'total' => $total,
+            'page' => $page + 1,
+            'limit' => $pageSize,
             'total_pages' => ceil($total / $pageSize)
         ], REST_Controller::HTTP_OK);
     }
@@ -189,56 +190,86 @@ class Receivables extends REST_Controller
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
-        $raw_input = file_get_contents('php://input');
-        $input = json_decode($raw_input, true);
+        try {
+            // Verificar se é multipart/form-data ou JSON
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
 
-        $id = $input['id'] ?? null;
-        $status = $input['status'] ?? null;
-        $installment_id = $input['installment_id'] ?? null;
-        $installment_numbers = $input['installment_numbers'] ?? null;
+            if ($is_multipart) {
+                // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
+                if (isset($_POST['data'])) {
+                    $input = json_decode($_POST['data'], true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new Exception('JSON inválido: ' . json_last_error_msg());
+                    }
+                    $_POST = $input; // Reatribuir $_POST
+                } else {
+                    throw new Exception('Campo "data" não encontrado na requisição multipart');
+                }
+            } else {
+                // Processar dados JSON
+                $raw_input = file_get_contents('php://input');
+                $input = json_decode($raw_input, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception('JSON inválido: ' . json_last_error_msg());
+                }
+                $_POST = $input; // Reatribuir $_POST
+            }
 
-        if (empty($id) || !in_array($status, ['pending', 'received'])) {
-            return $this->response([
-                'status' => false,
-                'message' => 'ID e status são obrigatórios (pending ou received)'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-        }
+            $id = $input['id'] ?? null;
+            $status = $input['status'] ?? null;
+            $installment_id = $input['installment_id'] ?? null;
+            $installment_numbers = $input['installment_numbers'] ?? null;
 
-        // Se há installment_numbers, é recebimento de múltiplas parcelas
-        if ($installment_numbers && is_array($installment_numbers)) {
-            return $this->receive_multiple_installments($id, $installment_numbers, $input);
-        }
-
-        // Se não há installment_id, buscar a primeira parcela disponível
-        if (!$installment_id) {
-            $this->load->model('Receivables_installments_model');
-            $installments = $this->Receivables_installments_model->get_installments_by_receivable($id);
-            
-            if (empty($installments)) {
+            if (empty($id) || !in_array($status, ['pending', 'received'])) {
                 return $this->response([
                     'status' => false,
-                    'message' => 'Nenhuma parcela encontrada para esta receita'
+                    'message' => 'ID e status são obrigatórios (pending ou received)'
                 ], REST_Controller::HTTP_BAD_REQUEST);
             }
-            
-            // Usar a primeira parcela não recebida, ou a primeira se todas estiverem recebidas
-            $first_installment = null;
-            foreach ($installments as $installment) {
-                if ($installment['status'] !== 'Pago') {
-                    $first_installment = $installment;
-                    break;
-                }
-            }
-            
-            if (!$first_installment) {
-                $first_installment = $installments[0]; // Usar a primeira se todas estiverem pagas
-            }
-            
-            $installment_id = $first_installment['id'];
-        }
 
-        // Sempre processar através do sistema de parcelas
-        return $this->receive_installment($id, $installment_id, $input);
+            // Se há installment_numbers, é recebimento de múltiplas parcelas
+            if ($installment_numbers && is_array($installment_numbers)) {
+                return $this->receive_multiple_installments($id, $installment_numbers, $input);
+            }
+
+            // Se não há installment_id, buscar a primeira parcela disponível
+            if (!$installment_id) {
+                $this->load->model('Receivables_installments_model');
+                $installments = $this->Receivables_installments_model->get_installments_by_receivable($id);
+
+                if (empty($installments)) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'Nenhuma parcela encontrada para esta receita'
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+
+                // Usar a primeira parcela não recebida, ou a primeira se todas estiverem recebidas
+                $first_installment = null;
+                foreach ($installments as $installment) {
+                    if ($installment['status'] !== 'Pago') {
+                        $first_installment = $installment;
+                        break;
+                    }
+                }
+
+                if (!$first_installment) {
+                    $first_installment = $installments[0]; // Usar a primeira se todas estiverem pagas
+                }
+
+                $installment_id = $first_installment['id'];
+            }
+
+            // Sempre processar através do sistema de parcelas
+            return $this->receive_installment($id, $installment_id, $input);
+
+        } catch (Exception $e) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro: ' . $e->getMessage(),
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     /**
@@ -252,18 +283,18 @@ class Receivables extends REST_Controller
     {
         try {
             $this->load->model('Receivables_installments_model');
-            
+
             // Verificar se a parcela existe
             $installment = $this->Receivables_installments_model->get_installment($installment_id);
             if (!$installment) {
                 throw new Exception('Parcela não encontrada');
             }
-            
+
             // Verificar se a parcela pertence à receita
             if ($installment->receivables_id != $receivable_id) {
                 throw new Exception('Parcela não pertence à receita informada');
             }
-            
+
             // Preparar dados do recebimento
             $payment_data = [
                 'data_pagamento' => $data['payment_date'] ?? date('Y-m-d'),
@@ -276,28 +307,31 @@ class Receivables extends REST_Controller
                 'id_cheque' => $data['check_identifier'] ?? null,
                 'id_boleto' => $data['boleto_identifier'] ?? null,
             ];
-            
+
             // Upload do comprovante (voucher)
             $voucher_path = null;
-            if (!empty($data['comprovante'])) {
-                $voucher_path = $this->upload_voucher($receivable_id, $data['comprovante']);
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $voucher_path = $this->upload_voucher($receivable_id, $_FILES['comprovante']);
             }
-            
+
             // Adicionar o caminho do comprovante aos dados de pagamento
             $payment_data['comprovante'] = $voucher_path;
-            
+
             // Realizar o recebimento
             $success = $this->Receivables_installments_model->receive_installment($installment_id, $payment_data);
             if (!$success) {
                 throw new Exception('Falha ao processar recebimento da parcela');
             }
-            
+
             // Verificar se todas as parcelas foram recebidas
             $summary = $this->Receivables_installments_model->get_installments_summary($receivable_id);
-            
+
             // Log para debug
             log_message('debug', 'Receivable ID: ' . $receivable_id . ' - Parcelas pendentes: ' . $summary['parcelas_pendentes'] . ' - Total parcelas: ' . $summary['total_parcelas']);
-            
+
             if ($summary['parcelas_pendentes'] == 0) {
                 // Marcar receita como recebida apenas quando todas as parcelas forem pagas
                 log_message('debug', 'Todas as parcelas foram recebidas. Marcando receita como received.');
@@ -311,14 +345,14 @@ class Receivables extends REST_Controller
                 // O due_date será atualizado automaticamente pelo método update_receivable_due_date
                 // que é chamado dentro do receive_installment do Receivables_installments_model
             }
-            
+
             return $this->response([
                 'status' => true,
                 'message' => 'Parcela recebida com sucesso',
                 'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
                 'installment_summary' => $summary
             ], REST_Controller::HTTP_OK);
-            
+
         } catch (Exception $e) {
             return $this->response([
                 'status' => false,
@@ -338,44 +372,50 @@ class Receivables extends REST_Controller
     {
         try {
             $this->load->model('Receivables_installments_model');
-            
+
             // Verificar se as parcelas são sequenciais
             sort($installment_numbers);
             for ($i = 1; $i < count($installment_numbers); $i++) {
-                if ($installment_numbers[$i] !== $installment_numbers[$i-1] + 1) {
+                if ($installment_numbers[$i] !== $installment_numbers[$i - 1] + 1) {
                     throw new Exception('As parcelas devem ser sequenciais. Não é possível pular parcelas.');
                 }
             }
-            
+
             // Buscar todas as parcelas da receita
             $all_installments = $this->Receivables_installments_model->get_installments_by_receivable($receivable_id);
-            
+
             // Filtrar apenas as parcelas selecionadas
-            $selected_installments = array_filter($all_installments, function($installment) use ($installment_numbers) {
+            $selected_installments = array_filter($all_installments, function ($installment) use ($installment_numbers) {
                 return in_array($installment['numero_parcela'], $installment_numbers);
             });
-            
+
             if (count($selected_installments) !== count($installment_numbers)) {
                 throw new Exception('Algumas parcelas selecionadas não foram encontradas');
             }
-            
+
             // Verificar se todas as parcelas estão pendentes
             foreach ($selected_installments as $installment) {
                 if ($installment['status'] === 'Pago') {
                     throw new Exception("A parcela {$installment['numero_parcela']} já foi recebida");
                 }
             }
-            
+
             // Upload do comprovante (voucher) - será usado para todas as parcelas
             $voucher_path = null;
-            if (!empty($data['comprovante'])) {
+            $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+            $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+
+            if ($is_multipart && isset($_FILES['comprovante']) && $_FILES['comprovante']['error'] === UPLOAD_ERR_OK) {
+                $voucher_path = $this->upload_voucher($receivable_id, $_FILES['comprovante']);
+            } elseif (!empty($data['comprovante'])) {
+                // Fallback para dados base64 (se ainda existir)
                 $voucher_path = $this->upload_voucher($receivable_id, $data['comprovante']);
             }
-            
+
             $success_count = 0;
             $failed_count = 0;
             $errors = [];
-            
+
             // Processar cada parcela
             foreach ($selected_installments as $installment) {
                 try {
@@ -391,7 +431,7 @@ class Receivables extends REST_Controller
                         'id_boleto' => $data['boleto_identifier'] ?? null,
                         'comprovante' => $voucher_path,
                     ];
-                    
+
                     $success = $this->Receivables_installments_model->receive_installment($installment['id'], $payment_data);
                     if ($success) {
                         $success_count++;
@@ -404,7 +444,7 @@ class Receivables extends REST_Controller
                     $errors[] = "Erro na parcela {$installment['numero_parcela']}: " . $e->getMessage();
                 }
             }
-            
+
             // Verificar se todas as parcelas foram recebidas
             $summary = $this->Receivables_installments_model->get_installments_summary($receivable_id);
             if ($summary['parcelas_pendentes'] == 0) {
@@ -414,7 +454,7 @@ class Receivables extends REST_Controller
                     'status' => 'received',
                 ], $receivable_id);
             }
-            
+
             if ($failed_count > 0) {
                 return $this->response([
                     'status' => false,
@@ -425,7 +465,7 @@ class Receivables extends REST_Controller
                     'voucher_url' => $voucher_path ? base_url($voucher_path) : null
                 ], REST_Controller::HTTP_PARTIAL_CONTENT);
             }
-            
+
             return $this->response([
                 'status' => true,
                 'message' => "Todas as parcelas foram recebidas com sucesso",
@@ -433,7 +473,7 @@ class Receivables extends REST_Controller
                 'voucher_url' => $voucher_path ? base_url($voucher_path) : null,
                 'installment_summary' => $summary
             ], REST_Controller::HTTP_OK);
-            
+
         } catch (Exception $e) {
             return $this->response([
                 'status' => false,
@@ -453,7 +493,15 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
         $fields = [
-            'juros', 'desconto', 'multa', 'valor_recebido', 'comprovante', 'data_pagamento', 'descricao_recebimento', 'bank_account_id', 'category_id'
+            'juros',
+            'desconto',
+            'multa',
+            'valor_recebido',
+            'comprovante',
+            'data_pagamento',
+            'descricao_recebimento',
+            'bank_account_id',
+            'category_id'
         ];
         $data = [];
         foreach ($fields as $field) {
@@ -539,24 +587,58 @@ class Receivables extends REST_Controller
                 : null);
         $raw_input = file_get_contents('php://input');
 
-        // Detectar tipo de conteúdo
-        $content_type = $log_content_type;
-        $is_multipart = $content_type && strpos($content_type, 'multipart/form-data') !== false;
+        // Verificar se é multipart/form-data ou JSON
+        $headers = $this->input->request_headers();
+        $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? $_SERVER['CONTENT_TYPE'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES) || isset($_POST['data']);
+
+        // Log para debug
+        log_message('debug', 'Receivables Content-Type: ' . $content_type);
+        log_message('debug', 'Receivables Is multipart: ' . ($is_multipart ? 'true' : 'false'));
+        log_message('debug', 'Receivables FILES: ' . json_encode($_FILES));
+        log_message('debug', 'Receivables POST keys: ' . json_encode(array_keys($_POST)));
+        log_message('debug', 'Receivables POST data exists: ' . (isset($_POST['data']) ? 'true' : 'false'));
 
         if ($is_multipart) {
-            $input = $this->input->post();
+            // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
+            if (isset($_POST['data'])) {
+                $input = json_decode($_POST['data'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'JSON inválido: ' . json_last_error_msg() . ' - Input: ' . $_POST['data'] . ' - Content-Type: ' . $content_type,
+                        'debug' => [
+                            'input' => $_POST['data'],
+                            'decoded' => null
+                        ]
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $_POST = $input; // Reatribuir $_POST
+            } else {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Campo "data" não encontrado na requisição multipart',
+                    'debug' => [
+                        'input' => '',
+                        'decoded' => null
+                    ]
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
         } else {
             $input = json_decode($raw_input, true);
+            $_POST = $input; // Reatribuir $_POST
         }
 
         // Validação robusta dos campos obrigatórios
         $required = [];
-        if (!isset($input['category']) || $input['category'] === '' || $input['category'] === null) $required[] = 'category';
-        if (!isset($input['amount']) || $input['amount'] === '' || $input['amount'] === null) $required[] = 'amount';
-        if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null) $required[] = 'date';
-        if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null) $required[] = 'warehouse_id';
-        if (!isset($input['origin_id']) || $input['origin_id'] === '' || $input['origin_id'] === null) $required[] = 'origin_id';
-        if (!isset($input['receivable_identifier']) || $input['receivable_identifier'] === '' || $input['receivable_identifier'] === null) $required[] = 'receivable_identifier';
+        if (!isset($input['category']) || $input['category'] === '' || $input['category'] === null)
+            $required[] = 'category';
+        if (!isset($input['amount']) || $input['amount'] === '' || $input['amount'] === null)
+            $required[] = 'amount';
+        if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null)
+            $required[] = 'date';
+        if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null)
+            $required[] = 'warehouse_id';
         if (!empty($required)) {
             return $this->response([
                 'status' => false,
@@ -569,59 +651,50 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
 
+        // Inicializar cliente S3
+        $s3 = $this->storage_s3->getClient();
         $receivables_document = null;
-        // Salvar documento apenas se vier base64 válido (igual despesas)
-        if (!empty($input['receivables_document']) && preg_match('/^data:(.+);base64,/', $input['receivables_document'], $matches)) {
-            $mime_type = $matches[1];
-            $document_data = substr($input['receivables_document'], strpos($input['receivables_document'], ',') + 1);
-            $allowed_types = [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'image/jpeg',
-                'image/jpg',
-                'image/png'
-            ];
-            if (!in_array($mime_type, $allowed_types)) {
+
+        // Processar documento da receita se enviado via multipart
+        if ($is_multipart && isset($_FILES['receivables_document']) && $_FILES['receivables_document']['error'] === UPLOAD_ERR_OK && $_FILES['receivables_document']['size'] > 0) {
+            $file = $_FILES['receivables_document'];
+            $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+            // Validar tipos de arquivo permitidos
+            $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+            if (!in_array($file_extension, $allowed_extensions)) {
                 return $this->response([
                     'status' => false,
-                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
+                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG'
                 ], REST_Controller::HTTP_BAD_REQUEST);
             }
-            $document_data = base64_decode($document_data);
-            if ($document_data === false) {
-                return $this->response([
-                    'status' => false,
-                    'message' => 'Falha ao decodificar o documento'
-                ], REST_Controller::HTTP_BAD_REQUEST);
-            }
-            if (strlen($document_data) > 5 * 1024 * 1024) {
+
+            // Verificar tamanho do arquivo (5MB)
+            if ($file['size'] > 5 * 1024 * 1024) {
                 return $this->response([
                     'status' => false,
                     'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
                 ], REST_Controller::HTTP_BAD_REQUEST);
             }
-            $upload_path = FCPATH . 'uploads/receivables/documents/';
-            if (!is_dir($upload_path)) {
-                mkdir($upload_path, 0755, true);
-            }
-            $extension_map = [
-                'application/pdf' => 'pdf',
-                'application/msword' => 'doc',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                'image/jpeg' => 'jpg',
-                'image/jpg' => 'jpg',
-                'image/png' => 'png'
-            ];
-            $extension = $extension_map[$mime_type] ?? 'bin';
-            $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
-            $file_path = $upload_path . $filename;
-            if (file_put_contents($file_path, $document_data)) {
-                $receivables_document = 'uploads/receivables/documents/' . $filename;
-            } else {
+
+            $unique_filename = 'receivable_' . time() . '_' . uniqid() . '.' . $file_extension;
+            $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $input['warehouse_id'] . '/receivables/documents/' . $unique_filename;
+
+            try {
+                // Upload para S3
+                $s3->putObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $blobName,
+                    'SourceFile' => $file['tmp_name'],
+                    'ACL' => 'public-read',
+                ]);
+
+                // Constrói a URL do arquivo
+                $receivables_document = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+            } catch (Exception $e) {
                 return $this->response([
                     'status' => false,
-                    'message' => 'Falha ao salvar o documento no servidor'
+                    'message' => 'Falha ao fazer upload do documento para S3: ' . $e->getMessage()
                 ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
@@ -629,6 +702,7 @@ class Receivables extends REST_Controller
             'category' => $input['category'],
             'currency' => $input['currency'] ?? 1,
             'amount' => $input['amount'],
+            'amount_base' => $input['amount_base'] ?? $input['amount'],
             'tax' => $input['tax'] ?? null,
             'tax2' => $input['tax2'] ?? 0,
             'reference_no' => $input['reference_no'] ?? null,
@@ -646,6 +720,8 @@ class Receivables extends REST_Controller
             'order_number' => $input['order_number'] ?? null,
             'installment_number' => $input['installment_number'] ?? null,
             'nfe_key' => $input['nfe_key'] ?? null,
+            'nfe_number' => $input['nfe_number'] ?? null,
+            'boleto_number' => $input['boleto_number'] ?? null,
             'barcode' => $input['barcode'] ?? null,
             'origin_id' => $input['origin_id'],
             'recurring_type' => null,
@@ -674,8 +750,18 @@ class Receivables extends REST_Controller
             'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
             // 'tipo_juros' => $input['tipo_juros'] ?? 'simples', // continua fora do principal
         ];
-        $data = array_filter($data, function ($v) { return $v !== null; });
-        
+        // Filtrar apenas valores null, mas manter campos opcionais como receivables_document
+        $data = array_filter($data, function ($value, $key) {
+            // Campos que podem ser null
+            $nullable_fields = ['receivables_document', 'tax', 'tax2', 'reference_no', 'note', 'expense_name', 'clientid', 'invoiceid', 'order_number', 'installment_number', 'nfe_key', 'nfe_number', 'boleto_number', 'barcode', 'registration_date'];
+
+            if (in_array($key, $nullable_fields)) {
+                return true; // Manter o campo mesmo se for null
+            }
+
+            return $value !== null;
+        }, ARRAY_FILTER_USE_BOTH);
+
         // Processar parcelas se fornecidas
         $installments = null;
         if (isset($data['num_parcelas']) && $data['num_parcelas'] > 1) {
@@ -689,7 +775,7 @@ class Receivables extends REST_Controller
 
         $this->load->model('Receivables_model');
         $id = $this->Receivables_model->add($data);
-        
+
         if ($id) {
             return $this->response([
                 'status' => true,
@@ -713,8 +799,34 @@ class Receivables extends REST_Controller
                 'message' => 'ID é obrigatório'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        $raw_input = file_get_contents('php://input');
-        $input = json_decode($raw_input, true);
+
+        // Verificar se é multipart/form-data ou JSON
+        $content_type = $this->input->request_headers()['Content-Type'] ?? '';
+        $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES);
+
+        if ($is_multipart) {
+            // Processar dados do FormData - usar $_POST diretamente como no Produto.php e reatribuir $_POST
+            if (isset($_POST['data'])) {
+                $input = json_decode($_POST['data'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return $this->response([
+                        'status' => false,
+                        'message' => 'JSON inválido: ' . json_last_error_msg()
+                    ], REST_Controller::HTTP_BAD_REQUEST);
+                }
+                $_POST = $input; // Reatribuir $_POST
+            } else {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Campo "data" não encontrado na requisição multipart'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+        } else {
+            $raw_input = file_get_contents('php://input');
+            $input = json_decode($raw_input, true);
+            $_POST = $input; // Reatribuir $_POST
+        }
+
         if (empty($input)) {
             return $this->response([
                 'status' => false,
@@ -723,12 +835,14 @@ class Receivables extends REST_Controller
         }
         // Validação robusta dos campos obrigatórios
         $required = [];
-        if (!isset($input['category']) || $input['category'] === '' || $input['category'] === null) $required[] = 'category';
-        if (!isset($input['amount']) || $input['amount'] === '' || $input['amount'] === null) $required[] = 'amount';
-        if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null) $required[] = 'date';
-        if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null) $required[] = 'warehouse_id';
-        if (!isset($input['origin_id']) || $input['origin_id'] === '' || $input['origin_id'] === null) $required[] = 'origin_id';
-        if (!isset($input['receivable_identifier']) || $input['receivable_identifier'] === '' || $input['receivable_identifier'] === null) $required[] = 'receivable_identifier';
+        if (!isset($input['category']) || $input['category'] === '' || $input['category'] === null)
+            $required[] = 'category';
+        if (!isset($input['amount']) || $input['amount'] === '' || $input['amount'] === null)
+            $required[] = 'amount';
+        if (!isset($input['date']) || $input['date'] === '' || $input['date'] === null)
+            $required[] = 'date';
+        if (!isset($input['warehouse_id']) || $input['warehouse_id'] === '' || $input['warehouse_id'] === null)
+            $required[] = 'warehouse_id';
         if (!empty($required)) {
             return $this->response([
                 'status' => false,
@@ -742,90 +856,74 @@ class Receivables extends REST_Controller
         $old_document = $current && isset($current->receivables_document) ? $current->receivables_document : null;
         $receivables_document = $old_document;
         $document_was_updated = false;
-        // Processar documento
-        if (array_key_exists('receivables_document', $input)) {
-            $document_data = $input['receivables_document'];
-            if (empty($document_data)) {
-                // Se veio vazio, apagar arquivo antigo
-                if ($old_document && strpos($old_document, 'data:') !== 0) {
-                    $old_path = FCPATH . ltrim($old_document, '/');
-                    if (file_exists($old_path)) {
-                        @unlink($old_path);
-                    }
+        // Processar documento se existir via multipart
+        if ($is_multipart && isset($_FILES['receivables_document']) && $_FILES['receivables_document']['error'] === UPLOAD_ERR_OK && $_FILES['receivables_document']['size'] > 0) {
+            $file = $_FILES['receivables_document'];
+            $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+            // Validar tipos de arquivo permitidos
+            $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+            if (!in_array($file_extension, $allowed_extensions)) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            // Verificar tamanho do arquivo (5MB)
+            if ($file['size'] > 5 * 1024 * 1024) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
+                ], REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            // Apagar o arquivo antigo do S3, se existir
+            if ($old_document && strpos($old_document, 'https://') === 0) {
+                try {
+                    $s3 = $this->storage_s3->getClient();
+                    $old_key = str_replace("https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/", "", $old_document);
+                    $s3->deleteObject([
+                        'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                        'Key' => $old_key
+                    ]);
+                } catch (Exception $e) {
+                    // Log do erro, mas não falhar a operação
+                    log_message('error', 'Erro ao deletar arquivo antigo do S3: ' . $e->getMessage());
                 }
-                $receivables_document = null;
+            }
+
+            $warehouse_id = $current ? $current->warehouse_id : 0;
+            $unique_filename = 'receivable_' . time() . '_' . uniqid() . '.' . $file_extension;
+            $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/receivables/documents/' . $unique_filename;
+
+            try {
+                // Inicializar cliente S3
+                $s3 = $this->storage_s3->getClient();
+
+                // Upload para S3
+                $s3->putObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $blobName,
+                    'SourceFile' => $file['tmp_name'],
+                    'ACL' => 'public-read',
+                ]);
+
+                // Constrói a URL do arquivo
+                $receivables_document = "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
                 $document_was_updated = true;
-            } else if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
-                $mime_type = $matches[1];
-                $document_data = substr($document_data, strpos($document_data, ',') + 1);
-                $allowed_types = [
-                    'application/pdf',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'image/jpeg',
-                    'image/jpg',
-                    'image/png'
-                ];
-                if (!in_array($mime_type, $allowed_types)) {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                }
-                $document_data = base64_decode($document_data);
-                if ($document_data === false) {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'Falha ao decodificar o documento'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                }
-                if (strlen($document_data) > 5 * 1024 * 1024) {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'O arquivo é muito grande. Tamanho máximo: 5MB'
-                    ], REST_Controller::HTTP_BAD_REQUEST);
-                }
-                // Apagar o arquivo antigo, se existir e não for base64
-                if ($old_document && strpos($old_document, 'data:') !== 0) {
-                    $old_path = FCPATH . ltrim($old_document, '/');
-                    if (file_exists($old_path)) {
-                        @unlink($old_path);
-                    }
-                }
-                $upload_path = FCPATH . 'uploads/receivables/documents/';
-                if (!is_dir($upload_path)) {
-                    mkdir($upload_path, 0755, true);
-                }
-                $extension_map = [
-                    'application/pdf' => 'pdf',
-                    'application/msword' => 'doc',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                    'image/jpeg' => 'jpg',
-                    'image/jpg' => 'jpg',
-                    'image/png' => 'png'
-                ];
-                $extension = $extension_map[$mime_type] ?? 'bin';
-                $filename = 'receivable_' . time() . '_' . uniqid() . '.' . $extension;
-                $file_path = $upload_path . $filename;
-                if (file_put_contents($file_path, $document_data)) {
-                    $receivables_document = 'uploads/receivables/documents/' . $filename;
-                    $document_was_updated = true;
-                } else {
-                    return $this->response([
-                        'status' => false,
-                        'message' => 'Falha ao salvar o documento no servidor'
-                    ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
-                }
-            } else if (is_string($document_data) && strpos($document_data, 'uploads/') === 0) {
-                // Se for caminho relativo, apenas atualiza o campo
-                $receivables_document = $document_data;
-                $document_was_updated = true;
+            } catch (Exception $e) {
+                return $this->response([
+                    'status' => false,
+                    'message' => 'Falha ao fazer upload do documento para S3: ' . $e->getMessage()
+                ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
         $data = [
             'category' => $input['category'],
             'currency' => $input['currency'] ?? 1,
             'amount' => $input['amount'],
+            'amount_base' => $input['amount_base'] ?? $input['amount'],
             'tax' => $input['tax'] ?? null,
             'tax2' => $input['tax2'] ?? 0,
             'reference_no' => $input['reference_no'] ?? null,
@@ -870,17 +968,26 @@ class Receivables extends REST_Controller
             'total_parcelado' => $input['total_parcelado'] ?? $input['amount'],
             // 'tipo_juros' => $input['tipo_juros'] ?? 'simples', // continua fora do principal
         ];
-        
+
         // Remover campos nulos, exceto installments
         $installments_backup = $data['installments'] ?? null;
-        $data = array_filter($data, function ($v) { return $v !== null; });
+        $data = array_filter($data, function ($value, $key) {
+            // Campos que podem ser null
+            $nullable_fields = ['receivables_document', 'tax', 'tax2', 'reference_no', 'note', 'expense_name', 'clientid', 'invoiceid', 'order_number', 'installment_number', 'nfe_key', 'nfe_number', 'boleto_number', 'barcode', 'registration_date'];
+
+            if (in_array($key, $nullable_fields)) {
+                return true; // Manter o campo mesmo se for null
+            }
+
+            return $value !== null;
+        }, ARRAY_FILTER_USE_BOTH);
         if ($installments_backup !== null) {
             $data['installments'] = $installments_backup;
         }
-        
+
         // Processar parcelas se fornecidas
         $installments = null;
-        
+
         // Se já existem parcelas no input, usar elas
         if (isset($input['installments']) && is_array($input['installments']) && !empty($input['installments'])) {
             log_message('debug', 'Parcelas encontradas no input: ' . json_encode($input['installments']));
@@ -899,7 +1006,7 @@ class Receivables extends REST_Controller
 
         $this->load->model('Receivables_model');
         $success = $this->Receivables_model->update($data, $id);
-        
+
         if ($success || $document_was_updated) {
             return $this->response([
                 'status' => true,
@@ -923,18 +1030,12 @@ class Receivables extends REST_Controller
                 'message' => 'ID é obrigatório para deletar'
             ], REST_Controller::HTTP_BAD_REQUEST);
         }
-        // Buscar o documento associado
-        $this->load->model('Receivables_model');
-        $receivable = $this->Receivables_model->get_receivable_by_id($id);
-        if ($receivable && !empty($receivable->receivables_document)) {
-            $file_path = FCPATH . $receivable->receivables_document;
-            if (file_exists($file_path)) {
-                @unlink($file_path);
-            }
-        }
-        
+
+        // Deletar arquivos S3 antes de deletar o registro
+        $this->delete_receivable_files_from_s3($id);
+
         $success = $this->Receivables_model->delete($id);
-        
+
         if ($success) {
             return $this->response([
                 'status' => true,
@@ -947,15 +1048,15 @@ class Receivables extends REST_Controller
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    
+
     public function list_by_day_post()
     {
         \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $warehouse_id = $this->post('warehouse_id');
         $date = $this->post('date');
-        $page = (int)($this->post('page') ?? 1);
-        $pageSize = (int)($this->post('pageSize') ?? 10);
+        $page = (int) ($this->post('page') ?? 1);
+        $pageSize = (int) ($this->post('pageSize') ?? 10);
 
         if (empty($warehouse_id) || empty($date)) {
             return $this->response([
@@ -1008,7 +1109,7 @@ class Receivables extends REST_Controller
                 $tem_juros = $i >= $juros_apartir;
                 $juros_parcela = 0;
                 $valor_com_juros = $valor_parcela;
-                
+
                 if ($tem_juros) {
                     $juros_parcela = $valor_acumulado * ($juros / 100);
                     $valor_com_juros = $valor_parcela + $juros_parcela;
@@ -1071,77 +1172,102 @@ class Receivables extends REST_Controller
      * @param string $document_data Dados do documento em base64
      * @return string|null Caminho do arquivo ou null
      */
-    private function upload_voucher($receivable_id, $document_data)
+    /**
+     * Upload de voucher para S3
+     * @param int $receivable_id ID da receita
+     * @param array $file Dados do arquivo do $_FILES
+     * @return string|null URL do arquivo ou null
+     */
+    private function upload_voucher($receivable_id, $file)
     {
-        if (preg_match('/^data:(.+);base64,/', $document_data, $matches)) {
-            $mime_type = $matches[1];
-            $document_data = substr($document_data, strpos($document_data, ',') + 1);
-            $allowed_types = [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'image/jpeg',
-                'image/jpg',
-                'image/png'
-            ];
-            if (!in_array($mime_type, $allowed_types)) {
-                throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOC, DOCX, JPG, PNG');
-            }
-            $document_data = base64_decode($document_data);
-            if ($document_data === false) {
-                throw new Exception('Falha ao decodificar o comprovante');
-            }
-            if (strlen($document_data) > 5 * 1024 * 1024) {
-                throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
-            }
-            $upload_path = FCPATH . 'uploads/receivables/voucher/';
-            if (!is_dir($upload_path)) {
-                mkdir($upload_path, 0755, true);
-            }
-            $extension_map = [
-                'application/pdf' => 'pdf',
-                'application/msword' => 'doc',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                'image/jpeg' => 'jpg',
-                'image/jpg' => 'jpg',
-                'image/png' => 'png'
-            ];
-            $extension = $extension_map[$mime_type] ?? 'bin';
-            $filename = 'voucher_' . $receivable_id . '_' . time() . '_' . uniqid() . '.' . $extension;
-            $file_path = $upload_path . $filename;
-            if (file_put_contents($file_path, $document_data)) {
-                return 'uploads/receivables/voucher/' . $filename;
-            } else {
-                throw new Exception('Falha ao salvar o comprovante no servidor');
-            }
+        $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+        // Validar tipos de arquivo permitidos
+        $allowed_extensions = ['pdf', 'docx', 'jpeg', 'jpg', 'png'];
+        if (!in_array($file_extension, $allowed_extensions)) {
+            throw new Exception('Tipo de arquivo não permitido. Tipos permitidos: PDF, DOCX, JPG, PNG');
         }
-        return null;
+
+        // Verificar tamanho do arquivo (5MB)
+        if ($file['size'] > 5 * 1024 * 1024) {
+            throw new Exception('O arquivo é muito grande. Tamanho máximo: 5MB');
+        }
+
+        // Buscar warehouse_id da receita
+        $receivable = $this->Receivables_model->get_receivable_by_id($receivable_id);
+        $warehouse_id = $receivable ? $receivable->warehouse_id : 0;
+
+        $unique_filename = 'voucher_' . $receivable_id . '_' . time() . '_' . uniqid() . '.' . $file_extension;
+        $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/receivables/vouchers/' . $receivable_id . '/' . $unique_filename;
+
+        try {
+            // Inicializar cliente S3
+            $s3 = $this->storage_s3->getClient();
+
+            // Upload para S3
+            $s3->putObject([
+                'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                'Key' => $blobName,
+                'SourceFile' => $file['tmp_name'],
+                'ACL' => 'public-read',
+            ]);
+
+            // Constrói a URL do arquivo
+            return "https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/" . $blobName;
+        } catch (Exception $e) {
+            throw new Exception('Falha ao fazer upload do comprovante para S3: ' . $e->getMessage());
+        }
     }
 
-    /**
-     * Corrigir valores existentes no banco de dados
-     * Endpoint para correção em massa dos valores após implementação dos novos campos
-     */
-    public function fix_existing_values_post()
+    // Função auxiliar para deletar arquivo do S3
+    private function delete_receivable_document_file($document)
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
-        
-        try {
-            $this->load->model('Receivables_installments_model');
-            
-            $stats = $this->Receivables_installments_model->fix_existing_values();
-            
-            return $this->response([
-                'status' => true,
-                'message' => 'Correção de valores existentes concluída com sucesso',
-                'data' => $stats
-            ], REST_Controller::HTTP_OK);
-            
-        } catch (Exception $e) {
-            return $this->response([
-                'status' => false,
-                'message' => 'Erro: ' . $e->getMessage(),
-            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        if (strpos($document, 'data:') === 0) {
+            // Documento em base64, nada a deletar
+            return;
+        }
+
+        // Se for URL do S3, deletar do S3
+        if (strpos($document, 'https://') === 0) {
+            try {
+                $s3 = $this->storage_s3->getClient();
+                $key = str_replace("https://" . getenv('STORAGE_S3_NAME_SPACE') . ".sfo3.digitaloceanspaces.com/", "", $document);
+                $s3->deleteObject([
+                    'Bucket' => getenv('STORAGE_S3_NAME_SPACE'),
+                    'Key' => $key
+                ]);
+            } catch (Exception $e) {
+                log_message('error', 'Erro ao deletar arquivo do S3: ' . $e->getMessage());
+            }
+        } else {
+            // Fallback para arquivo local (legado)
+            $filePath = FCPATH . ltrim($document, '/');
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
+        }
+    }
+
+    // Função para deletar todos os arquivos S3 relacionados a uma receita
+    private function delete_receivable_files_from_s3($receivable_id)
+    {
+        // Buscar a receita para obter o documento principal
+        $this->load->model('Receivables_model');
+        $receivable = $this->Receivables_model->get_receivable_by_id($receivable_id);
+        if ($receivable && !empty($receivable->receivables_document)) {
+            $this->delete_receivable_document_file($receivable->receivables_document);
+        }
+
+        // Buscar e deletar todos os comprovantes das parcelas
+        $this->load->model('Receivables_installments_model');
+        $installments = $this->Receivables_installments_model->get_installments_by_receivable($receivable_id);
+
+        if ($installments) {
+            foreach ($installments as $installment) {
+                if (!empty($installment['comprovante'])) {
+                    $this->delete_receivable_document_file($installment['comprovante']);
+                }
+            }
         }
     }
 }

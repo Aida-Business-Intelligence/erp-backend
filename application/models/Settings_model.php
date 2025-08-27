@@ -27,6 +27,8 @@ class Settings_model extends App_Model
          */
     }
 
+    
+
     public function get_options($warehouse_id, $name = null)
     {
         $this->db->select('name,value');
@@ -285,25 +287,20 @@ class Settings_model extends App_Model
         $grantedMenuIds = array_column($permissions, 'menu_id');
 
         $menus = [];
-          if($user->admin == 1){
-
+        if($user->admin == 1){
+            $menus = $this->db
+                ->where('status', 1)
+                ->get(db_prefix() . 'menu')
+                ->result_array();
+        } else {
+            if (!empty($grantedMenuIds)) {
                 $menus = $this->db
-                        ->get('tblmenu')
-                        ->result_array();
-            
-                }else{
-
-        if (!empty($grantedMenuIds)) {
-
-
-             
-                    $menus = $this->db
-                        ->where_in('id', $grantedMenuIds)
-                        ->get('tblmenu')
-                        ->result_array();
-
-                }
+                    ->where_in('id', $grantedMenuIds)
+                    ->where('status', 1)
+                    ->get(db_prefix() . 'menu')
+                    ->result_array();
             }
+        }
 
         
       
@@ -324,5 +321,59 @@ class Settings_model extends App_Model
         $this->db->delete(db_prefix() . 'menu');
 
         return $this->db->affected_rows();
+    }
+
+    public function get_api_menu($id = '', $page = 1, $limit = 10, $search = '', $sortField = 'ordem', $sortOrder = 'ASC')
+    {
+
+        if (!is_numeric($id)) { 
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('label', $search);
+                $this->db->or_like('value', $search);
+                $this->db->group_end();
+            }
+
+            // Contagem total de registros sem paginação
+            $total = $this->db->count_all_results(db_prefix() . 'menu');
+
+            // Obter os dados com paginação e ordenação
+            $this->db->from(db_prefix() . 'menu');
+
+            if (!empty($search)) {
+                $this->db->group_start();
+                $this->db->like('label', $search);
+                $this->db->or_like('value', $search);
+                $this->db->group_end();
+            }
+
+            // Aplica a ordenação
+            if ($sortField === 'value') {
+                // Ordenação por value
+                $this->db->order_by("value", $sortOrder);
+            } elseif ($sortField === 'label') {
+                // Ordenação pelo label
+                $this->db->order_by('label', $sortOrder);
+            } else {
+                $this->db->order_by($sortField, $sortOrder);
+            }
+
+            $offset = ($page - 1) * $limit;
+            $this->db->limit($limit, $offset);
+            $data = $this->db->get(db_prefix() . 'menu')->result_array();
+
+
+            return ['data' => $data, 'total' => $total];
+        } else {
+            return ['data' => (array) $this->get($id), 'total' => 1];
+        }
+    }
+
+    public function get($id)
+    {
+        return $this->db
+            ->where('id', $id)
+            ->get(db_prefix() . 'menu')
+            ->row();
     }
 }

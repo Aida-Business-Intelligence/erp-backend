@@ -14,14 +14,57 @@ class Expenses_ao_model extends App_Model
 
 
     //26/05
-    public function addtwo($data)
+    public function add($data)
     {
+        $this->db->trans_start();
+
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
+
         $this->db->insert(db_prefix() . 'expenses_ao', $data);
-        return $this->db->insert_id();
+        $expense_id = $this->db->insert_id();
+
+        // SEMPRE criar pelo menos uma parcela na tabela de parcelas (padronização)
+        if ($expense_id) {
+            $this->load->model('Expenses_installments_model');
+            
+            if ($installments) {
+                // Se há parcelas definidas, usar elas
+                $this->Expenses_installments_model->add_installments($expense_id, $installments);
+            } else {
+                // Se não há parcelas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Expenses_installments_model->add_installments($expense_id, [$single_installment]);
+            }
+        }
+
+        $this->db->trans_complete();
+        
+        if ($this->db->trans_status() === FALSE) {
+            return false;
+        }
+
+        return $expense_id;
     }
     public function handle_file_uploads($expense_id, $files)
     {
-        $upload_dir = './uploads/expenses/ao/' . $expense_id . '/';
+        $upload_dir = './uploads/expenses/documents/' . $expense_id . '/';
         if (!file_exists($upload_dir)) {
             mkdir($upload_dir, 0777, true);
         }
@@ -42,17 +85,6 @@ class Expenses_ao_model extends App_Model
         }
     }
 
-    public function get_categories($warehouse_id, $search = '', $limit = 5)
-    {
-        $this->db->where('warehouse_id', $warehouse_id);
-        if (!empty($search)) {
-            $this->db->like('name', $search);
-        }
-        $this->db->order_by('name', 'asc');
-        $this->db->limit($limit);
-        return $this->db->get(db_prefix() . 'expenses_categories')->result_array();
-    }
-
     public function get_currencies()
     {
         return $this->db->get(db_prefix() . 'currencies')->result_array();
@@ -65,14 +97,23 @@ class Expenses_ao_model extends App_Model
 
     public function get_payment_modes()
     {
+        $this->db->select('id, name, description, is_credit_card, is_check, is_boleto, active');
+        $this->db->where('active', 1);
         return $this->db->get(db_prefix() . 'payment_modes')->result_array();
     }
 
-    public function get_clients($warehouse_id = 0, $search = '', $limit = 5, $page = 0)
+    public function get_clients($warehouse_id = 0, $search = '', $limit = 5, $page = 0, $type = 'suppliers')
     {
-        $this->db->select('userid as id, company as name, vat');
+        $this->db->select('userid as id, company as name, vat, is_supplier');
         $this->db->where('active', 1);
         $this->db->where('warehouse_id', $warehouse_id);
+
+        // Filtrar por tipo (fornecedores ou clientes)
+        if ($type === 'suppliers') {
+            $this->db->where('is_supplier', 1);
+        } elseif ($type === 'clients') {
+            $this->db->where('is_supplier', 0);
+        }
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -126,25 +167,6 @@ class Expenses_ao_model extends App_Model
         return ['success' => false];
     }
 
-
-
-
-    //
-
-
-
-    //
-    public function get_warehouses()
-    {
-        return $this->db
-            ->select('warehouse_id as id, warehouse_name as name')
-            ->from(db_prefix() . 'warehouse')
-            ->where('display', 1)
-            ->order_by('warehouse_name', 'ASC')
-            ->get()
-            ->result_array();
-    }
-
     /**
      * Get expense(s)
      * @param  mixed $id Optional expense id
@@ -152,25 +174,23 @@ class Expenses_ao_model extends App_Model
      */
     public function get($id = '', $where = [])
     {
-        $this->db->select('*,' . db_prefix() . 'expenses_ao.id as id,' . db_prefix() . 'expenses_categories.name as category_name,' . db_prefix() . 'payment_modes.name as payment_mode_name,' . db_prefix() . 'taxes.name as tax_name, ' . db_prefix() . 'taxes.taxrate as taxrate,' . db_prefix() . 'taxes_2.name as tax_name2, ' . db_prefix() . 'taxes_2.taxrate as taxrate2, ' . db_prefix() . 'expenses_ao.id as expenseid,' . db_prefix() . 'expenses_ao.addedfrom as addedfrom, recurring_from');
+        $this->db->select('*,' . db_prefix() . 'expenses.id as id,' . db_prefix() . 'expenses_categories.name as category_name,' . db_prefix() . 'payment_modes.name as payment_mode_name,' . db_prefix() . 'taxes.name as tax_name, ' . db_prefix() . 'taxes.taxrate as taxrate,' . db_prefix() . 'taxes_2.name as tax_name2, ' . db_prefix() . 'taxes_2.taxrate as taxrate2, ' . db_prefix() . 'expenses.id as expenseid,' . db_prefix() . 'expenses.addedfrom as addedfrom, recurring_from, ' . db_prefix() . 'warehouse.warehouse_name as warehouse_name');
         $this->db->from(db_prefix() . 'expenses_ao');
-        $this->db->join(db_prefix() . 'clients', '' . db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses_ao.clientid', 'left');
-        $this->db->join(db_prefix() . 'payment_modes', '' . db_prefix() . 'payment_modes.id = ' . db_prefix() . 'expenses_ao.paymentmode', 'left');
-        $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses_ao.tax', 'left');
-        $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses_ao.tax2', 'left');
-        $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses_ao.category');
-
-        // Adicione esta linha para filtrar apenas despesas
-        $this->db->where(db_prefix() . 'expenses_ao.type', 'despesa');
+        $this->db->join(db_prefix() . 'clients', '' . db_prefix() . 'clients.userid = ' . db_prefix() . 'expenses.clientid', 'left');
+        $this->db->join(db_prefix() . 'payment_modes', '' . db_prefix() . 'payment_modes.id = ' . db_prefix() . 'expenses.paymentmode', 'left');
+        $this->db->join(db_prefix() . 'taxes', '' . db_prefix() . 'taxes.id = ' . db_prefix() . 'expenses.tax', 'left');
+        $this->db->join('' . db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', '' . db_prefix() . 'taxes_2.id = ' . db_prefix() . 'expenses.tax2', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories', '' . db_prefix() . 'expenses_categories.id = ' . db_prefix() . 'expenses.category');
+        $this->db->join(db_prefix() . 'warehouse', db_prefix() . 'warehouse.warehouse_id = ' . db_prefix() . 'expenses.warehouse_id', 'left');
 
         $this->db->where($where);
 
         if (is_numeric($id)) {
-            $this->db->where(db_prefix() . 'expenses_ao.id', $id);
+            $this->db->where(db_prefix() . 'expenses.id', $id);
             $expense = $this->db->get()->row();
             if ($expense) {
-                $expense->attachment = '';
-                $expense->filetype = '';
+                $expense->attachment            = '';
+                $expense->filetype              = '';
                 $expense->attachment_added_from = 0;
 
                 $this->db->where('rel_id', $id);
@@ -178,8 +198,8 @@ class Expenses_ao_model extends App_Model
                 $file = $this->db->get(db_prefix() . 'files')->row();
 
                 if ($file) {
-                    $expense->attachment = $file->file_name;
-                    $expense->filetype = $file->filetype;
+                    $expense->attachment            = $file->file_name;
+                    $expense->filetype              = $file->filetype;
                     $expense->attachment_added_from = $file->staffid;
                 }
 
@@ -199,6 +219,11 @@ class Expenses_ao_model extends App_Model
                         }
                     }
                 }
+
+                // SEMPRE carregar parcelas (padronização)
+                $this->load->model('Expenses_installments_model');
+                $expense->installments = $this->Expenses_installments_model->get_installments_by_expense($id);
+                $expense->installments_summary = $this->Expenses_installments_model->get_installments_summary($id);
             }
 
             return $expense;
@@ -206,86 +231,6 @@ class Expenses_ao_model extends App_Model
         $this->db->order_by('date', 'desc');
 
         return $this->db->get()->result_array();
-    }
-
-    /**
-     * Add new expense
-     * @param mixed $data All $_POST data
-     * @return  mixed
-     */
-    public function add($data)
-    {
-        $data['date'] = to_sql_date($data['date']);
-        $data['note'] = nl2br($data['note']);
-
-        $data['clientid'] = isset($data['clientid']) ? $data['clientid'] : 0;
-        $data['billable'] = isset($data['billable']) ? 1 : 0;
-        $data['create_invoice_billable'] = isset($data['create_invoice_billable']) ? 1 : 0;
-        $data['send_invoice_to_customer'] = isset($data['send_invoice_to_customer']) ? 1 : 0;
-
-        if (isset($data['custom_fields'])) {
-            $custom_fields = $data['custom_fields'];
-            unset($data['custom_fields']);
-        }
-
-        if (isset($data['repeat_every']) && $data['repeat_every'] != '') {
-            $data['recurring'] = 1;
-            if ($data['repeat_every'] == 'custom') {
-                $data['repeat_every'] = $data['repeat_every_custom'];
-                $data['recurring_type'] = $data['repeat_type_custom'];
-                $data['custom_recurring'] = 1;
-            } else {
-                $_temp = explode('-', $data['repeat_every']);
-                $data['recurring_type'] = $_temp[1];
-                $data['repeat_every'] = $_temp[0];
-                $data['custom_recurring'] = 0;
-            }
-        } else {
-            $data['recurring'] = 0;
-        }
-        unset($data['repeat_type_custom']);
-        unset($data['repeat_every_custom']);
-
-        if ((isset($data['project_id']) && $data['project_id'] == '') || !isset($data['project_id'])) {
-            $data['project_id'] = 0;
-        }
-        $data['addedfrom'] = get_staff_user_id();
-        $data['dateadded'] = date('Y-m-d H:i:s');
-
-        $data = hooks()->apply_filters('before_expense_added', $data);
-
-        $this->db->insert(db_prefix() . 'expenses_ao', $data);
-        $insert_id = $this->db->insert_id();
-        if ($insert_id) {
-            if (isset($custom_fields)) {
-                handle_custom_fields_post($insert_id, $custom_fields);
-            }
-            if (isset($data['project_id']) && !empty($data['project_id'])) {
-                $this->load->model('projects_model');
-                $project_settings = $this->projects_model->get_project_settings($data['project_id']);
-                $visible_activity = 0;
-                foreach ($project_settings as $s) {
-                    if ($s['name'] == 'view_finance_overview') {
-                        if ($s['value'] == 1) {
-                            $visible_activity = 1;
-
-                            break;
-                        }
-                    }
-                }
-                $expense = $this->get($insert_id);
-                $activity_additional_data = $expense->name;
-                $this->projects_model->log_activity($data['project_id'], 'project_activity_recorded_expense', $activity_additional_data, $visible_activity);
-            }
-
-            hooks()->do_action('after_expense_added', $insert_id);
-
-            log_activity('New Expense Added [' . $insert_id . ']');
-
-            return $insert_id;
-        }
-
-        return false;
     }
 
     public function get_child_expenses($id)
@@ -305,23 +250,21 @@ class Expenses_ao_model extends App_Model
     public function get_expenses_total($data)
     {
         $this->load->model('currencies_model');
-        $base_currency = $this->currencies_model->get_base_currency()->id;
-        $base = true;
+        $base_currency     = $this->currencies_model->get_base_currency()->id;
+        $base              = true;
         $currency_switcher = false;
         if (isset($data['currency'])) {
-            $currencyid = $data['currency'];
+            $currencyid        = $data['currency'];
             $currency_switcher = true;
         } elseif (isset($data['customer_id']) && $data['customer_id'] != '') {
             $currencyid = $this->clients_model->get_customer_default_currency($data['customer_id']);
             if ($currencyid == 0) {
                 $currencyid = $base_currency;
             } else {
-                if (
-                    total_rows(db_prefix() . 'expenses_ao', [
-                        'currency' => $base_currency,
-                        'clientid' => $data['customer_id'],
-                    ])
-                ) {
+                if (total_rows(db_prefix() . 'expenses_ao', [
+                    'currency' => $base_currency,
+                    'clientid' => $data['customer_id'],
+                ])) {
                     $currency_switcher = true;
                 }
             }
@@ -330,19 +273,17 @@ class Expenses_ao_model extends App_Model
             $currencyid = $this->projects_model->get_currency($data['project_id'])->id;
         } else {
             $currencyid = $base_currency;
-            if (
-                total_rows(db_prefix() . 'expenses_ao', [
-                    'currency !=' => $base_currency,
-                ])
-            ) {
+            if (total_rows(db_prefix() . 'expenses_ao', [
+                'currency !=' => $base_currency,
+            ])) {
                 $currency_switcher = true;
             }
         }
 
         $currency = get_currency($currencyid);
 
-        $has_permission_view = staff_can('view', 'expenses');
-        $_result = [];
+        $has_permission_view = staff_can('view',  'expenses_ao');
+        $_result             = [];
 
         for ($i = 1; $i <= 5; $i++) {
             $this->db->select('amount,tax,tax2,invoiceid');
@@ -384,7 +325,7 @@ class Expenses_ao_model extends App_Model
                     $key = 'billed';
                     $this->db->where('billable', 1);
                     $this->db->where('invoiceid IS NOT NULL');
-                    $this->db->where('invoiceid IN (SELECT invoiceid FROM ' . db_prefix() . 'invoices WHERE status=2 AND id=' . db_prefix() . 'expenses_ao.invoiceid)');
+                    $this->db->where('invoiceid IN (SELECT invoiceid FROM ' . db_prefix() . 'invoices WHERE status=2 AND id=' . db_prefix() . 'expenses.invoiceid)');
 
                     break;
                 case 5:
@@ -395,13 +336,13 @@ class Expenses_ao_model extends App_Model
                     break;
             }
             $all_expenses = $this->db->get(db_prefix() . 'expenses_ao')->result_array();
-            $_total_all = [];
+            $_total_all   = [];
             $cached_taxes = [];
             foreach ($all_expenses as $expense) {
                 $_total = $expense['amount'];
                 if ($expense['tax'] != 0) {
                     if (!isset($cached_taxes[$expense['tax']])) {
-                        $tax = get_tax_by_id($expense['tax']);
+                        $tax                           = get_tax_by_id($expense['tax']);
                         $cached_taxes[$expense['tax']] = $tax;
                     } else {
                         $tax = $cached_taxes[$expense['tax']];
@@ -410,7 +351,7 @@ class Expenses_ao_model extends App_Model
                 }
                 if ($expense['tax2'] != 0) {
                     if (!isset($cached_taxes[$expense['tax2']])) {
-                        $tax = get_tax_by_id($expense['tax2']);
+                        $tax                            = get_tax_by_id($expense['tax2']);
                         $cached_taxes[$expense['tax2']] = $tax;
                     } else {
                         $tax = $cached_taxes[$expense['tax2']];
@@ -422,53 +363,7 @@ class Expenses_ao_model extends App_Model
             $_result[$key]['total'] = app_format_money(array_sum($_total_all), $currency);
         }
         $_result['currency_switcher'] = $currency_switcher;
-        $_result['currencyid'] = $currencyid;
-
-        // All expenses
-        /*   $this->db->select('amount,tax');
-        $this->db->where('currency',$currencyid);
-
-
-        $this->db->select('amount,tax,invoiceid');
-        $this->db->where('currency',$currencyid);
-        $this->db->where('billable',1);
-        $this->db->where('invoiceid IS NOT NULL');
-
-        $all_expenses = $this->db->get(db_prefix().'expenses')->result_array();
-        $_total_all = array();
-        foreach($all_expenses as $expense){
-        $_total = 0;
-        if(total_rows(db_prefix().'invoices',array('status'=>2,'id'=>$expense['invoiceid'])) > 0){
-        $_total = $expense['amount'];
-        if($expense['tax'] != 0){
-        $tax = get_tax_by_id($expense['tax']);
-        $_total += ($_total / 100 * $tax->taxrate);
-        }
-        }
-        array_push($_total_all,$_total);
-        }
-        $_result['billed']['total'] = app_format_money(array_sum($_total_all), $currency);
-
-        $this->db->select('amount,tax,invoiceid');
-        $this->db->where('currency',$currencyid);
-        $this->db->where('billable',1);
-        $this->db->where('invoiceid IS NOT NULL');
-
-        $all_expenses = $this->db->get(db_prefix().'expenses')->result_array();
-        $_total_all = array();
-        foreach($all_expenses as $expense){
-        $_total = 0;
-        if(total_rows(db_prefix().'invoices','status NOT IN(2,5) AND id ='.$expense['invoiceid']) > 0){
-        echo $this->db->last_query();
-        $_total = $expense['amount'];
-        if($expense['tax'] != 0){
-        $tax = get_tax_by_id($expense['tax']);
-        $_total += ($_total / 100 * $tax->taxrate);
-        }
-        }
-        array_push($_total_all,$_total);
-        }
-        $_result['unbilled']['total'] = app_format_money(array_sum($_total_all), $currency);*/
+        $_result['currencyid']        = $currencyid;
 
         return $_result;
     }
@@ -481,28 +376,37 @@ class Expenses_ao_model extends App_Model
      */
     public function update($data, $id)
     {
+        $this->db->trans_start();
+
         $original_expense = $this->get($id);
 
         $data['date'] = to_sql_date($data['date']);
         $data['note'] = nl2br($data['note']);
 
+        // Separar dados de parcelas se existirem
+        $installments = null;
+        if (isset($data['installments'])) {
+            $installments = $data['installments'];
+            unset($data['installments']);
+        }
+
         // Recurring expense set to NO, Cancelled
         if ($original_expense->repeat_every != '' && ($data['repeat_every'] ?? '') == '') {
-            $data['cycles'] = 0;
-            $data['total_cycles'] = 0;
+            $data['cycles']              = 0;
+            $data['total_cycles']        = 0;
             $data['last_recurring_date'] = null;
         }
 
         if (isset($data['repeat_every']) && $data['repeat_every'] != '') {
             $data['recurring'] = 1;
             if ($data['repeat_every'] == 'custom') {
-                $data['repeat_every'] = $data['repeat_every_custom'];
-                $data['recurring_type'] = $data['repeat_type_custom'];
+                $data['repeat_every']     = $data['repeat_every_custom'];
+                $data['recurring_type']   = $data['repeat_type_custom'];
                 $data['custom_recurring'] = 1;
             } else {
-                $_temp = explode('-', $data['repeat_every']);
-                $data['recurring_type'] = $_temp[1];
-                $data['repeat_every'] = $_temp[0];
+                $_temp                    = explode('-', $data['repeat_every']);
+                $data['recurring_type']   = $_temp[1];
+                $data['repeat_every']     = $_temp[0];
                 $data['custom_recurring'] = 0;
             }
         } else {
@@ -514,16 +418,16 @@ class Expenses_ao_model extends App_Model
         unset($data['repeat_type_custom']);
         unset($data['repeat_every_custom']);
 
-        $data['create_invoice_billable'] = array_key_exists('create_invoice_billable', $data) ? 1 : 0;
-        $data['billable'] = array_key_exists('billable', $data) ? 1 : 0;
+        $data['create_invoice_billable']  = array_key_exists('create_invoice_billable', $data) ? 1 : 0;
+        $data['billable']                 = array_key_exists('billable', $data) ? 1 : 0;
         $data['send_invoice_to_customer'] = array_key_exists('send_invoice_to_customer', $data) ? 1 : 0;
 
         if (isset($data['project_id']) && $data['project_id'] == '' || !isset($data['project_id'])) {
             $data['project_id'] = 0;
         }
 
-        $updated = false;
-        $data = hooks()->apply_filters('before_expense_updated', $data, $id);
+        $updated       = false;
+        $data          = hooks()->apply_filters('before_expense_updated', $data, $id);
         $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
 
         if (handle_custom_fields_post($id, $custom_fields)) {
@@ -537,14 +441,70 @@ class Expenses_ao_model extends App_Model
             $updated = true;
         }
 
+        // SEMPRE atualizar parcelas (padronização)
+        $this->load->model('Expenses_installments_model');
+        
+        if ($installments !== null) {
+            // Deletar parcelas existentes
+            $this->Expenses_installments_model->delete_installments_by_expense($id);
+            
+            if (!empty($installments)) {
+                // Adicionar novas parcelas definidas
+                $this->Expenses_installments_model->add_installments($id, $installments);
+            } else {
+                // Se não há parcelas definidas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Expenses_installments_model->add_installments($id, [$single_installment]);
+            }
+            $updated = true;
+        } else {
+            // Se não foram fornecidas parcelas, verificar se já existem
+            if (!$this->Expenses_installments_model->has_installments($id)) {
+                // Se não existem parcelas, criar uma parcela única
+                $single_installment = [
+                    'numero_parcela' => 1,
+                    'data_vencimento' => $data['due_date'] ?? $data['date'],
+                    'valor_parcela' => $data['amount'],
+                    'valor_com_juros' => $data['amount'],
+                    'juros' => 0,
+                    'percentual_juros' => 0,
+                    'status' => 'Pendente',
+                    'paymentmode_id' => $data['paymentmode'] ?? null,
+                    'documento_parcela' => $data['expense_identifier'] ?? null,
+                    'observacoes' => $data['note'] ?? null,
+                ];
+                
+                $this->Expenses_installments_model->add_installments($id, [$single_installment]);
+                $updated = true;
+            }
+        }
+
         do_action_deprecated('after_expense_updated', [$id], '2.9.4', 'expense_updated');
 
         hooks()->do_action('expense_updated', [
-            'id' => $id,
-            'data' => $data,
+            'id'            => $id,
+            'data'          => $data,
             'custom_fields' => $custom_fields,
-            'updated' => &$updated,
+            'updated'       => &$updated,
         ]);
+
+        $this->db->trans_complete();
+
+        if ($this->db->trans_status() === FALSE) {
+            return false;
+        }
 
         if ($updated) {
             log_activity('Expense Updated [' . $id . ']');
@@ -572,6 +532,10 @@ class Expenses_ao_model extends App_Model
         $this->db->delete(db_prefix() . 'expenses_ao');
 
         if ($this->db->affected_rows() > 0) {
+            // Deletar parcelas relacionadas (padronização)
+            $this->load->model('Expenses_installments_model');
+            $this->Expenses_installments_model->delete_installments_by_expense($id);
+            
             // Delete the custom field values
             $this->db->where('relid', $id);
             $this->db->where('fieldto', 'expenses_ao');
@@ -614,32 +578,32 @@ class Expenses_ao_model extends App_Model
      */
     public function convert_to_invoice($id, $draft_invoice = false, $params = [])
     {
-        $expense = $this->get($id);
+        $expense          = $this->get($id);
         $new_invoice_data = [];
-        $client = $this->clients_model->get($expense->clientid);
+        $client           = $this->clients_model->get($expense->clientid);
 
         if ($draft_invoice == true) {
             $new_invoice_data['save_as_draft'] = true;
         }
         $new_invoice_data['clientid'] = $expense->clientid;
-        $new_invoice_data['number'] = get_option('next_invoice_number');
-        $invoice_date = (isset($params['invoice_date']) ? $params['invoice_date'] : date('Y-m-d'));
-        $new_invoice_data['date'] = _d($invoice_date);
+        $new_invoice_data['number']   = get_option('next_invoice_number');
+        $invoice_date                 = (isset($params['invoice_date']) ? $params['invoice_date'] : date('Y-m-d'));
+        $new_invoice_data['date']     = _d($invoice_date);
 
         if (get_option('invoice_due_after') != 0) {
             $new_invoice_data['duedate'] = _d(date('Y-m-d', strtotime('+' . get_option('invoice_due_after') . ' DAY', strtotime($invoice_date))));
         }
 
         $new_invoice_data['show_quantity_as'] = 1;
-        $new_invoice_data['terms'] = get_option('predefined_terms_invoice');
-        $new_invoice_data['clientnote'] = get_option('predefined_clientnote_invoice');
-        $new_invoice_data['discount_total'] = 0;
-        $new_invoice_data['sale_agent'] = 0;
-        $new_invoice_data['adjustment'] = 0;
-        $new_invoice_data['project_id'] = $expense->project_id;
+        $new_invoice_data['terms']            = get_option('predefined_terms_invoice');
+        $new_invoice_data['clientnote']       = get_option('predefined_clientnote_invoice');
+        $new_invoice_data['discount_total']   = 0;
+        $new_invoice_data['sale_agent']       = 0;
+        $new_invoice_data['adjustment']       = 0;
+        $new_invoice_data['project_id']       = $expense->project_id;
 
         $new_invoice_data['subtotal'] = $expense->amount;
-        $total = $expense->amount;
+        $total                        = $expense->amount;
 
         if ($expense->tax != 0) {
             $total += ($expense->amount / 100 * $expense->taxrate);
@@ -648,26 +612,26 @@ class Expenses_ao_model extends App_Model
             $total += ($expense->amount / 100 * $expense->taxrate2);
         }
 
-        $new_invoice_data['total'] = $total;
-        $new_invoice_data['currency'] = $expense->currency;
-        $new_invoice_data['status'] = 1;
+        $new_invoice_data['total']     = $total;
+        $new_invoice_data['currency']  = $expense->currency;
+        $new_invoice_data['status']    = 1;
         $new_invoice_data['adminnote'] = '';
         // Since version 1.0.6
-        $new_invoice_data['billing_street'] = clear_textarea_breaks($client->billing_street);
-        $new_invoice_data['billing_city'] = $client->billing_city;
-        $new_invoice_data['billing_state'] = $client->billing_state;
-        $new_invoice_data['billing_zip'] = $client->billing_zip;
+        $new_invoice_data['billing_street']  = clear_textarea_breaks($client->billing_street);
+        $new_invoice_data['billing_city']    = $client->billing_city;
+        $new_invoice_data['billing_state']   = $client->billing_state;
+        $new_invoice_data['billing_zip']     = $client->billing_zip;
         $new_invoice_data['billing_country'] = $client->billing_country;
         if (!empty($client->shipping_street)) {
-            $new_invoice_data['shipping_street'] = clear_textarea_breaks($client->shipping_street);
-            $new_invoice_data['shipping_city'] = $client->shipping_city;
-            $new_invoice_data['shipping_state'] = $client->shipping_state;
-            $new_invoice_data['shipping_zip'] = $client->shipping_zip;
-            $new_invoice_data['shipping_country'] = $client->shipping_country;
-            $new_invoice_data['include_shipping'] = 1;
+            $new_invoice_data['shipping_street']          = clear_textarea_breaks($client->shipping_street);
+            $new_invoice_data['shipping_city']            = $client->shipping_city;
+            $new_invoice_data['shipping_state']           = $client->shipping_state;
+            $new_invoice_data['shipping_zip']             = $client->shipping_zip;
+            $new_invoice_data['shipping_country']         = $client->shipping_country;
+            $new_invoice_data['include_shipping']         = 1;
             $new_invoice_data['show_shipping_on_invoice'] = 1;
         } else {
-            $new_invoice_data['include_shipping'] = 0;
+            $new_invoice_data['include_shipping']         = 0;
             $new_invoice_data['show_shipping_on_invoice'] = 1;
         }
 
@@ -686,8 +650,8 @@ class Expenses_ao_model extends App_Model
         $new_invoice_data['billed_expenses'][1] = [
             $expense->expenseid,
         ];
-        $new_invoice_data['allowed_payment_modes'] = $temp_modes;
-        $new_invoice_data['newitems'][1]['description'] = _l('item_as_expense') . ' ' . $expense->name;
+        $new_invoice_data['allowed_payment_modes']           = $temp_modes;
+        $new_invoice_data['newitems'][1]['description']      = _l('item_as_expense') . ' ' . $expense->name;
         $new_invoice_data['newitems'][1]['long_description'] = $expense->description;
 
         if (isset($params['include_note']) && $params['include_note'] == true && !empty($expense->note)) {
@@ -697,8 +661,8 @@ class Expenses_ao_model extends App_Model
             $new_invoice_data['newitems'][1]['long_description'] .= PHP_EOL . $expense->expense_name;
         }
 
-        $new_invoice_data['newitems'][1]['unit'] = '';
-        $new_invoice_data['newitems'][1]['qty'] = 1;
+        $new_invoice_data['newitems'][1]['unit']    = '';
+        $new_invoice_data['newitems'][1]['qty']     = 1;
         $new_invoice_data['newitems'][1]['taxname'] = [];
         if ($expense->tax != 0) {
             $tax_data = get_tax_by_id($expense->tax);
@@ -709,7 +673,7 @@ class Expenses_ao_model extends App_Model
             array_push($new_invoice_data['newitems'][1]['taxname'], $tax_data->name . '|' . $tax_data->taxrate);
         }
 
-        $new_invoice_data['newitems'][1]['rate'] = $expense->amount;
+        $new_invoice_data['newitems'][1]['rate']  = $expense->amount;
         $new_invoice_data['newitems'][1]['order'] = 1;
         $this->load->model('invoices_model');
 
@@ -746,10 +710,10 @@ class Expenses_ao_model extends App_Model
                                 continue;
                             }
                             $this->db->insert(db_prefix() . 'customfieldsvalues', [
-                                'relid' => $invoiceid,
+                                'relid'   => $invoiceid,
                                 'fieldid' => $cfTransfer[0]['id'],
                                 'fieldto' => 'invoice',
-                                'value' => $value,
+                                'value'   => $value,
                             ]);
                         }
                     }
@@ -773,8 +737,8 @@ class Expenses_ao_model extends App_Model
      */
     public function copy($id)
     {
-        $expense_fields = $this->db->list_fields(db_prefix() . 'expenses_ao');
-        $expense = $this->get($id);
+        $expense_fields   = $this->db->list_fields(db_prefix() . 'expenses_ao');
+        $expense          = $this->get($id);
         $new_expense_data = [];
         foreach ($expense_fields as $field) {
             if (isset($expense->$field)) {
@@ -784,10 +748,10 @@ class Expenses_ao_model extends App_Model
                 }
             }
         }
-        $new_expense_data['addedfrom'] = get_staff_user_id();
-        $new_expense_data['dateadded'] = date('Y-m-d H:i:s');
+        $new_expense_data['addedfrom']           = get_staff_user_id();
+        $new_expense_data['dateadded']           = date('Y-m-d H:i:s');
         $new_expense_data['last_recurring_date'] = null;
-        $new_expense_data['total_cycles'] = 0;
+        $new_expense_data['total_cycles']        = 0;
 
         $this->db->insert(db_prefix() . 'expenses_ao', $new_expense_data);
         $insert_id = $this->db->insert_id();
@@ -800,10 +764,10 @@ class Expenses_ao_model extends App_Model
                     continue;
                 }
                 $this->db->insert(db_prefix() . 'customfieldsvalues', [
-                    'relid' => $insert_id,
+                    'relid'   => $insert_id,
                     'fieldid' => $field['id'],
                     'fieldto' => 'expenses_ao',
-                    'value' => $value,
+                    'value'   => $value,
                 ]);
             }
             log_activity('Expense Copied [ExpenseID' . $id . ', NewExpenseID: ' . $insert_id . ']');
@@ -860,6 +824,9 @@ class Expenses_ao_model extends App_Model
      */
     public function add_category($data)
     {
+        if (empty($data['type'])) {
+            return false;
+        }
         $data['description'] = nl2br($data['description']);
         $this->db->insert(db_prefix() . 'expenses_categories', $data);
         $insert_id = $this->db->insert_id();
@@ -880,6 +847,9 @@ class Expenses_ao_model extends App_Model
      */
     public function update_category($data, $id)
     {
+        if (empty($data['type'])) {
+            return false;
+        }
         $data['description'] = nl2br($data['description']);
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'expenses_categories', $data);
@@ -917,7 +887,7 @@ class Expenses_ao_model extends App_Model
 
     public function get_expenses_years()
     {
-        return $this->db->query('SELECT DISTINCT(YEAR(date)) as year FROM ' . db_prefix() . 'expenses_ao ORDER by year DESC')->result_array();
+        return $this->db->query('SELECT DISTINCT(YEAR(date)) as year FROM ' . db_prefix() . 'expenses ORDER by year DESC')->result_array();
     }
 
     public function get_expenses_summary($warehouse_id)
@@ -926,10 +896,11 @@ class Expenses_ao_model extends App_Model
         $currentMonth = date('m');
         $currentYear = date('Y');
 
-        $paid_today = $this->sum_expenses_amount('paid', $warehouse_id, '=', $today);
+        // Para valores pagos, considerar parcelas pagas e não apenas o campo amount
+        $paid_today = $this->sum_expenses_paid_amount('paid', $warehouse_id, '=', $today);
         $paid_today_count = $this->count_expenses_by_status('paid', $warehouse_id, '=', $today);
 
-        $paid = $this->sum_expenses_amount('paid', $warehouse_id);
+        $paid = $this->sum_expenses_paid_amount('paid', $warehouse_id);
         $paid_count = $this->count_expenses_by_status('paid', $warehouse_id);
 
         $to_pay_month = $this->sum_expenses_in_month('pending', $warehouse_id, $currentMonth, $currentYear);
@@ -955,20 +926,63 @@ class Expenses_ao_model extends App_Model
         ];
     }
 
+    /**
+     * Calcula o valor total pago considerando parcelas pagas
+     */
+    private function sum_expenses_paid_amount($status, $warehouse_id, $date_operator = null, $specific_date = null)
+    {
+        // Se não há parcelas, usar o método antigo
+        if (!$this->has_installments_table()) {
+            return $this->sum_expenses_amount($status, $warehouse_id, $date_operator, $specific_date);
+        }
+
+        // Verificar se há parcelas pagas
+        $this->db->select('SUM(ai.valor_pago) as total_paid');
+        $this->db->from(db_prefix() . 'account_installments ai');
+        $this->db->join(db_prefix() . 'expenses e', 'e.id = ai.expenses_id');
+        $this->db->where('e.warehouse_id', $warehouse_id);
+        $this->db->where('ai.status', 'Pago');
+
+        if ($date_operator && !$specific_date) {
+            $this->db->where('ai.data_pagamento ' . $date_operator, date('Y-m-d'));
+        }
+
+        if ($specific_date) {
+            $this->db->where('ai.data_pagamento', $specific_date);
+        }
+
+        $result = $this->db->get()->row();
+        $total_from_installments = (float) ($result->total_paid ?? 0);
+
+        // Se não há parcelas ou parcelas pagas, usar o método antigo
+        if ($total_from_installments == 0) {
+            return $this->sum_expenses_amount($status, $warehouse_id, $date_operator, $specific_date);
+        }
+
+        return $total_from_installments;
+    }
+
+    /**
+     * Verifica se a tabela de parcelas existe
+     */
+    private function has_installments_table()
+    {
+        return $this->db->table_exists(db_prefix() . 'account_installments');
+    }
+
     private function sum_expenses_amount($status, $warehouse_id, $date_operator = null, $specific_date = null)
     {
         $this->db->select_sum('amount');
         $this->db->from(db_prefix() . 'expenses_ao');
-        $this->db->where('type', 'despesa');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
 
         if ($date_operator && !$specific_date) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
+            $this->db->where('due_date ' . $date_operator, date('Y-m-d'));
         }
 
         if ($specific_date) {
-            $this->db->where('date', $specific_date);
+            $this->db->where('due_date', $specific_date);
         }
 
         return (float) $this->db->get()->row()->amount;
@@ -977,16 +991,15 @@ class Expenses_ao_model extends App_Model
     private function count_expenses_by_status($status, $warehouse_id, $date_operator = null, $specific_date = null)
     {
         $this->db->from(db_prefix() . 'expenses_ao');
-        $this->db->where('type', 'despesa');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
 
         if ($date_operator && !$specific_date) {
-            $this->db->where('date ' . $date_operator, date('Y-m-d'));
+            $this->db->where('due_date ' . $date_operator, date('Y-m-d'));
         }
 
         if ($specific_date) {
-            $this->db->where('date', $specific_date);
+            $this->db->where('due_date', $specific_date);
         }
 
         return (int) $this->db->count_all_results();
@@ -996,11 +1009,10 @@ class Expenses_ao_model extends App_Model
     {
         $this->db->select_sum('amount');
         $this->db->from(db_prefix() . 'expenses_ao');
-        $this->db->where('type', 'despesa');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
-        $this->db->where('MONTH(date)', $month);
-        $this->db->where('YEAR(date)', $year);
+        $this->db->where('MONTH(due_date)', $month);
+        $this->db->where('YEAR(due_date)', $year);
 
         return (float) $this->db->get()->row()->amount;
     }
@@ -1008,11 +1020,10 @@ class Expenses_ao_model extends App_Model
     private function count_expenses_in_month($status, $warehouse_id, $month, $year)
     {
         $this->db->from(db_prefix() . 'expenses_ao');
-        $this->db->where('type', 'despesa');
         $this->db->where('warehouse_id', $warehouse_id);
         $this->db->where('status', $status);
-        $this->db->where('MONTH(date)', $month);
-        $this->db->where('YEAR(date)', $year);
+        $this->db->where('MONTH(due_date)', $month);
+        $this->db->where('YEAR(due_date)', $year);
 
         return (int) $this->db->count_all_results();
     }
@@ -1028,9 +1039,10 @@ class Expenses_ao_model extends App_Model
         if ($warehouse_id !== null) {
             $this->db->where('warehouse_id', $warehouse_id);
         }
-        if ($type !== null) {
-            $this->db->where('type', $type);
-        }
+        // Removendo a verificação da coluna 'type' que não existe na tabela
+        // if ($type !== null) {
+        //     $this->db->where('type', $type);
+        // }
 
         return $this->db->delete(db_prefix() . 'expenses_ao');
     }
@@ -1055,8 +1067,21 @@ class Expenses_ao_model extends App_Model
 
     public function gettwo($id)
     {
-        $this->db->where('id', $id);
-        return $this->db->get(db_prefix() . 'expenses_ao')->row();
+        $this->db->select(
+            'e.*, '
+            . get_sql_select_client_company('company', 'c') . ', '
+            . 'w.warehouse_name as warehouse_name, '
+            . 'cat.name as category_name, '
+            . 'pm.name as payment_mode_name'
+        );
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'warehouse w', 'w.warehouse_id = e.warehouse_id', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
+        $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
+        $this->db->where('e.id', $id);
+        
+        return $this->db->get()->row();
     }
 
     public function get_client_by_expense_id($expenseId)
@@ -1065,8 +1090,8 @@ class Expenses_ao_model extends App_Model
             return false;
         }
 
-        $this->db->select('c.userid AS id_cliente, c.company AS nome_cliente');
-        $this->db->from(db_prefix() . 'expenses_ao e');
+        $this->db->select('c.userid AS id_cliente, ' . get_sql_select_client_company('company', 'c') . ' as nome_cliente');
+        $this->db->from(db_prefix() . 'expenses e');
         $this->db->join(db_prefix() . 'clients c', 'e.clientid = c.userid');
         $this->db->where('e.id', $expenseId);
 
@@ -1076,7 +1101,7 @@ class Expenses_ao_model extends App_Model
     public function get_expense_category($expenseId)
     {
         $this->db->select('cat.id AS id_categoria, cat.name AS nome_categoria');
-        $this->db->from(db_prefix() . 'expenses_ao e');
+        $this->db->from(db_prefix() . 'expenses e');
         $this->db->join(db_prefix() . 'expenses_categories cat', 'e.category = cat.id', 'left');
         $this->db->where('e.id', $expenseId);
         $this->db->where('cat.warehouse_id = e.warehouse_id'); // Garante correspondência entre categoria e warehouse
@@ -1100,6 +1125,7 @@ class Expenses_ao_model extends App_Model
 
         $this->db->select('
             e.id,
+            e.status,
             e.category,
             e.currency,
             e.amount,
@@ -1108,12 +1134,14 @@ class Expenses_ao_model extends App_Model
             e.reference_no,
             e.note,
             e.expense_name,
+            e.expense_identifier,
             e.clientid,
             e.project_id,
             e.billable,
             e.invoiceid,
             e.paymentmode,
             e.date,
+            e.due_date,
             e.recurring_type,
             e.repeat_every,
             e.recurring,
@@ -1126,8 +1154,6 @@ class Expenses_ao_model extends App_Model
             e.recurring_from,
             e.dateadded,
             e.addedfrom,
-            e.type,
-            e.status,
             e.warehouse_id,
             e.file,
             ' . db_prefix() . 'expenses_categories.name as category_name,
@@ -1137,10 +1163,12 @@ class Expenses_ao_model extends App_Model
             ' . db_prefix() . 'taxes_2.name as tax_name2,
             ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
             ' . db_prefix() . 'payment_modes.name as payment_mode_name,
+            ' . db_prefix() . 'payment_modes.is_check,
+            ' . db_prefix() . 'payment_modes.is_boleto,
         ');
 
-        $this->db->from(db_prefix() . 'expenses_ao e');
-        $this->db->join(db_prefix() . 'clients', db_prefix() . 'clients.userid = e.clientid', 'left');
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
         $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
         $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
@@ -1148,7 +1176,6 @@ class Expenses_ao_model extends App_Model
 
 
         $this->db->where('e.warehouse_id', $warehouse_id);
-        $this->db->where('e.type', 'despesa');
 
         if (!empty($startDate) && $startDate !== 'null') {
             $this->db->where('e.date >=', $startDate);
@@ -1165,14 +1192,10 @@ class Expenses_ao_model extends App_Model
             $this->db->where('e.status', $status);
         }
 
-        if ($type !== null && $type !== '' && $type !== 'null') {
-            $this->db->where('e.type', $type);
-        }
-
         if (!empty($search) && $search !== 'null') {
             $this->db->group_start();
-            $this->db->like('e.note', $search);
-            $this->db->or_like('e.amount', $search);
+            $this->db->like('e.expense_identifier', $search);
+            $this->db->or_like('c.company', $search);
             $this->db->group_end();
         }
 
@@ -1204,8 +1227,7 @@ class Expenses_ao_model extends App_Model
 
     public function get_expense_detailed($id)
     {
-        if (empty($id))
-            return null;
+        if (empty($id)) return null;
 
         $this->db->select(
             'e.id,
@@ -1217,6 +1239,7 @@ class Expenses_ao_model extends App_Model
         e.reference_no,
         e.note,
         e.expense_name,
+        e.expense_identifier,
         e.clientid,
         e.project_id,
         e.billable,
@@ -1236,19 +1259,25 @@ class Expenses_ao_model extends App_Model
         e.dateadded,
         e.addedfrom,
         e.perfex_saas_tenant_id,
-        e.type,
         e.status,
         e.warehouse_id,
         e.file,
         e.comprovante,
-        e.num_parcelas,
-        e.juros,
-        e.juros_apartir,
-        e.total_parcelado,
-        e.nota_tipo_ao,
+        e.expense_document,
+        e.due_date,
+        e.reference_date,
+        e.installments,
+        e.consider_business_days,
+        e.week_day,
+        e.end_date,
+        e.bank_account_id,
+        e.order_number,
+        e.installment_number,
+        e.nfe_key,
+        e.barcode,
 
         c.userid as userid,
-        c.company as company,
+        ' . get_sql_select_client_company('company', 'c') . ',
         c.vat,
         c.phonenumber,
         c.address,
@@ -1265,7 +1294,7 @@ class Expenses_ao_model extends App_Model
         pm.is_boleto'
         );
 
-        $this->db->from(db_prefix() . 'expenses_ao e');
+        $this->db->from(db_prefix() . 'expenses e');
         $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'taxes t1', 't1.id = e.tax', 'left');
         $this->db->join(db_prefix() . 'taxes t2', 't2.id = e.tax2', 'left');
@@ -1277,24 +1306,192 @@ class Expenses_ao_model extends App_Model
     }
 
     public function get_expenses_by_date($params)
+{
+    $page = $params['page'] ?? 1;
+    $limit = $params['pageSize'] ?? 10;
+    $offset = ($page - 1) * $limit;
+
+    $this->db->select('
+        e.*, 
+        e.status,
+        e.id as id, 
+        e.id as expenseid, 
+        e.addedfrom as addedfrom,
+        cat.name as category_name,
+        pm.name as payment_mode_name,
+        pm.is_check,
+        pm.is_boleto,
+        t1.name as tax_name, 
+        t1.taxrate as taxrate,
+        t2.name as tax_name2, 
+        t2.taxrate as taxrate2
+    ');
+    $this->db->from(db_prefix() . 'expenses e');
+    $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+    $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
+    $this->db->join(db_prefix() . 'taxes t1', 't1.id = e.tax', 'left');
+    $this->db->join(db_prefix() . 'taxes t2', 't2.id = e.tax2', 'left');
+    $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
+
+    $this->db->where('e.warehouse_id', $params['warehouse_id']);
+
+    if (!empty($params['start_date'])) {
+        $this->db->where('e.date >=', $params['start_date']);
+    }
+    if (!empty($params['end_date'])) {
+        $this->db->where('e.date <=', $params['end_date']);
+    }
+    if (!empty($params['search'])) {
+        $this->db->group_start();
+        $this->db->like('e.expense_identifier', $params['search']);
+        $this->db->or_like('c.company', $params['search']);
+        $this->db->group_end();
+    }
+
+    $this->db->order_by($params['sortField'], $params['sortOrder']);
+
+    // Contar total sem limite
+    $total_query = clone $this->db;
+    $total = $total_query->count_all_results();
+
+    $this->db->limit($limit, $offset);
+    $data = $this->db->get()->result_array();
+
+    return [
+        'data' => $data,
+        'total' => $total
+    ];
+}
+
+    // NOVOS MÉTODOS PARA FILTRAR POR DUE_DATE
+    public function get_filtered_expenses_by_due_date($params)
+    {
+        $warehouse_id = $params['warehouse_id'];
+        $search = $params['search'] ?? '';
+        $sortField = $params['sortField'] ?? 'id';
+        $sortOrder = $params['sortOrder'] === 'desc' ? 'DESC' : 'ASC';
+        $startDate = $params['startDate'] ?? null;
+        $endDate = $params['endDate'] ?? null;
+        $category = $params['category'] ?? null;
+        $status = $params['status'] ?? null;
+        $type = $params['type'] ?? null;
+        $limit = $params['limit'] ?? 10;
+        $offset = $params['offset'] ?? 0;
+
+        $this->db->select('
+            e.id,
+            e.status,
+            e.category,
+            e.currency,
+            e.amount,
+            e.tax,
+            e.tax2,
+            e.reference_no,
+            e.note,
+            e.expense_name,
+            e.expense_identifier,
+            e.clientid,
+            e.project_id,
+            e.billable,
+            e.invoiceid,
+            e.paymentmode,
+            e.date,
+            e.due_date,
+            e.recurring_type,
+            e.repeat_every,
+            e.recurring,
+            e.cycles,
+            e.total_cycles,
+            e.custom_recurring,
+            e.last_recurring_date,
+            e.create_invoice_billable,
+            e.send_invoice_to_customer,
+            e.recurring_from,
+            e.dateadded,
+            e.addedfrom,
+            e.warehouse_id,
+            e.file,
+            ' . db_prefix() . 'expenses_categories.name as category_name,
+            ' . get_sql_select_client_company('company', 'c') . ',
+            ' . db_prefix() . 'taxes.name as tax_name,
+            ' . db_prefix() . 'taxes.taxrate as taxrate,
+            ' . db_prefix() . 'taxes_2.name as tax_name2,
+            ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
+            ' . db_prefix() . 'payment_modes.name as payment_mode_name,
+            ' . db_prefix() . 'payment_modes.is_check,
+            ' . db_prefix() . 'payment_modes.is_boleto,
+        ');
+
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
+        $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
+        $this->db->join(db_prefix() . 'payment_modes', db_prefix() . 'payment_modes.id = e.paymentmode', 'left');
+
+        $this->db->where('e.warehouse_id', $warehouse_id);
+
+        if (!empty($startDate) && $startDate !== 'null') {
+            $this->db->where('e.due_date >=', $startDate);
+        }
+        if (!empty($endDate) && $endDate !== 'null') {
+            $this->db->where('e.due_date <=', $endDate);
+        }
+
+        if (!empty($category) && $category !== 'null') {
+            $this->db->where('e.category', $category);
+        }
+
+        if ($status !== null && $status !== '' && $status !== 'null') {
+            $this->db->where('e.status', $status);
+        }
+
+        if (!empty($search) && $search !== 'null') {
+            $this->db->group_start();
+            $this->db->like('e.expense_identifier', $search);
+            $this->db->or_like('c.company', $search);
+            $this->db->group_end();
+        }
+
+        $this->db->order_by($sortField, $sortOrder);
+
+        // Get total count before applying limit/offset
+        $total_query = clone $this->db;
+        $total = $total_query->count_all_results();
+
+        // Apply limit/offset
+        $this->db->limit($limit, $offset);
+
+        $data = $this->db->get()->result_array();
+
+        return [
+            'data' => $data,
+            'total' => $total
+        ];
+    }
+
+    public function get_expenses_by_due_date($params)
     {
         $page = $params['page'] ?? 1;
         $limit = $params['pageSize'] ?? 10;
         $offset = ($page - 1) * $limit;
 
         $this->db->select('
-        e.*, 
-        e.id as id, 
-        e.id as expenseid, 
-        e.addedfrom as addedfrom,
-        cat.name as category_name,
-        pm.name as payment_mode_name,
-        t1.name as tax_name, 
-        t1.taxrate as taxrate,
-        t2.name as tax_name2, 
-        t2.taxrate as taxrate2
-    ');
-        $this->db->from(db_prefix() . 'expenses_ao e');
+            e.*, 
+            e.status,
+            e.id as id, 
+            e.id as expenseid, 
+            e.addedfrom as addedfrom,
+            cat.name as category_name,
+            pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
+            t1.name as tax_name, 
+            t1.taxrate as taxrate,
+            t2.name as tax_name2, 
+            t2.taxrate as taxrate2
+        ');
+        $this->db->from(db_prefix() . 'expenses e');
         $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
         $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
         $this->db->join(db_prefix() . 'taxes t1', 't1.id = e.tax', 'left');
@@ -1302,22 +1499,63 @@ class Expenses_ao_model extends App_Model
         $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
 
         $this->db->where('e.warehouse_id', $params['warehouse_id']);
-        $this->db->where('e.type', 'despesa');
 
         if (!empty($params['start_date'])) {
-            $this->db->where('e.date >=', $params['start_date']);
+            $this->db->where('e.due_date >=', $params['start_date']);
         }
         if (!empty($params['end_date'])) {
-            $this->db->where('e.date <=', $params['end_date']);
+            $this->db->where('e.due_date <=', $params['end_date']);
         }
         if (!empty($params['search'])) {
             $this->db->group_start();
-            $this->db->like('e.note', $params['search']);
-            $this->db->or_like('e.amount', $params['search']);
+            $this->db->like('e.expense_identifier', $params['search']);
+            $this->db->or_like('c.company', $params['search']);
             $this->db->group_end();
         }
 
         $this->db->order_by($params['sortField'], $params['sortOrder']);
+
+        // Contar total sem limite
+        $total_query = clone $this->db;
+        $total = $total_query->count_all_results();
+
+        $this->db->limit($limit, $offset);
+        $data = $this->db->get()->result_array();
+
+        return [
+            'data' => $data,
+            'total' => $total
+        ];
+    }
+
+    public function get_expenses_by_day($params)
+    {
+        $warehouse_id = $params['warehouse_id'];
+        $date = $params['date'];
+        $page = $params['page'] ?? 1;
+        $limit = $params['pageSize'] ?? 10;
+        $offset = ($page - 1) * $limit;
+
+        $this->db->select('
+            e.*,
+            ' . get_sql_select_client_company('client', 'c') . ',
+            pm.name as payment_mode_name,
+            pm.is_check,
+            pm.is_boleto,
+            cat.name as category_name,
+            t1.name as tax_name,
+            t1.taxrate as taxrate,
+            t2.name as tax_name2,
+            t2.taxrate as taxrate2
+        ');
+        $this->db->from(db_prefix() . 'expenses e');
+        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+        $this->db->join(db_prefix() . 'payment_modes pm', 'pm.id = e.paymentmode', 'left');
+        $this->db->join(db_prefix() . 'expenses_categories cat', 'cat.id = e.category', 'left');
+        $this->db->join(db_prefix() . 'taxes t1', 't1.id = e.tax', 'left');
+        $this->db->join(db_prefix() . 'taxes t2', 't2.id = e.tax2', 'left');
+        $this->db->where('e.warehouse_id', $warehouse_id);
+        $this->db->where('DATE(e.due_date)', $date);
 
         // Contar total sem limite
         $total_query = clone $this->db;

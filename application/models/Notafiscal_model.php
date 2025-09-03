@@ -67,7 +67,6 @@ class Notafiscal_model extends App_Model
             return $invoice;
         }
 
-        $this->db->order_by('invoice_date', 'DESC');
         $result = $this->db->get()->result();
 
         // Decodificar campos JSON para cada registro

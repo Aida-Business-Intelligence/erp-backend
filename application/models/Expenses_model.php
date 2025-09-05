@@ -1379,56 +1379,70 @@ class Expenses_model extends App_Model
         $offset = $params['offset'] ?? 0;
 
         $this->db->select('
-            e.id,
-            e.status,
-            e.category,
-            e.currency,
-            e.amount,
-            e.tax,
-            e.tax2,
-            e.reference_no,
-            e.note,
-            e.expense_name,
-            e.expense_identifier,
-            e.clientid,
-            e.project_id,
-            e.billable,
-            e.invoiceid,
-            e.paymentmode,
-            e.date,
-            e.due_date,
-            e.recurring_type,
-            e.repeat_every,
-            e.recurring,
-            e.cycles,
-            e.total_cycles,
-            e.custom_recurring,
-            e.last_recurring_date,
-            e.create_invoice_billable,
-            e.send_invoice_to_customer,
-            e.recurring_from,
-            e.dateadded,
-            e.addedfrom,
-            e.warehouse_id,
-            e.file,
-            ' . db_prefix() . 'expenses_categories.name as category_name,
-            ' . get_sql_select_client_company('company', 'c') . ',
-            ' . db_prefix() . 'taxes.name as tax_name,
-            ' . db_prefix() . 'taxes.taxrate as taxrate,
-            ' . db_prefix() . 'taxes_2.name as tax_name2,
-            ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
-            ' . db_prefix() . 'payment_modes.name as payment_mode_name,
-            ' . db_prefix() . 'payment_modes.is_check,
-            ' . db_prefix() . 'payment_modes.is_boleto,
-        ');
+    e.id,
+    e.status,
+    e.category,
+    e.currency,
+    e.amount,
+    e.tax,
+    e.tax2,
+    e.reference_no,
+    e.note,
+    e.expense_name,
+    e.expense_identifier,
+    e.clientid,
+    e.project_id,
+    e.billable,
+    e.invoiceid,
+    e.paymentmode,
+    e.date,
+    e.due_date,
+    e.recurring_type,
+    e.repeat_every,
+    e.recurring,
+    e.cycles,
+    e.total_cycles,
+    e.custom_recurring,
+    e.last_recurring_date,
+    e.create_invoice_billable,
+    e.send_invoice_to_customer,
+    e.recurring_from,
+    e.dateadded,
+    e.addedfrom,
+    e.warehouse_id,
+    e.file,
+    ' . db_prefix() . 'expenses_categories.name as category_name,
+    ' . get_sql_select_client_company('company', 'c') . ',
+    ' . db_prefix() . 'taxes.name as tax_name,
+    ' . db_prefix() . 'taxes.taxrate as taxrate,
+    ' . db_prefix() . 'taxes_2.name as tax_name2,
+    ' . db_prefix() . 'taxes_2.taxrate as taxrate2,
+    ' . db_prefix() . 'payment_modes.name as payment_mode_name,
+    ' . db_prefix() . 'payment_modes.is_check,
+    ' . db_prefix() . 'payment_modes.is_boleto,
+    -- Quantidade total de parcelas
+    (SELECT COUNT(*) FROM ' . db_prefix() . 'account_installments ai WHERE ai.expenses_id = e.id) AS total_installments,
+    -- Quantidade de parcelas pagas
+    (SELECT COUNT(*) FROM ' . db_prefix() . 'account_installments ai WHERE ai.expenses_id = e.id AND ai.status = "Pago") AS paid_installments,
+    -- Status ajustado
+    CASE
+        WHEN 
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'account_installments ai WHERE ai.expenses_id = e.id AND ai.status = "Pago") != 
+            (SELECT COUNT(*) FROM ' . db_prefix() . 'account_installments ai WHERE ai.expenses_id = e.id)
+        THEN "partial"
+        ELSE e.status
+    END AS adjusted_status
+');
 
-        $this->db->from(db_prefix() . 'expenses e');
-        $this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
-        $this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
-        $this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
-        $this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
-        $this->db->join(db_prefix() . 'payment_modes', db_prefix() . 'payment_modes.id = e.paymentmode', 'left');
+$this->db->from(db_prefix() . 'expenses e');
+$this->db->join(db_prefix() . 'clients c', 'c.userid = e.clientid', 'left');
+$this->db->join(db_prefix() . 'taxes', db_prefix() . 'taxes.id = e.tax', 'left');
+$this->db->join(db_prefix() . 'taxes as ' . db_prefix() . 'taxes_2', db_prefix() . 'taxes_2.id = e.tax2', 'left');
+$this->db->join(db_prefix() . 'expenses_categories', db_prefix() . 'expenses_categories.id = e.category', 'left');
+$this->db->join(db_prefix() . 'payment_modes', db_prefix() . 'payment_modes.id = e.paymentmode', 'left');
 
+        
+        
         $this->db->where('e.warehouse_id', $warehouse_id);
 
         if (!empty($startDate) && $startDate !== 'null') {
@@ -1463,6 +1477,9 @@ class Expenses_model extends App_Model
         $this->db->limit($limit, $offset);
 
         $data = $this->db->get()->result_array();
+        
+        
+        
 
         return [
             'data' => $data,

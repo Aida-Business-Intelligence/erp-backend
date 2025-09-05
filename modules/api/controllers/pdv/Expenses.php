@@ -188,6 +188,9 @@ class Expenses extends REST_Controller
                 $unique_filename = 'expense_' . time() . '_' . uniqid() . '.' . $file_extension;
                 $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $data['warehouse_id'] . '/expenses/documents/' . $unique_filename;
 
+                
+             
+                
                 try {
                     // Upload para S3
                     $s3->putObject([
@@ -366,10 +369,8 @@ class Expenses extends REST_Controller
     public function list_post()
     {
 
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $warehouse_id = $this->post('warehouse_id');
-
         if (empty($warehouse_id)) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -400,11 +401,10 @@ class Expenses extends REST_Controller
         $params['limit'] = $limit;
         $params['offset'] = $offset;
 
-        // Log parameters
-        // log_activity('Received parameters: ' . json_encode($params));
-
         // Get data from model
         $result = $this->Expenses_model->get_filtered_expenses_by_due_date($params);
+        
+        
         $data = $result['data'];
         $total = $result['total'];
 
@@ -412,6 +412,7 @@ class Expenses extends REST_Controller
         if (!empty($data)) {
             foreach ($data as &$expense) {
                 if ($expense['recurring'] == 1) {
+                    
                     $expense['recurring_info'] = [
                         'recurring' => true,
                         'recurring_type' => $expense['recurring_type'],
@@ -419,7 +420,7 @@ class Expenses extends REST_Controller
                         'cycles_completed' => $expense['cycles'],
                         'total_cycles' => $expense['total_cycles'],
                         'custom_recurring' => $expense['custom_recurring'] == 1,
-                        'last_recurring_date' => $expense['last_recurring_date'],
+                        'last_recurring_date' => $expense['last_recurring_date']
                     ];
                 } else {
                     $expense['recurring_info'] = null;
@@ -732,7 +733,6 @@ class Expenses extends REST_Controller
 
     public function summary_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         $warehouse_id = $this->post('warehouse_id');
 
@@ -744,7 +744,8 @@ class Expenses extends REST_Controller
         }
 
         $summary = $this->Expenses_model->get_expenses_summary($warehouse_id);
-
+        
+    
         $total = $summary['paid'] + $summary['to_pay'] + $summary['overdue'];
         $paid_percent = $total > 0 ? round(($summary['paid'] / $total) * 100, 1) : 0;
 
@@ -1205,7 +1206,6 @@ class Expenses extends REST_Controller
 
     public function pay_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
         try {
             // Verificar se é multipart/form-data ou JSON
             $content_type = $this->input->request_headers()['Content-Type'] ?? '';
@@ -1291,6 +1291,15 @@ class Expenses extends REST_Controller
                 $unique_filename = 'voucher_' . $expense_id . '_' . time() . '_' . uniqid() . '.' . $file_extension;
                 $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $warehouse_id . '/expenses/vouchers/' . $expense_id . '/' . $unique_filename;
 
+                /*
+                
+                   echo getenv('STORAGE_S3_NAME_SPACE');
+                
+                var_dump($file['tmp_name']);
+                exit;
+                 * 
+                 */
+                
                 try {
                     // Inicializar cliente S3
                     $s3 = $this->storage_s3->getClient();

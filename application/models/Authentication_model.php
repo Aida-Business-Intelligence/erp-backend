@@ -216,9 +216,9 @@ class Authentication_model extends App_Model
 
 
         if ($user) {
-
-           
-
+            
+            
+                $warehouses = json_decode($user->warehouse, true);
 
             if ($user->admin != 1) {
                 if (!is_array($warehouses) || !in_array($warehouse->warehouse_id, $warehouses)) {
@@ -228,7 +228,6 @@ class Authentication_model extends App_Model
                     ];
                 }
 
-                $warehouses = json_decode($user->warehouse, true);
                 $user->warehouses = $warehouses;
 
             }

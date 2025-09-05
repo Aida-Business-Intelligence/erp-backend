@@ -719,6 +719,9 @@ class Invoice_items_model extends App_Model
         // Remover campos desnecessários
         unset($data['itemid']);
 
+
+        $data['price_franquia'] = $data['rate'];
+
         // Tratar campos vazios
         if (isset($data['tax']) && $data['tax'] == '') {
             unset($data['tax']);

@@ -759,7 +759,7 @@ class Settings extends REST_Controller
         }
     }
 
-    public function update_menu_ordem_patch($id)
+    public function update_menu_ordem_patch($id = 0)
     {
         // Recebe e limpa os dados de entrada
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
@@ -772,15 +772,27 @@ class Settings extends REST_Controller
             return;
         }
         
-        unset($_POST['id']);
+         $count =0;
+        
+        if($id > 0){
+            
+             $count =1;
+             $result = $this->Settings_model->update_menu($id, array('status'=>$_POST['status']));
 
-   
+            
+        }else{
 
-        $result = $this->Settings_model->update_menu($id, $_POST);
+        foreach($_POST['items'] as $item){
+        $result = $this->Settings_model->update_menu($item['id'], array('ordem'=>$item['ordem']));
+        if($result){
+            $count++;
+        }
+        }
+        }
 
        
-        if ($result > 0) {
-            $message = ['status' => TRUE, 'message' => 'Menu atualizado com sucesso.'];
+        if ($count > 0) {
+            $message = ['status' => TRUE, 'message' => $count . ' Menu(s) atualizado com sucesso.'];
             $this->response($message, REST_Controller::HTTP_OK);
         } else {
             $message = ['status' => FALSE, 'message' => 'Falha ao atualizar menu.'];

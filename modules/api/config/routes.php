@@ -20,10 +20,3 @@ $route['api/v1/(:any)']               = '$1/data';
 $route['api/v1/(:any)/auth']               = '$1/signin';
 $route['api/v1/(:any)/(:any)/(:num)'] = '$1/data/$2/$3';
 $route['api/v1/(:any)/(:num)/(:num)'] = '$1/data/$2/$3';
-
-
-
-
-
-
-

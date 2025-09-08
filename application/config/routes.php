@@ -67,6 +67,13 @@ $route['admin/access_denied'] = 'admin/misc/access_denied';
 $route['admin/not_found']     = 'admin/misc/not_found';
 
 /**
+ * Staff Routes
+ */
+$route['admin/profile']           = 'admin/staff/profile';
+$route['admin/profile/(:num)']    = 'admin/staff/profile/$1';
+$route['admin/tasks/view/(:any)'] = 'admin/tasks/index/$1';
+
+/**
  * Items search rewrite
  */
 $route['admin/items/search'] = 'admin/invoice_items/search';

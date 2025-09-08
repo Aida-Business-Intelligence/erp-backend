@@ -763,7 +763,7 @@ class Romaneio extends REST_Controller {
         $limit = $this->get('limit') ? (int) $this->get('limit') : 20;
         $offset = ($page - 1) * $limit;
 
-        if(getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') == 10){
+        if(getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') != 10){
 
         $this->db->select('userid as id, company as name, vat as document');
         $this->db->from(db_prefix() . 'clients');
@@ -794,10 +794,11 @@ class Romaneio extends REST_Controller {
 
         $this->db->order_by('company', 'ASC');
         $this->db->limit($limit, $offset);
-        }
+      
 
 
         $suppliers = $this->db->get()->result_array();
+    }
 
         $warehouses = $this->warehouse_model->get("", "(type = 'distribuidor' OR type = 'importador' OR type = 'ecommerce')");
         $fornecedores = array();

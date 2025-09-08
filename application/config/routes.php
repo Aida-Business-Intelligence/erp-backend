@@ -67,32 +67,6 @@ $route['admin/access_denied'] = 'admin/misc/access_denied';
 $route['admin/not_found']     = 'admin/misc/not_found';
 
 /**
- * Staff Routes
- */
-$route['admin/profile']           = 'admin/staff/profile';
-$route['admin/profile/(:num)']    = 'admin/staff/profile/$1';
-$route['admin/tasks/view/(:any)'] = 'admin/tasks/index/$1';
-
-/* BANKING – Contas */
-$route['api/banking/accounts/list']['post']          = 'api/banking/accounts_list';
-$route['api/banking/accounts/create']['post']        = 'api/banking/accounts_create';
-$route['api/banking/accounts/update/(:num)']['post'] = 'api/banking/accounts_update/$1';
-$route['api/banking/accounts/remove']['post']        = 'api/banking/accounts_remove';
-$route['api/banking/accounts/get']['get']            = 'api/banking/accounts_get';
-
-/* BANKING – Taxas */
-$route['api/banking/fees/get']['get']     = 'api/banking/fees_get';
-$route['api/banking/fees/upsert']['post'] = 'api/banking/fees_upsert';
-$route['api/banking/fees/upsert/']['post']= 'api/banking/fees_upsert';
-
-/* BANKING – Transações */
-$route['api/banking/transactions/list']['post']      = 'api/banking/transactions_list';
-$route['api/banking/transactions/create']['post']    = 'api/banking/transactions_create';
-
-/* BANKING – Saldo */
-$route['api/banking/balance']['get']                 = 'api/banking/balance_get';
-
-/**
  * Items search rewrite
  */
 $route['admin/items/search'] = 'admin/invoice_items/search';

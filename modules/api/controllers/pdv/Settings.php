@@ -303,29 +303,33 @@ class Settings extends REST_Controller
 
     public function update_config_post()
     {
-
-
-
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
         if (empty($_POST)) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'No configuration data provided'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
+            return $this->response(['status'=>FALSE,'message'=>'No configuration data provided'], 400);
         }
 
-        // Validate warehouse_id
+        // 1) valide e capture o warehouse_id ANTES de qualquer uso
         if (!isset($_POST['warehouse_id']) || empty($_POST['warehouse_id'])) {
-            $this->response([
-                'status' => FALSE,
-                'message' => 'Warehouse ID is required'
-            ], REST_Controller::HTTP_BAD_REQUEST);
-            return;
+            return $this->response(['status'=>FALSE,'message'=>'Warehouse ID is required'], 400);
+        }
+        $warehouse_id = $_POST['warehouse_id'];
+        // não remova ainda: vamos precisar dele para banking_fees
+        // unset($_POST['warehouse_id']);  <-- REMOVA APENAS DEPOIS do bloco banking_fees
+
+        // 2) se veio banking_fees, persista primeiro
+        if (isset($_POST['banking_fees'])) {
+            $this->load->model('Banking_model');
+            $fees = $_POST['banking_fees'];
+            $fees['warehouse_id'] = $warehouse_id;
+            $ok = $this->Banking_model->fees_upsert($fees);
+            if (!$ok) {
+                return $this->response(['status'=>FALSE,'message'=>'Falha ao salvar taxas'], 500);
+            }
+            unset($_POST['banking_fees']);
         }
 
-        $warehouse_id = $_POST['warehouse_id'];
+        // 3) agora sim, prossiga com o restante das configs
         unset($_POST['warehouse_id']);
 
         $allowed_configs = [

@@ -29,6 +29,7 @@ class Produto extends REST_Controller
         $this->load->library('upload');
         $this->load->model('Settings_model');
         $this->load->library('storage_s3');
+        $this->decodedToken = $this->authservice->decodeToken($this->token_jwt);
     }
 
     public function get_by_sku_or_commodity_post()
@@ -393,6 +394,8 @@ foreach ($warehouses as $warehouse) {
     {
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
+
+
         if (empty($_POST['data']['items']) || !is_array($_POST['data']['items'])) {
             $this->response(
                 ['status' => FALSE, 'message' => 'Items array is required'],
@@ -440,6 +443,7 @@ foreach ($warehouses as $warehouse) {
 
         foreach ($warehouses as $warehouse) {
             foreach ($items as $item) {
+
                 // Validação básica dos campos obrigatórios
                 $this->form_validation->set_data($item);
                 $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');
@@ -462,7 +466,38 @@ foreach ($warehouses as $warehouse) {
                 $item['createdAt'] = date('Y-m-d H:i:s');
                 $item['updatedAt'] = date('Y-m-d H:i:s');
 
-                $product_id = $this->Invoice_items_model->add_products_nf($item);
+
+                $product_by_code = $this->Invoice_items_model->get_by_campos(array(
+                    'description' => $item['description'], 
+                    'warehouse_id' => $warehouse['warehouse_id'],
+                    'code' => $item['code'],
+                    'sku_code' => $item['sku_code'],
+                    'commodity_barcode' => $item['commodity_barcode']
+                  ));
+
+                  $product_id = $this->Invoice_items_model->add_products_nf($item);
+
+
+                
+
+                  if($product_by_code){
+                    $product_id = $product_by_code->id;
+                    $data_item['rate'] = $item['rate'];
+                    $data_item['price_franquia'] = $item['rate'];
+                    $data_item['qty'] = $item['stock'];
+                    $data_item['id'] = $product_id;
+
+                    updateStock(array('warehouse_id'=>$product_by_code->warehouse_id, 'hash'=>app_generate_hash(), 'user_id'=>$this->decodedToken['data']->user->staffid), $data_item, array('id' => $product_id, 'type' => 'NF_IMPORT'));
+
+                    $this->Invoice_items_model->update_products_nf($item, $product_id);
+                    $createdCount++;
+                    
+                  }else{
+
+                            $product_id = $this->Invoice_items_model->add_products_nf($item);
+
+                  }
+                
 
                 if ($product_id) {
                     $createdCount++;
@@ -474,6 +509,10 @@ foreach ($warehouses as $warehouse) {
                     ];
                     $failedCount++;
                 }
+
+            
+
+
             }
         }
 
@@ -715,16 +754,14 @@ foreach ($warehouses as $warehouse) {
             }
             if (count($warehouses) > 1) {
 
-                $item = $this->Invoice_items_model->get($id);
-                $sku = $item->sku_code;
-                if ($sku != "") {
-
-                    $output = $this->Invoice_items_model->delete_by_sku($sku);
-                } else {
-
+                //$item = $this->Invoice_items_model->get($id);
+                //$sku = $item->sku_code;
+                //if ($sku != "") {
+                    //$output = $this->Invoice_items_model->delete_by_sku($sku);
+               // } else {
                     $output = $this->Invoice_items_model->delete($id);
 
-                }
+               // }
 
             } else {
 

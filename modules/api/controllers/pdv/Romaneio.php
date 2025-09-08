@@ -334,9 +334,16 @@ class Romaneio extends REST_Controller {
 
             $this->db->insert(db_prefix() . 'romaneio_orders', $order_data);
             $order_id = $this->db->insert_id();
+            $data = array(
+                'warehouse_id' => $supplierIdNumber, 
+                'user_id' => $this->decodedToken['data']->user->staffid,
+                'hash' => app_generate_hash());
+                
 
             foreach ($order['products'] as $product) {
-$product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']) * 100) / $product['price']  : 0;
+
+                
+               $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']) * 100) / $product['price']  : 0;
 
                 $product_data = [
                     'order_id' => $order_id,
@@ -353,6 +360,8 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
                 ];
 
                 $this->db->insert(db_prefix() . 'romaneio_order_items', $product_data);
+                updateStock($data, $product, array('id' => $romaneio_id, 'type' => 'romaneio'));
+
             }
         }
 
@@ -754,6 +763,8 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
         $limit = $this->get('limit') ? (int) $this->get('limit') : 20;
         $offset = ($page - 1) * $limit;
 
+        if(getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') == 10){
+
         $this->db->select('userid as id, company as name, vat as document');
         $this->db->from(db_prefix() . 'clients');
         $this->db->where('is_supplier', 1);
@@ -783,6 +794,8 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
 
         $this->db->order_by('company', 'ASC');
         $this->db->limit($limit, $offset);
+        }
+
 
         $suppliers = $this->db->get()->result_array();
 
@@ -796,7 +809,13 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
                 "document" => $wa['cnpj'] // Use a different key for cnpj to avoid overwriting 'name'
             );
         }
-        $combined = array_merge($suppliers, $fornecedores);
+
+        if(getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') == 10){
+            $combined = $fornecedores;
+           
+        }else{
+            $combined = array_merge($suppliers, $fornecedores);
+        }
 
         $this->response([
             'status' => TRUE,
@@ -813,6 +832,7 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
     public function customers_get() {
         $warehouse_id = $this->get('warehouse_id');
 
+
         if (empty($warehouse_id)) {
             $this->response(
                     ['status' => FALSE, 'message' => 'Warehouse ID is required'],
@@ -825,10 +845,13 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
         $search = $this->get('search') ?: '';
         $limit = $this->get('limit') ? (int) $this->get('limit') : 50;
         $page = $this->get('page') ? (int) $this->get('page') : 1;
-        /*
+        
+        if(getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') == 10){
+      
         $this->db->select('staffid as id, CONCAT(firstname, lastname) as name, vat as document');
         $this->db->from(db_prefix() . 'staff');
         $this->db->where('active', 1);
+        $this->db->where('type', 'franchisees');
 
         if (!empty($search)) {
             $this->db->group_start();
@@ -842,9 +865,12 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
         $this->db->limit($limit);
 
         $customers = $this->db->get()->result_array();
-        */
+    }
+
 
         $warehouses = $this->warehouse_model->get("", "(type = 'filial' OR type = 'franquia')");
+
+
         $fornecedores = array();
 
         foreach ($warehouses as $wa) {
@@ -854,22 +880,24 @@ $product_margin = $product['price'] > 0 ? (($product['price'] - $product['cost']
                 "document" => $wa['cnpj'] // Use a different key for cnpj to avoid overwriting 'name'
             );
         }
-       // $combined = array_merge($customers, $fornecedores);
+
+        if(getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') == 10){
+        $combined = array_merge($customers, $fornecedores);
+        }else{
+            $combined = $fornecedores;
+        }
 
         $this->response([
             'status' => TRUE,
-            'total' => count($fornecedores), // update total count
+            'total' => count($combined), // update total count
             'page' => $page,
             'limit' => $limit,
-            'data' => $fornecedores
+            'data' => $combined
                 ], REST_Controller::HTTP_OK);
     }
 
     public function supplier_products_get($supplier_id) {
         $warehouse_id = $this->get('warehouse_id');
-
-       
-
 
         if (empty($warehouse_id)) {
             $this->response(

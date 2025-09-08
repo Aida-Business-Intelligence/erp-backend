@@ -310,7 +310,7 @@ class Client extends REST_Controller
         continue;
       }
 
-      $output = $this->clients_model->delete($id);
+      $output = $this->clients_model->delete_client($id);
       if ($output === TRUE) {
         $success_count++;
       } else {

@@ -791,12 +791,7 @@ class Suppliers extends REST_Controller
         throw new Exception("CNPJ é obrigatório");
       }
 
-      // Verificar se CNPJ já existe
-      $this->db->where('vat', $cnpj);
-      $existing_supplier = $this->db->get(db_prefix() . 'clients')->row();
-      if ($existing_supplier) {
-        throw new Exception("CNPJ já cadastrado");
-      }
+    
 
       $primary_contact = $_POST['contacts'][0] ?? null;
       $primary_document = $_POST['documents'][0] ?? null;
@@ -829,10 +824,22 @@ class Suppliers extends REST_Controller
         'inscricao_estadual' => $_POST['ie'] ?? null,
       ];
 
-      $supplier_id = $this->Clients_model->add($supplier_data);
+
+        // Verificar se CNPJ já existe
+        $this->db->where('vat', $cnpj);
+        $this->db->where('warehouse_id', $_POST['warehouse_id']);
+
+        $existing_supplier = $this->db->get(db_prefix() . 'clients')->row();
+        if (!$existing_supplier) {
+          $supplier_id = $this->Clients_model->add($supplier_data);
+        }else{
+          $supplier_id = $existing_supplier->userid;
+        }
+
+     
 
       if (!$supplier_id) {
-        throw new Exception('Falha ao criar fornecedor');
+        throw new Exception('Falha ao encontrar fornecedor');
       }
 
       // Adicionar contato apenas se houver email válido

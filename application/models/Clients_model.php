@@ -1562,6 +1562,35 @@ $date = new DateTime($supplier['datecreated']);
         return false;
     }
 
+
+    public function delete_client($id)
+    {
+        $affectedRows = 0;
+
+        $this->db->where('userid', $id);
+        $this->db->delete(db_prefix() . 'clients');
+        if ($this->db->affected_rows() > 0) {
+            $affectedRows++;
+            // Delete all user contacts
+            $this->db->where('userid', $id);
+            $contacts = $this->db->get(db_prefix() . 'contacts')->result_array();
+            foreach ($contacts as $contact) {
+                $this->delete_contact($contact['id']);
+            }
+        if ($affectedRows > 0) {
+            
+        
+            // log_activity('Client Deleted [ID: ' . $id . ']');
+
+            return true;
+        }
+
+        return false;
+    }
+}
+
+
+
     /**
      * @param  integer ID
      * @return boolean

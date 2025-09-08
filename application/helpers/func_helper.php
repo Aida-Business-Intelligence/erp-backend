@@ -666,18 +666,21 @@ if (!function_exists('updateStock')) {
     function updateStock($data, $item, $transaction, $type = 'debit')
     {
         $CI = &get_instance();
-        $id_itemstocks = update_itemstocks($item['qty'], $item['id'], $data['warehouse_id'], $type);
+        $qtde = (!isset($item['qty'])) ? $item['quantity'] : $item['qty'];
+        $item_id = (!isset($item['id'])) ? $item['productId'] : $item['id'];
+        $id_itemstocks = update_itemstocks($qtde, $item_id, $data['warehouse_id'], $type);
 
 
         $data_itemstocksmov = [
             'warehouse_id' => $data['warehouse_id'],
             'cash_id' => $transaction['id'], //$data['cash_id'],
-            'qtde' => $item['qty'],
+            'qtde' => $qtde,
             'transaction_id' => $transaction['id'],
             'hash' => $data['hash'],
             'user_id' => $data['user_id'],
+            'item_id' => $item_id,
+            'type_transaction' => $transaction['type'],
             'obs' => 'pagamento',
-            'type_transaction' => $transaction['type']
         ];
         $CI->db->insert(db_prefix() . 'itemstocksmov', $data_itemstocksmov);
     }

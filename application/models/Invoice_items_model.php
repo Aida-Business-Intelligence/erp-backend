@@ -185,6 +185,13 @@ class Invoice_items_model extends App_Model
         return $this->db->get()->row();
     }
 
+    public function get_by_campos($campos)
+    {
+        $this->db->from(db_prefix() . 'items');
+        $this->db->where($campos);
+        return $this->db->get()->row();
+    }
+
     public function get_by_code($id = '')
     {
         $this->db->from(db_prefix() . 'items');
@@ -837,6 +844,12 @@ class Invoice_items_model extends App_Model
         }
 
         return $updated;
+    }
+
+    public function update_products_nf($data, $id){
+        $this->db->where('id', $id);
+        $this->db->update('items', $data);
+        return $this->db->affected_rows();
     }
 
     /**

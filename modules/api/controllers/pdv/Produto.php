@@ -433,9 +433,6 @@ foreach ($warehouses as $warehouse) {
 
         $warehouses = $this->getWarehouses($warehouse_id);
 
-        var_dump($warehouses); exit;
-
-    
 
         if (!$warehouses) {
             $this->response(
@@ -447,6 +444,8 @@ foreach ($warehouses as $warehouse) {
 
         foreach ($warehouses as $warehouse) {
             foreach ($items as $item) {
+
+          
 
                 // Validação básica dos campos obrigatórios
                 $this->form_validation->set_data($item);

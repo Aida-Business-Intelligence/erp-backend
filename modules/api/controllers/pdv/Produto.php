@@ -433,6 +433,10 @@ foreach ($warehouses as $warehouse) {
 
         $warehouses = $this->getWarehouses($warehouse_id);
 
+        var_dump($warehouses); exit;
+
+    
+
         if (!$warehouses) {
             $this->response(
                 ['status' => FALSE, 'message' => 'No warehouses found'],
@@ -448,6 +452,7 @@ foreach ($warehouses as $warehouse) {
                 $this->form_validation->set_data($item);
                 $this->form_validation->set_rules('description', 'Description', 'trim|required|max_length[600]');
                 $this->form_validation->set_rules('warehouse_id', 'Warehouse', 'required|numeric');
+
 
                 if ($this->form_validation->run() == FALSE) {
                     $errors[] = [
@@ -465,6 +470,7 @@ foreach ($warehouses as $warehouse) {
                 $item['product_unit'] = $item['product_unit'] ?? 'unidade';
                 $item['createdAt'] = date('Y-m-d H:i:s');
                 $item['updatedAt'] = date('Y-m-d H:i:s');
+                $item['warehouse_id'] = $warehouse['warehouse_id'];
 
 
                 $product_by_code = $this->Invoice_items_model->get_by_campos(array(
@@ -1861,6 +1867,13 @@ if($imagem->name != null){
 
         $warehouse = $this->warehouse_model->get($warehouse_id);
 
+        
+        if(getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') == 10){
+
+            $warehouses[] = (array) $warehouse;
+
+        }else{
+
         if ($warehouse->type == 'distribuidor') {
 
             $warehouses = $this->warehouse_model->get("", "(type = 'filial' OR type = 'franquia'  OR type = 'distribuidor'  )");
@@ -1868,6 +1881,7 @@ if($imagem->name != null){
 
             $warehouses[] = (array) $warehouse;
         }
+    }
 
         return $warehouses;
     }

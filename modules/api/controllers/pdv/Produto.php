@@ -407,6 +407,7 @@ foreach ($warehouses as $warehouse) {
         $items = $_POST['data']['items'];
         $warehouse_id = null;
         $createdCount = 0;
+        $updateCount = 0;
         $failedCount = 0;
         $errors = [];
 
@@ -441,6 +442,9 @@ foreach ($warehouses as $warehouse) {
             );
             return;
         }
+
+     
+
 
         foreach ($warehouses as $warehouse) {
             foreach ($items as $item) {
@@ -480,17 +484,14 @@ foreach ($warehouses as $warehouse) {
                     'commodity_barcode' => $item['commodity_barcode']
                   ));
 
-                  $product_id = $this->Invoice_items_model->add_products_nf($item);
-
-
-                
-
                   if($product_by_code){
+                    // Produto já existe - apenas atualiza o estoque
                     $product_id = $product_by_code->id;
                     $data_item['rate'] = $item['rate'];
                     $data_item['price_franquia'] = $item['rate'];
                     $data_item['qty'] = $item['stock'];
                     $data_item['id'] = $product_id;
+                    $data_item['warehouse_id'] = $warehouse['warehouse_id'];
 
                     updateStock(array('warehouse_id'=>$product_by_code->warehouse_id, 'hash'=>app_generate_hash(), 'user_id'=>$this->decodedToken['data']->user->staffid), $data_item, array('id' => $product_id, 'type' => 'NF_IMPORT'));
 
@@ -498,14 +499,13 @@ foreach ($warehouses as $warehouse) {
                     $createdCount++;
                     
                   }else{
-
-                            $product_id = $this->Invoice_items_model->add_products_nf($item);
-
+                    // Produto não existe - cria novo produto
+                    $product_id = $this->Invoice_items_model->add_products_nf($item);
                   }
                 
 
                 if ($product_id) {
-                    $createdCount++;
+                    $updateCount++;
                 } else {
                     $errors[] = [
                         'warehouse_id' => $warehouse['warehouse_id'],
@@ -525,6 +525,7 @@ foreach ($warehouses as $warehouse) {
             'status' => TRUE,
             'message' => 'Products creation summary',
             'created_count' => $createdCount,
+            'update_count' => $updateCount,
             'failed_count' => $failedCount,
             'errors' => $errors
         ];

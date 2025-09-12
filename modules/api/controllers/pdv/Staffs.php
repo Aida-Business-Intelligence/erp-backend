@@ -423,6 +423,8 @@ class Staffs extends REST_Controller
         // Recebendo e decodificando os dados
         $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
 
+       
+
 
 
 
@@ -449,15 +451,22 @@ class Staffs extends REST_Controller
 
         if ($this->form_validation->run() == FALSE) {
             // Se a validação falhar
-
-
-      
             $message = array('status' => FALSE, 'error' => $this->form_validation->error_array(), 'message' => validation_errors());
             $this->response($message, REST_Controller::HTTP_NOT_FOUND);
         } else {
+            // Verificar se o email já existe antes de tentar adicionar
+            if ($this->Staff_model->email_exists($input['email'])) {
+                $message = array(
+                    'status' => FALSE, 
+                    'message' => 'Este email já está sendo usado por outro usuário. Por favor, use um email diferente.'
+                );
+                $this->response($message, REST_Controller::HTTP_CONFLICT);
+            }
+            
             // Chama o método do modelo para adicionar o novo usuário
             $output = $this->Staff_model->add($input);
-
+            
+   
             if ($output > 0 && !empty($output)) {
                 // Sucesso: usuário foi adicionado com sucesso
                 $message = array('status' => 'success', 'message' => 'success', 'data' => $this->Staff_model->get($output));

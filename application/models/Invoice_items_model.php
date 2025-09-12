@@ -706,7 +706,28 @@ class Invoice_items_model extends App_Model
 
         $this->db->insert('items', $data);
 
+
+        
+
+
         $insert_id = $this->db->insert_id();
+     
+
+        // Se o item tem estoque inicial, fazer movimentação de estoque
+        if ($insert_id && isset($data['stock']) && floatval($data['stock']) > 0) {
+            $current_item = [
+                'id' => $insert_id,
+                'quantity' => floatval($data['stock'])
+            ];
+            $data_post = array(
+                'warehouse_id' => isset($data['warehouse_id']) ? $data['warehouse_id'] : 1, 
+                'user_id' => $this->decodedToken['data']->user->staffid ?? 1,
+                'hash' => app_generate_hash()
+            );
+            
+            // Fazer a movimentação de estoque inicial (sempre credit para estoque inicial)
+            updateStock($data_post, $current_item, array('id' => $insert_id, 'type' => 'item'), 'credit', 'Estoque inicial do item');
+        }
 
         if ($insert_id) {
             handle_custom_fields_post($insert_id, $custom_fields, true);
@@ -755,6 +776,23 @@ class Invoice_items_model extends App_Model
         // Inserir no banco
         $this->db->insert('items', $data);
         $insert_id = $this->db->insert_id();
+
+
+         // Se o item tem estoque inicial, fazer movimentação de estoque
+         if ($insert_id && isset($data['stock']) && floatval($data['stock']) > 0) {
+            $current_item = [
+                'id' => $insert_id,
+                'quantity' => floatval($data['stock'])
+            ];
+            $data_post = array(
+                'warehouse_id' => isset($data['warehouse_id']) ? $data['warehouse_id'] : 1, 
+                'user_id' => $this->decodedToken['data']->user->staffid ?? 1,
+                'hash' => app_generate_hash()
+            );
+            
+            // Fazer a movimentação de estoque inicial (sempre credit para estoque inicial)
+            updateStock($data_post, $current_item, array('id' => $insert_id, 'type' => 'item'), 'credit', 'Estoque entrada de NF');
+        }
 
         if ($insert_id) {
             handle_custom_fields_post($insert_id, $custom_fields, true);
@@ -811,10 +849,49 @@ class Invoice_items_model extends App_Model
         $data = hooks()->apply_filters('before_update_item', $data, $itemid);
         $custom_fields = Arr::pull($data, 'custom_fields') ?? [];
 
-
-
+        // Verificar se houve alteração na quantidade de estoque
+        $old_stock = 0;
+        $new_stock = isset($data['stock']) ? floatval($data['stock']) : 0;
+        
+        if (isset($data['stock'])) {
+            // Buscar o estoque atual do item
+            $this->db->select('stock');
+            $this->db->where('id', $itemid);
+            $current_item = $this->db->get('items')->row();
+           
+            
+            if ($current_item) {
+                $old_stock = floatval($current_item->stock);
+                
+                // Se houve alteração no estoque, fazer movimentação
+                if ($old_stock != $new_stock) {
+                    $stock_difference = $new_stock - $old_stock;
+                    $movement_type = $stock_difference > 0 ? 'credit' : 'debit';
+               
+                    
+                    // Preparar dados para movimentação
+                    $current_item = [
+                        'id' => $itemid,
+                        'quantity' => abs($stock_difference)
+                    ];
+                    $data_post = array(
+                        'warehouse_id' => $data['warehouse_id'], 
+                        'user_id' => $this->decodedToken['data']->user->staffid,
+                        'hash' => app_generate_hash());
+                        
+                
+                    
+                    // Fazer a movimentação de estoque
+                    updateStock($data_post, $current_item, array('id' => $itemid, 'type' => 'item'), $movement_type, 'Alteração de estoque via atualização do item');
+                }
+            }
+        }
 
         $this->db->where('id', $itemid);
+
+
+        
+
 
         unset($data['images']);
 

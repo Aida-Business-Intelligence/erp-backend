@@ -663,7 +663,7 @@ function determine_color_type($hexColor)
 
 if (!function_exists('updateStock')) {
 
-    function updateStock($data, $item, $transaction, $type = 'debit')
+    function updateStock($data, $item, $transaction, $type = 'debit', $obs = 'Movimentação de estoque')
     {
         $CI = &get_instance();
         $qtde = (!isset($item['qty'])) ? $item['quantity'] : $item['qty'];
@@ -680,7 +680,7 @@ if (!function_exists('updateStock')) {
             'user_id' => $data['user_id'],
             'item_id' => $item_id,
             'type_transaction' => $transaction['type'],
-            'obs' => 'pagamento',
+            'obs' => $obs,
         ];
         $CI->db->insert(db_prefix() . 'itemstocksmov', $data_itemstocksmov);
     }

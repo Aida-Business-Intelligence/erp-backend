@@ -41,6 +41,8 @@ class ItemStocksMov extends REST_Controller
 
     public function product_get($item_id = '')
     {
+
+        
         try {
             $item_id = $item_id ?: $this->input->get('id');
 

@@ -662,6 +662,7 @@ class Staff_model extends App_Model
     $permissions_array = $this->Roles_model->get($role_id);
 
  
+    if(isset($permissions_array->permissions)){
     foreach ($permissions_array->permissions as $capability => $permissionss) {
 
 
@@ -677,6 +678,7 @@ class Staff_model extends App_Model
 
         $this->Roles_model->add_permission($permission_data);
      }
+    }
       
        
     
@@ -1302,6 +1304,18 @@ class Staff_model extends App_Model
         $this->db->select('staff_id');
         $this->db->where('staffid', $id);
         return $this->db->get(db_prefix() . '_permissions')->result_array();
+    }
+
+    /**
+     * Verifica se o email já existe na tabela de staff
+     * @param string $email
+     * @return boolean
+     */
+    public function email_exists($email)
+    {
+        $this->db->where('email', $email);
+        $result = $this->db->get(db_prefix() . 'staff')->row();
+        return $result ? true : false;
     }
 
 }

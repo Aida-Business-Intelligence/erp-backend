@@ -5,10 +5,222 @@ require __DIR__ . '/../REST_Controller.php';
 
 class Notafiscal extends REST_Controller
 {
+    protected $user_id = 0;
+
     function __construct()
     {
         parent::__construct();
         $this->load->model('Notafiscal_model');
+
+        // pegue do JWT se você já tem isso; caso contrário, usa sessão
+        $this->user_id = (int) ($this->session->userdata('staff_user_id') ?? 0);
+    }
+
+    public function nfe_get($id = '')
+    {
+        if (!empty($id)) {
+            if (!is_numeric($id)) {
+                return $this->response(['status' => false, 'message' => 'ID inválido'], REST_Controller::HTTP_BAD_REQUEST);
+            }
+            $row = $this->Notafiscal_model->nfe_get((int) $id);
+            if (!$row) {
+                return $this->response(['status' => false, 'message' => 'NFe não encontrada'], REST_Controller::HTTP_NOT_FOUND);
+            }
+            return $this->response(['status' => true, 'data' => $row], REST_Controller::HTTP_OK);
+        }
+
+        // LISTAGEM (query string)
+        $page = (int) ($this->get('page') ?? 0);
+        $page = $page + 1;
+        $limit        = (int) ($this->get('limit') ?: ($this->get('pageSize') ?: 10));
+        $search       = trim($this->get('search') ?: '');
+        $sortField    = $this->get('sortField') ?: 'created_at';
+        $sortOrder    = strtoupper($this->get('sortOrder')) === 'ASC' ? 'ASC' : 'DESC';
+        $warehouse_id = (int) ($this->get('warehouse_id') ?: 0);
+        $status       = $this->get('status') ?: $this->get('invoice_status'); // aceita ambos
+        $start_date   = $this->get('start_date') ?: null;
+        $end_date     = $this->get('end_date') ?: null;
+        $invoice_id   = $this->get('invoice_id') ?: null;
+
+        if ($warehouse_id <= 0) {
+            return $this->response([
+                'status' => false,
+                'message' => 'warehouse_id é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $params = compact('page','limit','search','sortField','sortOrder','warehouse_id','status','start_date','end_date','invoice_id');
+        $data = $this->Notafiscal_model->nfe_list($params);
+
+        return $this->response([
+            'status' => true,
+            'total'  => (int) $data['total'],
+            'data'   => $data['rows'],
+        ], REST_Controller::HTTP_OK);
+    }
+
+      public function nfe_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents('php://input')), true) ?: $this->post();
+
+        // page vindo do frontend costuma ser 0-based
+        $page  = isset($_POST['page']) ? (int) $_POST['page'] : 0;
+        $page  = $page + 1; // agora 1-based
+        $limit = (int) ($_POST['limit'] ?? ($_POST['pageSize'] ?? 10));
+        $search       = trim($_POST['search'] ?? '');
+        $sortField    = $_POST['sortField'] ?? 'created_at';
+        $sortOrder    = strtoupper($_POST['sortOrder'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+        $warehouse_id = (int) ($_POST['warehouse_id'] ?? 0);
+        $status       = $_POST['status'] ?? ($_POST['invoice_status'] ?? null);
+        $start_date   = $_POST['start_date'] ?? null;
+        $end_date     = $_POST['end_date'] ?? null;
+        $invoice_id   = $_POST['invoice_id'] ?? null;
+
+
+        if ($warehouse_id <= 0) {
+            return $this->response([
+                'status' => false,
+                'message' => 'warehouse_id é obrigatório'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $params = compact('page','limit','search','sortField','sortOrder','warehouse_id','status','start_date','end_date','invoice_id');
+        $data = $this->Notafiscal_model->nfe_list($params);
+
+        return $this->response([
+            'status' => true,
+            'total'  => (int) $data['total'],
+            'data'   => $data['rows'],
+        ], REST_Controller::HTTP_OK);
+    }
+
+    public function nfe_validate_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents('php://input')), true) ?: $this->post();
+
+        if (empty($_POST['invoice_id']) || empty($_POST['warehouse_id'])) {
+            return $this->response([
+                'status' => false,
+                'message' => 'invoice_id e warehouse_id são obrigatórios'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $this->db->trans_begin();
+
+            $result = $this->Notafiscal_model->nfe_validate_invoice(
+                (int) $_POST['invoice_id'],
+                (int) $_POST['warehouse_id'],
+                $this->user_id
+            );
+
+            if (!$result['status']) {
+                $this->db->trans_rollback();
+                return $this->response($result, REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            $this->db->trans_commit();
+            return $this->response([
+                'status'  => true,
+                'message' => 'Validação realizada',
+                'nfe_id'  => $result['nfe_id']
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro na validação: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function nfe_generate_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents('php://input')), true) ?: $this->post();
+
+        try {
+            $this->db->trans_begin();
+
+            $out = $this->Notafiscal_model->nfe_generate_nfe($_POST, $this->user_id);
+
+            if (!$out['status']) {
+                $this->db->trans_rollback();
+                return $this->response($out, REST_Controller::HTTP_BAD_REQUEST);
+            }
+
+            $this->db->trans_commit();
+            return $this->response([
+                'status'  => true,
+                'message' => 'NFe gerada',
+                'data'    => [
+                    'nfe_id' => $out['nfe_id'],
+                    'chave'  => $out['chave'],
+                    'xml'    => $out['xml_preview'],
+                ],
+            ], REST_Controller::HTTP_OK);
+
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            return $this->response([
+                'status' => false,
+                'message' => 'Erro ao gerar NFe: ' . $e->getMessage()
+            ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function nfe_pdf_get($id = '')
+    {
+        if (empty($id) || !is_numeric($id)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'ID inválido'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $row = $this->Notafiscal_model->nfe_get((int) $id);
+        if (!$row) {
+            return $this->response([
+                'status' => false,
+                'message' => 'NFe não encontrada'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+
+        // AJUSTE: usar pdf_url (coluna do banco)
+        if (empty($row['pdf_url'])) {
+            return $this->response([
+                'status' => false,
+                'message' => 'PDF ainda não gerado'
+            ], REST_Controller::HTTP_NOT_FOUND);
+        }
+
+        return $this->response([
+            'status'   => true,
+            'pdf_path' => $row['pdf_url'],
+        ], REST_Controller::HTTP_OK);
+    }
+
+    public function nfe_remove_post()
+    {
+        $_POST = json_decode($this->security->xss_clean(file_get_contents('php://input')), true) ?: $this->post();
+
+        if (empty($_POST['rows']) || !is_array($_POST['rows'])) {
+            return $this->response([
+                'status' => false,
+                'message' => 'rows deve ser um array de IDs'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $ids = array_values(array_filter($_POST['rows'], 'is_numeric'));
+        if (empty($ids)) {
+            return $this->response([
+                'status' => false,
+                'message' => 'Nenhum ID válido informado'
+            ], REST_Controller::HTTP_BAD_REQUEST);
+        }
+
+        $out = $this->Notafiscal_model->nfe_remove_many($ids);
+        return $this->response($out, $out['status'] ? REST_Controller::HTTP_OK : REST_Controller::HTTP_BAD_REQUEST);
     }
 
     public function nfce_post()

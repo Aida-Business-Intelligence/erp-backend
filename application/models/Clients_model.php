@@ -633,7 +633,10 @@ $date = new DateTime($supplier['datecreated']);
 
         $this->db->select('userid, id, firstname,lastname, email,phonenumber, is_primary');
 
+        
         $this->db->where($where);
+
+
         if ($customer_id != '') {
             $this->db->where('userid', $customer_id);
         }

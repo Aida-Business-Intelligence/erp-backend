@@ -420,7 +420,7 @@ class Notafiscal_model extends App_Model
         if (isset($data['installments']) && is_array($data['installments'])) {
             $data['installments'] = json_encode($data['installments']);
         }
-
+        
         $this->db->where('id', $id);
         $this->db->update(db_prefix() . 'nota_fiscal', $data);
         return ($this->db->affected_rows() > 0);

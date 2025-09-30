@@ -437,6 +437,45 @@ class Notafiscal extends REST_Controller
             ], 500);
         }
     }
+    
+    public function update_status_post()
+    {
+                   $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
+
+    
+        if (!isset($_POST['ids'])) {
+            $this->response(['status' => FALSE, 'message' => 'Nota nao encontrada'], REST_Controller::HTTP_BAD_REQUEST);
+            return;
+        }
+        $ids = $_POST['ids'];
+        $status = $_POST['status'];
+
+       
+
+        // Preparar dados para atualização
+        $update_data = [
+            'invoice_status' => (string)$status
+        ];
+        
+     
+        
+        $count =0;
+
+       foreach($ids as $id){
+        $output = $this->Notafiscal_model->update($update_data, $id);
+        $count++;
+       }
+
+        if ($count > 0) {
+            $this->response(['status' => true, 'message' => $count . ' de Nota fiscal atualiza com sucesso para status '. $status], REST_Controller::HTTP_OK);
+            return;
+        }
+
+        $this->response([
+            'status' => false,
+            'message' => 'Nenhuma nota atualizad'            
+        ], REST_Controller::HTTP_BAD_REQUEST);
+    }
 
     public function update_post($id = '')
     {

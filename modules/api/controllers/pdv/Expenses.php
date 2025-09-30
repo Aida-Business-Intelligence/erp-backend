@@ -121,7 +121,7 @@ class Expenses extends REST_Controller
 
     public function create_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
+        
 
         try {
             // Verificar se é multipart/form-data ou JSON
@@ -129,14 +129,7 @@ class Expenses extends REST_Controller
             $content_type = $headers['Content-Type'] ?? $headers['content-type'] ?? $_SERVER['CONTENT_TYPE'] ?? '';
             $is_multipart = strpos(strtolower($content_type), 'multipart/form-data') !== false || !empty($_FILES) || isset($_POST['data']);
             
-            // Log para debug
-            log_message('debug', 'Content-Type: ' . $content_type);
-            log_message('debug', 'Is multipart: ' . ($is_multipart ? 'true' : 'false'));
-            log_message('debug', 'FILES: ' . json_encode($_FILES));
-            log_message('debug', 'POST keys: ' . json_encode(array_keys($_POST)));
-            log_message('debug', 'POST data exists: ' . (isset($_POST['data']) ? 'true' : 'false'));
-
-            if ($is_multipart) {
+             if ($is_multipart) {
                 // Processar dados do FormData - usar $_POST diretamente como no Produto.php
                 if (isset($_POST['data'])) {
                     $_POST = json_decode($_POST['data'], true);
@@ -188,8 +181,6 @@ class Expenses extends REST_Controller
                 $unique_filename = 'expense_' . time() . '_' . uniqid() . '.' . $file_extension;
                 $blobName = 'uploads_erp/' . getenv('NEXT_PUBLIC_CLIENT_MASTER_ID') . '/' . $data['warehouse_id'] . '/expenses/documents/' . $unique_filename;
 
-                
-             
                 
                 try {
                     // Upload para S3
@@ -248,6 +239,33 @@ class Expenses extends REST_Controller
                 'origin' => $data['origin'] ?? null,
                 'is_client' => isset($data['is_client']) ? ($data['is_client'] ? 1 : 0) : 0,
                 'juros' => $data['juros'] ?? 0,
+
+                // Novos campos fiscais
+                'expense_name' => $data['expense_name'] ?? null,
+                'valor_ac' => $data['valor_ac'] ?? 0,
+                'valor_total' => $data['valor_total'] ?? $data['amount'] ?? null,
+                'type' => $data['type'] ?? 'despesa',
+                // Campos de parcelas fiscais
+                'num_parcelas_fiscal' => $data['num_parcelas_fiscal'] ?? 1,
+                'data_vencimento_fiscal' => $data['data_vencimento_fiscal'] ?? $data['date'] ?? date('Y-m-d'),
+                'observacoes_fiscal' => $data['observacoes_fiscal'] ?? null,
+                'parcelas_fiscais' => isset($data['parcelas_fiscais']) ? json_encode($data['parcelas_fiscais']) : null,
+                // Campos de parcelas AC
+                'num_parcelas_ac' => $data['num_parcelas_ac'] ?? 1,
+                'data_vencimento_ac' => $data['data_vencimento_ac'] ?? $data['date'] ?? date('Y-m-d'),
+                'observacoes_ac' => $data['observacoes_ac'] ?? null,
+                'parcelas_ac' => isset($data['parcelas_ac']) ? json_encode($data['parcelas_ac']) : null,
+                // Formas de pagamento padrão
+                'forma_pagamento_padrao_fiscal' => isset($data['forma_pagamento_padrao_fiscal']) ? json_encode($data['forma_pagamento_padrao_fiscal']) : null,
+                'forma_pagamento_padrao_ac' => isset($data['forma_pagamento_padrao_ac']) ? json_encode($data['forma_pagamento_padrao_ac']) : null,
+                // Resumo de valores
+                'resumo_valores' => isset($data['resumo_valores']) ? json_encode($data['resumo_valores']) : null,
+                // Campos de parcelamento
+                'num_parcelas' => $data['num_parcelas'] ?? 1,
+                'juros_apartir' => $data['juros_apartir'] ?? 1,
+                'tipo_juros' => $data['tipo_juros'] ?? 'simples',
+                'total_parcelado' => $data['total_parcelado'] ?? $data['amount'] ?? null,
+                'valor_original' => $data['valor_original'] ?? $data['amount'] ?? null,
             ];
 
             // Processar parcelas se fornecidas
@@ -257,10 +275,33 @@ class Expenses extends REST_Controller
                 $input['installments'] = $installments;
             }
 
+            // Processar parcelas fiscais se fornecidas
+            if (isset($data['fiscal_installments']) && is_array($data['fiscal_installments']) && !empty($data['fiscal_installments'])) {
+                $input['installments'] = $this->process_fiscal_installments($data['fiscal_installments']);
+            }
+
+
+            // Processar parcelas AC se fornecidas
+            if (isset($data['ac_installments']) && is_array($data['ac_installments']) && !empty($data['ac_installments'])) {
+                $input['ac_installments'] = $this->process_ac_installments($data['ac_installments']);
+            }
+
+            unset($input['fiscal_installments']);
+            unset($input['ac_installments']);
+            unset($input['paymentmode']);
+
             // Filtrar apenas valores null, mas manter campos opcionais como expense_document
             $input = array_filter($input, function ($value, $key) {
                 // Campos que podem ser null
-                $nullable_fields = ['expense_document', 'tax', 'tax2', 'reference_no', 'note', 'clientid', 'invoiceid', 'bank_account_id', 'order_number', 'installment_number', 'nfe_key', 'barcode'];
+                $nullable_fields = [
+                    'expense_document', 'tax', 'tax2', 'reference_no', 'note', 'clientid', 'invoiceid', 
+                    'bank_account_id', 'order_number', 'installment_number', 'nfe_key', 'barcode',
+                    'expense_name', 'valor_ac', 'valor_total', 'type', 'num_parcelas_fiscal', 
+                    'data_vencimento_fiscal', 'observacoes_fiscal', 'parcelas_fiscais', 'num_parcelas_ac',
+                    'data_vencimento_ac', 'observacoes_ac', 'parcelas_ac', 'forma_pagamento_padrao_fiscal',
+                    'forma_pagamento_padrao_ac', 'resumo_valores', 'num_parcelas', 'juros_apartir',
+                    'tipo_juros', 'total_parcelado', 'valor_original'
+                ];
                 
                 if (in_array($key, $nullable_fields)) {
                     return true; // Manter o campo mesmo se for null
@@ -268,6 +309,9 @@ class Expenses extends REST_Controller
                 
                 return $value !== null;
             }, ARRAY_FILTER_USE_BOTH);
+
+
+         
 
             $expense_id = $this->Expenses_model->add($input);
 
@@ -1640,6 +1684,76 @@ class Expenses extends REST_Controller
             }
         }
 
+        return $installments;
+    }
+
+    /**
+     * Processar parcelas fiscais
+     * @param array $parcelas_fiscais Array de parcelas fiscais
+     * @return array
+     */
+    private function process_fiscal_installments($parcelas_fiscais)
+    {
+        $installments = [];
+        
+        foreach ($parcelas_fiscais as $parcela) {
+            $installments[] = [
+                'numero_parcela' => $parcela['numero'] ?? 1,
+                'data_vencimento' => $parcela['data_vencimento'] ?? date('Y-m-d'),
+                'valor_parcela' => $parcela['valor_total'] ?? 0,
+                'valor_com_juros' => $parcela['valor_total'] ?? 0,
+                'juros' => 0, // Será calculado se necessário
+                'juros_adicional' => 0,
+                'desconto' => 0,
+                'multa' => 0,
+                'percentual_juros' => 0,
+                'tipo_juros' => 'simples',
+                'paymentmode_id' => $parcela['formas_pagamento'][0] ?? null, // Usar primeira forma de pagamento
+                'documento_parcela' => null,
+                'observacoes' => null,
+                'formas_pagamento' => json_encode($parcela['formas_pagamento'] ?? []),
+                'valores_formas' => json_encode($parcela['valores_formas'] ?? []),
+                'diferenca' => $parcela['diferenca'] ?? 0,
+                'customizada' => $parcela['customizada'] ?? false,
+                'tipo' => 'fiscal'
+            ];
+        }
+        
+        return $installments;
+    }
+
+    /**
+     * Processar parcelas AC
+     * @param array $parcelas_ac Array de parcelas AC
+     * @return array
+     */
+    private function process_ac_installments($parcelas_ac)
+    {
+        $installments = [];
+        
+        foreach ($parcelas_ac as $parcela) {
+            $installments[] = [
+                'numero_parcela' => $parcela['numero'] ?? 1,
+                'data_vencimento' => $parcela['data_vencimento'] ?? date('Y-m-d'),
+                'valor_parcela' => $parcela['valor_total'] ?? 0,
+                'valor_com_juros' => $parcela['valor_total'] ?? 0,
+                'juros' => 0, // Será calculado se necessário
+                'juros_adicional' => 0,
+                'desconto' => 0,
+                'multa' => 0,
+                'percentual_juros' => 0,
+                'tipo_juros' => 'simples',
+                'paymentmode_id' => $parcela['formas_pagamento'][0] ?? null, // Usar primeira forma de pagamento
+                'documento_parcela' => null,
+                'observacoes' => null,
+                'formas_pagamento' => json_encode($parcela['formas_pagamento'] ?? []),
+                'valores_formas' => json_encode($parcela['valores_formas'] ?? []),
+                'diferenca' => $parcela['diferenca'] ?? 0,
+                'customizada' => $parcela['customizada'] ?? false,
+                'tipo' => 'ac'
+            ];
+        }
+        
         return $installments;
     }
 

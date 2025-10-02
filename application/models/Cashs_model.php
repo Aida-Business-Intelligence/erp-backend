@@ -685,11 +685,12 @@ class Cashs_model extends App_Model
                
             }
 
-            // Finaliza a transação
-            $this->db->trans_complete();
+         
 
             // Verifica se a transação foi bem-sucedida
             if ($this->db->trans_status() === TRUE) {
+                   // Finaliza a transação
+                  $this->db->trans_complete();
                   return $insert_id;
             } else {
                 // Transação falhou, rollback é automático

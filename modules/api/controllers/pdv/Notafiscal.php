@@ -167,7 +167,6 @@ class Notafiscal extends REST_Controller
 
     public function create_post()
     {
-        \modules\api\core\Apiinit::the_da_vinci_code('api');
 
         // Verificar Content-Type e processar payload
         $content_type = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
@@ -197,6 +196,11 @@ class Notafiscal extends REST_Controller
 
         // Preparar dados para inserção
         $insert_data = [
+            'total_json' => json_encode($_POST['total'] ?? null),
+            'full_invoice_json' => json_encode($_POST['full_invoice_json'] ?? null),
+            'expense_data_json' => json_encode($_POST['expense_data'] ?? null),
+            'notafiscal_json' => json_encode($_POST['notafiscal'] ?? null),
+
             'warehouse_id' => $_POST['warehouse_id'],
             'invoice_number' => $_POST['invoice_number'],
             'invoice_key' => $_POST['invoice_key'] ?? null,
@@ -440,9 +444,8 @@ class Notafiscal extends REST_Controller
     
     public function update_status_post()
     {
-                   $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
-
-    
+                   
+        $_POST = json_decode($this->security->xss_clean(file_get_contents("php://input")), true);
         if (!isset($_POST['ids'])) {
             $this->response(['status' => FALSE, 'message' => 'Nota nao encontrada'], REST_Controller::HTTP_BAD_REQUEST);
             return;
